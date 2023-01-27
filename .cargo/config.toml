@@ -1,0 +1,9 @@
+# Note(sagar): keeping this config at root git dir instead of crate/ so that
+# this config can be used by bin/dagger-dev
+
+[build]
+rustc-wrapper = "sccache"
+rustflags = [
+  "-C",
+  "link-arg=-fuse-ld=mold",
+]

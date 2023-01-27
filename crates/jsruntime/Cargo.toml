@@ -1,0 +1,41 @@
+[package]
+name = "jsruntime"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+futures.workspace = true
+url.workspace = true
+log.workspace = true
+smallvec.workspace = true
+common = { path = "../common" }
+
+deno_core.workspace = true
+deno_console.workspace = true
+deno_url.workspace = true
+deno_fetch.workspace = true
+deno_web.workspace = true
+deno_webidl.workspace = true
+
+swc_common.workspace = true
+swc_ecma_parser.workspace = true
+swc_ecma_ast.workspace = true
+swc_ecma_transforms_typescript.workspace = true
+swc_ecma_visit.workspace = true
+swc_ecma_codegen.workspace = true
+
+[build-dependencies]
+url.workspace = true
+deno_core.workspace = true
+deno_console.workspace = true
+deno_url.workspace = true
+deno_fetch.workspace = true
+deno_web.workspace = true
+deno_webidl.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
