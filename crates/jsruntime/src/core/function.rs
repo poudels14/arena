@@ -4,6 +4,7 @@ use anyhow::Result;
 use deno_core::error::JsError;
 use deno_core::serde_v8;
 use deno_core::v8;
+use deno_core::JsRealm;
 use deno_core::JsRuntime;
 use serde_json::Value;
 use smallvec::SmallVec;
@@ -15,17 +16,19 @@ pub struct Function {
 }
 
 impl Function {
-  // Initializes a Javascript function in the global context
+  /// Initializes a Javascript function
+  /// If JsRealm is None, it uses global realm
   #[allow(dead_code)]
   pub(super) fn new(
     runtime: Arc<Mutex<JsRuntime>>,
     code: &str,
+    realm: Option<JsRealm>,
   ) -> Result<Self> {
     let cb = {
       let mut runtime = runtime
         .lock()
         .map_err(|e| anyhow!("failed to get lock to runtime: {:?}", e))?;
-      let global_relm = runtime.global_realm();
+      let global_relm = realm.unwrap_or(runtime.global_realm());
       let scope = &mut global_relm.handle_scope(runtime.v8_isolate());
 
       // TODO(sagar): need to drop this v8 global function when Function

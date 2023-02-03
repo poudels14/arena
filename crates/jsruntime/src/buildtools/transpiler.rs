@@ -110,14 +110,10 @@ fn execute_js(
 ) -> Result<String> {
   let mut runtime = runtime.lock().unwrap();
 
-  let function = runtime.init_js_function(code)?;
+  let function = runtime.init_js_function(code, None)?;
   let code = function
     .execute(vec![Value::String(arg.to_owned())])?
     .unwrap();
-
-  // println!("-------------------------------------------------------------------");
-  // println!("{}", code.as_str().unwrap().to_owned());
-  // println!("-------------------------------------------------------------------");
 
   Ok(code.as_str().unwrap().to_owned())
 }

@@ -1,7 +1,7 @@
 use super::loaders;
 use crate::permissions::Permissions;
 use anyhow::{anyhow, Result};
-use deno_core::v8;
+use deno_core::{v8, JsRealm};
 use deno_core::{Extension, JsRuntime, Snapshot};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
@@ -88,14 +88,16 @@ impl IsolatedRuntime {
           // ext::response_ops::init(),
           // ext::postgres_ops::init(),
         ],
+        extensions_with_js: vec![Extension::builder("<arena/init>")
+          .js(Self::get_js_extensions(&config))
+          .build()],
         ..Default::default()
       })));
 
-    let mut runtime = IsolatedRuntime {
+    let runtime = IsolatedRuntime {
       config: config.clone(),
       runtime: js_runtime,
     };
-    runtime.setup();
 
     runtime
   }
@@ -135,41 +137,42 @@ impl IsolatedRuntime {
       .map_err(|e| anyhow!("V8 error: {:?}", e))
   }
 
-  // Initializes a Javascript function in the global context of this runtime
+  /// Initializes a Javascript function in the context of this runtime
   #[allow(dead_code)]
   pub fn init_js_function(
     &mut self,
     code: &str,
+    realm: Option<JsRealm>,
   ) -> Result<super::function::Function> {
-    super::function::Function::new(self.runtime.clone(), code)
+    super::function::Function::new(self.runtime.clone(), code, realm)
   }
 
-  fn setup(&mut self) {
-    self
-      .execute_script(
-        "<arena/setup>",
+  fn get_js_extensions(
+    config: &RuntimeConfig,
+  ) -> Vec<(&'static str, &'static str)> {
+    let mut vec = Vec::new();
+    vec.push((
+      "<arena/init>",
+      r#"
+      Deno.core.initializeAsyncOps();
+      const { setTimeout, clearTimeout, setInterval, clearInterval, handleTimerMacrotask } = globalThis.__bootstrap.timers;
+      Deno.core.setMacrotaskCallback(handleTimerMacrotask);
+      const { Request, Response } = globalThis.__bootstrap.fetch;
+      const { ReadableStream } = globalThis.__bootstrap.streams;
+      "#,
+    ));
+
+    if config.enable_console {
+      vec.push((
+        "<arena/console>",
         r#"
-        Deno.core.initializeAsyncOps();
-        const { setTimeout, clearTimeout, setInterval, clearInterval, handleTimerMacrotask } = globalThis.__bootstrap.timers;
-        Deno.core.setMacrotaskCallback(handleTimerMacrotask);
-
-        const { Request, Response } = globalThis.__bootstrap.fetch;
-        const { ReadableStream } = globalThis.__bootstrap.streams;
+        ((globalThis) => {
+          globalThis.console = new globalThis.__bootstrap.console.Console(Deno.core.print);
+        })(globalThis);
         "#,
-      )
-      .unwrap();
-
-    if self.config.enable_console {
-      self
-        .execute_script(
-          "<arena/console>",
-          r#"
-          ((globalThis) => {
-            globalThis.console = new globalThis.__bootstrap.console.Console(Deno.core.print);
-          })(globalThis);
-          "#,
-        )
-        .unwrap();
+      ));
     }
+
+    vec
   }
 }
