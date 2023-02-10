@@ -6,4 +6,4 @@ const timeout = setInterval(() => {
   if (count == 3) {
     clearInterval(timeout);
   }
-}, 20)
+}, 20);

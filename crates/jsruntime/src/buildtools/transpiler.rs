@@ -113,7 +113,8 @@ fn execute_js(
   let function = runtime.init_js_function(code, None)?;
   let code = function
     .execute(vec![Value::String(arg.to_owned())])?
-    .unwrap();
+    .unwrap()
+    .get_value()?;
 
   Ok(code.as_str().unwrap().to_owned())
 }

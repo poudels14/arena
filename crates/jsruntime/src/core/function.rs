@@ -6,13 +6,42 @@ use deno_core::serde_v8;
 use deno_core::v8;
 use deno_core::JsRealm;
 use deno_core::JsRuntime;
-use serde_json::Value;
+use futures::future::poll_fn;
 use smallvec::SmallVec;
 use std::sync::{Arc, Mutex};
 
 pub struct Function {
   runtime: Arc<Mutex<JsRuntime>>,
   cb: Option<v8::Global<v8::Function>>,
+}
+
+pub struct Value(Arc<Mutex<JsRuntime>>, v8::Global<v8::Value>);
+
+impl Value {
+  /// Returns serde_json::Value
+  #[allow(dead_code)]
+  pub fn get_value(&self) -> Result<serde_json::Value> {
+    let mut runtime = self.0.lock().map_err(|e| anyhow!("{:?}", e))?;
+    let scope = &mut runtime.handle_scope();
+
+    let local_val = v8::Local::new(scope, &self.1);
+    serde_v8::from_v8::<serde_json::Value>(scope, local_val)
+      .map_err(|e| anyhow!("{:?}", e))
+  }
+
+  /// Returns serde_json::Value of a promise
+  #[allow(dead_code)]
+  pub async fn get_value_async(&self) -> Result<serde_json::Value> {
+    let mut runtime = self.0.lock().map_err(|e| anyhow!("{:?}", e))?;
+
+    let val = poll_fn(|cx| runtime.poll_value(&self.1, cx)).await.unwrap();
+    let scope = &mut runtime.handle_scope();
+
+    // TODO(sagar): is there a way to avoid changing local -> global -> local?
+    let local_val = v8::Local::new(scope, val);
+    serde_v8::from_v8::<serde_json::Value>(scope, local_val)
+      .map_err(|e| anyhow!("{:?}", e))
+  }
 }
 
 impl Function {
@@ -41,7 +70,7 @@ impl Function {
   }
 
   #[allow(dead_code)]
-  pub fn execute(&self, args: Vec<Value>) -> Result<Option<Value>> {
+  pub fn execute(&self, args: Vec<serde_json::Value>) -> Result<Option<Value>> {
     if self.cb.is_none() {
       return Ok(None);
     }
@@ -68,15 +97,17 @@ impl Function {
     if tc_scope.has_caught() {
       let exception = tc_scope.exception().unwrap();
       let js_error = JsError::from_v8_exception(tc_scope, exception);
+      // TODO(sagar): handle errors properly
       bail!("error: {:#}", js_error);
     }
 
-    // TODO(sagar): handle errors
-
     match result {
-      Some(v) => serde_v8::from_v8::<Value>(tc_scope, v)
-        .map(|v| Some(v))
-        .map_err(|e| anyhow!("{:?}", e)),
+      Some(v) => Ok(Some(Value(
+        self.runtime.clone(),
+        // TODO(sagar): changing this to Global here and have to change it back to local
+        // when getting the value. is there a way to avoid this?
+        v8::Global::new(tc_scope, v),
+      ))),
       None => Ok(None),
     }
   }

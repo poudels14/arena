@@ -1,4 +1,5 @@
-mod cli;
+mod exec;
+mod run;
 mod server;
 mod workspace;
 
@@ -6,8 +7,6 @@ use anyhow::bail;
 use anyhow::Result;
 use chrono;
 use clap::Parser;
-use cli::exec;
-use cli::run;
 use colored::*;
 use log::debug;
 use std::io::Write;
@@ -28,9 +27,13 @@ enum Commands {
   /// Execute inline JS; dagger exec "console.log('test')"
   Exec(exec::Command),
 
-  /// Workspaces related commands
+  /// Arena server commands
   #[command(subcommand)]
-  Workspace(cli::workspace::Command),
+  Server(server::Command),
+
+  /// Arena workspace commands
+  #[command(subcommand)]
+  Workspace(workspace::Command),
 
   /// Print dagger version
   Version,
@@ -65,6 +68,7 @@ async fn main() -> Result<()> {
     match args.command {
       Commands::Run(cmd) => cmd.execute().await?,
       Commands::Exec(cmd) => cmd.execute().await?,
+      Commands::Server(cmd) => cmd.execute().await?,
       Commands::Workspace(cmd) => cmd.execute().await?,
       Commands::Version => {
         println!(env!("CARGO_PKG_VERSION"));

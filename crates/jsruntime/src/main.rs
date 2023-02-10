@@ -9,7 +9,6 @@ use deno_core::resolve_url_or_path;
 async fn main() {
   let mut runtime = IsolatedRuntime::new(RuntimeConfig {
     enable_console: true,
-    enable_build_tools: true,
     ..Default::default()
   });
 

@@ -17,7 +17,8 @@ impl Command {
     });
 
     let function = runtime.init_js_function(&self.code, None)?;
-    function.execute(vec![])?;
+    let result = function.execute(vec![])?.unwrap().get_value_async().await?;
+    println!("{:?}", result);
 
     runtime.run_event_loop().await
   }

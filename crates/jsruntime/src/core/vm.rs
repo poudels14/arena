@@ -13,7 +13,7 @@ pub static RUNTIME_PROD_SNAPSHOT: &[u8] =
 pub static RUNTIME_BUILD_SNAPSHOT: &[u8] =
   include_bytes!(concat!(env!("OUT_DIR"), "/RUNTIME_BUILD_SNAPSHOT.bin"));
 
-#[derive(Default, Clone)]
+#[derive(Default)]
 pub struct RuntimeConfig {
   /// enable build tools like babel, babel plugins, etc
   pub enable_build_tools: bool,
@@ -29,6 +29,9 @@ pub struct RuntimeConfig {
   pub permissions: Permissions,
 
   pub enable_console: bool,
+
+  /// Additional extensions to add to the runtime
+  pub extensions: Vec<Extension>,
 }
 
 pub struct IsolatedRuntime {
@@ -37,7 +40,16 @@ pub struct IsolatedRuntime {
 }
 
 impl IsolatedRuntime {
-  pub fn new(config: RuntimeConfig) -> IsolatedRuntime {
+  pub fn new(mut config: RuntimeConfig) -> IsolatedRuntime {
+    let mut extensions_with_js = Self::get_js_extensions(&mut config);
+    // Note(sagar): take extensions out of the config and set it to empty
+    // vec![] so that config can be stored without having Send trait
+    if config.extensions.len() > 0 {
+      let exts = config.extensions;
+      extensions_with_js.extend(exts);
+      config.extensions = vec![];
+    }
+
     let js_runtime =
       Arc::new(Mutex::new(JsRuntime::new(deno_core::RuntimeOptions {
         // TODO(sagar): remove build snapshot from deployed app runner to save memory
@@ -75,7 +87,7 @@ impl IsolatedRuntime {
             client_cert_chain_and_key: None,
             file_fetch_handler: Rc::new(deno_fetch::DefaultFileFetchHandler),
           }),
-          Extension::builder("permission_setter")
+          Extension::builder("<arena/core/permissions/setter>")
             .state(move |state| {
               state.put::<Permissions>(Permissions {
                 timer: None,
@@ -88,14 +100,12 @@ impl IsolatedRuntime {
           // ext::response_ops::init(),
           // ext::postgres_ops::init(),
         ],
-        extensions_with_js: vec![Extension::builder("<arena/init>")
-          .js(Self::get_js_extensions(&config))
-          .build()],
+        extensions_with_js,
         ..Default::default()
       })));
 
     let runtime = IsolatedRuntime {
-      config: config.clone(),
+      config,
       runtime: js_runtime,
     };
 
@@ -108,6 +118,23 @@ impl IsolatedRuntime {
       .lock()
       .map_err(|e| anyhow!("failed to get lock to runtime: {:?}", e))?;
     let mod_id = runtime.load_main_module(url, None).await?;
+    let receiver = runtime.mod_evaluate(mod_id);
+
+    runtime.run_event_loop(false).await?;
+    receiver.await?
+  }
+
+  #[allow(dead_code)]
+  pub async fn execute_main_module_code(
+    &mut self,
+    url: &Url,
+    code: &str,
+  ) -> Result<()> {
+    let mut runtime = self
+      .runtime
+      .lock()
+      .map_err(|e| anyhow!("failed to get lock to runtime: {:?}", e))?;
+    let mod_id = runtime.load_main_module(url, Some(code.to_owned())).await?;
     let receiver = runtime.mod_evaluate(mod_id);
 
     runtime.run_event_loop(false).await?;
@@ -147,23 +174,14 @@ impl IsolatedRuntime {
     super::function::Function::new(self.runtime.clone(), code, realm)
   }
 
-  fn get_js_extensions(
-    config: &RuntimeConfig,
-  ) -> Vec<(&'static str, &'static str)> {
-    let mut vec = Vec::new();
-    vec.push((
-      "<arena/init>",
-      r#"
-      Deno.core.initializeAsyncOps();
-      const { setTimeout, clearTimeout, setInterval, clearInterval, handleTimerMacrotask } = globalThis.__bootstrap.timers;
-      Deno.core.setMacrotaskCallback(handleTimerMacrotask);
-      const { Request, Response } = globalThis.__bootstrap.fetch;
-      const { ReadableStream } = globalThis.__bootstrap.streams;
-      "#,
-    ));
+  fn get_js_extensions(config: &RuntimeConfig) -> Vec<Extension> {
+    let mut extensions = Vec::new();
 
+    let mut js_files = Vec::new();
+    js_files.push(("<arena/init>", include_str!("../../js/core/setup.js")));
+    js_files.push(("<arena/arena>", include_str!("../../js/core/0_arena.js")));
     if config.enable_console {
-      vec.push((
+      js_files.push((
         "<arena/console>",
         r#"
         ((globalThis) => {
@@ -173,6 +191,8 @@ impl IsolatedRuntime {
       ));
     }
 
-    vec
+    extensions.push(Extension::builder("<arena/init>").js(js_files).build());
+
+    extensions
   }
 }

@@ -22,7 +22,6 @@ pub struct Options {
 pub struct Report {
   pub module: Module,
   pub source_map: Lrc<SourceMap>,
-  pub is_commonjs: bool,
 }
 
 impl Analyzer {
@@ -74,7 +73,6 @@ impl Analyzer {
 
       Ok(Box::new(Report {
         source_map: cm,
-        is_commonjs: false,
         module,
       }))
     })
