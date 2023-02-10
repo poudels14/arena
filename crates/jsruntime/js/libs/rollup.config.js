@@ -6,11 +6,11 @@ import typescript from "@rollup/plugin-typescript";
 
 export default {
   input: {
-    "babel": "./src/babel/index.ts"
+    babel: "./src/babel/index.ts",
   },
   output: {
     format: "iife",
-    dir: "dist"
+    dir: "dist",
   },
   plugins: [
     resolve({
@@ -21,6 +21,6 @@ export default {
     typescript(),
     commonjs(),
     json(),
-    terser()
+    terser(),
   ],
 };

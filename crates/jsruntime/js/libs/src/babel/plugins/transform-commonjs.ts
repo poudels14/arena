@@ -1,11 +1,11 @@
 // Note(sagar): copied from https://github.com/poudels14/babel-plugin-transform-commonjs/blob/master/lib/index.ts
 
 // @ts-ignore
-import { declare } from '@babel/helper-plugin-utils';
+import { declare } from "@babel/helper-plugin-utils";
 // import { types as t } from '@babel/types';
 import * as t from "@babel/types";
 // @ts-ignore
-import { check } from 'reserved-words';
+import { check } from "reserved-words";
 
 export default declare((api, options) => {
   api.assertVersion(7);
@@ -17,7 +17,7 @@ export default declare((api, options) => {
     isCJS: false,
   };
 
-  const enter = path => {
+  const enter = (path) => {
     let cursor = path;
 
     // Find the closest function scope or parent.
@@ -30,20 +30,19 @@ export default declare((api, options) => {
       if (t.isFunction(cursor.scope.path) || t.isProgram(cursor.scope.path)) {
         break;
       }
-    } while (cursor = cursor.scope.path.parentPath);
+    } while ((cursor = cursor.scope.path.parentPath));
 
     if (t.isProgram(cursor.scope.path)) {
-      const nodes : any[]= [];
-      const inner : any[] = [];
+      const nodes: any[] = [];
+      const inner: any[] = [];
 
       // Break up the program, separate Nodes added by us from the nodes
       // created by the user.
-      cursor.scope.path.node.body.filter(node => {
+      cursor.scope.path.node.body.filter((node) => {
         // Keep replaced nodes together, these will not be wrapped.
         if (node.__replaced) {
           nodes.push(node);
-        }
-        else {
+        } else {
           inner.push(node);
         }
       });
@@ -53,14 +52,10 @@ export default declare((api, options) => {
         t.expressionStatement(
           t.callExpression(
             t.memberExpression(
-              t.functionExpression(
-                null,
-                [],
-                t.blockStatement(inner),
-              ),
-              t.identifier('call'),
+              t.functionExpression(null, [], t.blockStatement(inner)),
+              t.identifier("call")
             ),
-            [t.identifier('module.exports')],
+            [t.identifier("module.exports")]
           )
         ),
       ]);
@@ -81,7 +76,6 @@ export default declare((api, options) => {
     visitor: {
       Program: {
         exit(path) {
-
           path.traverse({
             CallExpression: {
               exit(path) {
@@ -89,7 +83,11 @@ export default declare((api, options) => {
 
                 // Look for `require()` any renaming is assumed to be intentionally
                 // done to break state kind of check, so we won't look for aliases.
-                if (!options.exportsOnly && t.isIdentifier(node.callee) && node.callee.name === 'require') {
+                if (
+                  !options.exportsOnly &&
+                  t.isIdentifier(node.callee) &&
+                  node.callee.name === "require"
+                ) {
                   // Require must be global for us to consider this a CommonJS
                   // module.
                   state.isCJS = true;
@@ -105,14 +103,13 @@ export default declare((api, options) => {
                   if (isString) {
                     // @ts-ignore
                     str = <t.StringLiteral>node.arguments[0];
-                  }
-                  else if (isLiteral) {
+                  } else if (isLiteral) {
                     // @ts-ignore
                     str = {
-                      value: (<t.TemplateLiteral>node.arguments[0]).quasis[0].value.raw,
+                      value: (<t.TemplateLiteral>node.arguments[0]).quasis[0]
+                        .value.raw,
                     };
-                  }
-                  else if (options.synchronousImport) {
+                  } else if (options.synchronousImport) {
                     const str = <t.StringLiteral>node.arguments[0];
                     const newNode = t.expressionStatement(
                       t.callExpression(t.import(), [str])
@@ -124,21 +121,19 @@ export default declare((api, options) => {
                     path.replaceWith(newNode);
 
                     return;
-                  }
-                  else {
-                    throw new Error(`Invalid require signature: ${path.toString()}`);
+                  } else {
+                    throw new Error(
+                      `Invalid require signature: ${path.toString()}`
+                    );
                   }
 
                   const specifiers = [];
 
                   // Convert to named import.
                   if (t.isObjectPattern(path.parentPath.node.id)) {
-                    path.parentPath.node.id.properties.forEach(prop => {
+                    path.parentPath.node.id.properties.forEach((prop) => {
                       // @ts-ignore
-                      specifiers.push(t.importSpecifier(
-                        prop.value,
-                        prop.key,
-                      ));
+                      specifiers.push(t.importSpecifier(prop.value, prop.key));
 
                       state.globals.add(prop.value.name);
                     });
@@ -146,13 +141,15 @@ export default declare((api, options) => {
                     const decl = t.importDeclaration(
                       specifiers,
                       // @ts-ignore
-                      t.stringLiteral(str.value),
+                      t.stringLiteral(str.value)
                     );
 
                     // @ts-ignore
                     decl.__replaced = true;
 
-                    path.scope.getProgramParent().path.unshiftContainer('body', decl);
+                    path.scope
+                      .getProgramParent()
+                      .path.unshiftContainer("body", decl);
                     path.parentPath.remove();
                   }
                   // Convert to default import.
@@ -178,24 +175,22 @@ export default declare((api, options) => {
                     const decl = t.importDeclaration(
                       [t.importDefaultSpecifier(id)],
                       // @ts-ignore
-                      t.stringLiteral(str.value),
+                      t.stringLiteral(str.value)
                     );
 
                     // @ts-ignore
                     decl.__replaced = true;
 
                     // Push the declaration in the root scope.
-                    path.scope.getProgramParent().path.unshiftContainer('body', decl);
+                    path.scope
+                      .getProgramParent()
+                      .path.unshiftContainer("body", decl);
 
                     // If we needed to generate or the change the id, then make an
                     // assignment so the values stay in sync.
                     if (oldId && !t.isNodesEquivalent(oldId, id)) {
                       const newNode = t.expressionStatement(
-                        t.assignmentExpression(
-                          '=',
-                          oldId,
-                          id,
-                        )
+                        t.assignmentExpression("=", oldId, id)
                       );
 
                       // @ts-ignore
@@ -214,7 +209,7 @@ export default declare((api, options) => {
                     }
                   }
                 }
-              }
+              },
             },
           });
 
@@ -225,13 +220,13 @@ export default declare((api, options) => {
           // program path.
           if (!state.isCJS) {
             const lastImport = programPath
-              .get('body')
-              .filter(p => p.isImportDeclaration())
+              .get("body")
+              .filter((p) => p.isImportDeclaration())
               .pop();
 
             const lastExport = programPath
-              .get('body')
-              .filter(p => p.isExportDeclaration())
+              .get("body")
+              .filter((p) => p.isExportDeclaration())
               .pop();
 
             // Maybe it is a CJS file after-all.
@@ -240,28 +235,30 @@ export default declare((api, options) => {
             }
           }
 
-          if (path.node.__replaced || !state.isCJS) { return; }
+          if (path.node.__replaced || !state.isCJS) {
+            return;
+          }
 
-          const exportsAlias = t.variableDeclaration('var', [
+          const exportsAlias = t.variableDeclaration("var", [
             t.variableDeclarator(
-              t.identifier('exports'),
+              t.identifier("exports"),
               t.memberExpression(
-                t.identifier('module'),
-                t.identifier('exports'),
+                t.identifier("module"),
+                t.identifier("exports")
               )
-            )
+            ),
           ]);
 
-          const moduleExportsAlias = t.variableDeclaration('var', [
+          const moduleExportsAlias = t.variableDeclaration("var", [
             t.variableDeclarator(
-              t.identifier('module'),
+              t.identifier("module"),
               t.objectExpression([
                 t.objectProperty(
-                  t.identifier('exports'),
-                  t.objectExpression([]),
-                )
-              ]),
-            )
+                  t.identifier("exports"),
+                  t.objectExpression([])
+                ),
+              ])
+            ),
           ]);
 
           // @ts-ignore
@@ -272,32 +269,28 @@ export default declare((api, options) => {
           // Add the `module` and `exports` globals into the program body,
           // after the last `import` declaration.
           const lastImport = programPath
-            .get('body')
-            .filter(p => p.isImportDeclaration())
+            .get("body")
+            .filter((p) => p.isImportDeclaration())
             .pop();
 
           if (lastImport) {
             lastImport.insertAfter(exportsAlias);
             lastImport.insertAfter(moduleExportsAlias);
-          }
-          else {
-            programPath.unshiftContainer('body', exportsAlias);
-            programPath.unshiftContainer('body', moduleExportsAlias);
+          } else {
+            programPath.unshiftContainer("body", exportsAlias);
+            programPath.unshiftContainer("body", moduleExportsAlias);
           }
 
           const defaultExport = t.exportDefaultDeclaration(
-            t.memberExpression(
-              t.identifier('module'),
-              t.identifier('exports'),
-            )
+            t.memberExpression(t.identifier("module"), t.identifier("exports"))
           );
 
           path.node.__replaced = true;
           // @ts-ignore
           defaultExport.__replaced = true;
 
-          programPath.pushContainer('body', defaultExport);
-        }
+          programPath.pushContainer("body", defaultExport);
+        },
       },
 
       ThisExpression: { enter },
@@ -314,7 +307,7 @@ export default declare((api, options) => {
 
             path.replaceWith(t.importSpecifier(newName, oldName));
           }
-        }
+        },
       },
 
       AssignmentExpression: {
@@ -327,22 +320,21 @@ export default declare((api, options) => {
 
           // Check for module.exports.
           if (t.isMemberExpression(path.node.left)) {
-            const moduleBinding = path.scope.getBinding('module');
-            const exportsBinding = path.scope.getBinding('exports');
+            const moduleBinding = path.scope.getBinding("module");
+            const exportsBinding = path.scope.getBinding("exports");
 
             // Something like `module.exports.namedExport = true;`.
-            if (t.isMemberExpression(path.node.left.object) && (
-              path.node.left.object.object.name === 'module'
-            )) {
+            if (
+              t.isMemberExpression(path.node.left.object) &&
+              path.node.left.object.object.name === "module"
+            ) {
               if (!moduleBinding) {
                 state.isCJS = true;
                 return;
               }
-            }
-            else if (
-              t.isIdentifier(path.node.left.object) && (
-                path.node.left.object.name === 'module'
-              )
+            } else if (
+              t.isIdentifier(path.node.left.object) &&
+              path.node.left.object.name === "module"
             ) {
               if (!moduleBinding) {
                 state.isCJS = true;
@@ -354,14 +346,14 @@ export default declare((api, options) => {
               }
             }
             // Check for regular exports
-            else if (path.node.left.object.name === 'exports') {
+            else if (path.node.left.object.name === "exports") {
               const { name } = path.node.left.property;
               if (
-                exportsBinding
+                exportsBinding ||
                 // If export is named "default" leave as is.
                 // It is not possible to export "default" as a named export.
                 // e.g. `export.default = 'a'`
-                || name === 'default'
+                name === "default"
               ) {
                 return;
               }
@@ -371,13 +363,11 @@ export default declare((api, options) => {
               let prop = path.node.right;
 
               if (
-                (
-                  path.scope.getProgramParent().hasBinding(prop.name) ||
-                  state.globals.has(prop.name)
+                (path.scope.getProgramParent().hasBinding(prop.name) ||
+                  state.globals.has(prop.name)) &&
                 // Don't rename `undefined`.
-                ) && prop.name !== 'undefined'
+                prop.name !== "undefined"
               ) {
-
                 prop = path.scope.generateUidIdentifier(prop.name);
 
                 const oldName = path.node.right.name;
@@ -386,7 +376,7 @@ export default declare((api, options) => {
                 // Add this new identifier into the globals and replace the
                 // right hand side with this replacement.
                 state.globals.add(prop.name);
-                path.get('right').replaceWith(prop);
+                path.get("right").replaceWith(prop);
                 path.scope.rename(oldName, prop.name);
               }
 
@@ -404,27 +394,28 @@ export default declare((api, options) => {
                 }
 
                 const decl = t.exportNamedDeclaration(
-                  t.variableDeclaration('let', [
+                  t.variableDeclaration("let", [
                     t.variableDeclarator(
                       path.node.left.property,
                       t.memberExpression(
-                        t.identifier('exports'),
+                        t.identifier("exports"),
                         path.node.left.property
                       )
-                    )
+                    ),
                   ]),
-                  [],
+                  []
                 );
 
                 if (!state.identifiers.has(name)) {
-                  path.scope.getProgramParent().path.pushContainer('body', decl);
+                  path.scope
+                    .getProgramParent()
+                    .path.pushContainer("body", decl);
                   state.identifiers.add(name);
                 }
-              }
-              catch {}
+              } catch {}
             }
           }
-        }
+        },
       },
     },
   };

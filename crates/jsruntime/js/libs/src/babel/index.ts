@@ -11,7 +11,7 @@ globalThis.Arena.babelPresets = {
   solid: solidPreset,
 };
 globalThis.Arena.babelPlugins = {
-  transformCommonJs
-}
+  transformCommonJs,
+};
 
 console.log(globalThis.Arena);

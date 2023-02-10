@@ -1,9 +1,10 @@
 use anyhow::{anyhow, bail, Result};
+use common::fs::has_file_in_file_tree;
 use common::node::{Package, TsConfig};
 use log::debug;
 use std::fs::{self, File};
 use std::io::prelude::*;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct Config {
@@ -20,7 +21,8 @@ pub async fn with_default_template(config: &Config) -> Result<()> {
 
   if workspace_dir.exists() {
     bail!("workspace directory already exists: {}", workspace_dir_str);
-  } else if let Some(ancestor) = get_workspace_ancestor(workspace_dir.parent())
+  } else if let Some(ancestor) =
+    has_file_in_file_tree(workspace_dir.parent(), "arena.config.yaml")
   {
     bail!("New workspace can't be created under another workspace, existing workspace at: {:?}", ancestor);
   }
@@ -95,21 +97,5 @@ impl Config {
     self.create_file(".gitignore", include_bytes!("../template/.gitignore"))?;
 
     Ok(())
-  }
-}
-
-/// Checks whether the current directory has an ancestor that's a workspace
-/// This is to avoid creating workspace under another workspace
-fn get_workspace_ancestor(dir: Option<&Path>) -> Option<PathBuf> {
-  let mut dir = dir;
-  loop {
-    if let Some(d) = dir {
-      if d.join("arena.config.yaml").exists() {
-        return Some(d.to_path_buf());
-      }
-      dir = d.parent();
-    } else {
-      return None;
-    }
   }
 }

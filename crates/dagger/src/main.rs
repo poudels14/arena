@@ -1,4 +1,5 @@
 mod exec;
+mod format;
 mod run;
 mod server;
 mod workspace;
@@ -35,6 +36,10 @@ enum Commands {
   #[command(subcommand)]
   Workspace(workspace::Command),
 
+  /// Format code using default formatters;
+  /// e.g. `pnmp prettier -w` for js and `cargo fmt` rust
+  Format(format::Command),
+
   /// Print dagger version
   Version,
 }
@@ -70,6 +75,7 @@ async fn main() -> Result<()> {
       Commands::Exec(cmd) => cmd.execute().await?,
       Commands::Server(cmd) => cmd.execute().await?,
       Commands::Workspace(cmd) => cmd.execute().await?,
+      Commands::Format(cmd) => cmd.execute().await?,
       Commands::Version => {
         println!(env!("CARGO_PKG_VERSION"));
       }
