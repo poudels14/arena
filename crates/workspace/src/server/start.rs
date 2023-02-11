@@ -197,6 +197,7 @@ impl WorkspaceServer {
       enable_console: true,
       transpile: true,
       extensions: vec![super::ext::init(Rc::new(RefCell::new(rx)))],
+      heap_limits: self.workspace.heap_limits,
       module_loader_config: Some(ModuleLoaderConfig {
         project_root: self.workspace.project_root(),
         alias: module_loader_config.and_then(|c| c.alias.clone()),

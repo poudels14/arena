@@ -4,7 +4,7 @@ use crate::ArenaConfig;
 use anyhow::Result;
 use std::path::PathBuf;
 
-#[derive(Clone, Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct Config {
   /// The registry to load workspace from
   /// If none, only load workspace from local file system
@@ -12,6 +12,9 @@ pub struct Config {
 
   /// The directory to load the workspace to
   pub dir: PathBuf,
+
+  /// Heap limit tuple: (initial size, max hard limit)
+  pub heap_limits: Option<(usize, usize)>,
 }
 
 /// Load a workspace for serving or editing
@@ -29,5 +32,6 @@ pub async fn load(config: Config) -> Result<Workspace> {
     registry: config.registry.clone(),
     dir: config.dir.clone(),
     config: arena_config,
+    heap_limits: config.heap_limits,
   })
 }

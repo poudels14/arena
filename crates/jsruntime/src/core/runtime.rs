@@ -3,6 +3,7 @@ use crate::permissions::Permissions;
 use anyhow::{anyhow, Result};
 use deno_core::{v8, JsRealm};
 use deno_core::{Extension, JsRuntime, Snapshot};
+use log::error;
 use std::cell::RefCell;
 use std::rc::Rc;
 use url::Url;
@@ -24,6 +25,9 @@ pub struct RuntimeConfig {
 
   /// Additional extensions to add to the runtime
   pub extensions: Vec<Extension>,
+
+  /// Heap limit tuple: (initial size, max hard limit) in bytes
+  pub heap_limits: Option<(usize, usize)>,
 
   /// enable build tools like babel, babel plugins, etc
   pub enable_build_tools: bool,
@@ -53,13 +57,18 @@ impl IsolatedRuntime {
       config.extensions = vec![];
     }
 
-    let js_runtime = JsRuntime::new(deno_core::RuntimeOptions {
+    let create_params = config.heap_limits.map(|(initial, max)| {
+      v8::Isolate::create_params().heap_limits(initial, max)
+    });
+
+    let mut js_runtime = JsRuntime::new(deno_core::RuntimeOptions {
       // TODO(sagar): remove build snapshot from deployed app runner to save memory
       startup_snapshot: Some(if config.enable_build_tools {
         Snapshot::Static(RUNTIME_BUILD_SNAPSHOT)
       } else {
         Snapshot::Static(RUNTIME_PROD_SNAPSHOT)
       }),
+      create_params,
       module_loader: if config.disable_module_loader {
         None
       } else {
@@ -103,6 +112,18 @@ impl IsolatedRuntime {
       extensions_with_js,
       ..Default::default()
     });
+
+    // Note(sagar): if the heap limits are set, terminate the runtime manually
+    if config.heap_limits.is_some() {
+      let cb_handle = js_runtime.v8_isolate().thread_safe_handle();
+      js_runtime.add_near_heap_limit_callback(
+        move |current_limit, _initial_limit| {
+          error!("Terminating V8 due to memory limit");
+          cb_handle.terminate_execution();
+          current_limit
+        },
+      );
+    }
 
     let runtime = IsolatedRuntime {
       config,

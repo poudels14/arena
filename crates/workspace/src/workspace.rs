@@ -13,6 +13,9 @@ pub struct Workspace {
 
   /// Arena config of the workspace
   pub config: ArenaConfig,
+
+  /// Heap limit tuple: (initial size, max hard limit)
+  pub heap_limits: Option<(usize, usize)>,
 }
 
 impl Workspace {
