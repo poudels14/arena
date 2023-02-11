@@ -21,7 +21,7 @@ pub struct Server {
   /// Server config
   config: Config,
   /// Workspace id -> LiveWorkspaces map
-  workspace_servers: WorkspaceServers, // Arc<Mutex<HashMap<String, Arc<Mutex<LiveWorkspace>>>>>,
+  workspace_servers: WorkspaceServers,
 }
 
 impl Server {

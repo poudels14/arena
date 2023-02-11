@@ -9,8 +9,7 @@ use serde::Serialize;
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::Arc;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::mpsc;
 
 #[derive(Serialize)]
 struct HttpRequestV8 {
@@ -22,7 +21,7 @@ pub(super) type ResponseSender = mpsc::Sender<HttpResponse>;
 
 #[derive(Clone)]
 struct RequestReceiver(
-  Arc<Mutex<mpsc::Receiver<(HttpRequest, ResponseSender)>>>,
+  Rc<RefCell<mpsc::Receiver<(HttpRequest, ResponseSender)>>>,
 );
 
 #[derive(Clone, Debug)]
@@ -41,7 +40,7 @@ impl Resource for ResponseHandler {
 }
 
 pub fn init(
-  requests_receiver: Arc<Mutex<mpsc::Receiver<(HttpRequest, ResponseSender)>>>,
+  requests_receiver: Rc<RefCell<mpsc::Receiver<(HttpRequest, ResponseSender)>>>,
 ) -> Extension {
   Extension::builder("<arena/workspace/server>")
     .ops(vec![
@@ -66,7 +65,7 @@ async fn op_receive_request(
 ) -> Result<HttpRequestV8, AnyError> {
   let receiver = state.borrow().borrow::<RequestReceiver>().clone();
 
-  let mut receiver = receiver.0.lock().await;
+  let mut receiver = receiver.0.borrow_mut();
   if let Some((req, res)) = receiver.recv().await {
     let rid = state
       .borrow_mut()

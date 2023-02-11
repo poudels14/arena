@@ -9,13 +9,14 @@ use deno_core::{
   ResolutionKind,
 };
 use futures::future::FutureExt;
+use std::cell::RefCell;
 use std::pin::Pin;
-use std::sync::{Arc, Mutex};
+use std::rc::Rc;
 
 pub struct FsModuleLoader {
   transpile: bool,
   config: Box<ModuleLoaderConfig>,
-  runtime: Option<Arc<Mutex<IsolatedRuntime>>>,
+  runtime: Option<Rc<RefCell<IsolatedRuntime>>>,
 }
 
 pub struct ModuleLoaderOption {
@@ -28,12 +29,14 @@ pub struct ModuleLoaderOption {
 impl FsModuleLoader {
   pub fn new(option: ModuleLoaderOption) -> Self {
     let runtime = match option.transpile {
-      true => Some(Arc::new(Mutex::new(IsolatedRuntime::new(RuntimeConfig {
-        enable_console: true,
-        enable_build_tools: true,
-        disable_module_loader: true,
-        ..Default::default()
-      })))),
+      true => {
+        Some(Rc::new(RefCell::new(IsolatedRuntime::new(RuntimeConfig {
+          enable_console: true,
+          enable_build_tools: true,
+          disable_module_loader: true,
+          ..Default::default()
+        }))))
+      }
       false => None,
     };
     Self {

@@ -8,20 +8,21 @@ use deno_core::JsRealm;
 use deno_core::JsRuntime;
 use futures::future::poll_fn;
 use smallvec::SmallVec;
-use std::sync::{Arc, Mutex};
+use std::cell::RefCell;
+use std::rc::Rc;
 
 pub struct Function {
-  runtime: Arc<Mutex<JsRuntime>>,
+  runtime: Rc<RefCell<JsRuntime>>,
   cb: Option<v8::Global<v8::Function>>,
 }
 
-pub struct Value(Arc<Mutex<JsRuntime>>, v8::Global<v8::Value>);
+pub struct Value(Rc<RefCell<JsRuntime>>, v8::Global<v8::Value>);
 
 impl Value {
   /// Returns serde_json::Value
   #[allow(dead_code)]
   pub fn get_value(&self) -> Result<serde_json::Value> {
-    let mut runtime = self.0.lock().map_err(|e| anyhow!("{:?}", e))?;
+    let mut runtime = self.0.borrow_mut();
     let scope = &mut runtime.handle_scope();
 
     let local_val = v8::Local::new(scope, &self.1);
@@ -32,7 +33,7 @@ impl Value {
   /// Returns serde_json::Value of a promise
   #[allow(dead_code)]
   pub async fn get_value_async(&self) -> Result<serde_json::Value> {
-    let mut runtime = self.0.lock().map_err(|e| anyhow!("{:?}", e))?;
+    let mut runtime = self.0.borrow_mut();
 
     let val = poll_fn(|cx| runtime.poll_value(&self.1, cx)).await.unwrap();
     let scope = &mut runtime.handle_scope();
@@ -49,14 +50,12 @@ impl Function {
   /// If JsRealm is None, it uses global realm
   #[allow(dead_code)]
   pub(super) fn new(
-    runtime: Arc<Mutex<JsRuntime>>,
+    runtime: Rc<RefCell<JsRuntime>>,
     code: &str,
     realm: Option<JsRealm>,
   ) -> Result<Self> {
     let cb = {
-      let mut runtime = runtime
-        .lock()
-        .map_err(|e| anyhow!("failed to get lock to runtime: {:?}", e))?;
+      let mut runtime = runtime.borrow_mut();
       let global_relm = realm.unwrap_or(runtime.global_realm());
       let scope = &mut global_relm.handle_scope(runtime.v8_isolate());
 
@@ -75,10 +74,7 @@ impl Function {
       return Ok(None);
     }
 
-    let mut runtime = self
-      .runtime
-      .lock()
-      .map_err(|e| anyhow!("failed to get lock to runtime: {:?}", e))?;
+    let mut runtime = self.runtime.borrow_mut();
     let global_relm = runtime.global_realm();
     let scope = &mut global_relm.handle_scope(runtime.v8_isolate());
 

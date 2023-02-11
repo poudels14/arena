@@ -3,8 +3,8 @@ use crate::permissions::Permissions;
 use anyhow::{anyhow, Result};
 use deno_core::{v8, JsRealm};
 use deno_core::{Extension, JsRuntime, Snapshot};
+use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
 use url::Url;
 
 pub static RUNTIME_PROD_SNAPSHOT: &[u8] =
@@ -39,7 +39,7 @@ pub struct RuntimeConfig {
 
 pub struct IsolatedRuntime {
   pub config: RuntimeConfig,
-  pub runtime: Arc<Mutex<JsRuntime>>,
+  pub runtime: Rc<RefCell<JsRuntime>>,
 }
 
 impl IsolatedRuntime {
@@ -106,17 +106,14 @@ impl IsolatedRuntime {
 
     let runtime = IsolatedRuntime {
       config,
-      runtime: Arc::new(Mutex::new(js_runtime)),
+      runtime: Rc::new(RefCell::new(js_runtime)),
     };
 
     runtime
   }
 
   pub async fn execute_main_module(&mut self, url: &Url) -> Result<()> {
-    let mut runtime = self
-      .runtime
-      .lock()
-      .map_err(|e| anyhow!("failed to get lock to runtime: {:?}", e))?;
+    let mut runtime = self.runtime.borrow_mut();
     let mod_id = runtime.load_main_module(url, None).await?;
     let receiver = runtime.mod_evaluate(mod_id);
 
@@ -130,10 +127,7 @@ impl IsolatedRuntime {
     url: &Url,
     code: &str,
   ) -> Result<()> {
-    let mut runtime = self
-      .runtime
-      .lock()
-      .map_err(|e| anyhow!("failed to get lock to runtime: {:?}", e))?;
+    let mut runtime = self.runtime.borrow_mut();
     let mod_id = runtime.load_main_module(url, Some(code.to_owned())).await?;
     let receiver = runtime.mod_evaluate(mod_id);
 
@@ -142,10 +136,7 @@ impl IsolatedRuntime {
   }
 
   pub async fn run_event_loop(&mut self) -> Result<()> {
-    let mut runtime = self
-      .runtime
-      .lock()
-      .map_err(|e| anyhow!("failed to get lock to runtime: {:?}", e))?;
+    let mut runtime = self.runtime.borrow_mut();
     runtime.run_event_loop(false).await
   }
 
@@ -155,10 +146,7 @@ impl IsolatedRuntime {
     name: &str,
     code: &str,
   ) -> Result<v8::Global<v8::Value>> {
-    let mut runtime = self
-      .runtime
-      .lock()
-      .map_err(|e| anyhow!("failed to get lock to runtime: {:?}", e))?;
+    let mut runtime = self.runtime.borrow_mut();
     runtime
       .execute_script(name, code)
       .map_err(|e| anyhow!("V8 error: {:?}", e))

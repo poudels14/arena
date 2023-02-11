@@ -10,9 +10,10 @@ use anyhow::{anyhow, bail, Result};
 use jsruntime::{IsolatedRuntime, ModuleLoaderConfig, RuntimeConfig};
 use log::{debug, error, info};
 use serde_json::{json, Value};
-use std::sync::Arc;
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::thread;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::mpsc;
 use tokio::task;
 
 /// This is a handle that's used to send parsed TCP requests to JS VM
@@ -195,7 +196,7 @@ impl WorkspaceServer {
     let mut runtime = IsolatedRuntime::new(RuntimeConfig {
       enable_console: true,
       transpile: true,
-      extensions: vec![super::ext::init(Arc::new(Mutex::new(rx)))],
+      extensions: vec![super::ext::init(Rc::new(RefCell::new(rx)))],
       module_loader_config: Some(ModuleLoaderConfig {
         project_root: self.workspace.project_root(),
         alias: module_loader_config.and_then(|c| c.alias.clone()),

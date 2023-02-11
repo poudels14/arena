@@ -2,13 +2,14 @@ use super::analyzer;
 use crate::IsolatedRuntime;
 use anyhow::Result;
 use serde_json::Value;
+use std::cell::RefCell;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::rc::Rc;
 use swc_ecma_codegen::text_writer::JsWriter;
 use swc_ecma_codegen::Emitter;
 
 pub fn transpile(
-  runtime: Arc<Mutex<IsolatedRuntime>>,
+  runtime: Rc<RefCell<IsolatedRuntime>>,
   filename: &PathBuf,
   code: &[u8],
 ) -> Result<Box<[u8]>> {
@@ -58,7 +59,7 @@ fn convert_to_string(report: &analyzer::Report) -> Result<String> {
 }
 
 fn transpile_jsx(
-  runtime: Arc<Mutex<IsolatedRuntime>>,
+  runtime: Rc<RefCell<IsolatedRuntime>>,
   code: &[u8],
 ) -> Result<String> {
   execute_js(
@@ -83,7 +84,7 @@ fn transpile_jsx(
 }
 
 fn convert_to_es6(
-  runtime: Arc<Mutex<IsolatedRuntime>>,
+  runtime: Rc<RefCell<IsolatedRuntime>>,
   code: &[u8],
 ) -> Result<String> {
   execute_js(
@@ -104,11 +105,11 @@ fn convert_to_es6(
 }
 
 fn execute_js(
-  runtime: Arc<Mutex<IsolatedRuntime>>,
+  runtime: Rc<RefCell<IsolatedRuntime>>,
   code: &str,
   arg: &str,
 ) -> Result<String> {
-  let mut runtime = runtime.lock().unwrap();
+  let mut runtime = runtime.borrow_mut();
 
   let function = runtime.init_js_function(code, None)?;
   let code = function
