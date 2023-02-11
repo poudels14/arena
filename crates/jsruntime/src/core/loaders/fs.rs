@@ -1,4 +1,6 @@
+use super::ModuleLoaderConfig;
 use crate::buildtools::transpiler;
+use crate::core::resolvers;
 use crate::{IsolatedRuntime, RuntimeConfig};
 use anyhow::Error;
 use deno_core::error::generic_error;
@@ -12,16 +14,19 @@ use std::sync::{Arc, Mutex};
 
 pub struct FsModuleLoader {
   transpile: bool,
+  config: Box<ModuleLoaderConfig>,
   runtime: Option<Arc<Mutex<IsolatedRuntime>>>,
 }
 
 pub struct ModuleLoaderOption {
   /// whether to auto-transpile the code when loading
   pub transpile: bool,
+
+  pub config: ModuleLoaderConfig,
 }
 
 impl FsModuleLoader {
-  pub fn new(option: &ModuleLoaderOption) -> Self {
+  pub fn new(option: ModuleLoaderOption) -> Self {
     let runtime = match option.transpile {
       true => Some(Arc::new(Mutex::new(IsolatedRuntime::new(RuntimeConfig {
         enable_console: true,
@@ -33,6 +38,7 @@ impl FsModuleLoader {
     };
     Self {
       transpile: option.transpile,
+      config: Box::new(option.config),
       runtime,
     }
   }
@@ -46,9 +52,8 @@ impl ModuleLoader for FsModuleLoader {
     referrer: &str,
     _kind: ResolutionKind,
   ) -> Result<ModuleSpecifier, Error> {
-    Ok(crate::core::resolvers::fs::resolve_import(
-      specifier, referrer,
-    )?)
+    let specifier = self.resolve_alias(specifier);
+    Ok(resolvers::fs::resolve_import(&specifier, referrer)?)
   }
 
   fn load(
@@ -94,5 +99,33 @@ impl ModuleLoader for FsModuleLoader {
       Ok(module)
     }
     .boxed_local()
+  }
+}
+
+impl FsModuleLoader {
+  fn resolve_alias(&self, specifier: &str) -> String {
+    // Note(sagar): if module loader is used, config should be present
+    let config = &self.config;
+    config
+      .alias
+      .as_ref()
+      .and_then(|alias| {
+        for k in alias.keys() {
+          if specifier.starts_with(k) {
+            let value = alias.get(k).unwrap();
+            return Some(format!(
+              "{}{}",
+              if value.starts_with(".") {
+                format!("{}", config.project_root.join(value).to_str().unwrap())
+              } else {
+                value.to_string()
+              },
+              &specifier[k.len()..]
+            ));
+          }
+        }
+        Some(specifier.to_owned())
+      })
+      .unwrap_or(specifier.to_owned())
   }
 }

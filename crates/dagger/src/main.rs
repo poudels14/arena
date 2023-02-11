@@ -38,10 +38,9 @@ enum Commands {
 
   /// Format code using default formatters;
   /// e.g. `pnmp prettier -w` for js and `cargo fmt` rust
-  Format(format::Command),
 
-  /// Print dagger version
-  Version,
+  #[command(alias = "fmt")]
+  Format(format::Command),
 }
 
 #[tokio::main]
@@ -76,9 +75,6 @@ async fn main() -> Result<()> {
       Commands::Server(cmd) => cmd.execute().await?,
       Commands::Workspace(cmd) => cmd.execute().await?,
       Commands::Format(cmd) => cmd.execute().await?,
-      Commands::Version => {
-        println!(env!("CARGO_PKG_VERSION"));
-      }
     };
     Ok(())
   }

@@ -1,8 +1,9 @@
 mod loaders;
 mod resolvers;
-mod vm;
+mod runtime;
 
 pub mod function;
 
-pub use vm::IsolatedRuntime;
-pub use vm::RuntimeConfig;
+pub use loaders::ModuleLoaderConfig;
+pub use runtime::IsolatedRuntime;
+pub use runtime::RuntimeConfig;

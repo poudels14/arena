@@ -16,6 +16,10 @@ pub struct Workspace {
 }
 
 impl Workspace {
+  pub fn project_root(&self) -> PathBuf {
+    self.dir.clone()
+  }
+
   /// Returns the entry file of the workspace
   pub fn entry_file(&self) -> PathBuf {
     self.dir.join(&self.config.server_entry)

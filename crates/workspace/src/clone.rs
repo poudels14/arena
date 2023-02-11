@@ -1,3 +1,4 @@
+use crate::ArenaConfig;
 use anyhow::{anyhow, bail, Result};
 use common::fs::has_file_in_file_tree;
 use common::node::{Package, TsConfig};
@@ -35,7 +36,6 @@ pub async fn with_default_template(config: &Config) -> Result<()> {
   config.create_dir(&workspace_dir)?;
 
   config.add_template_files()?;
-  config.create_arena_config()?;
 
   config.create_dir(&workspace_dir.join("./src/queries"))?;
   config.create_dir(&workspace_dir.join("./src/apps"))?;
@@ -44,18 +44,6 @@ pub async fn with_default_template(config: &Config) -> Result<()> {
 }
 
 impl Config {
-  fn create_arena_config(&self) -> Result<()> {
-    let config = crate::ArenaConfig {
-      name: self.name.to_string(),
-      version: Some(env!("CARGO_PKG_VERSION").to_string()),
-      server_entry: "entry-server.tsx".to_owned(),
-    };
-    self.create_file(
-      "arena.config.yaml",
-      serde_yaml::to_string(&config)?.as_bytes(),
-    )
-  }
-
   fn create_dir(&self, path: &PathBuf) -> Result<()> {
     fs::create_dir_all(path).map_err(|e| anyhow!("{:?}", e))
   }
@@ -69,6 +57,15 @@ impl Config {
   }
 
   fn add_template_files(&self) -> Result<()> {
+    debug!("Adding arena.config.yaml");
+    let mut arena_config: ArenaConfig =
+      serde_yaml::from_str(include_str!("../template/arena.config.yaml"))?;
+    arena_config.name = self.name.clone();
+    self.create_file(
+      "arena.config.yaml",
+      serde_yaml::to_string(&arena_config)?.as_bytes(),
+    )?;
+
     debug!("Adding package.json");
     let mut package: Package =
       serde_json::from_str(include_str!("../template/package.json"))?;

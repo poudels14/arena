@@ -90,15 +90,31 @@ async fn handle_request(
 
   while let Some(r) = rx.recv().await {
     if r.close {
-      let mut headers = HeaderMap::new();
-      for header in r.headers {
-        headers.append(
-          HeaderName::from_bytes(&header.0).unwrap(),
-          HeaderValue::from_bytes(&header.1).unwrap(),
-        );
-      }
+      let s = || {
+        let mut headers = HeaderMap::new();
+        for header in r.headers {
+          headers.append(
+            HeaderName::from_bytes(&header.0)?,
+            HeaderValue::from_bytes(&header.1)?,
+          );
+        }
 
-      return (headers, r.body.unwrap_or("".to_owned())).into_response();
+        <Result<Response>>::Ok(
+          (
+            StatusCode::from_u16(r.status)?,
+            headers,
+            r.body.unwrap_or("".to_owned()),
+          )
+            .into_response(),
+        )
+      };
+      match s() {
+        Ok(v) => return v,
+        Err(e) => {
+          error!("{:?}", e);
+          return (StatusCode::INTERNAL_SERVER_ERROR).into_response();
+        }
+      }
     }
     error!("Response streaming not implemented!");
     return (StatusCode::INTERNAL_SERVER_ERROR).into_response();

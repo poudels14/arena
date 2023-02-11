@@ -6,6 +6,9 @@
     "moduleResolution": "node",
     "jsxImportSource": "solid-js",
     "jsx": "preserve",
-    "strict": true
+    "strict": true,
+    "paths": {
+      "~/*": ["./src/*"]
+    }
   }
 }

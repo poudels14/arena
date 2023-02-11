@@ -6,8 +6,8 @@ use crate::server::{
   WorkspaceServerHandle,
 };
 use crate::Workspace;
-use anyhow::Result;
-use jsruntime::{IsolatedRuntime, RuntimeConfig};
+use anyhow::{anyhow, bail, Result};
+use jsruntime::{IsolatedRuntime, ModuleLoaderConfig, RuntimeConfig};
 use log::{debug, error, info};
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -77,35 +77,45 @@ pub async fn serve(
       .unwrap();
 
     rt.block_on(async {
-      server_clone.start_all().await.unwrap();
+      match server_clone.start_all().await {
+        Err(e) => {
+          server_clone
+            .events
+            .sender
+            .send((ServerEvent::Terminated, Value::String(format!("{}", e))))
+            .unwrap();
+        }
+        _ => {}
+      }
     });
   })?;
 
-  // Note(sagar): we need to update address/port since the server uses
-  // a random port by default
-  let metadata: ServerStarted = serde_json::from_value(
-    server.events.wait_until(ServerEvent::Started).await?,
-  )
-  .unwrap();
+  let started_event = server.events.wait_until(ServerEvent::Started);
+  let terminated_event = server.events.wait_until(ServerEvent::Terminated);
+  tokio::select! {
+    v = started_event => {
+        // Note(sagar): we need to update address/port since the server uses
+        // a random port by default
+        let metadata: ServerStarted = serde_json::from_value(v?)
+        .unwrap();
 
-  let handle = WorkspaceServerHandle {
-    workspace: server.workspace,
-    address: metadata.address,
-    port: metadata.port,
-    handle: server.handle,
-    events: server.events,
-  };
-
-  Ok(handle)
+        let handle = WorkspaceServerHandle {
+          workspace: server.workspace,
+          address: metadata.address,
+          port: metadata.port,
+          handle: server.handle,
+          events: server.events,
+        };
+        return Ok(handle)
+    },
+    e = terminated_event => {
+      bail!("Error starting workspace server: {}", e?.as_str().unwrap_or("Unknown error"));
+    },
+  }
 }
 
 impl WorkspaceServer {
   async fn start_all(&mut self) -> Result<()> {
-    info!(
-      "Workspace [name={}] server started...",
-      self.workspace.config.name
-    );
-
     let (tx, rx) = mpsc::channel::<(HttpRequest, ResponseSender)>(100);
     self.vm_serice = Some(VmService { sender: tx });
     let mut js_runtime = self.start_workspace_js_server(rx).await?;
@@ -118,6 +128,11 @@ impl WorkspaceServer {
       local.run_until(async { super::http::listen(self.clone()).await });
 
     let command_listener = self.listen_to_admin_commands();
+
+    info!(
+      "Workspace [name={}] server started...",
+      self.workspace.config.name
+    );
 
     tokio::select! {
       c = command_listener => {
@@ -170,17 +185,29 @@ impl WorkspaceServer {
     &self,
     rx: mpsc::Receiver<(HttpRequest, ResponseSender)>,
   ) -> Result<IsolatedRuntime> {
+    let module_loader_config = self
+      .workspace
+      .config
+      .javascript
+      .as_ref()
+      .and_then(|v| v.build_config.as_ref());
+
     let mut runtime = IsolatedRuntime::new(RuntimeConfig {
       enable_console: true,
       transpile: true,
       extensions: vec![super::ext::init(Arc::new(Mutex::new(rx)))],
+      module_loader_config: Some(ModuleLoaderConfig {
+        project_root: self.workspace.project_root(),
+        alias: module_loader_config.and_then(|c| c.alias.clone()),
+      }),
       ..Default::default()
     });
 
-    runtime.execute_script(
-      "",
-      &format!(
-        r#"
+    runtime
+      .execute_script(
+        "",
+        &format!(
+          r#"
         import("file://{}").then(async ({{ default: m }}) => {{
           Arena.Workspace.handleRequest(async (req) => {{
             let res = m.execute(req);
@@ -191,9 +218,14 @@ impl WorkspaceServer {
           }});
         }});
       "#,
-        self.workspace.entry_file().to_str().unwrap(),
-      ),
-    )?;
+          self
+            .workspace
+            .entry_file()
+            .to_str()
+            .ok_or(anyhow!("Unable to get workspace entry file"))?,
+        ),
+      )
+      .map_err(|e| anyhow!("{:?}", e))?;
     Ok(runtime)
   }
 }

@@ -1,8 +1,25 @@
 use anyhow::{anyhow, Result};
 use derivative::Derivative;
+use indexmap::map::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+
+#[derive(Derivative, Serialize, Deserialize)]
+#[derivative(Clone, Debug, Default)]
+pub struct JsBuildConfig {
+  /// Module resolve alias as used by node resolvers, ViteJs, etc
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub alias: Option<IndexMap<String, String>>,
+}
+
+#[derive(Derivative, Serialize, Deserialize)]
+#[derivative(Clone, Debug, Default)]
+pub struct JavascriptConfig {
+  /// Config related to Javascript and Typescript
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub build_config: Option<JsBuildConfig>,
+}
 
 /// This is Arena config that each workspace will have
 #[derive(Derivative, Serialize, Deserialize)]
@@ -15,6 +32,9 @@ pub struct ArenaConfig {
   #[derivative(Default(value = "_default_server_entry()"))]
   // TODO(sagar): maybe use "package.json".module instead
   pub server_entry: String,
+
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub javascript: Option<JavascriptConfig>,
 }
 
 impl ArenaConfig {

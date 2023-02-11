@@ -12,6 +12,7 @@ futures.workspace = true
 url.workspace = true
 log.workspace = true
 smallvec.workspace = true
+indexmap.workspace = true
 common = { path = "../common" }
 
 deno_core.workspace = true

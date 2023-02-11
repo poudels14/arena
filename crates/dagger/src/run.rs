@@ -1,7 +1,8 @@
 use anyhow::Result;
 use clap::Parser;
 use deno_core::resolve_url_or_path;
-use jsruntime::{IsolatedRuntime, RuntimeConfig};
+use jsruntime::{IsolatedRuntime, ModuleLoaderConfig, RuntimeConfig};
+use std::env;
 
 #[derive(Parser, Debug)]
 pub struct Command {
@@ -18,6 +19,10 @@ impl Command {
     let mut runtime = IsolatedRuntime::new(RuntimeConfig {
       enable_console: true,
       transpile: !self.disable_transpile,
+      module_loader_config: Some(ModuleLoaderConfig {
+        project_root: env::current_dir().unwrap(),
+        ..Default::default()
+      }),
       ..Default::default()
     });
 

@@ -1,4 +1,4 @@
-use super::loaders;
+use super::loaders::{self, ModuleLoaderConfig};
 use crate::permissions::Permissions;
 use anyhow::{anyhow, Result};
 use deno_core::{v8, JsRealm};
@@ -15,14 +15,6 @@ pub static RUNTIME_BUILD_SNAPSHOT: &[u8] =
 
 #[derive(Default)]
 pub struct RuntimeConfig {
-  /// enable build tools like babel, babel plugins, etc
-  pub enable_build_tools: bool,
-
-  /// whether to auto-transpile the code when loading
-  pub transpile: bool,
-
-  pub disable_module_loader: bool,
-
   /// Name of the HTTP user_agent
   pub user_agent: String,
 
@@ -32,6 +24,17 @@ pub struct RuntimeConfig {
 
   /// Additional extensions to add to the runtime
   pub extensions: Vec<Extension>,
+
+  /// enable build tools like babel, babel plugins, etc
+  pub enable_build_tools: bool,
+
+  /// whether to auto-transpile the code when loading
+  pub transpile: bool,
+
+  pub disable_module_loader: bool,
+
+  /// Config used by module loader
+  pub module_loader_config: Option<ModuleLoaderConfig>,
 }
 
 pub struct IsolatedRuntime {
@@ -50,63 +53,60 @@ impl IsolatedRuntime {
       config.extensions = vec![];
     }
 
-    let js_runtime =
-      Arc::new(Mutex::new(JsRuntime::new(deno_core::RuntimeOptions {
-        // TODO(sagar): remove build snapshot from deployed app runner to save memory
-        startup_snapshot: Some(if config.enable_build_tools {
-          Snapshot::Static(RUNTIME_BUILD_SNAPSHOT)
-        } else {
-          Snapshot::Static(RUNTIME_PROD_SNAPSHOT)
+    let js_runtime = JsRuntime::new(deno_core::RuntimeOptions {
+      // TODO(sagar): remove build snapshot from deployed app runner to save memory
+      startup_snapshot: Some(if config.enable_build_tools {
+        Snapshot::Static(RUNTIME_BUILD_SNAPSHOT)
+      } else {
+        Snapshot::Static(RUNTIME_PROD_SNAPSHOT)
+      }),
+      module_loader: if config.disable_module_loader {
+        None
+      } else {
+        Some(Rc::new(loaders::FsModuleLoader::new(
+          loaders::ModuleLoaderOption {
+            transpile: config.transpile,
+            config: config.module_loader_config.take().unwrap(),
+          },
+        )))
+      },
+      // Note(sagar) Since the following extensions were snapshotted, pass them
+      // as `extensions` instead of `extensions_with_js`; only rust bindings are
+      // necessary since JS is already loaded
+      extensions: vec![
+        deno_webidl::init(),
+        deno_console::init(),
+        deno_url::init(),
+        deno_web::init::<Permissions>(
+          deno_web::BlobStore::default(),
+          Default::default(),
+        ),
+        deno_fetch::init::<Permissions>(deno_fetch::Options {
+          user_agent: "arena/server".to_string(),
+          root_cert_store: None,
+          proxy: None,
+          request_builder_hook: None,
+          unsafely_ignore_certificate_errors: None,
+          client_cert_chain_and_key: None,
+          file_fetch_handler: Rc::new(deno_fetch::DefaultFileFetchHandler),
         }),
-        module_loader: if config.disable_module_loader {
-          None
-        } else {
-          Some(std::rc::Rc::new(loaders::FsModuleLoader::new(
-            &loaders::ModuleLoaderOption {
-              transpile: config.transpile,
-            },
-          )))
-        },
-        // Note(sagar) Since the following extensions were snapshotted, pass them
-        // as `extensions` instead of `extensions_with_js`; only rust bindings are
-        // necessary since JS is already loaded
-        extensions: vec![
-          deno_webidl::init(),
-          deno_console::init(),
-          deno_url::init(),
-          deno_web::init::<Permissions>(
-            deno_web::BlobStore::default(),
-            Default::default(),
-          ),
-          deno_fetch::init::<Permissions>(deno_fetch::Options {
-            user_agent: "arena/server".to_string(),
-            root_cert_store: None,
-            proxy: None,
-            request_builder_hook: None,
-            unsafely_ignore_certificate_errors: None,
-            client_cert_chain_and_key: None,
-            file_fetch_handler: Rc::new(deno_fetch::DefaultFileFetchHandler),
-          }),
-          Extension::builder("<arena/core/permissions/setter>")
-            .state(move |state| {
-              state.put::<Permissions>(Permissions {
-                timer: None,
-                net: None,
-              });
-              Ok(())
-            })
-            .build(),
-          // ext::error_ops::init(),
-          // ext::response_ops::init(),
-          // ext::postgres_ops::init(),
-        ],
-        extensions_with_js,
-        ..Default::default()
-      })));
+        Extension::builder("<arena/core/permissions/setter>")
+          .state(move |state| {
+            state.put::<Permissions>(Permissions {
+              timer: None,
+              net: None,
+            });
+            Ok(())
+          })
+          .build(),
+      ],
+      extensions_with_js,
+      ..Default::default()
+    });
 
     let runtime = IsolatedRuntime {
       config,
-      runtime: js_runtime,
+      runtime: Arc::new(Mutex::new(js_runtime)),
     };
 
     runtime

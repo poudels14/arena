@@ -33,8 +33,19 @@
     }
 
     async [RESOLVE](asyncFn) {
-      let res = await asyncFn()
-      this.responseWith(res);
+      try {
+        let res = await asyncFn();
+        if (res instanceof Response) {
+          this.responseWith(res);
+        } else {
+          // If the result isn't of type Response, respond with it's string
+          // value
+          await ops.op_send_response(this.rid, 200, [], String(res));
+        }
+      } catch(e) {
+        console.error(e);
+        await ops.op_send_response(this.rid, 500, [], "Internal Server Error");
+      }
     }
 
     async responseWith(response) {
