@@ -2,7 +2,13 @@
 
 Deno.core.initializeAsyncOps();
 const { performance } = globalThis.__bootstrap.performance;
-const { setTimeout, clearTimeout, setInterval, clearInterval, handleTimerMacrotask } = globalThis.__bootstrap.timers;
+const {
+  setTimeout,
+  clearTimeout,
+  setInterval,
+  clearInterval,
+  handleTimerMacrotask,
+} = globalThis.__bootstrap.timers;
 Deno.core.setMacrotaskCallback(handleTimerMacrotask);
 const { Request, Response } = globalThis.__bootstrap.fetch;
 const { ReadableStream } = globalThis.__bootstrap.streams;
@@ -22,9 +28,13 @@ const {
 ((globalThis) => {
   Object.assign(globalThis, {
     crypto,
-    setTimeout, clearTimeout, setInterval, clearInterval,
+    setTimeout,
+    clearTimeout,
+    setInterval,
+    clearInterval,
     performance,
-    Request, Response,
+    Request,
+    Response,
     ReadableStream,
     TextEncoder,
     TextDecoder,

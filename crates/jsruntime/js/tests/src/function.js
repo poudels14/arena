@@ -4,9 +4,8 @@
 //   console.log("Testing");
 // }
 
-
-function *x() {
+function* x() {
   return 1;
 }
 
-x
+x;

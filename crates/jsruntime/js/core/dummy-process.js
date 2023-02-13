@@ -3,7 +3,7 @@
 ((globalThis) => {
   const p = {
     env: {
-      TERM: "xterm-256color"
+      TERM: "xterm-256color",
     },
   };
 

@@ -1,6 +1,6 @@
 const timeout = setTimeout(() => {
-  console.log("long wait...")
-}, 5000)
+  console.log("long wait...");
+}, 5000);
 
 setTimeout(() => {
   console.log("timed out!");

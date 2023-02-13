@@ -1,11 +1,12 @@
 const { babel, babelPresets } = Arena;
 
-const { code } = babel.transform(`
+const { code } = babel.transform(
+  `
   console.log(<div>SOLIDJS element</div>);
-`, {
-  presets: [
-    [babelPresets.solid]
-  ]
-});
+`,
+  {
+    presets: [[babelPresets.solid]],
+  }
+);
 
-console.log(code)
+console.log(code);

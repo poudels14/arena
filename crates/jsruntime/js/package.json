@@ -1,0 +1,15 @@
+{
+  "name": "arena-runtime",
+  "version": "0.1.0",
+  "description": "",
+  "scripts": {
+    "format": "pnpm prettier -w ."
+  },
+  "keywords": [],
+  "author": "",
+  "private": true,
+  "license": "UNLICENSED",
+  "dependencies": {
+    "prettier": "^2.8.3"
+  }
+}

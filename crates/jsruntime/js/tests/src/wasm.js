@@ -15,7 +15,7 @@ const goWasmContent = ops.op_read_file_sync(goWasmFile);
 await WebAssembly.instantiate(goWasmContent, {
   ...go.importObject,
 }).then(async (m) => {
-   const { instance } = m;
+  const { instance } = m;
   go.run(instance);
 });
 

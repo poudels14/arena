@@ -1,11 +1,11 @@
 type NewType = {
-  name: string,
-  age: number
+  name: string;
+  age: number;
 };
 
-const value : NewType = {
+const value: NewType = {
   name: "Test name",
-  age: 25
+  age: 25,
 };
 
 console.log(value);
