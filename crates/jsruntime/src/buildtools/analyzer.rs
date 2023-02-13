@@ -11,6 +11,7 @@ use swc_ecma_parser::{Parser, StringInput, Syntax};
 use swc_ecma_transforms_typescript::strip;
 use swc_ecma_visit::FoldWith;
 
+// TODO(sagar): just use deno_ast analysis?
 pub struct Analyzer {
   top_level_mark: Option<Mark>,
 }

@@ -1,66 +1,54 @@
-use super::analyzer;
 use crate::IsolatedRuntime;
 use anyhow::Result;
+use deno_ast::{EmitOptions, MediaType, ParseParams, SourceTextInfo};
 use serde_json::Value;
 use std::cell::RefCell;
-use std::path::PathBuf;
+use std::path::Path;
 use std::rc::Rc;
-use swc_ecma_codegen::text_writer::JsWriter;
-use swc_ecma_codegen::Emitter;
 
 pub fn transpile(
   runtime: Rc<RefCell<IsolatedRuntime>>,
-  filename: &PathBuf,
-  code: &[u8],
-) -> Result<Box<[u8]>> {
+  module_path: &Path,
+  media_type: &MediaType,
+  code: &str,
+) -> Result<String> {
   // TODO(sagar): strip out all dynamic transpiling for vms running deployed apps
 
-  let mut analyzer = analyzer::Analyzer::new();
-  let report = analyzer.analyze(
-    &filename.to_string_lossy(),
-    std::str::from_utf8(&code)?,
-    &super::analyzer::Options {
-      strip_typescript: true,
-    },
-  )?;
+  let parsed = deno_ast::parse_module(ParseParams {
+    specifier: module_path.to_str().unwrap().to_owned(),
+    text_info: SourceTextInfo::from_string(code.to_owned()),
+    media_type: media_type.to_owned(),
+    capture_tokens: false,
+    scope_analysis: false,
+    maybe_syntax: None,
+  })?;
 
-  let js_code = convert_to_string(&report)?;
-  let code = if let Some(ext) = filename.extension() {
-    let code = js_code.as_bytes().to_vec();
+  let parsed_code = parsed
+    .transpile(&EmitOptions {
+      emit_metadata: true,
+      transform_jsx: false,
+      ..Default::default()
+    })?
+    .text;
+
+  let code = if let Some(ext) = module_path.extension() {
     if ext == "tsx" || ext == "jsx" {
-      transpile_jsx(runtime, &code)?.as_bytes().to_vec()
+      transpile_jsx(runtime, &parsed_code)?
     } else {
       // TODO(sagar): passing all code through babel for now but only transform
-      // commonjs code to es6 if needed
-      convert_to_es6(runtime, &code)?.as_bytes().to_vec()
+      // commonjs code to es6 if needed. use swc later
+      convert_to_es6(runtime, &parsed_code)?
     }
   } else {
-    code.to_vec()
+    code.to_owned()
   };
 
-  Ok(code.into_boxed_slice())
+  Ok(code)
 }
 
-fn convert_to_string(report: &analyzer::Report) -> Result<String> {
-  let mut buf = vec![];
-  {
-    let mut emitter = Emitter {
-      cfg: swc_ecma_codegen::Config {
-        minify: false,
-        ..Default::default()
-      },
-      cm: report.source_map.clone(),
-      comments: None,
-      wr: JsWriter::new(report.source_map.clone(), "\n", &mut buf, None),
-    };
-    emitter.emit_module(&report.module).unwrap();
-  }
-  Ok(String::from_utf8(buf)?)
-}
-
-fn transpile_jsx(
+fn transpile_jsx<'a>(
   runtime: Rc<RefCell<IsolatedRuntime>>,
-  code: &[u8],
+  code: &str,
 ) -> Result<String> {
   execute_js(
     runtime,
@@ -79,13 +67,13 @@ fn transpile_jsx(
         return transpiledCode;
       })
     "#,
-    std::str::from_utf8(&code)?,
+    code,
   )
 }
 
 fn convert_to_es6(
   runtime: Rc<RefCell<IsolatedRuntime>>,
-  code: &[u8],
+  code: &str,
 ) -> Result<String> {
   execute_js(
     runtime,
@@ -100,7 +88,7 @@ fn convert_to_es6(
         return transpiledCode;
       })
     "#,
-    std::str::from_utf8(&code)?,
+    code,
   )
 }
 

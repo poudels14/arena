@@ -2,14 +2,13 @@ use super::ModuleLoaderConfig;
 use crate::buildtools::transpiler;
 use crate::core::resolvers;
 use crate::{IsolatedRuntime, RuntimeConfig};
-use anyhow::Error;
-use deno_core::error::generic_error;
+use anyhow::{anyhow, bail, Error};
+use deno_ast::MediaType;
 use deno_core::{
   ModuleLoader, ModuleSource, ModuleSourceFuture, ModuleSpecifier, ModuleType,
-  OpState, ResolutionKind,
+  ResolutionKind,
 };
 use futures::future::FutureExt;
-use futures::Future;
 use std::cell::RefCell;
 use std::pin::Pin;
 use std::rc::Rc;
@@ -73,30 +72,41 @@ impl ModuleLoader for FsModuleLoader {
     let runtime = self.runtime.clone();
     async move {
       let path = module_specifier.to_file_path().map_err(|_| {
-        generic_error(format!(
+        anyhow!(
           "Provided module specifier \"{}\" is not a file URL.",
           module_specifier
-        ))
+        )
       })?;
-      let module_type = if let Some(extension) = path.extension() {
-        let ext = extension.to_string_lossy().to_lowercase();
-        if ext == "json" {
-          ModuleType::Json
-        } else {
-          ModuleType::JavaScript
+
+      let (module_type, _should_transpile) = match MediaType::from(&path) {
+        MediaType::JavaScript | MediaType::Mjs | MediaType::Cjs => {
+          (ModuleType::JavaScript, false)
         }
-      } else {
-        ModuleType::JavaScript
+        MediaType::Jsx => (ModuleType::JavaScript, transpile),
+        MediaType::TypeScript
+        | MediaType::Mts
+        | MediaType::Cts
+        | MediaType::Dts
+        | MediaType::Dmts
+        | MediaType::Dcts
+        | MediaType::Tsx => (ModuleType::JavaScript, transpile),
+        MediaType::Json => (ModuleType::Json, false),
+        _ => bail!("Unknown extension {:?}", path.extension()),
       };
 
-      let code = std::fs::read(path.clone())?;
+      let code = std::fs::read_to_string(path.clone())?;
+      // Note(sagar): transpile all JS files if transpile is enabled
+      // so that even cjs modules are transformed to es6
       let code = match transpile {
-        true => transpiler::transpile(runtime.unwrap(), &path, &code)?,
-        false => code.into_boxed_slice(),
+        true => {
+          let media_type = MediaType::from(&path);
+          transpiler::transpile(runtime.unwrap(), &path, &media_type, &code)?
+        }
+        false => code,
       };
 
       let module = ModuleSource {
-        code,
+        code: code.as_bytes().into(),
         module_type,
         module_url_specified: module_specifier.to_string(),
         module_url_found: module_specifier.to_string(),
