@@ -11,6 +11,8 @@ specifiers:
   '@rollup/plugin-typescript': ^11.0.0
   assert: ^2.0.0
   babel-preset-solid: ^1.6.9
+  lodash: ^4.17.21
+  prettier: ^2.8.4
   reserved-words: ^0.1.2
   rollup: ^3.12.0
   tslib: ^2.5.0
@@ -22,6 +24,7 @@ dependencies:
   '@babel/types': 7.20.7
   assert: 2.0.0
   babel-preset-solid: 1.6.10
+  lodash: 4.17.21
   reserved-words: 0.1.2
 
 devDependencies:
@@ -30,6 +33,7 @@ devDependencies:
   '@rollup/plugin-node-resolve': 15.0.1_rollup@3.12.1
   '@rollup/plugin-terser': 0.4.0_rollup@3.12.1
   '@rollup/plugin-typescript': 11.0.0_dacjhltxvpiymvk442t6rtzddq
+  prettier: 2.8.4
   rollup: 3.12.1
   tslib: 2.5.0
   typescript: 4.9.5
@@ -466,6 +470,10 @@ packages:
       has-tostringtag: 1.0.0
     dev: false
 
+  /lodash/4.17.21:
+    resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
+    dev: false
+
   /magic-string/0.27.0:
     resolution: {integrity: sha512-8UnnX2PeRAPZuN12svgR9j7M1uWMovg/CEnIwIG0LFkXSJJe4PdfUGiTGl8V9bsBHFUtfVINcSyYxd7q+kx9fA==}
     engines: {node: '>=12'}
@@ -506,6 +514,12 @@ packages:
   /picomatch/2.3.1:
     resolution: {integrity: sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA==}
     engines: {node: '>=8.6'}
+    dev: true
+
+  /prettier/2.8.4:
+    resolution: {integrity: sha512-vIS4Rlc2FNh0BySk3Wkd6xmwxB0FpOndW5fisM5H8hsZSxU2VWVB5CWIkIjWvrHjIhxk2g3bfMKM87zNTrZddw==}
+    engines: {node: '>=10.13.0'}
+    hasBin: true
     dev: true
 
   /randombytes/2.1.0:

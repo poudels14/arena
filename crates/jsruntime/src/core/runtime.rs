@@ -1,8 +1,9 @@
 use super::loaders::{self, ModuleLoaderConfig};
-use crate::permissions::Permissions;
+use crate::permissions::PermissionsContainer;
 use anyhow::{anyhow, Result};
-use deno_core::{v8, JsRealm};
+use deno_core::{v8, JsRealm, ModuleLoader};
 use deno_core::{Extension, JsRuntime, Snapshot};
+use derivative::Derivative;
 use log::error;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -14,14 +15,18 @@ pub static RUNTIME_PROD_SNAPSHOT: &[u8] =
 pub static RUNTIME_BUILD_SNAPSHOT: &[u8] =
   include_bytes!(concat!(env!("OUT_DIR"), "/RUNTIME_BUILD_SNAPSHOT.bin"));
 
-#[derive(Default)]
+#[derive(Derivative)]
+#[derivative(Default)]
 pub struct RuntimeConfig {
   /// Name of the HTTP user_agent
   pub user_agent: String,
 
-  pub permissions: Permissions,
+  pub permissions: PermissionsContainer,
 
   pub enable_console: bool,
+
+  #[derivative(Default(value = "true"))]
+  pub enable_wasm: bool,
 
   /// Additional extensions to add to the runtime
   pub extensions: Vec<Extension>,
@@ -47,7 +52,7 @@ pub struct IsolatedRuntime {
 }
 
 impl IsolatedRuntime {
-  pub fn new(mut config: RuntimeConfig) -> IsolatedRuntime {
+  pub fn new(mut config: RuntimeConfig) -> Result<IsolatedRuntime> {
     let mut extensions_with_js = Self::get_js_extensions(&mut config);
     // Note(sagar): take extensions out of the config and set it to empty
     // vec![] so that config can be stored without having Send trait
@@ -61,6 +66,22 @@ impl IsolatedRuntime {
       v8::Isolate::create_params().heap_limits(initial, max)
     });
 
+    let module_loader: Option<Rc<dyn ModuleLoader>> = if config
+      .disable_module_loader
+    {
+      None
+    } else {
+      // Note(sagar): module loader should be disabled for deployed app
+      Some(Rc::new(loaders::FsModuleLoader::new(
+        loaders::ModuleLoaderOption {
+          transpile: config.transpile,
+          config: config.module_loader_config.take()
+            .ok_or_else(|| anyhow!("module_loader_config should be passed when disable_module_loader isn't false"))?,
+        },
+      )))
+    };
+
+    let permissions = config.permissions.clone();
     let mut js_runtime = JsRuntime::new(deno_core::RuntimeOptions {
       // TODO(sagar): remove build snapshot from deployed app runner to save memory
       startup_snapshot: Some(if config.enable_build_tools {
@@ -69,16 +90,7 @@ impl IsolatedRuntime {
         Snapshot::Static(RUNTIME_PROD_SNAPSHOT)
       }),
       create_params,
-      module_loader: if config.disable_module_loader {
-        None
-      } else {
-        Some(Rc::new(loaders::FsModuleLoader::new(
-          loaders::ModuleLoaderOption {
-            transpile: config.transpile,
-            config: config.module_loader_config.take().unwrap(),
-          },
-        )))
-      },
+      module_loader,
       // Note(sagar) Since the following extensions were snapshotted, pass them
       // as `extensions` instead of `extensions_with_js`; only rust bindings are
       // necessary since JS is already loaded
@@ -86,11 +98,12 @@ impl IsolatedRuntime {
         deno_webidl::init(),
         deno_console::init(),
         deno_url::init(),
-        deno_web::init::<Permissions>(
+        deno_web::init::<PermissionsContainer>(
           deno_web::BlobStore::default(),
           Default::default(),
         ),
-        deno_fetch::init::<Permissions>(deno_fetch::Options {
+        deno_crypto::init(None),
+        deno_fetch::init::<PermissionsContainer>(deno_fetch::Options {
           user_agent: "arena/server".to_string(),
           root_cert_store: None,
           proxy: None,
@@ -99,12 +112,10 @@ impl IsolatedRuntime {
           client_cert_chain_and_key: None,
           file_fetch_handler: Rc::new(deno_fetch::DefaultFileFetchHandler),
         }),
-        Extension::builder("<arena/core/permissions/setter>")
+        super::ext::fs::init(),
+        Extension::builder("<arena/core/permissions>")
           .state(move |state| {
-            state.put::<Permissions>(Permissions {
-              timer: None,
-              net: None,
-            });
+            state.put::<PermissionsContainer>(permissions.to_owned());
             Ok(())
           })
           .build(),
@@ -130,7 +141,7 @@ impl IsolatedRuntime {
       runtime: Rc::new(RefCell::new(js_runtime)),
     };
 
-    runtime
+    Ok(runtime)
   }
 
   pub async fn execute_main_module(&mut self, url: &Url) -> Result<()> {
@@ -184,11 +195,9 @@ impl IsolatedRuntime {
   }
 
   fn get_js_extensions(config: &RuntimeConfig) -> Vec<Extension> {
-    let mut extensions = Vec::new();
-
     let mut js_files = Vec::new();
-    js_files.push(("<arena/init>", include_str!("../../js/core/setup.js")));
-    js_files.push(("<arena/arena>", include_str!("../../js/core/0_arena.js")));
+    js_files.push(("<arena/init>", include_str!("../../js/core/0_setup.js")));
+    js_files.push(("<arena/arena>", include_str!("../../js/core/1_arena.js")));
     if config.enable_console {
       js_files.push((
         "<arena/console>",
@@ -200,8 +209,11 @@ impl IsolatedRuntime {
       ));
     }
 
-    extensions.push(Extension::builder("<arena/init>").js(js_files).build());
-
+    let mut extensions =
+      vec![Extension::builder("<arena/init>").js(js_files).build()];
+    if config.enable_wasm {
+      extensions.push(super::ext::wasi::init());
+    }
     extensions
   }
 }

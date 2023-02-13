@@ -1,18 +1,18 @@
-use anyhow::anyhow;
+use anyhow::{anyhow, bail, Result};
 use deno_core::error::AnyError;
 use deno_core::OpState;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use url::Url;
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct TimerPermissions {
   pub allow_hrtime: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct FetchPermissions {
   pub allowed_urls: Option<HashSet<Url>>,
@@ -21,12 +21,22 @@ pub struct FetchPermissions {
 
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct Permissions {
-  pub timer: Option<TimerPermissions>,
-  pub net: Option<FetchPermissions>,
+pub struct FileSystemPermissions {
+  pub allowed_read_paths: HashSet<PathBuf>,
+  pub allowed_write_paths: HashSet<PathBuf>,
 }
 
-impl deno_fetch::FetchPermissions for Permissions {
+#[derive(Clone, Debug, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct PermissionsContainer {
+  pub timer: Option<TimerPermissions>,
+  pub net: Option<FetchPermissions>,
+
+  /// File system permissions
+  pub fs: Option<FileSystemPermissions>,
+}
+
+impl deno_fetch::FetchPermissions for PermissionsContainer {
   fn check_net_url(
     &mut self,
     url: &Url,
@@ -74,11 +84,35 @@ fn url_matches(a: &Url, b: &Url) -> bool {
   a.host_str() == b.host_str()
 }
 
-impl deno_web::TimersPermission for Permissions {
+impl deno_web::TimersPermission for PermissionsContainer {
   fn allow_hrtime(&mut self) -> bool {
     self.timer.as_ref().and_then(|t| Some(t.allow_hrtime)) == Some(true)
   }
   fn check_unstable(&self, _: &OpState, _: &'static str) {}
+}
+
+impl PermissionsContainer {
+  /// Checks read access to a file path
+  pub fn check_read(&mut self, path: &Path) -> Result<()> {
+    match self.fs.as_ref() {
+      Some(perms) => {
+        if perms.allowed_read_paths.iter().any(|p| path.starts_with(p)) {
+          return Ok(());
+        }
+      }
+      None => {}
+    };
+    bail!(
+      "doesn't have permission to read: {}",
+      path.to_string_lossy()
+    )
+  }
+
+  /// Checks write access to a file path
+  #[allow(dead_code)]
+  pub fn check_write(&mut self, _path: &Path) -> Result<()> {
+    bail!("not implemented");
+  }
 }
 
 /*********************************************************************/
@@ -86,7 +120,7 @@ impl deno_web::TimersPermission for Permissions {
 /*********************************************************************/
 #[cfg(test)]
 mod tests {
-  use crate::permissions::Permissions;
+  use crate::permissions::PermissionsContainer;
   use crate::permissions::TimerPermissions;
   use deno_fetch::FetchPermissions;
   use deno_web::TimersPermission;
@@ -94,38 +128,37 @@ mod tests {
 
   #[test]
   fn test_timer_permissions_with_empty_permissions() {
-    let mut permission = Permissions {
-      timer: None,
-      net: None,
+    let mut permission = PermissionsContainer {
+      ..Default::default()
     };
     assert_eq!(permission.allow_hrtime(), false);
   }
 
   #[test]
   fn test_timer_permissions_with_allow_hrtime_true() {
-    let mut permission = Permissions {
+    let mut permission = PermissionsContainer {
       timer: Some(TimerPermissions { allow_hrtime: true }),
-      net: None,
+      ..Default::default()
     };
     assert_eq!(permission.allow_hrtime(), true);
   }
 
   #[test]
   fn test_timer_permissions_with_allow_hrtime_false() {
-    let mut permission = Permissions {
+    let mut permission = PermissionsContainer {
       timer: Some(TimerPermissions {
         allow_hrtime: false,
       }),
-      net: None,
+      ..Default::default()
     };
     assert_eq!(permission.allow_hrtime(), false);
   }
 
   #[test]
   fn test_net_permissions_with_empty_permissions() {
-    let mut permission = Permissions {
+    let mut permission = PermissionsContainer {
       timer: None,
-      net: None,
+      ..Default::default()
     };
     assert!(permission
       .check_net_url(&Url::parse("https://reqbin.com/echo").unwrap(), "")

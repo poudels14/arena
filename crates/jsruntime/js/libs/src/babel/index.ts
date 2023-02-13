@@ -13,5 +13,3 @@ globalThis.Arena.babelPresets = {
 globalThis.Arena.babelPlugins = {
   transformCommonJs,
 };
-
-console.log(globalThis.Arena);

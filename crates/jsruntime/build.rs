@@ -99,6 +99,7 @@ fn get_basic_runtime() -> JsRuntime {
         deno_web::BlobStore::default(),
         Default::default(),
       ),
+      deno_crypto::init(None),
       deno_fetch::init::<Permissions>(deno_fetch::Options {
         user_agent: "arena/snapshot".to_owned(),
         root_cert_store: None,

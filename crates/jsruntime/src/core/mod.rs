@@ -1,3 +1,4 @@
+mod ext;
 mod loaders;
 mod resolvers;
 mod runtime;

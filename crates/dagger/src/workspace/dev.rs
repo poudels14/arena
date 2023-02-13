@@ -26,6 +26,7 @@ impl DevCommand {
       arena_workspace::load::load(arena_workspace::load::Config {
         dir: workspaces_dir,
         registry: None,
+        ..Default::default()
       })
       .await?;
 

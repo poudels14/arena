@@ -6,9 +6,10 @@ use anyhow::Error;
 use deno_core::error::generic_error;
 use deno_core::{
   ModuleLoader, ModuleSource, ModuleSourceFuture, ModuleSpecifier, ModuleType,
-  ResolutionKind,
+  OpState, ResolutionKind,
 };
 use futures::future::FutureExt;
+use futures::Future;
 use std::cell::RefCell;
 use std::pin::Pin;
 use std::rc::Rc;
@@ -29,14 +30,15 @@ pub struct ModuleLoaderOption {
 impl FsModuleLoader {
   pub fn new(option: ModuleLoaderOption) -> Self {
     let runtime = match option.transpile {
-      true => {
-        Some(Rc::new(RefCell::new(IsolatedRuntime::new(RuntimeConfig {
+      true => Some(Rc::new(RefCell::new(
+        IsolatedRuntime::new(RuntimeConfig {
           enable_console: true,
           enable_build_tools: true,
           disable_module_loader: true,
           ..Default::default()
-        }))))
-      }
+        })
+        .unwrap(),
+      ))),
       false => None,
     };
     Self {

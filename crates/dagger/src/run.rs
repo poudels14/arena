@@ -1,8 +1,11 @@
 use anyhow::Result;
 use clap::Parser;
 use deno_core::resolve_url_or_path;
+use jsruntime::permissions::{FileSystemPermissions, PermissionsContainer};
 use jsruntime::{IsolatedRuntime, ModuleLoaderConfig, RuntimeConfig};
+use std::collections::HashSet;
 use std::env;
+use std::path::Path;
 
 #[derive(Parser, Debug)]
 pub struct Command {
@@ -23,8 +26,19 @@ impl Command {
         project_root: env::current_dir().unwrap(),
         ..Default::default()
       }),
+
+      permissions: PermissionsContainer {
+        fs: Some(FileSystemPermissions {
+          allowed_read_paths: HashSet::from_iter(vec![
+            // allow all files
+            Path::new("/").to_path_buf(),
+          ]),
+          ..Default::default()
+        }),
+        ..Default::default()
+      },
       ..Default::default()
-    });
+    })?;
 
     let main_module = resolve_url_or_path(&self.file)?;
     runtime.execute_main_module(&main_module).await?;

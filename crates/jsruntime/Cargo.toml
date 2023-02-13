@@ -13,6 +13,7 @@ url.workspace = true
 log.workspace = true
 smallvec.workspace = true
 indexmap.workspace = true
+derivative.workspace = true
 common = { path = "../common" }
 
 deno_core.workspace = true
@@ -21,6 +22,7 @@ deno_url.workspace = true
 deno_fetch.workspace = true
 deno_web.workspace = true
 deno_webidl.workspace = true
+deno_crypto.workspace = true
 
 swc_common.workspace = true
 swc_ecma_parser.workspace = true
@@ -37,6 +39,7 @@ deno_url.workspace = true
 deno_fetch.workspace = true
 deno_web.workspace = true
 deno_webidl.workspace = true
+deno_crypto.workspace = true
 
 [dev-dependencies]
 criterion.workspace = true

@@ -203,7 +203,7 @@ impl WorkspaceServer {
         alias: module_loader_config.and_then(|c| c.alias.clone()),
       }),
       ..Default::default()
-    });
+    })?;
 
     runtime
       .execute_script(

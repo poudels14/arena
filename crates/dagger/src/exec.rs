@@ -14,7 +14,7 @@ impl Command {
       enable_console: true,
       transpile: false,
       ..Default::default()
-    });
+    })?;
 
     let function = runtime.init_js_function(&self.code, None)?;
     let result = function.execute(vec![])?.unwrap().get_value_async().await?;
