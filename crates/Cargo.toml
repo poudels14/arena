@@ -37,12 +37,13 @@ http = "0.2.8"
 tower = { version = "0.4.13" }
 tower-http = { version = "0.3.5", features = ["full"] }
 
-deno_core = "0.169.0"
-deno_console = "0.87.0"
-deno_url = "0.87.0"
-deno_fetch = "0.111.0"
-deno_web = "0.118.0"
-deno_webidl = "0.87.0"
+deno_core = "0.171.0"
+deno_console = "0.89.0"
+deno_url = "0.89.0"
+deno_fetch = "0.113.0"
+deno_web = "0.120.0"
+deno_webidl = "0.89.0"
+deno_crypto = "0.103.0"
 
 swc_common = "0.29.28"
 swc_ecma_parser = "0.124.4"
@@ -57,3 +58,6 @@ debug = 1
 codegen-units = 1
 incremental = true
 lto = true
+
+[profile.dev.package.jsruntime]
+opt-level = 3
