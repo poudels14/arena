@@ -46,6 +46,7 @@ impl Analyzer {
     let lexer = Lexer::new(
       Syntax::Typescript(TsConfig {
         tsx: true,
+        decorators: true,
         ..Default::default()
       }),
       Default::default(),
