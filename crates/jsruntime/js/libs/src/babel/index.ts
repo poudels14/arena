@@ -2,14 +2,16 @@ import * as babel from "@babel/standalone";
 import solidPreset from "babel-preset-solid";
 import transformCommonJs from "./plugins/transform-commonjs";
 
-if (!globalThis.Arena) {
-  globalThis.Arena = {};
+if (!globalThis.Arena.BuildTools) {
+  throw new Error("Arena.BuildTools is undefined");
 }
 
-globalThis.Arena.babel = babel;
-globalThis.Arena.babelPresets = {
-  solid: solidPreset,
-};
-globalThis.Arena.babelPlugins = {
-  transformCommonJs,
-};
+Object.assign(globalThis.Arena.BuildTools, {
+  babel,
+  babelPresets: {
+    solid: solidPreset,
+  },
+  babelPlugins: {
+    transformCommonJs,
+  },
+});

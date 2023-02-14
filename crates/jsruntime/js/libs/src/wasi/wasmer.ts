@@ -9,11 +9,12 @@ import { InitGo } from "./go";
 
 init();
 
-globalThis.__bootstrap.wasi = {
+const Go = InitGo(globalThis);
+globalThis.Arena.wasi = {
   init,
   WASI,
   MemFS,
   JSVirtualFile,
   WasmerRuntimeError,
-  InitGo,
+  Go,
 };

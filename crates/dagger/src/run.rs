@@ -15,6 +15,10 @@ pub struct Command {
   /// Whether to auto-transpile code; default true
   #[arg(short, long)]
   disable_transpile: bool,
+
+  /// Whether to auto-transpile code; default true
+  #[arg(short, long)]
+  enable_build_tools: bool,
 }
 
 impl Command {
@@ -22,6 +26,7 @@ impl Command {
     let mut runtime = IsolatedRuntime::new(RuntimeConfig {
       enable_console: true,
       transpile: !self.disable_transpile,
+      enable_build_tools: self.enable_build_tools,
       module_loader_config: Some(ModuleLoaderConfig {
         project_root: env::current_dir().unwrap(),
         ..Default::default()

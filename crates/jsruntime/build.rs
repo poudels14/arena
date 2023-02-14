@@ -79,7 +79,10 @@ fn generate_builder_snapshot(path: &Path) {
 
   let mut runtime = get_basic_runtime();
   runtime
-    .execute_script("<arena/babel>", include_str!("./js/libs/dist/babel.js"))
+    .execute_script(
+      "<arena/buildtools/babel>",
+      include_str!("./js/libs/dist/babel.js"),
+    )
     .unwrap();
   let snapshot: &[u8] = &*runtime.snapshot();
   std::fs::write(path, snapshot).unwrap();
@@ -114,6 +117,12 @@ fn get_basic_runtime() -> JsRuntime {
     ..Default::default()
   });
 
+  runtime
+    .execute_script("<setup>", include_str!("./js/core/0_setup.js"))
+    .unwrap();
+  runtime
+    .execute_script("<arena/setup>", include_str!("./js/core/1_arena.js"))
+    .unwrap();
   runtime
     .execute_script(
       "<arena/core/process>",

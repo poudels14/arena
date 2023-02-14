@@ -196,8 +196,12 @@ impl IsolatedRuntime {
 
   fn get_js_extensions(config: &RuntimeConfig) -> Vec<Extension> {
     let mut js_files = Vec::new();
-    js_files.push(("<arena/init>", include_str!("../../js/core/0_setup.js")));
-    js_files.push(("<arena/arena>", include_str!("../../js/core/1_arena.js")));
+    js_files.push((
+      "<arena/init>",
+      r#"
+      Deno.core.initializeAsyncOps();
+    "#,
+    ));
     if config.enable_console {
       js_files.push((
         "<arena/console>",
@@ -213,6 +217,9 @@ impl IsolatedRuntime {
       vec![Extension::builder("<arena/init>").js(js_files).build()];
     if config.enable_wasm {
       extensions.push(super::ext::wasi::init());
+    }
+    if config.enable_build_tools {
+      extensions.push(crate::buildtools::exts::transform::init());
     }
     extensions
   }

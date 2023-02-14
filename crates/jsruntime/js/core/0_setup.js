@@ -1,6 +1,6 @@
 "use strict";
 
-Deno.core.initializeAsyncOps();
+// Note(sagar): this is initialized during snapshotting
 const { performance } = globalThis.__bootstrap.performance;
 const {
   setTimeout,

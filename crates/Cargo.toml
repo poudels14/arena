@@ -46,14 +46,6 @@ deno_webidl = "0.89.0"
 deno_crypto = "0.103.0"
 deno_ast = { version = "0.24.0", features = ["transpiling"] }
 
-# swc's version bumping is very buggy, so we pin all swc versions to prevent
-swc_common = "=0.29.29"
-swc_ecma_parser = "=0.124.5"
-swc_ecma_ast = "=0.96.3"
-swc_ecma_transforms_typescript = "=0.164.10"
-swc_ecma_visit = "=0.82.3"
-swc_ecma_codegen = "=0.129.8"
-
 [profile.release]
 strip = true
 debug = 1

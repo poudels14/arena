@@ -54,7 +54,7 @@ fn transpile_jsx<'a>(
     runtime,
     r#"
       ((code) => {
-        const { babel, babelPlugins, babelPresets } = Arena;
+        const { babel, babelPlugins, babelPresets } = Arena.BuildTools;
         const { code : transpiledCode } = babel.transform(code, {
           presets: [
             // TODO(sagar): make this configurable to server/client
@@ -79,7 +79,7 @@ fn convert_to_es6(
     runtime,
     r#"
       ((code) => {
-        const { babel, babelPlugins } = Arena;
+        const { babel, babelPlugins } = Arena.BuildTools;
         const { code : transpiledCode } = babel.transform(code, {
           plugins: [
             [babelPlugins.transformCommonJs, { "exportsOnly": true }]

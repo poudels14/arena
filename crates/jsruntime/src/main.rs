@@ -1,6 +1,7 @@
 mod buildtools;
 mod core;
 mod permissions;
+mod utils;
 
 use crate::core::{IsolatedRuntime, RuntimeConfig};
 use crate::permissions::FileSystemPermissions;
