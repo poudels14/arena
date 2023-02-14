@@ -1,0 +1,6 @@
+name = "workspace0"
+version = "0.1.0"
+server_entry = "entry-server.tsx"
+
+[javascript.build_config.alias]
+"~" = "./src"

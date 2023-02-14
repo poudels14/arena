@@ -11,6 +11,11 @@ pub struct JsBuildConfig {
   /// Module resolve alias as used by node resolvers, ViteJs, etc
   #[serde(skip_serializing_if = "Option::is_none")]
   pub alias: Option<IndexMap<String, String>>,
+
+  /// Mapping from npm module to the package.json's export that should
+  /// be use for this module when resolving
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub resolve: Option<IndexMap<String, String>>,
 }
 
 #[derive(Derivative, Serialize, Deserialize)]
@@ -39,9 +44,9 @@ pub struct ArenaConfig {
 
 impl ArenaConfig {
   pub fn from_path(filepath: &PathBuf) -> Result<Self> {
-    let yaml =
+    let content =
       fs::read(filepath).map_err(|e| anyhow!("{}: {:?}", e, filepath))?;
-    serde_yaml::from_str(&std::str::from_utf8(&yaml)?)
+    toml::from_str(&std::str::from_utf8(&content)?)
       .map_err(|e| anyhow!("{}", e))
   }
 }
@@ -61,9 +66,9 @@ mod tests {
 
   #[test]
   fn test_serialize_default_entry_server() {
-    let config: crate::ArenaConfig = serde_yaml::from_str(
+    let config: crate::ArenaConfig = toml::from_str(
       r#"
-      "name": "test-workspace"
+      name = "test-workspace"
     "#,
     )
     .unwrap();

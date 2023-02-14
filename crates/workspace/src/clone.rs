@@ -1,11 +1,16 @@
 use crate::ArenaConfig;
 use anyhow::{anyhow, bail, Result};
+use bytes::Buf;
 use common::fs::has_file_in_file_tree;
-use common::node::{Package, TsConfig};
+use common::node::Package;
 use log::debug;
 use std::fs::{self, File};
 use std::io::prelude::*;
 use std::path::PathBuf;
+use tar::Archive;
+
+pub static DEFAULT_WORKSPACE_TEMPLATE: &[u8] =
+  include_bytes!(concat!(env!("OUT_DIR"), "/DEFAULT_WORKSPACE_TEMPLATE.tar"));
 
 #[derive(Debug)]
 pub struct Config {
@@ -59,11 +64,11 @@ impl Config {
   fn add_template_files(&self) -> Result<()> {
     debug!("Adding arena.config.yaml");
     let mut arena_config: ArenaConfig =
-      serde_yaml::from_str(include_str!("../template/arena.config.yaml"))?;
+      toml::from_str(include_str!("../template/arena.config.toml"))?;
     arena_config.name = self.name.clone();
     self.create_file(
-      "arena.config.yaml",
-      serde_yaml::to_string(&arena_config)?.as_bytes(),
+      "arena.config.toml",
+      toml::to_string(&arena_config)?.as_bytes(),
     )?;
 
     debug!("Adding package.json");
@@ -77,21 +82,19 @@ impl Config {
         .as_bytes(),
     )?;
 
-    debug!("Adding tsconfig.json");
-    let ts_config: TsConfig =
-      serde_json::from_str(include_str!("../template/tsconfig.json"))?;
-    self.create_file(
-      "tsconfig.json",
-      serde_json::to_string_pretty(&ts_config)
-        .map_err(|e| anyhow!("{:?}", e))?
-        .as_bytes(),
-    )?;
+    let mut a = Archive::new(DEFAULT_WORKSPACE_TEMPLATE.reader());
+    for file in a.entries()? {
+      let mut file = file?;
 
-    self.create_file(
-      "entry-server.tsx",
-      include_bytes!("../template/entry-server.tsx"),
-    )?;
-    self.create_file(".gitignore", include_bytes!("../template/.gitignore"))?;
+      let filename = self.dir.join(file.header().path()?);
+      fs::create_dir_all(filename.parent().unwrap())?;
+      let mut f = File::create(filename)?;
+
+      let content = &mut Vec::with_capacity(file.header().size()?.try_into()?);
+      file.read_to_end(content)?;
+
+      f.write_all(content)?;
+    }
 
     Ok(())
   }

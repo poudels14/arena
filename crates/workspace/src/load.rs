@@ -27,7 +27,7 @@ pub struct Config {
 /// lazy load other files as necessary
 pub async fn load(config: Config) -> Result<Workspace> {
   let arena_config =
-    ArenaConfig::from_path(&config.dir.join("arena.config.yaml"))?;
+    ArenaConfig::from_path(&config.dir.join("arena.config.toml"))?;
   Ok(Workspace {
     registry: config.registry.clone(),
     dir: config.dir.clone(),
