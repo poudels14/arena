@@ -1,11 +1,14 @@
 use super::loaders::{self, ModuleLoaderConfig};
+use crate::config::ArenaConfig;
 use crate::permissions::PermissionsContainer;
 use anyhow::{anyhow, Result};
+use common::fs::has_file_in_file_tree;
 use deno_core::{v8, JsRealm, ModuleLoader};
 use deno_core::{Extension, JsRuntime, Snapshot};
 use derivative::Derivative;
 use log::error;
 use std::cell::RefCell;
+use std::env::current_dir;
 use std::rc::Rc;
 use url::Url;
 
@@ -18,6 +21,12 @@ pub static RUNTIME_BUILD_SNAPSHOT: &[u8] =
 #[derive(Derivative)]
 #[derivative(Default)]
 pub struct RuntimeConfig {
+  /// Arena config to be used for the runtime
+  /// If None is passed, arena.config.toml is checked
+  /// in the current directory as well as up the directory tree
+  #[derivative(Default(value = "Option::None"))]
+  pub config: Option<ArenaConfig>,
+
   /// Name of the HTTP user_agent
   pub user_agent: String,
 
@@ -41,9 +50,6 @@ pub struct RuntimeConfig {
   pub transpile: bool,
 
   pub disable_module_loader: bool,
-
-  /// Config used by module loader
-  pub module_loader_config: Option<ModuleLoaderConfig>,
 }
 
 pub struct IsolatedRuntime {
@@ -53,6 +59,28 @@ pub struct IsolatedRuntime {
 
 impl IsolatedRuntime {
   pub fn new(mut config: RuntimeConfig) -> Result<IsolatedRuntime> {
+    let cwd = current_dir()?;
+    let maybe_arena_config_dir =
+      has_file_in_file_tree(Some(&cwd), "arena.config.toml");
+
+    // If arena.config.toml is found, use it as project_root, else
+    // use current dir
+    let project_root = maybe_arena_config_dir.clone().unwrap_or(cwd);
+
+    // If Arena config isn't passed, load from config file
+    let arena_config = config
+      .config
+      .as_ref()
+      .and_then(|c| Some(c.clone()))
+      .or_else(|| {
+        maybe_arena_config_dir.and_then(|dir| {
+          // Note(sagar): this changes Err => None, which means all errors
+          // are silently ignored
+          ArenaConfig::from_path(&dir.join("arena.config.toml")).ok()
+        })
+      })
+      .unwrap_or(Default::default());
+
     let mut extensions_with_js = Self::get_js_extensions(&mut config);
     // Note(sagar): take extensions out of the config and set it to empty
     // vec![] so that config can be stored without having Send trait
@@ -66,20 +94,24 @@ impl IsolatedRuntime {
       v8::Isolate::create_params().heap_limits(initial, max)
     });
 
-    let module_loader: Option<Rc<dyn ModuleLoader>> = if config
-      .disable_module_loader
-    {
-      None
-    } else {
-      // Note(sagar): module loader should be disabled for deployed app
-      Some(Rc::new(loaders::FsModuleLoader::new(
-        loaders::ModuleLoaderOption {
-          transpile: config.transpile,
-          config: config.module_loader_config.take()
-            .ok_or_else(|| anyhow!("module_loader_config should be passed when disable_module_loader isn't false"))?,
-        },
-      )))
-    };
+    let module_loader: Option<Rc<dyn ModuleLoader>> =
+      if config.disable_module_loader {
+        None
+      } else {
+        // Note(sagar): module loader should be disabled for deployed app
+        Some(Rc::new(loaders::FsModuleLoader::new(
+          loaders::ModuleLoaderOption {
+            transpile: config.transpile,
+            config: ModuleLoaderConfig {
+              project_root,
+              build_config: arena_config
+                .javascript
+                .and_then(|j| j.build)
+                .unwrap_or(Default::default()),
+            },
+          },
+        )))
+      };
 
     let permissions = config.permissions.clone();
     let mut js_runtime = JsRuntime::new(deno_core::RuntimeOptions {

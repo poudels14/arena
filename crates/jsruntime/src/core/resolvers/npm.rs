@@ -1,15 +1,23 @@
 use super::{fs, ParsedSpecifier};
+use crate::core::ModuleLoaderConfig;
 use anyhow::{anyhow, bail, Result};
 use common::node::Package;
 use deno_core::ModuleResolutionError::{
   ImportPrefixMissing, InvalidPath, InvalidUrl,
 };
 use deno_core::{ModuleResolutionError, ModuleSpecifier};
+use indexmap::{indexset, IndexSet};
 use log::debug;
+use once_cell::sync::Lazy;
+use serde_json::Value;
 use std::path::{Path, PathBuf};
 use url::{ParseError, Url};
 
+static ORDERED_EXPORT_CONDITIONS: Lazy<IndexSet<&str>> =
+  Lazy::new(|| indexset!["import", "deno", "node", "browser"]);
+
 pub fn resolve_module(
+  loader_config: &ModuleLoaderConfig,
   specifier: &str,
   maybe_referrer: Option<String>,
 ) -> Result<ModuleSpecifier, ModuleResolutionError> {
@@ -20,16 +28,24 @@ pub fn resolve_module(
       let parsed_specifier = parse_specifier(&specifier);
       for dir_path in directories {
         debug!("checking directory: {:?}", &dir_path);
-        if let Ok(resolved) = load_npm_package(&dir_path, &parsed_specifier)
-          .or_else(|e| {
-            debug!("error loading package exports: {:?}", e);
-            fs::load_as_file(&dir_path.join(specifier))
-          })
-          .or_else(|e| {
-            debug!("error loading as file: {:?}", e);
-            fs::load_as_directory(&dir_path.join(specifier))
-          })
-        {
+        let maybe_package = load_package_json_in_dir(
+          &dir_path.join(&parsed_specifier.package_name),
+        )
+        .ok();
+        if let Ok(resolved) = load_npm_package(
+          loader_config,
+          &dir_path,
+          &parsed_specifier,
+          &maybe_package,
+        )
+        .or_else(|e| {
+          debug!("error loading package exports: {:?}", e);
+          fs::load_as_file(&dir_path.join(specifier))
+        })
+        .or_else(|e| {
+          debug!("error loading as file: {:?}", e);
+          fs::load_as_directory(&dir_path.join(specifier), &maybe_package)
+        }) {
           return Ok(resolved);
         }
       }
@@ -68,20 +84,18 @@ fn parse_specifier(specifier: &str) -> ParsedSpecifier {
 }
 
 fn load_npm_package(
+  loader_config: &ModuleLoaderConfig,
   base_dir: &PathBuf,
   specifier: &ParsedSpecifier,
+  maybe_package: &Option<Package>,
 ) -> Result<ModuleSpecifier> {
-  let package_path =
-    base_dir.join(&specifier.package_name).join("package.json");
-  if !package_path.exists() {
-    bail!("package.json doesn't exist");
-  }
-  let content = std::fs::read(package_path).map_err(|e| anyhow!("{}", e))?;
-  let package: Package = serde_json::from_str(std::str::from_utf8(&content)?)?;
+  let package: &Package =
+    maybe_package.as_ref().ok_or(anyhow!("not a npm package"))?;
 
   debug!("package.json loaded for package: {}", package.name);
 
-  let package_export = load_package_exports(base_dir, specifier, &package);
+  let package_export =
+    load_package_exports(loader_config, base_dir, specifier, &package);
   if package_export.is_ok() {
     return package_export;
   }
@@ -92,14 +106,17 @@ fn load_npm_package(
 }
 
 fn load_package_exports(
+  loader_config: &ModuleLoaderConfig,
   base_dir: &PathBuf,
   specifier: &ParsedSpecifier,
   package: &Package,
 ) -> Result<ModuleSpecifier> {
   // TODO(sagar): handle other exports type
-  let module = base_dir
-    .join(&package.name)
-    .join(get_package_json_export(&package, &specifier.sub_path)?);
+  let module = base_dir.join(&package.name).join(get_package_json_export(
+    loader_config,
+    &package,
+    &specifier.sub_path,
+  )?);
 
   debug!("resolved module path: {:?}", module);
 
@@ -146,37 +163,56 @@ fn valid_node_modules_paths(
 }
 
 fn get_package_json_export(
+  loader_config: &ModuleLoaderConfig,
   package: &Package,
   specifier_subpath: &str,
 ) -> Result<String> {
   match package.exports.as_ref() {
     Some(exports) => {
-      if let Some(export) = exports.get(specifier_subpath) {
-        let node_export = export
-          .get("node")
-          .ok_or(anyhow!("exports.node not found!"))?;
-        if node_export.is_string() {
-          return Ok(node_export.to_string());
-        } else if node_export.is_object() {
-          let import = node_export
-            .get("import")
-            .ok_or(anyhow!("unrecognized export format: {:?}", node_export))?;
-
-          return Ok(
-            import
-              .get("default")
-              .ok_or(anyhow!("default export not found in exports.node"))?
-              .as_str()
-              .unwrap()
-              .to_owned(),
-          );
-        } else {
-          bail!("unrecognized export format: {:?}", node_export);
-        }
+      // Exports are selected based on this doc:
+      // https://webpack.js.org/guides/package-exports/
+      if let Some(subpath_export) = exports.get(specifier_subpath) {
+        return get_matching_export(
+          subpath_export,
+          &loader_config.build_config.export_conditions,
+        );
       }
 
       bail!("not implemented")
     }
     None => bail!("exports field missing in package.json"),
   }
+}
+
+pub(crate) fn load_package_json_in_dir(dir: &Path) -> Result<Package> {
+  let package_path = dir.join("package.json");
+  if !package_path.exists() {
+    bail!("package.json doesn't exist");
+  }
+  let content = std::fs::read(package_path).map_err(|e| anyhow!(e))?;
+  serde_json::from_str(std::str::from_utf8(&content)?).map_err(|e| anyhow!(e))
+}
+
+fn get_matching_export(
+  subpath_export: &Value,
+  conditions: &IndexSet<String>,
+) -> Result<String> {
+  if subpath_export.is_string() {
+    return Ok(subpath_export.as_str().unwrap().to_string());
+  }
+  let export = subpath_export.as_object().unwrap();
+  for (key, value) in export.iter() {
+    if conditions.contains(key)
+      || ORDERED_EXPORT_CONDITIONS.contains(key.as_str())
+    {
+      return get_matching_export(value, conditions);
+    }
+  }
+  // Note(sagar): always try default export
+  return get_matching_export(
+    export
+      .get("default")
+      .ok_or(anyhow!("no matching condition found"))?,
+    conditions,
+  );
 }

@@ -1,5 +1,5 @@
 use crate::registry::Registry;
-use crate::ArenaConfig;
+use crate::WorkspaceConfig;
 use std::path::PathBuf;
 
 #[derive(Clone, Debug)]
@@ -12,7 +12,7 @@ pub struct Workspace {
   pub dir: PathBuf,
 
   /// Arena config of the workspace
-  pub config: ArenaConfig,
+  pub config: WorkspaceConfig,
 
   /// Heap limit tuple: (initial size, max hard limit)
   pub heap_limits: Option<(usize, usize)>,

@@ -1,4 +1,4 @@
-use crate::ArenaConfig;
+use crate::WorkspaceConfig;
 use anyhow::{anyhow, bail, Result};
 use bytes::Buf;
 use common::fs::has_file_in_file_tree;
@@ -62,13 +62,13 @@ impl Config {
   }
 
   fn add_template_files(&self) -> Result<()> {
-    debug!("Adding arena.config.yaml");
-    let mut arena_config: ArenaConfig =
-      toml::from_str(include_str!("../template/arena.config.toml"))?;
-    arena_config.name = self.name.clone();
+    debug!("Adding workspace.config.yaml");
+    let mut workspace_config: WorkspaceConfig =
+      toml::from_str(include_str!("../template/workspace.config.toml"))?;
+    workspace_config.name = self.name.clone();
     self.create_file(
-      "arena.config.toml",
-      toml::to_string(&arena_config)?.as_bytes(),
+      "workspace.config.toml",
+      toml::to_string(&workspace_config)?.as_bytes(),
     )?;
 
     debug!("Adding package.json");

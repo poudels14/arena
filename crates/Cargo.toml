@@ -9,7 +9,7 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-serde_json = { version = "1.0.85", features = ["std", "preserve_order"] }
+serde_json = { version = "1.0.85", features = ["std", "preserve_order", "indexmap"] }
 tokio = { version = "1.21.1", features = ["full"] }
 futures = "0.3.25"
 reqwest = { version = "0.11", features = ["json", "rustls-tls", "stream", "gzip", "brotli", "socks"] }
@@ -29,7 +29,6 @@ criterion = "0.4.0"
 once_cell = "1.16.0"
 chrono = "0.4.23"
 smallvec = "1.10.0"
-serde_yaml = "0.9"
 toml = "0.7.2"
 hyper = "0.14.24"
 axum = "0.6.4"

@@ -7,7 +7,7 @@ use crate::server::{
 };
 use crate::Workspace;
 use anyhow::{anyhow, bail, Result};
-use jsruntime::{IsolatedRuntime, ModuleLoaderConfig, RuntimeConfig};
+use jsruntime::{IsolatedRuntime, RuntimeConfig};
 use log::{debug, error, info};
 use serde_json::{json, Value};
 use std::cell::RefCell;
@@ -186,22 +186,12 @@ impl WorkspaceServer {
     &self,
     rx: mpsc::Receiver<(HttpRequest, ResponseSender)>,
   ) -> Result<IsolatedRuntime> {
-    let module_loader_config = self
-      .workspace
-      .config
-      .javascript
-      .as_ref()
-      .and_then(|v| v.build_config.as_ref());
-
     let mut runtime = IsolatedRuntime::new(RuntimeConfig {
+      // TODO(sagar): disabled this when running deployed workspace
       enable_console: true,
       transpile: true,
       extensions: vec![super::ext::init(Rc::new(RefCell::new(rx)))],
       heap_limits: self.workspace.heap_limits,
-      module_loader_config: Some(ModuleLoaderConfig {
-        project_root: self.workspace.project_root(),
-        alias: module_loader_config.and_then(|c| c.alias.clone()),
-      }),
       ..Default::default()
     })?;
 

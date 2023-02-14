@@ -1,4 +1,5 @@
 mod buildtools;
+mod config;
 mod core;
 mod permissions;
 mod utils;
@@ -15,10 +16,6 @@ use std::path::Path;
 async fn main() -> Result<()> {
   let mut runtime = IsolatedRuntime::new(RuntimeConfig {
     enable_console: true,
-    module_loader_config: Some(crate::core::ModuleLoaderConfig {
-      project_root: std::env::current_dir().unwrap(),
-      ..Default::default()
-    }),
     permissions: PermissionsContainer {
       fs: Some(FileSystemPermissions {
         allowed_read_paths: HashSet::from_iter(vec![

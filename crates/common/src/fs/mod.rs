@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 ///  - /a/b/f.js
 ///  - /a/f.js
 ///  - /f.js
+///
 /// If a file exist, it will return the directory in which the file is found.
 pub fn has_file_in_file_tree(
   dir: Option<&Path>,

@@ -56,8 +56,13 @@ impl ModuleLoader for FsModuleLoader {
     referrer: &str,
     _kind: ResolutionKind,
   ) -> Result<ModuleSpecifier, Error> {
+    // TODO(sagar): does this need to be cached?
     let specifier = self.resolve_alias(specifier);
-    Ok(resolvers::fs::resolve_import(&specifier, referrer)?)
+    Ok(resolvers::fs::resolve_import(
+      self.config.as_ref(),
+      &specifier,
+      referrer,
+    )?)
   }
 
   fn load(
@@ -120,27 +125,25 @@ impl ModuleLoader for FsModuleLoader {
 impl FsModuleLoader {
   fn resolve_alias(&self, specifier: &str) -> String {
     // Note(sagar): if module loader is used, config should be present
-    let config = &self.config;
-    config
-      .alias
-      .as_ref()
-      .and_then(|alias| {
-        for k in alias.keys() {
-          if specifier.starts_with(k) {
-            let value = alias.get(k).unwrap();
-            return Some(format!(
-              "{}{}",
-              if value.starts_with(".") {
-                format!("{}", config.project_root.join(value).to_str().unwrap())
-              } else {
-                value.to_string()
-              },
-              &specifier[k.len()..]
-            ));
-          }
-        }
-        Some(specifier.to_owned())
-      })
-      .unwrap_or(specifier.to_owned())
+    let alias = &self.config.build_config.alias;
+
+    for k in alias.keys() {
+      if specifier.starts_with(k) {
+        let value = alias.get(k).unwrap();
+        return format!(
+          "{}{}",
+          if value.starts_with(".") {
+            format!(
+              "{}",
+              &self.config.project_root.join(value).to_str().unwrap()
+            )
+          } else {
+            value.to_string()
+          },
+          &specifier[k.len()..]
+        );
+      }
+    }
+    specifier.to_owned()
   }
 }

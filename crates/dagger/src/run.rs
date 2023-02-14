@@ -2,9 +2,8 @@ use anyhow::Result;
 use clap::Parser;
 use deno_core::resolve_url_or_path;
 use jsruntime::permissions::{FileSystemPermissions, PermissionsContainer};
-use jsruntime::{IsolatedRuntime, ModuleLoaderConfig, RuntimeConfig};
+use jsruntime::{IsolatedRuntime, RuntimeConfig};
 use std::collections::HashSet;
-use std::env;
 use std::path::Path;
 
 #[derive(Parser, Debug)]
@@ -27,11 +26,6 @@ impl Command {
       enable_console: true,
       transpile: !self.disable_transpile,
       enable_build_tools: self.enable_build_tools,
-      module_loader_config: Some(ModuleLoaderConfig {
-        project_root: env::current_dir().unwrap(),
-        ..Default::default()
-      }),
-
       permissions: PermissionsContainer {
         fs: Some(FileSystemPermissions {
           allowed_read_paths: HashSet::from_iter(vec![

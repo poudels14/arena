@@ -14,6 +14,8 @@ log.workspace = true
 smallvec.workspace = true
 indexmap.workspace = true
 derivative.workspace = true
+once_cell.workspace = true
+toml.workspace = true
 common = { path = "../common" }
 
 deno_core.workspace = true

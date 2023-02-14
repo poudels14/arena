@@ -23,7 +23,7 @@ impl DevCommand {
       .map_or(env::current_dir().unwrap(), |p| Path::new(&p).to_path_buf());
 
     let workspace =
-      arena_workspace::load::load(arena_workspace::load::Config {
+      arena_workspace::load::load(arena_workspace::load::Options {
         dir: workspaces_dir,
         registry: None,
         ..Default::default()

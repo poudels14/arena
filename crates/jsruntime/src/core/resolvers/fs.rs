@@ -1,3 +1,4 @@
+use crate::core::ModuleLoaderConfig;
 use anyhow::{anyhow, bail, Result};
 use common::node::Package;
 use deno_core::ModuleResolutionError::{
@@ -12,6 +13,7 @@ const SUPPORTED_EXTENSIONS: [&'static str; 5] =
   ["ts", "tsx", "js", "jsx", "json"];
 
 pub fn resolve_import(
+  loader_config: &ModuleLoaderConfig,
   specifier: &str,
   base: &str,
 ) -> Result<ModuleSpecifier, ModuleResolutionError> {
@@ -39,7 +41,11 @@ pub fn resolve_import(
       } else {
         Some(base.to_string())
       };
-      return super::npm::resolve_module(specifier, maybe_referrer);
+      return super::npm::resolve_module(
+        loader_config,
+        specifier,
+        maybe_referrer,
+      );
     }
 
     // 3. Return the result of applying the URL parser to specifier with base
@@ -52,10 +58,11 @@ pub fn resolve_import(
         .to_file_path()
         .map_err(|_| InvalidBaseUrl(ParseError::RelativeUrlWithoutBase))?;
 
+      let maybe_package = super::npm::load_package_json_in_dir(&filepath).ok();
       load_as_file(&filepath)
         .or_else(|e| {
           debug!("error loading as file: {:?}", e);
-          load_as_directory(&filepath)
+          load_as_directory(&filepath, &maybe_package)
         })
         .map_err(|_| InvalidPath(filepath))?
     }
@@ -92,25 +99,19 @@ pub fn load_index(path: &PathBuf) -> Result<ModuleSpecifier> {
   load_as_file(&path.join("index"))
 }
 
-pub fn load_as_directory(path: &PathBuf) -> Result<ModuleSpecifier> {
+/// if the directory contains package.json, package arg is not None
+pub fn load_as_directory(
+  path: &PathBuf,
+  maybe_package: &Option<Package>,
+) -> Result<ModuleSpecifier> {
   debug!("load_as_directory path: {:?}", path);
 
-  let package_path = path.join("package.json");
-  if package_path.exists() {
-    std::fs::read(&package_path)
-      .map_err(|e| anyhow!("{}", e))
-      .unwrap();
-    let content = std::fs::read(&package_path).map_err(|e| anyhow!("{}", e))?;
-    serde_json::from_str::<Package>(std::str::from_utf8(&content).unwrap())
-      .unwrap();
-    let package: Package =
-      serde_json::from_str(std::str::from_utf8(&content)?)?;
-
-    if let Some(main) = package.main {
+  if let Some(package) = maybe_package.as_ref() {
+    if let Some(main) = &package.main {
       let main_file = path.join(main);
       return load_as_file(&main_file).or_else(|_| load_index(&main_file));
     }
   };
-  debug!("package.json not found in {:?}", &package_path);
+  debug!("package.json not found in {:?}", &path);
   load_index(&path)
 }
