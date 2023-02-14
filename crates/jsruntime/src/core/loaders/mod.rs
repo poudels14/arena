@@ -1,6 +1,6 @@
 mod fs;
 
-pub use fs::FsModuleLoader;
+pub(crate) use fs::FsModuleLoader;
 pub use fs::ModuleLoaderOption;
 
 use crate::config::JsBuildConfig;

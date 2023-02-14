@@ -1,4 +1,5 @@
 use super::{fs, ParsedSpecifier};
+use crate::core::loaders::FsModuleLoader;
 use crate::core::ModuleLoaderConfig;
 use anyhow::{anyhow, bail, Result};
 use common::node::Package;
@@ -14,17 +15,32 @@ use std::path::{Path, PathBuf};
 use url::{ParseError, Url};
 
 static ORDERED_EXPORT_CONDITIONS: Lazy<IndexSet<&str>> =
-  Lazy::new(|| indexset!["import", "deno", "node", "browser"]);
+  Lazy::new(|| indexset!["import"]);
 
-pub fn resolve_module(
-  loader_config: &ModuleLoaderConfig,
+pub(crate) fn resolve_module(
+  loader: &FsModuleLoader,
   specifier: &str,
   maybe_referrer: Option<String>,
 ) -> Result<ModuleSpecifier, ModuleResolutionError> {
   match maybe_referrer.as_ref() {
     Some(referrer) => {
-      let directories = valid_node_modules_paths(&referrer)?;
-      debug!("valid node_modules directories: {:?}", &directories);
+      let mut cache = loader.cache.borrow_mut();
+
+      let directories = match cache.node_module_dirs.get(referrer) {
+        Some(dir) => dir,
+        None => {
+          let directories = valid_node_modules_paths(referrer)?;
+          debug!(
+            "caching resolved node_modules directories: {:?}",
+            &directories
+          );
+          cache
+            .node_module_dirs
+            .insert(referrer.to_string(), directories);
+          cache.node_module_dirs.get(referrer).unwrap()
+        }
+      };
+
       let parsed_specifier = parse_specifier(&specifier);
       for dir_path in directories {
         debug!("checking directory: {:?}", &dir_path);
@@ -33,7 +49,7 @@ pub fn resolve_module(
         )
         .ok();
         if let Ok(resolved) = load_npm_package(
-          loader_config,
+          &loader.config,
           &dir_path,
           &parsed_specifier,
           &maybe_package,
@@ -73,14 +89,10 @@ fn parse_specifier(specifier: &str) -> ParsedSpecifier {
     false => "./".to_owned() + &sub_path,
   };
 
-  let parsed_specifier = ParsedSpecifier {
+  ParsedSpecifier {
     package_name,
     sub_path,
-  };
-
-  debug!("specifier parsed: {:?}", &parsed_specifier);
-
-  parsed_specifier
+  }
 }
 
 fn load_npm_package(
@@ -96,6 +108,7 @@ fn load_npm_package(
 
   let package_export =
     load_package_exports(loader_config, base_dir, specifier, &package);
+
   if package_export.is_ok() {
     return package_export;
   }
@@ -205,9 +218,12 @@ fn get_matching_export(
     if conditions.contains(key)
       || ORDERED_EXPORT_CONDITIONS.contains(key.as_str())
     {
-      return get_matching_export(value, conditions);
+      if let Ok(result) = get_matching_export(value, conditions) {
+        return Ok(result);
+      }
     }
   }
+
   // Note(sagar): always try default export
   return get_matching_export(
     export

@@ -51,7 +51,7 @@ async fn main() -> Result<()> {
     .format(|buf, record| {
       writeln!(
         buf,
-        "{} {}",
+        "{}\t{}",
         format!(
           "[{} {} {}:{}]",
           chrono::Local::now().format("%Y-%m-%dT%H:%M:%S"),

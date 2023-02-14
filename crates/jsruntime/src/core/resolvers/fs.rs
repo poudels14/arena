@@ -1,4 +1,4 @@
-use crate::core::ModuleLoaderConfig;
+use crate::core::loaders::FsModuleLoader;
 use anyhow::{anyhow, bail, Result};
 use common::node::Package;
 use deno_core::ModuleResolutionError::{
@@ -12,8 +12,8 @@ use url::{ParseError, Url};
 const SUPPORTED_EXTENSIONS: [&'static str; 5] =
   ["ts", "tsx", "js", "jsx", "json"];
 
-pub fn resolve_import(
-  loader_config: &ModuleLoaderConfig,
+pub(crate) fn resolve_import(
+  loader: &FsModuleLoader,
   specifier: &str,
   base: &str,
 ) -> Result<ModuleSpecifier, ModuleResolutionError> {
@@ -41,11 +41,7 @@ pub fn resolve_import(
       } else {
         Some(base.to_string())
       };
-      return super::npm::resolve_module(
-        loader_config,
-        specifier,
-        maybe_referrer,
-      );
+      return super::npm::resolve_module(loader, specifier, maybe_referrer);
     }
 
     // 3. Return the result of applying the URL parser to specifier with base

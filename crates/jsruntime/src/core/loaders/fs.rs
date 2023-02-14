@@ -9,14 +9,21 @@ use deno_core::{
   ResolutionKind,
 };
 use futures::future::FutureExt;
+use indexmap::IndexMap;
 use std::cell::RefCell;
+use std::path::PathBuf;
 use std::pin::Pin;
 use std::rc::Rc;
 
-pub struct FsModuleLoader {
+pub(crate) struct ModuleLoaderCache {
+  pub node_module_dirs: IndexMap<String, Vec<PathBuf>>,
+}
+
+pub(crate) struct FsModuleLoader {
   transpile: bool,
-  config: Box<ModuleLoaderConfig>,
+  pub config: Box<ModuleLoaderConfig>,
   runtime: Option<Rc<RefCell<IsolatedRuntime>>>,
+  pub cache: Rc<RefCell<ModuleLoaderCache>>,
 }
 
 pub struct ModuleLoaderOption {
@@ -44,11 +51,16 @@ impl FsModuleLoader {
       transpile: option.transpile,
       config: Box::new(option.config),
       runtime,
+      cache: Rc::new(RefCell::new(ModuleLoaderCache {
+        node_module_dirs: IndexMap::new(),
+      })),
     }
   }
 }
 
 // Note(sagar): copied from deno_core crate
+// TODO(sagar): for some reason, this is being called more than once even
+// for a single import, fix it?
 impl ModuleLoader for FsModuleLoader {
   fn resolve(
     &self,
@@ -58,11 +70,7 @@ impl ModuleLoader for FsModuleLoader {
   ) -> Result<ModuleSpecifier, Error> {
     // TODO(sagar): does this need to be cached?
     let specifier = self.resolve_alias(specifier);
-    Ok(resolvers::fs::resolve_import(
-      self.config.as_ref(),
-      &specifier,
-      referrer,
-    )?)
+    Ok(resolvers::fs::resolve_import(self, &specifier, referrer)?)
   }
 
   fn load(
