@@ -9,7 +9,6 @@ const {
   clearInterval,
   handleTimerMacrotask,
 } = globalThis.__bootstrap.timers;
-Deno.core.setMacrotaskCallback(handleTimerMacrotask);
 const { Request, Response } = globalThis.__bootstrap.fetch;
 const { ReadableStream } = globalThis.__bootstrap.streams;
 const { crypto } = globalThis.__bootstrap.crypto;

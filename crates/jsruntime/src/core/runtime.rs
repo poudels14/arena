@@ -232,6 +232,7 @@ impl IsolatedRuntime {
       "<arena/init>",
       r#"
       Deno.core.initializeAsyncOps();
+      Deno.core.setMacrotaskCallback(handleTimerMacrotask);
     "#,
     ));
     if config.enable_console {
