@@ -15,7 +15,7 @@ pub struct Command {
   #[arg(short, long)]
   disable_transpile: bool,
 
-  /// Whether to auto-transpile code; default true
+  /// Whether to enable build tools in main runtime; default false
   #[arg(short, long)]
   enable_build_tools: bool,
 }

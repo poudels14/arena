@@ -14,6 +14,7 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::rc::Rc;
+use tracing::debug;
 
 pub(crate) struct ModuleLoaderCache {
   pub node_module_dirs: IndexMap<String, Vec<PathBuf>>,
@@ -62,6 +63,7 @@ impl FsModuleLoader {
 // TODO(sagar): for some reason, this is being called more than once even
 // for a single import, fix it?
 impl ModuleLoader for FsModuleLoader {
+  #[tracing::instrument(skip(self, _kind))]
   fn resolve(
     &self,
     specifier: &str,
@@ -138,6 +140,7 @@ impl FsModuleLoader {
     for k in alias.keys() {
       if specifier.starts_with(k) {
         let value = alias.get(k).unwrap();
+        debug!("matched alias: {}={}", k, value);
         return format!(
           "{}{}",
           if value.starts_with(".") {

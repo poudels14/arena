@@ -3,11 +3,11 @@ use anyhow::{anyhow, bail, Result};
 use bytes::Buf;
 use common::fs::has_file_in_file_tree;
 use common::node::Package;
-use log::debug;
 use std::fs::{self, File};
 use std::io::prelude::*;
 use std::path::PathBuf;
 use tar::Archive;
+use tracing::debug;
 
 pub static DEFAULT_WORKSPACE_TEMPLATE: &[u8] =
   include_bytes!(concat!(env!("OUT_DIR"), "/DEFAULT_WORKSPACE_TEMPLATE.tar"));

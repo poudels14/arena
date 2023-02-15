@@ -6,10 +6,10 @@ use common::fs::has_file_in_file_tree;
 use deno_core::{v8, JsRealm, ModuleLoader};
 use deno_core::{Extension, JsRuntime, Snapshot};
 use derivative::Derivative;
-use log::error;
 use std::cell::RefCell;
 use std::env::current_dir;
 use std::rc::Rc;
+use tracing::error;
 use url::Url;
 
 pub static RUNTIME_PROD_SNAPSHOT: &[u8] =

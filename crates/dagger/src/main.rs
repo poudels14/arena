@@ -6,11 +6,13 @@ mod workspace;
 
 use anyhow::bail;
 use anyhow::Result;
-use chrono;
 use clap::Parser;
 use colored::*;
-use log::debug;
-use std::io::Write;
+use std::str::FromStr;
+use tracing::debug;
+use tracing_subscriber::filter::Directive;
+use tracing_subscriber::prelude::*;
+use tracing_tree::HierarchicalLayer;
 
 /// Dagger cli
 #[derive(Parser, Debug)]
@@ -45,25 +47,18 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-  env_logger::Builder::from_default_env()
-    .filter_level(log::LevelFilter::Info)
-    .parse_default_env()
-    .format(|buf, record| {
-      writeln!(
-        buf,
-        "{}\t{}",
-        format!(
-          "[{} {} {}:{}]",
-          chrono::Local::now().format("%Y-%m-%dT%H:%M:%S"),
-          record.level().as_str().blue(),
-          record.file().unwrap_or("<file/unknown>"),
-          record.line().unwrap_or(0),
-        )
-        .yellow(),
-        record.args()
-      )
-    })
-    .init();
+  let subscriber = tracing_subscriber::registry()
+    .with(
+      tracing_subscriber::filter::EnvFilter::from_default_env()
+        // Note(sagar): filter out swc_* logs because they are noisy
+        .add_directive(Directive::from_str("swc_=OFF").unwrap()),
+    )
+    .with(
+      HierarchicalLayer::default()
+        .with_indent_amount(2)
+        .with_thread_names(true),
+    );
+  tracing::subscriber::set_global_default(subscriber).unwrap();
 
   let args = Args::parse();
   debug!("Running cli with args: {:?}", args);

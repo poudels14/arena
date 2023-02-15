@@ -5,27 +5,26 @@ use deno_core::ModuleResolutionError::{
   InvalidBaseUrl, InvalidPath, InvalidUrl,
 };
 use deno_core::{ModuleResolutionError, ModuleSpecifier};
-use log::debug;
 use std::path::PathBuf;
+use tracing::{debug, instrument};
 use url::{ParseError, Url};
 
 const SUPPORTED_EXTENSIONS: [&'static str; 5] =
   ["ts", "tsx", "js", "jsx", "json"];
 
+#[instrument(skip_all)]
 pub(crate) fn resolve_import(
   loader: &FsModuleLoader,
   specifier: &str,
   base: &str,
 ) -> Result<ModuleSpecifier, ModuleResolutionError> {
-  debug!(
-    "Resolving import: specifier = {:?}, base = {:?}",
-    specifier, base
-  );
-
   let url = match Url::parse(specifier) {
     // 1. Apply the URL parser to specifier.
     //    If the result is not failure, return he result.
-    Ok(url) => url,
+    Ok(url) => {
+      debug!("module resolution not needed");
+      url
+    }
 
     // 2. If specifier does not start with the character U+002F SOLIDUS (/),
     //    the two-character sequence U+002E FULL STOP, U+002F SOLIDUS (./),
@@ -41,7 +40,7 @@ pub(crate) fn resolve_import(
       } else {
         Some(base.to_string())
       };
-      return super::npm::resolve_module(loader, specifier, maybe_referrer);
+      return super::npm::resolve_npm_module(loader, specifier, maybe_referrer);
     }
 
     // 3. Return the result of applying the URL parser to specifier with base
@@ -73,16 +72,12 @@ pub(crate) fn resolve_import(
   Ok(url)
 }
 
+#[tracing::instrument]
 pub fn load_as_file(file: &PathBuf) -> Result<ModuleSpecifier> {
-  debug!(
-    "load_as_file path: {:?}, supported extensions: {:?}",
-    file, SUPPORTED_EXTENSIONS
-  );
-
   for ext in SUPPORTED_EXTENSIONS {
     let file_with_extension = file.with_extension(ext);
     if file_with_extension.exists() {
-      debug!("file with extension exists: {:?}", file_with_extension);
+      debug!("matched extension: {}", ext);
       return Url::from_file_path(file_with_extension)
         .map_err(|e| anyhow!("{:?}", e));
     }

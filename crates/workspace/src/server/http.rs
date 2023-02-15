@@ -12,12 +12,12 @@ use axum::{
 use deno_core::ByteString;
 use http::{header::HeaderName, HeaderMap, HeaderValue, Method, StatusCode};
 use hyper::Body;
-use log::error;
 use serde::Serialize;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::str::FromStr;
 use tokio::sync::mpsc;
 use tower_http::cors::{AllowOrigin, CorsLayer};
+use tracing::error;
 
 #[derive(Debug, Serialize)]
 pub struct HttpRequest {

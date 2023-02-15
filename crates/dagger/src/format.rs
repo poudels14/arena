@@ -1,12 +1,12 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use clap::Parser;
 use colored::*;
 use common;
 use common::fs::has_file_in_file_tree;
-use log::{error, info};
 use std::env;
 use std::path::{Path, PathBuf};
 use std::process;
+use tracing::info;
 
 #[derive(Parser, Debug)]
 pub struct Command {
@@ -57,15 +57,13 @@ impl Command {
           }
         };
 
-        child
-          .unwrap()
-          .wait()
-          .expect("failed to wait on formatter process");
+        child.unwrap().wait()
       }
       None => {
-        error!("Couldn't detect project type!");
+        bail!("Couldn't detect project type!");
       }
-    }
+    }?;
+
     println!("{}", "Done!".green().bold());
     Ok(())
   }

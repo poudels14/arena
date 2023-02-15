@@ -3,6 +3,7 @@ use arena_workspace::server::ServerOptions;
 use clap::Parser;
 use std::env;
 use std::path::Path;
+use tracing::{info, Level};
 
 #[derive(Parser, Debug)]
 pub struct DevCommand {
@@ -30,16 +31,20 @@ impl DevCommand {
       })
       .await?;
 
-    let handle = arena_workspace::server::serve(
-      workspace,
-      ServerOptions {
-        port: 8000,
-        ..Default::default()
-      },
-    )
-    .await?;
+    let handle = {
+      let span = tracing::span!(Level::DEBUG, "starting workspace server");
+      let _enter = span.enter();
+      arena_workspace::server::serve(
+        workspace,
+        ServerOptions {
+          port: 8000,
+          ..Default::default()
+        },
+      )
+      .await?
+    };
 
-    println!("Dev server started...");
+    info!("Dev server started...");
     handle.wait_for_termination().await
   }
 }

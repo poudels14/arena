@@ -8,13 +8,13 @@ use crate::server::{
 use crate::Workspace;
 use anyhow::{anyhow, bail, Result};
 use jsruntime::{IsolatedRuntime, RuntimeConfig};
-use log::{debug, error, info};
 use serde_json::{json, Value};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::thread;
 use tokio::sync::mpsc;
 use tokio::task;
+use tracing::{debug, error, info};
 
 /// This is a handle that's used to send parsed TCP requests to JS VM
 #[derive(Clone, Debug)]
@@ -62,7 +62,7 @@ pub async fn serve(
   };
 
   let thread = thread::Builder::new()
-    .name(format!("arena-workspace-server-{}", workspace.config.name));
+    .name(format!("workspace-[{}]", workspace.config.name));
 
   let mut server_clone = server.clone();
   thread.spawn(move || {

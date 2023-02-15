@@ -6,18 +6,19 @@ use common::node::Package;
 use deno_core::ModuleResolutionError::{
   ImportPrefixMissing, InvalidPath, InvalidUrl,
 };
-use deno_core::{ModuleResolutionError, ModuleSpecifier};
+use deno_core::{normalize_path, ModuleResolutionError, ModuleSpecifier};
 use indexmap::{indexset, IndexSet};
-use log::debug;
 use once_cell::sync::Lazy;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
+use tracing::{debug, Level};
 use url::{ParseError, Url};
 
 static ORDERED_EXPORT_CONDITIONS: Lazy<IndexSet<&str>> =
   Lazy::new(|| indexset!["import"]);
 
-pub(crate) fn resolve_module(
+#[tracing::instrument(skip_all)]
+pub(crate) fn resolve_npm_module(
   loader: &FsModuleLoader,
   specifier: &str,
   maybe_referrer: Option<String>,
@@ -30,9 +31,16 @@ pub(crate) fn resolve_module(
         Some(dir) => dir,
         None => {
           let directories = valid_node_modules_paths(referrer)?;
+          let root = loader.config.project_root.clone();
+          let relative_dirs = directories
+            .iter()
+            .map(|d| {
+              pathdiff::diff_paths::<&PathBuf, &PathBuf>(d, &root).unwrap()
+            })
+            .collect::<Vec<PathBuf>>();
           debug!(
             "caching resolved node_modules directories: {:?}",
-            &directories
+            relative_dirs
           );
           cache
             .node_module_dirs
@@ -43,7 +51,7 @@ pub(crate) fn resolve_module(
 
       let parsed_specifier = parse_specifier(&specifier);
       for dir_path in directories {
-        debug!("checking directory: {:?}", &dir_path);
+        debug!("using node_module in: {}", &dir_path.display());
         let maybe_package = load_package_json_in_dir(
           &dir_path.join(&parsed_specifier.package_name),
         )
@@ -55,7 +63,7 @@ pub(crate) fn resolve_module(
           &maybe_package,
         )
         .or_else(|e| {
-          debug!("error loading package exports: {:?}", e);
+          debug!("error loading npm package export: {:?}", e);
           fs::load_as_file(&dir_path.join(specifier))
         })
         .or_else(|e| {
@@ -104,7 +112,7 @@ fn load_npm_package(
   let package: &Package =
     maybe_package.as_ref().ok_or(anyhow!("not a npm package"))?;
 
-  debug!("package.json loaded for package: {}", package.name);
+  debug!("package.json loaded");
 
   let package_export =
     load_package_exports(loader_config, base_dir, specifier, &package);
@@ -115,7 +123,11 @@ fn load_npm_package(
 
   // TODO(sagar): if package_json.module is present, use that
 
-  bail!("module not found for specifier: {:?}", &specifier);
+  bail!(
+    "module not found for specifier: {}{}",
+    &specifier.package_name,
+    &specifier.sub_path[1..]
+  );
 }
 
 fn load_package_exports(
@@ -125,18 +137,16 @@ fn load_package_exports(
   package: &Package,
 ) -> Result<ModuleSpecifier> {
   // TODO(sagar): handle other exports type
-  let module = base_dir.join(&package.name).join(get_package_json_export(
-    loader_config,
-    &package,
-    &specifier.sub_path,
-  )?);
+  let resolved_path = normalize_path(base_dir.join(&package.name).join(
+    get_package_json_export(loader_config, &package, &specifier.sub_path)?,
+  ));
 
-  debug!("resolved module path: {:?}", module);
+  debug!("resolved path: {:?}", resolved_path);
 
-  if module.exists() {
-    return Url::from_file_path(&module).map_err(|e| anyhow!("{:?}", e));
+  if resolved_path.exists() {
+    return Url::from_file_path(&resolved_path).map_err(|e| anyhow!("{:?}", e));
   }
-  bail!("module not found for specifier: {:?}", &specifier);
+  bail!("package export not found for specifier: {:?}", &specifier);
 }
 
 // reference: https://nodejs.org/api/modules.html#all-together
@@ -211,13 +221,17 @@ fn get_matching_export(
   conditions: &IndexSet<String>,
 ) -> Result<String> {
   if subpath_export.is_string() {
-    return Ok(subpath_export.as_str().unwrap().to_string());
+    let path = subpath_export.as_str().unwrap().to_string();
+    debug!(path, "using export");
+    return Ok(path);
   }
   let export = subpath_export.as_object().unwrap();
-  for (key, value) in export.iter() {
-    if conditions.contains(key)
-      || ORDERED_EXPORT_CONDITIONS.contains(key.as_str())
+  for (condition, value) in export.iter() {
+    if conditions.contains(condition)
+      || ORDERED_EXPORT_CONDITIONS.contains(condition.as_str())
     {
+      let span = tracing::span!(Level::DEBUG, "get_matching_export", condition);
+      let _enter = span.enter();
       if let Ok(result) = get_matching_export(value, conditions) {
         return Ok(result);
       }
