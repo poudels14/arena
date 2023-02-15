@@ -1,0 +1,9 @@
+{
+  "explorer.fileNesting.patterns": {
+    "*.js": "${basename}.*.${extname}",
+    "*.ts": "${basename}.*.${extname}",
+    "*.jsx": "${basename}.*.${extname}",
+    "*.tsx": "${basename}.*.${extname}"
+  },
+  "explorer.fileNesting.enabled": true
+}
