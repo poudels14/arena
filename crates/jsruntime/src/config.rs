@@ -3,6 +3,7 @@ use derivative::Derivative;
 use indexmap::map::IndexMap;
 use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
 
@@ -30,6 +31,10 @@ pub struct JavascriptConfig {
   pub build: Option<JsBuildConfig>,
 }
 
+#[derive(Derivative, Serialize, Deserialize)]
+#[derivative(Clone, Debug, Default)]
+pub struct EnvironmentVariables(pub Value);
+
 /// This is a config that arena runtime will use
 /// It will be used for workspace config as well as
 /// commands like `dagger run`
@@ -38,6 +43,9 @@ pub struct JavascriptConfig {
 pub struct ArenaConfig {
   #[serde(skip_serializing_if = "Option::is_none")]
   pub javascript: Option<JavascriptConfig>,
+
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub env: Option<EnvironmentVariables>,
 }
 
 impl ArenaConfig {

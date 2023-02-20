@@ -68,18 +68,13 @@ impl IsolatedRuntime {
     let project_root = maybe_arena_config_dir.clone().unwrap_or(cwd);
 
     // If Arena config isn't passed, load from config file
-    let arena_config = config
-      .config
-      .as_ref()
-      .and_then(|c| Some(c.clone()))
-      .or_else(|| {
-        maybe_arena_config_dir.and_then(|dir| {
-          // Note(sagar): this changes Err => None, which means all errors
-          // are silently ignored
-          ArenaConfig::from_path(&dir.join("arena.config.toml")).ok()
-        })
+    config.config = config.config.or_else(|| {
+      maybe_arena_config_dir.and_then(|dir| {
+        // Note(sagar): this changes Err => None, which means all errors
+        // are silently ignored
+        ArenaConfig::from_path(&dir.join("arena.config.toml")).ok()
       })
-      .unwrap_or(Default::default());
+    });
 
     let mut extensions_with_js = Self::get_js_extensions(&mut config);
     // Note(sagar): take extensions out of the config and set it to empty
@@ -104,9 +99,11 @@ impl IsolatedRuntime {
             transpile: config.transpile,
             config: ModuleLoaderConfig {
               project_root,
-              build_config: arena_config
-                .javascript
-                .and_then(|j| j.build)
+              build_config: config
+                .config
+                .as_ref()
+                .and_then(|c| c.javascript.as_ref())
+                .and_then(|j| j.build.clone())
                 .unwrap_or(Default::default()),
             },
           },
@@ -144,7 +141,6 @@ impl IsolatedRuntime {
           client_cert_chain_and_key: None,
           file_fetch_handler: Rc::new(deno_fetch::DefaultFileFetchHandler),
         }),
-        super::ext::fs::init(),
         Extension::builder("<arena/core/permissions>")
           .state(move |state| {
             state.put::<PermissionsContainer>(permissions.to_owned());
@@ -246,8 +242,11 @@ impl IsolatedRuntime {
       ));
     }
 
-    let mut extensions =
-      vec![Extension::builder("<arena/init>").js(js_files).build()];
+    let mut extensions = vec![
+      Extension::builder("<arena/init>").js(js_files).build(),
+      super::ext::fs::init(),
+      super::ext::env::init(config.config.as_ref().and_then(|c| c.env.clone())),
+    ];
     if config.enable_wasm {
       extensions.push(super::ext::wasi::init());
     }
