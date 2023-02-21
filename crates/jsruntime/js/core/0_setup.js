@@ -22,6 +22,8 @@ const {
   decode,
 } = globalThis.__bootstrap.encoding;
 
+const { URL, URLSearchParams } = globalThis.__bootstrap.url;
+
 // Note(sagar): assign to globalThis so that other modules can access
 // these objects with `globalThis.{}`
 ((globalThis) => {
@@ -39,5 +41,7 @@ const {
     TextDecoder,
     TextEncoderStream,
     TextDecoderStream,
+    URL,
+    URLSearchParams,
   });
 })(globalThis);
