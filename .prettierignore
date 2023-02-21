@@ -1,6 +1,0 @@
-pnpm-lock.yaml
-
-node_modules
-
-# all dist directories will be excluded
-dist

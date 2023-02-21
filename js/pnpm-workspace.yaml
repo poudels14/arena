@@ -1,0 +1,4 @@
+packages:
+  - arena-runtime
+  - packages/*
+  - examples/*
