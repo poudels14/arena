@@ -1402,7 +1402,7 @@ function initSync(module) {
 async function init(input) {
   if (typeof input === "undefined") {
     // Note(sagar): load from bytes included by the wasmer-wasi deno plugin
-    input = Deno.core.ops.op_read_wasmer_wasi_bytes();
+    input = Arena.core.ops.op_read_wasmer_wasi_bytes();
   }
   const imports = getImports();
 

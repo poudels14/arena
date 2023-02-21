@@ -81,7 +81,7 @@ fn generate_builder_snapshot(path: &Path) {
   runtime
     .execute_script(
       "<arena/buildtools/babel>",
-      include_str!("./js/libs/dist/babel.js"),
+      include_str!("../../js/arena-runtime/libs/dist/babel.js"),
     )
     .unwrap();
   let snapshot: &[u8] = &*runtime.snapshot();
@@ -118,15 +118,21 @@ fn get_basic_runtime() -> JsRuntime {
   });
 
   runtime
-    .execute_script("<setup>", include_str!("./js/core/0_setup.js"))
+    .execute_script(
+      "<setup>",
+      include_str!("../../js/arena-runtime/core/0_setup.js"),
+    )
     .unwrap();
   runtime
-    .execute_script("<arena/setup>", include_str!("./js/core/1_arena.js"))
+    .execute_script(
+      "<arena/setup>",
+      include_str!("../../js/arena-runtime/core/1_arena.js"),
+    )
     .unwrap();
   runtime
     .execute_script(
       "<arena/core/process>",
-      include_str!("./js/core/dummy-process.js"),
+      include_str!("../../js/arena-runtime/core/dummy-process.js"),
     )
     .unwrap();
 

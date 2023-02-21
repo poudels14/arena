@@ -5,7 +5,7 @@
     global.Arena = {};
   };
 
-  const { ops } = Deno.core;
+  const { ops } = Arena.core;
 
   class RequestListener {
     [Symbol.asyncIterator]() {

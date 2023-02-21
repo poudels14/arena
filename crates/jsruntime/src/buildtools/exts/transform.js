@@ -1,6 +1,6 @@
 "use strict";
 ((global) => {
-  const { ops } = Deno.core;
+  const { ops } = Arena.core;
   
   Object.assign(global.Arena.BuildTools, {
     async transformFileAsync(filename, options) {

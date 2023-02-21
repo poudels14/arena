@@ -15,7 +15,7 @@ pub fn init(env: Option<EnvironmentVariables>) -> Extension {
     })
     .js(vec![(
       "<arena/env>",
-      "Arena.env = Object.assign({}, Deno.core.ops.op_load_env());",
+      "Arena.env = Object.assign({}, Arena.core.ops.op_load_env());",
     )])
     .build()
 }

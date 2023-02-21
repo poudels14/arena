@@ -197,7 +197,7 @@ impl WorkspaceServer {
 
     runtime
       .execute_script(
-        "",
+        "<arena/workspace/init>",
         &format!(
           r#"
         import("file://{}").then(async ({{ default: m }}) => {{

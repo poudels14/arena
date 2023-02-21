@@ -224,24 +224,35 @@ impl IsolatedRuntime {
 
   fn get_js_extensions(config: &RuntimeConfig) -> Vec<Extension> {
     let mut js_files = Vec::new();
+
     js_files.push((
       "<arena/init>",
       r#"
-      Deno.core.initializeAsyncOps();
-      Deno.core.setMacrotaskCallback(handleTimerMacrotask);
-    "#,
+        Arena.core = Deno.core;
+        Arena.core.initializeAsyncOps();
+        Arena.core.setMacrotaskCallback(handleTimerMacrotask);
+      "#,
     ));
+
     if config.enable_console {
       js_files.push((
         "<arena/console>",
         r#"
-        ((globalThis) => {
-          globalThis.console = new globalThis.__bootstrap.console.Console(Deno.core.print);
-        })(globalThis);
+          ((globalThis) => {
+            globalThis.console = new globalThis.__bootstrap.console.Console(Arena.core.print);
+          })(globalThis);
         "#,
       ));
     }
 
+    js_files.push((
+      "<arena/init/finalize>",
+      r#"
+        // Remove bootstrapping data from the global scope
+        delete globalThis.__bootstrap;
+        delete globalThis.bootstrap;
+      "#,
+    ));
     let mut extensions = vec![
       Extension::builder("<arena/init>").js(js_files).build(),
       super::ext::fs::init(),

@@ -1,6 +1,6 @@
 console.log(Arena.wasi);
 
-const { ops } = Deno.core;
+const { ops } = Arena.core;
 const { init, WASI, Go } = Arena.wasi;
 const go = new Go();
 
