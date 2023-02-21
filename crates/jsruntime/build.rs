@@ -81,7 +81,7 @@ fn generate_builder_snapshot(path: &Path) {
   runtime
     .execute_script(
       "<arena/buildtools/babel>",
-      include_str!("../../js/arena-runtime/libs/dist/babel.js"),
+      include_str!("../../js/arena-runtime/dist/babel.js"),
     )
     .unwrap();
   let snapshot: &[u8] = &*runtime.snapshot();

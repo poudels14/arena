@@ -31,12 +31,12 @@ const buildConfig = (overrides) => {
 export default [
   buildConfig({
     input: {
-      babel: "./src/babel/index.ts",
+      babel: "./libs/babel/index.ts",
     },
   }),
   buildConfig({
     input: {
-      "wasmer-wasi": "./src/wasi/wasmer.ts",
+      "wasmer-wasi": "./libs/wasi/wasmer.ts",
     },
   }),
 ];

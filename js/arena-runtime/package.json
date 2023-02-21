@@ -1,15 +1,37 @@
 {
-  "name": "arena-runtime",
+  "name": "@arena/runtime",
   "version": "0.1.0",
-  "description": "",
+  "description": "Javascript files for core Arena runtime",
+  "type": "module",
   "scripts": {
-    "format": "pnpm prettier -w ."
+    "build": "pnpm rollup -c rollup.config.js"
   },
-  "keywords": [],
-  "author": "",
+  "author": "Sagar Poudel",
   "private": true,
   "license": "UNLICENSED",
+  "types": "arena.d.ts",
+  "files": [
+    "arena.d.ts"
+  ],
   "dependencies": {
-    "prettier": "^2.8.3"
+    "@babel/helper-plugin-utils": "^7.20.2",
+    "@babel/standalone": "^7.20.14",
+    "@babel/types": "^7.20.7",
+    "assert": "^2.0.0",
+    "babel-preset-solid": "^1.6.9",
+    "lodash": "^4.17.21",
+    "reserved-words": "^0.1.2",
+    "solid-js": "^1.6.9"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^24.0.1",
+    "@rollup/plugin-json": "^6.0.0",
+    "@rollup/plugin-node-resolve": "^15.0.1",
+    "@rollup/plugin-terser": "^0.4.0",
+    "@rollup/plugin-typescript": "^11.0.0",
+    "prettier": "^2.8.4",
+    "rollup": "^3.12.0",
+    "tslib": "^2.5.0",
+    "typescript": "^4.9.5"
   }
 }

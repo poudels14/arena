@@ -7,14 +7,14 @@ pub fn init() -> Extension {
   Extension::builder("<arena/wasi>")
     .state(move |state| {
       state.put::<WasmerWasiBytes>(WasmerWasiBytes(include_bytes!(
-        "../../../../../js/arena-runtime/libs/src/wasi/deno/pkg/wasmer_wasi_js_bg.wasm"
+        "../../../../../js/arena-runtime/libs/wasi/deno/pkg/wasmer_wasi_js_bg.wasm"
       )));
       Ok(())
     })
     .ops(vec![op_read_wasmer_wasi_bytes::decl()])
     .js(vec![(
       "<arena/wasi/load>",
-      include_str!("../../../../../js/arena-runtime/libs/dist/wasmer-wasi.js"),
+      include_str!("../../../../../js/arena-runtime/dist/wasmer-wasi.js"),
     )])
     .build()
 }
