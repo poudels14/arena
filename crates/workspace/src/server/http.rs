@@ -55,6 +55,7 @@ pub(crate) async fn listen(server: WorkspaceServer) -> Result<()> {
   let router = Router::new()
     .layer(cors)
     .route("/", routing::get(handle_request))
+    .route("/*path", routing::get(handle_request))
     .with_state(server.clone());
   let app = axum::Server::bind(&addr);
 

@@ -31,16 +31,16 @@ class ArenaRequest extends Request {
     let innerResponse = Arena.toInnerResponse(response);
 
     let content =
-      innerResponse.body.streamOrStatic?.body || innerResponse.body.source;
+      innerResponse.body?.streamOrStatic?.body || innerResponse.body?.source;
     // TODO(sagar): throw error if stream is used
     // if (content == undefined) {
     //   throw new Error("Stream response not supported!");
     // }
     await ops.op_send_response(
       this.rid,
-      innerResponse.status,
-      innerResponse.headerList,
-      content
+      innerResponse.status || 500,
+      innerResponse.headerList || [],
+      content || "500 Internal Server Error"
     );
   }
 }

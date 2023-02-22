@@ -108,20 +108,26 @@ importers:
     dependencies:
       solid-js: 1.6.9
 
-  packages/arena-workspace-server:
+  packages/workspace-server:
     specifiers:
+      '@arena/core': workspace:^0.1.0
       '@arena/runtime': workspace:^0.1.0
       '@rollup/plugin-node-resolve': ^15.0.1
       '@rollup/plugin-terser': ^0.4.0
       '@rollup/plugin-typescript': ^11.0.0
+      query-string: ^8.1.0
       rollup: ^3.12.0
+      typescript: ^4.9.5
     dependencies:
+      '@arena/core': link:../arena-core
       '@arena/runtime': link:../../arena-runtime
+      query-string: 8.1.0
     devDependencies:
       '@rollup/plugin-node-resolve': 15.0.1_rollup@3.15.0
       '@rollup/plugin-terser': 0.4.0_rollup@3.15.0
-      '@rollup/plugin-typescript': 11.0.0_rollup@3.15.0
+      '@rollup/plugin-typescript': 11.0.0_xswiuafr57fmdlvfpvse52fe3e
       rollup: 3.15.0
+      typescript: 4.9.5
 
 packages:
 
@@ -528,7 +534,7 @@ packages:
       typescript: 4.9.5
     dev: true
 
-  /@rollup/plugin-typescript/11.0.0_rollup@3.15.0:
+  /@rollup/plugin-typescript/11.0.0_xswiuafr57fmdlvfpvse52fe3e:
     resolution: {integrity: sha512-goPyCWBiimk1iJgSTgsehFD5OOFHiAknrRJjqFCudcW8JtWiBlK284Xnn4flqMqg6YAjVG/EE+3aVzrL5qNSzQ==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
@@ -544,6 +550,7 @@ packages:
       '@rollup/pluginutils': 5.0.2_rollup@3.15.0
       resolve: 1.22.1
       rollup: 3.15.0
+      typescript: 4.9.5
     dev: true
 
   /@rollup/pluginutils/5.0.2_rollup@3.15.0:
@@ -863,6 +870,11 @@ packages:
       ms: 2.1.2
     dev: true
 
+  /decode-uri-component/0.4.1:
+    resolution: {integrity: sha512-+8VxcR21HhTy8nOt6jf20w0c9CADrw1O8d+VZ/YzzCt4bJ3uBjw+D1q2osAB8RnpwwaeYBxy0HyKQxD5JBMuuQ==}
+    engines: {node: '>=14.16'}
+    dev: false
+
   /deep-eql/4.1.3:
     resolution: {integrity: sha512-WaEtAOpRA1MQ0eohqZjpGD8zdI0Ovsm8mmFhaDN8dvDZzyoUMcYDnf5Y6iu7HTXxf8JDS23qWa4a+hKCDyOPzw==}
     engines: {node: '>=6'}
@@ -957,6 +969,11 @@ packages:
     dependencies:
       to-regex-range: 5.0.1
     dev: true
+
+  /filter-obj/5.1.0:
+    resolution: {integrity: sha512-qWeTREPoT7I0bifpPUXtxkZJ1XJzxWtfoWWkdVGqa+eCr3SHW/Ocp89o8vLvbUuQnadybJpjOKu4V+RwO6sGng==}
+    engines: {node: '>=14.16'}
+    dev: false
 
   /flatted/3.2.7:
     resolution: {integrity: sha512-5nqDSxl8nn5BSNxyR3n4I6eDmbolI6WT+QqR547RwxQapgjQBmtktdP+HTBb/a/zLsbzERTONyUB5pefh5TtjQ==}
@@ -1312,6 +1329,15 @@ packages:
       react-is: 17.0.2
     dev: true
 
+  /query-string/8.1.0:
+    resolution: {integrity: sha512-BFQeWxJOZxZGix7y+SByG3F36dA0AbTy9o6pSmKFcFz7DAj0re9Frkty3saBn3nHo3D0oZJ/+rx3r8H8r8Jbpw==}
+    engines: {node: '>=14.16'}
+    dependencies:
+      decode-uri-component: 0.4.1
+      filter-obj: 5.1.0
+      split-on-first: 3.0.0
+    dev: false
+
   /queue-microtask/1.2.3:
     resolution: {integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==}
     dev: true
@@ -1438,6 +1464,11 @@ packages:
     resolution: {integrity: sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g==}
     engines: {node: '>=0.10.0'}
     dev: true
+
+  /split-on-first/3.0.0:
+    resolution: {integrity: sha512-qxQJTx2ryR0Dw0ITYyekNQWpz6f8dGd7vffGNflQQ3Iqj9NJ6qiZ7ELpZsJ/QBhIVAiDfXdag3+Gp8RvWa62AA==}
+    engines: {node: '>=12'}
+    dev: false
 
   /stackback/0.0.2:
     resolution: {integrity: sha512-1XMJE5fQo1jGH6Y/7ebnwPOBEkIEnT4QF32d5R1+VXdXveM0IBMJt8zfaxX1P3QhVwrYe+576+jkANtSS2mBbw==}

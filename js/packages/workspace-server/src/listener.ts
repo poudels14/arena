@@ -1,3 +1,5 @@
+import type { Handler } from "@arena/core/server";
+import qs from "query-string";
 import { ArenaRequest, RESOLVE } from "./request";
 
 const { ops } = Arena.core;
@@ -19,10 +21,7 @@ class RequestListener {
   }
 }
 
-const serve = async (handler: any) => {
-  // TODO(sagar): get rid of this. using this to keep V8 event loop alive
-  setTimeout(() => {}, 100_000);
-
+const serve = async (handler: Handler) => {
   // TODO(sagar): we need to store logs from Arena and logs from queries
   // separately
   console.log("[Arena.Workspace.handleRequest]: Listening to connections...");
@@ -32,9 +31,16 @@ const serve = async (handler: any) => {
   for await (const req of listener) {
     let arenaRequest = new ArenaRequest(req.internal, req.rid);
     arenaRequest[RESOLVE](async () => {
-      let res = handler.call(handler, {
+      let url = new URL(req.internal.url);
+      let res = handler.execute({
         request: arenaRequest,
+        env: Arena.env,
+        ctx: {
+          path: url.pathname,
+          query: qs.parse(url.search),
+        },
       });
+      // @ts-expect-error
       if (res.then) {
         res = await res;
       }

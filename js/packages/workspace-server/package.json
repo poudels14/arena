@@ -5,19 +5,23 @@
   "type": "module",
   "main": "index.ts",
   "scripts": {
-    "build": "pnpm rollup -c rollup.config.js"
+    "build": "pnpm rollup -c rollup.config.js",
+    "dev": "pnpm rollup -c rollup.config.js -w"
   },
   "keywords": [],
   "author": "",
   "private": true,
   "license": "UNLICENSED",
   "dependencies": {
-    "@arena/runtime": "workspace:^0.1.0"
+    "@arena/core": "workspace:^0.1.0",
+    "@arena/runtime": "workspace:^0.1.0",
+    "query-string": "^8.1.0"
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^15.0.1",
     "@rollup/plugin-terser": "^0.4.0",
     "@rollup/plugin-typescript": "^11.0.0",
-    "rollup": "^3.12.0"
+    "rollup": "^3.12.0",
+    "typescript": "^4.9.5"
   }
 }

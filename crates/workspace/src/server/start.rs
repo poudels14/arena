@@ -10,6 +10,7 @@ use anyhow::{anyhow, bail, Result};
 use jsruntime::{IsolatedRuntime, RuntimeConfig};
 use serde_json::{json, Value};
 use std::cell::RefCell;
+use std::path::Path;
 use std::rc::Rc;
 use std::thread;
 use tokio::sync::mpsc;
@@ -196,16 +197,25 @@ impl WorkspaceServer {
       ..Default::default()
     })?;
 
+    // In debug mode, load the module dynamically during runtime but
+    // in release mode, include the js code in the binary
+    // let workspace_server_code = if cfg!(debug_assertions) {
+    #[cfg(debug_assertions)]
+    let workspace_server_code = std::fs::read_to_string(
+      Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../js/packages/workspace-server/dist/index.js"),
+    )?;
+    #[cfg(not(debug_assertions))]
+    let workspace_server_code = std::fs::read_to_string(
+      include_str!("../../../../js/packages/workspace-server/dist/index.js")
+        .to_owned(),
+    );
+
     // Note(sagar): preload this module so that it can be used later
     runtime
       .execute_side_module(
         &Url::parse("file://builtin/arena/workspace-server")?,
-        Some(
-          include_str!(
-            "../../../../js/packages/workspace-server/dist/index.js"
-          )
-          .to_owned(),
-        ),
+        Some(workspace_server_code),
       )
       .await?;
 
@@ -226,13 +236,7 @@ impl WorkspaceServer {
             // transpiled properly
 
             import("file://{}").then(async ({{ default: m }}) => {{
-              serve(async (req) => {{
-                let res = m.execute(req);
-                if (res.then) {{
-                  res = await res;
-                }}
-                return res;
-              }});
+              serve(m);
             }});
           "#,
           entry_file
