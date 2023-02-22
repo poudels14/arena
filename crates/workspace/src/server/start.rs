@@ -15,6 +15,7 @@ use std::thread;
 use tokio::sync::mpsc;
 use tokio::task;
 use tracing::{debug, error, info};
+use url::Url;
 
 /// This is a handle that's used to send parsed TCP requests to JS VM
 #[derive(Clone, Debug)]
@@ -195,29 +196,52 @@ impl WorkspaceServer {
       ..Default::default()
     })?;
 
+    // Note(sagar): preload this module so that it can be used later
     runtime
-      .execute_script(
-        "<arena/workspace/init>",
-        &format!(
-          r#"
-        import("file://{}").then(async ({{ default: m }}) => {{
-          Arena.Workspace.handleRequest(async (req) => {{
-            let res = m.execute(req);
-            if (res.then) {{
-              res = await res;
-            }}
-            return res;
-          }});
-        }});
-      "#,
-          self
-            .workspace
-            .entry_file()
-            .to_str()
-            .ok_or(anyhow!("Unable to get workspace entry file"))?,
+      .execute_side_module(
+        &Url::parse("file://builtin/arena/workspace-server")?,
+        Some(
+          include_str!(
+            "../../../../js/packages/workspace-server/dist/index.js"
+          )
+          .to_owned(),
         ),
       )
-      .map_err(|e| anyhow!("{:?}", e))?;
+      .await?;
+
+    let entry_file = self.workspace.entry_file();
+    let entry_file = entry_file
+      .to_str()
+      .ok_or(anyhow!("Unable to get workspace entry file"))?;
+
+    let receiver = runtime
+      .execute_main_module_code(
+        &Url::parse("file://arena/workspace-server/init")?,
+        &format!(
+          r#"
+            import {{ serve }} from "file://builtin/arena/workspace-server";
+
+            // Note(sagar): need to dynamically load the entry-server.tsx or
+            // whatever the entry file is for the workspace so that it's
+            // transpiled properly
+
+            import("file://{}").then(async ({{ default: m }}) => {{
+              serve(async (req) => {{
+                let res = m.execute(req);
+                if (res.then) {{
+                  res = await res;
+                }}
+                return res;
+              }});
+            }});
+          "#,
+          entry_file
+        ),
+      )
+      .await?;
+
+    tokio::spawn(receiver);
+
     Ok(runtime)
   }
 }

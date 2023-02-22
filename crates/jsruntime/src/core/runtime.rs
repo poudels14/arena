@@ -6,6 +6,7 @@ use common::fs::has_file_in_file_tree;
 use deno_core::{v8, JsRealm, ModuleLoader};
 use deno_core::{Extension, JsRuntime, Snapshot};
 use derivative::Derivative;
+use futures::channel::oneshot;
 use std::cell::RefCell;
 use std::env::current_dir;
 use std::rc::Rc;
@@ -182,17 +183,34 @@ impl IsolatedRuntime {
   }
 
   #[allow(dead_code)]
-  pub async fn execute_main_module_code(
+  pub async fn execute_side_module(
     &mut self,
     url: &Url,
-    code: &str,
+    code: Option<String>,
   ) -> Result<()> {
     let mut runtime = self.runtime.borrow_mut();
-    let mod_id = runtime.load_main_module(url, Some(code.to_owned())).await?;
+    let mod_id = runtime.load_side_module(url, code).await?;
     let receiver = runtime.mod_evaluate(mod_id);
 
     runtime.run_event_loop(false).await?;
     receiver.await?
+  }
+
+  /// Note: the caller is responsbile for running the event loop and
+  /// calling await on the receiver. For example:
+  /// ```
+  /// runtime.run_event_loop(false).await?;
+  /// receiver.await?
+  /// ```
+  #[allow(dead_code)]
+  pub async fn execute_main_module_code(
+    &mut self,
+    url: &Url,
+    code: &str,
+  ) -> Result<oneshot::Receiver<Result<()>>> {
+    let mut runtime = self.runtime.borrow_mut();
+    let mod_id = runtime.load_main_module(url, Some(code.to_owned())).await?;
+    Ok(runtime.mod_evaluate(mod_id))
   }
 
   pub async fn run_event_loop(&mut self) -> Result<()> {

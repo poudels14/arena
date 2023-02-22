@@ -52,10 +52,6 @@ pub fn init(
         .put::<RequestReceiver>(RequestReceiver(requests_receiver.to_owned()));
       Ok(())
     })
-    .js(vec![(
-      "<arena/workspace/server>",
-      include_str!("./server.js"),
-    )])
     .build()
 }
 
