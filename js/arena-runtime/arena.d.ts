@@ -3,8 +3,10 @@ declare namespace Arena {
     ops: Record<string, any>;
   };
 
+  type Env = Record<string, any>;
+
   let core: Core;
-  let env: Record<string, any>;
+  let env: Env;
   let BuildTools: any;
   let wasi: any;
 

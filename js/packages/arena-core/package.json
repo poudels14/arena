@@ -1,0 +1,41 @@
+{
+  "name": "@arena/core",
+  "version": "0.1.0",
+  "description": "",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "files": [
+    "solid.ts",
+    "server.ts",
+    "client.ts",
+    "src/server/**/*"
+  ],
+  "scripts": {
+    "test": "vitest",
+    "coverage": "vitest run --coverage"
+  },
+  "keywords": [],
+  "author": "",
+  "private": true,
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@arena/runtime": "workspace:^0.1.0",
+    "@maverick-js/signals": "^5.9.1",
+    "@reactively/core": "^0.0.6",
+    "@reactively/decorate": "^0.0.2",
+    "@solidjs/meta": "^0.28.2",
+    "@solidjs/router": "^0.7.0",
+    "clean-set": "^1.1.2",
+    "klona": "^2.0.6",
+    "react": "^18.2.0",
+    "solid-js": "^1.6.9",
+    "trough": "^2.1.0",
+    "zod": "^3.20.6"
+  },
+  "devDependencies": {
+    "@types/polka": "^0.5.4",
+    "@vitest/ui": "^0.28.5",
+    "vitest": "^0.28.5"
+  }
+}
