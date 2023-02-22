@@ -79,7 +79,7 @@ fn transform_code(
     // Note(sagar): treat everything as typescript so that all transformations
     // are applied
     // TODO(sagar): allow configuring this with options argument
-    media_type: MediaType::TypeScript,
+    media_type: MediaType::Tsx,
     capture_tokens: false,
     scope_analysis: false,
     maybe_syntax: None,

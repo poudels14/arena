@@ -15,9 +15,12 @@
   "dependencies": {
     "@arena/core": "workspace:^0.1.0",
     "@arena/runtime": "workspace:^0.1.0",
-    "query-string": "^8.1.0"
+    "path": "^0.12.7",
+    "query-string": "^8.1.0",
+    "util": "^0.12.5"
   },
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^24.0.1",
     "@rollup/plugin-node-resolve": "^15.0.1",
     "@rollup/plugin-terser": "^0.4.0",
     "rollup": "^3.12.0",

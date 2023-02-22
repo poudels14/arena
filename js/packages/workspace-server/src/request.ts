@@ -38,9 +38,9 @@ class ArenaRequest extends Request {
     // }
     await ops.op_send_response(
       this.rid,
-      innerResponse.status || 500,
+      innerResponse.status,
       innerResponse.headerList || [],
-      content || "500 Internal Server Error"
+      content
     );
   }
 }

@@ -7,9 +7,11 @@ use crate::server::{
 };
 use crate::Workspace;
 use anyhow::{anyhow, bail, Result};
+use jsruntime::permissions::{FileSystemPermissions, PermissionsContainer};
 use jsruntime::{IsolatedRuntime, RuntimeConfig};
 use serde_json::{json, Value};
 use std::cell::RefCell;
+use std::collections::HashSet;
 use std::path::Path;
 use std::rc::Rc;
 use std::thread;
@@ -192,6 +194,19 @@ impl WorkspaceServer {
       // TODO(sagar): disabled this when running deployed workspace
       enable_console: true,
       transpile: true,
+      enable_build_tools: true,
+      // TODO(sagar): file permissions is required to server static files
+      // move the fileserver to rust so that file permission isn't ncessary
+      permissions: PermissionsContainer {
+        fs: Some(FileSystemPermissions {
+          allowed_read_paths: HashSet::from_iter(vec![self
+            .workspace
+            .dir
+            .clone()]),
+          ..Default::default()
+        }),
+        ..Default::default()
+      },
       extensions: vec![super::ext::init(Rc::new(RefCell::new(rx)))],
       heap_limits: self.workspace.heap_limits,
       ..Default::default()
@@ -211,25 +226,36 @@ impl WorkspaceServer {
         .to_owned(),
     );
 
+    let entry_file = self.workspace.entry_file();
+
+    // Note(sagar): set the workspace server's module file in the
+    // same directory as the workspace entry file so that we can
+    // resolve files for the workspace using `import.meta.resolve`
+    let virtual_workspace_server_file = &Url::parse(&format!(
+      "file://{}/workspace-server.virutal.js",
+      entry_file
+        .parent()
+        .and_then(|p| p.to_str())
+        .ok_or(anyhow!("unable to get workspace directory path"))?
+    ))?;
+
     // Note(sagar): preload this module so that it can be used later
     runtime
       .execute_side_module(
-        &Url::parse("file://builtin/arena/workspace-server")?,
+        virtual_workspace_server_file,
         Some(workspace_server_code),
       )
       .await?;
 
-    let entry_file = self.workspace.entry_file();
     let entry_file = entry_file
       .to_str()
       .ok_or(anyhow!("Unable to get workspace entry file"))?;
-
     let receiver = runtime
       .execute_main_module_code(
         &Url::parse("file://arena/workspace-server/init")?,
         &format!(
           r#"
-            import {{ serve }} from "file://builtin/arena/workspace-server";
+            import {{ serve }} from "{}";
 
             // Note(sagar): need to dynamically load the entry-server.tsx or
             // whatever the entry file is for the workspace so that it's
@@ -239,7 +265,7 @@ impl WorkspaceServer {
               serve(m);
             }});
           "#,
-          entry_file
+          virtual_workspace_server_file, entry_file
         ),
       )
       .await?;

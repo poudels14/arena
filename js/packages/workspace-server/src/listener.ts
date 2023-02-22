@@ -1,6 +1,7 @@
 import type { Handler } from "@arena/core/server";
 import qs from "query-string";
 import { ArenaRequest, RESOLVE } from "./request";
+import fileServer from "./fileserver";
 
 const { ops } = Arena.core;
 
@@ -27,24 +28,25 @@ const serve = async (handler: Handler) => {
   console.log("[Arena.Workspace.handleRequest]: Listening to connections...");
 
   const listener = new RequestListener();
-
   for await (const req of listener) {
     let arenaRequest = new ArenaRequest(req.internal, req.rid);
     arenaRequest[RESOLVE](async () => {
       let url = new URL(req.internal.url);
-      let res = handler.execute({
+
+      let event = {
         request: arenaRequest,
         env: Arena.env,
         ctx: {
           path: url.pathname,
           query: qs.parse(url.search),
         },
-      });
-      // @ts-expect-error
-      if (res.then) {
-        res = await res;
+      };
+
+      let file = await fileServer.execute(event);
+      if (file.status !== 404) {
+        return file;
       }
-      return res;
+      return await handler.execute(event);
     });
   }
 };

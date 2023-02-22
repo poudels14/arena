@@ -1,9 +1,11 @@
 import { trough } from "trough";
 import { PageEvent } from "./event";
 
-type Middleware = (event: PageEvent) => Promise<Response>;
+type Middleware = (event: PageEvent) => Promise<Response | void>;
 
-type Handler = { execute: (event: PageEvent) => Response | Promise<Response> };
+type Handler = {
+  execute: (event: PageEvent) => Promise<Response>;
+};
 
 const createHandler = (...middlewares: Middleware[]): Handler => {
   const pipeline = middlewares.reduce((t, m) => {
@@ -15,6 +17,15 @@ const createHandler = (...middlewares: Middleware[]): Handler => {
       }
     });
   }, trough());
+
+  /**
+   * If the middlewares don't return a response, return 404 as default response
+   */
+  pipeline.use((_) => {
+    return new Response(null, {
+      status: 404,
+    });
+  });
 
   return {
     /**
@@ -52,4 +63,5 @@ const createHandler = (...middlewares: Middleware[]): Handler => {
   };
 };
 
-export { createHandler, Handler };
+export type { Handler };
+export { createHandler };
