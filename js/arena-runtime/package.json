@@ -4,7 +4,8 @@
   "description": "Javascript files for core Arena runtime",
   "type": "module",
   "scripts": {
-    "build": "pnpm rollup -c rollup.config.js"
+    "build": "pnpm esbuild babel=libs/babel/index.ts wasmer-wasi=libs/wasi/wasmer.ts --outdir=dist --bundle --minify",
+    "dev": "pnpm esbuild babel=libs/babel/index.ts wasmer-wasi=libs/wasi/wasmer.ts --outdir=dist --bundle --watch"
   },
   "author": "Sagar Poudel",
   "private": true,
@@ -24,14 +25,7 @@
     "solid-js": "^1.6.9"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^24.0.1",
-    "@rollup/plugin-json": "^6.0.0",
-    "@rollup/plugin-node-resolve": "^15.0.1",
-    "@rollup/plugin-terser": "^0.4.0",
-    "prettier": "^2.8.4",
-    "rollup": "^3.12.0",
-    "rollup-plugin-typescript2": "^0.34.1",
-    "tslib": "^2.5.0",
-    "typescript": "^4.9.5"
+    "esbuild": "^0.17.10",
+    "prettier": "^2.8.4"
   }
 }
