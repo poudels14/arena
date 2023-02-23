@@ -1,4 +1,4 @@
-use super::loaders::{self, ModuleLoaderConfig};
+use super::loaders;
 use crate::config::ArenaConfig;
 use crate::permissions::PermissionsContainer;
 use anyhow::{anyhow, Result};
@@ -98,15 +98,15 @@ impl IsolatedRuntime {
         Some(Rc::new(loaders::FsModuleLoader::new(
           loaders::ModuleLoaderOption {
             transpile: config.transpile,
-            config: ModuleLoaderConfig {
+            resolver: super::FsModuleResolver::new(
               project_root,
-              build_config: config
+              config
                 .config
                 .as_ref()
                 .and_then(|c| c.javascript.as_ref())
-                .and_then(|j| j.build.clone())
+                .and_then(|j| j.resolve.clone())
                 .unwrap_or(Default::default()),
-            },
+            ),
           },
         )))
       };

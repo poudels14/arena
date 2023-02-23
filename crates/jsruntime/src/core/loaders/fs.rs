@@ -1,6 +1,5 @@
-use super::ModuleLoaderConfig;
 use crate::buildtools::transpiler;
-use crate::core::resolvers;
+use crate::core::resolvers::fs::FsModuleResolver;
 use crate::{IsolatedRuntime, RuntimeConfig};
 use anyhow::{anyhow, bail, Error};
 use deno_ast::MediaType;
@@ -9,29 +8,22 @@ use deno_core::{
   ResolutionKind,
 };
 use futures::future::FutureExt;
-use indexmap::IndexMap;
 use std::cell::RefCell;
-use std::path::PathBuf;
 use std::pin::Pin;
 use std::rc::Rc;
-use tracing::debug;
-
-pub(crate) struct ModuleLoaderCache {
-  pub node_module_dirs: IndexMap<String, Vec<PathBuf>>,
-}
 
 pub(crate) struct FsModuleLoader {
   transpile: bool,
-  pub config: Box<ModuleLoaderConfig>,
   runtime: Option<Rc<RefCell<IsolatedRuntime>>>,
-  pub cache: Rc<RefCell<ModuleLoaderCache>>,
+
+  resolver: FsModuleResolver,
 }
 
 pub struct ModuleLoaderOption {
   /// whether to auto-transpile the code when loading
   pub transpile: bool,
 
-  pub config: ModuleLoaderConfig,
+  pub resolver: FsModuleResolver,
 }
 
 impl FsModuleLoader {
@@ -50,11 +42,8 @@ impl FsModuleLoader {
     };
     Self {
       transpile: option.transpile,
-      config: Box::new(option.config),
+      resolver: option.resolver,
       runtime,
-      cache: Rc::new(RefCell::new(ModuleLoaderCache {
-        node_module_dirs: IndexMap::new(),
-      })),
     }
   }
 }
@@ -70,9 +59,7 @@ impl ModuleLoader for FsModuleLoader {
     referrer: &str,
     _kind: ResolutionKind,
   ) -> Result<ModuleSpecifier, Error> {
-    // TODO(sagar): does this need to be cached?
-    let specifier = self.resolve_alias(specifier);
-    Ok(resolvers::fs::resolve_import(self, &specifier, referrer)?)
+    Ok(self.resolver.resolve_import(&specifier, referrer)?)
   }
 
   fn load(
@@ -129,32 +116,5 @@ impl ModuleLoader for FsModuleLoader {
       Ok(module)
     }
     .boxed_local()
-  }
-}
-
-impl FsModuleLoader {
-  fn resolve_alias(&self, specifier: &str) -> String {
-    // Note(sagar): if module loader is used, config should be present
-    let alias = &self.config.build_config.alias;
-
-    for k in alias.keys() {
-      if specifier.starts_with(k) {
-        let value = alias.get(k).unwrap();
-        debug!("matched alias: {}={}", k, value);
-        return format!(
-          "{}{}",
-          if value.starts_with(".") {
-            format!(
-              "{}",
-              &self.config.project_root.join(value).to_str().unwrap()
-            )
-          } else {
-            value.to_string()
-          },
-          &specifier[k.len()..]
-        );
-      }
-    }
-    specifier.to_owned()
   }
 }

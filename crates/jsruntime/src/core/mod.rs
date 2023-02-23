@@ -5,6 +5,6 @@ mod runtime;
 
 pub mod function;
 
-pub use loaders::ModuleLoaderConfig;
+pub use resolvers::fs::FsModuleResolver;
 pub use runtime::IsolatedRuntime;
 pub use runtime::RuntimeConfig;

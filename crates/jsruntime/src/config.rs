@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 #[derive(Derivative, Serialize, Deserialize)]
 #[derivative(Clone, Debug, Default)]
-pub struct JsBuildConfig {
+pub struct ResolverConfig {
   /// Module resolve alias as used by node resolvers, ViteJs, etc
   #[serde(skip_serializing_if = "IndexMap::is_empty")]
   #[serde(default)]
@@ -20,7 +20,7 @@ pub struct JsBuildConfig {
   /// similar to exportConditions option for @rollup/plugin-node-resolve
   #[serde(skip_serializing_if = "IndexSet::is_empty")]
   #[serde(default)]
-  pub export_conditions: IndexSet<String>,
+  pub conditions: IndexSet<String>,
 }
 
 #[derive(Derivative, Serialize, Deserialize)]
@@ -28,7 +28,7 @@ pub struct JsBuildConfig {
 pub struct JavascriptConfig {
   /// Config related to Javascript and Typescript
   #[serde(skip_serializing_if = "Option::is_none")]
-  pub build: Option<JsBuildConfig>,
+  pub resolve: Option<ResolverConfig>,
 }
 
 #[derive(Derivative, Serialize, Deserialize)]

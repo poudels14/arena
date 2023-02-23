@@ -1,2 +1,2 @@
-[javascript.build.alias]
+[javascript.resolve.alias]
 "~" = "./src"
