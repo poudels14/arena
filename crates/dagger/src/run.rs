@@ -4,7 +4,6 @@ use deno_core::resolve_url_or_path;
 use jsruntime::permissions::{FileSystemPermissions, PermissionsContainer};
 use jsruntime::{IsolatedRuntime, RuntimeConfig};
 use std::collections::HashSet;
-use std::path::Path;
 
 #[derive(Parser, Debug)]
 pub struct Command {
@@ -30,7 +29,7 @@ impl Command {
         fs: Some(FileSystemPermissions {
           allowed_read_paths: HashSet::from_iter(vec![
             // allow all files
-            Path::new("/").to_path_buf(),
+            "/".to_owned(),
           ]),
           ..Default::default()
         }),

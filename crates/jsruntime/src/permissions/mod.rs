@@ -1,6 +1,7 @@
 use anyhow::{anyhow, bail, Result};
 use deno_core::error::AnyError;
 use deno_core::OpState;
+use derivative::Derivative;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -19,11 +20,16 @@ pub struct FetchPermissions {
   pub restricted_urls: Option<HashSet<Url>>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, Default)]
+#[derive(Derivative, Deserialize, Serialize)]
+#[derivative(Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct FileSystemPermissions {
-  pub allowed_read_paths: HashSet<PathBuf>,
-  pub allowed_write_paths: HashSet<PathBuf>,
+  /// The prefix that's used for the relative paths
+  /// that are allowed for read/writes
+  #[derivative(Default(value = "std::env::current_dir().unwrap()"))]
+  pub root: PathBuf,
+  pub allowed_read_paths: HashSet<String>,
+  pub allowed_write_paths: HashSet<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
@@ -96,7 +102,16 @@ impl PermissionsContainer {
   pub fn check_read(&mut self, path: &Path) -> Result<()> {
     match self.fs.as_ref() {
       Some(perms) => {
-        if perms.allowed_read_paths.iter().any(|p| path.starts_with(p)) {
+        // TODO(sagar): cache the paths
+        // TODO(sagar): write tests
+        if perms.allowed_read_paths.iter().any(|p| {
+          perms
+            .root
+            .join(p)
+            .canonicalize()
+            .and_then(|p| Ok(path.starts_with(p)))
+            .unwrap_or(false)
+        }) {
           return Ok(());
         }
       }

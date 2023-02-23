@@ -12,6 +12,7 @@ use jsruntime::{IsolatedRuntime, RuntimeConfig};
 use serde_json::{json, Value};
 use std::cell::RefCell;
 use std::collections::HashSet;
+#[cfg(debug_assertions)]
 use std::path::Path;
 use std::rc::Rc;
 use std::thread;
@@ -73,11 +74,9 @@ pub async fn serve(
     let rt = tokio::runtime::Builder::new_current_thread()
       .enable_io()
       .enable_time()
-      .worker_threads(2)
+      .worker_threads(1)
       // TODO(sagar): optimize max blocking threads
       .max_blocking_threads(2)
-      .on_thread_start(|| println!("Tokio runtime started...."))
-      .on_thread_stop(|| println!("Tokio runtime stopped..."))
       .build()
       .unwrap();
 
@@ -151,7 +150,7 @@ impl WorkspaceServer {
       }
       c = js_runtime.run_event_loop() => {
         match c {
-          Err(e) => error!("Js runtime terminated with error: {:?}", e),
+          Err(e) => error!("JS runtime terminated with error: {:?}", e),
           _ => debug!("JS runtime terminated.")
         }
       }
@@ -199,10 +198,11 @@ impl WorkspaceServer {
       // move the fileserver to rust so that file permission isn't ncessary
       permissions: PermissionsContainer {
         fs: Some(FileSystemPermissions {
-          allowed_read_paths: HashSet::from_iter(vec![self
-            .workspace
-            .dir
-            .clone()]),
+          root: self.workspace.dir.clone(),
+          allowed_read_paths: HashSet::from_iter(vec![
+            // Note(sagar): only give read access to workspace directory
+            "./".to_owned(),
+          ]),
           ..Default::default()
         }),
         ..Default::default()
@@ -221,10 +221,9 @@ impl WorkspaceServer {
         .join("../../js/packages/workspace-server/dist/index.js"),
     )?;
     #[cfg(not(debug_assertions))]
-    let workspace_server_code = std::fs::read_to_string(
+    let workspace_server_code =
       include_str!("../../../../js/packages/workspace-server/dist/index.js")
-        .to_owned(),
-    );
+        .to_owned();
 
     let entry_file = self.workspace.entry_file();
 

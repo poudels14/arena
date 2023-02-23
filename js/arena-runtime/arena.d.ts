@@ -1,6 +1,29 @@
 declare namespace Arena {
   type Core = {
-    ops: Record<string, any>;
+    ops: {
+      /**
+       * Receive a HTTP request.
+       *
+       * Only to be used by Arena Workspace Server!
+       */
+      op_receive_request: () => Promise<{ rid: number; internal: Request }>;
+
+      /**
+       * Send a response to the HTTP request
+       *
+       * Only to be used by Arena Workspace Server!
+       */
+      op_send_response: (
+        rid: number,
+        status: number,
+        headers: [string, string][],
+        data?: null | string | number
+      ) => Promise<void>;
+
+      op_read_file_sync: (filename: string) => Uint16Array;
+      op_read_file_async: (filename: string) => Promise<Uint16Array>;
+      op_read_file_string_async: (filename: string) => Promise<String>;
+    };
   };
 
   type Env = Record<string, any>;

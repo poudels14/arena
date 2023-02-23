@@ -1,6 +1,7 @@
 use anyhow::Result;
 use arena_workspace::server::ServerOptions;
 use clap::Parser;
+use common::fs::has_file_in_file_tree;
 use std::env;
 use std::path::Path;
 use tracing::{info, Level};
@@ -18,14 +19,22 @@ pub struct DevCommand {
 
 impl DevCommand {
   pub async fn execute(&self) -> Result<()> {
+    let cwd = env::current_dir()?;
     let workspaces_dir = self
       .dir
       .as_ref()
-      .map_or(env::current_dir().unwrap(), |p| Path::new(&p).to_path_buf());
+      .map_or_else(
+        || has_file_in_file_tree(Some(&cwd), "workspace.config.toml"),
+        |p| Some(Path::new(&p).to_path_buf()),
+      )
+      .unwrap_or(cwd);
 
     let workspace =
       arena_workspace::load::load(arena_workspace::load::Options {
-        dir: workspaces_dir,
+        dir: env::current_dir()
+          .unwrap()
+          .join(workspaces_dir)
+          .canonicalize()?,
         registry: None,
         ..Default::default()
       })

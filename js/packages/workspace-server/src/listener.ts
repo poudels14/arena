@@ -29,6 +29,9 @@ const serve = async (handler: Handler) => {
 
   const listener = new RequestListener();
   for await (const req of listener) {
+    if (!req) {
+      break;
+    }
     let arenaRequest = new ArenaRequest(req.internal, req.rid);
     arenaRequest[RESOLVE](async () => {
       let url = new URL(req.internal.url);

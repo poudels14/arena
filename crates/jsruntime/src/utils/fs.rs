@@ -1,17 +1,34 @@
-use anyhow::Context;
+use crate::permissions::PermissionsContainer;
+use anyhow::bail;
 use anyhow::Result;
 use deno_core::normalize_path;
-use std::env::current_dir;
+use deno_core::OpState;
 use std::path::Path;
 use std::path::PathBuf;
 
 #[inline]
-pub fn resolve_from_cwd(path: &Path) -> Result<PathBuf> {
+fn resolve(base: &Path, path: &Path) -> Result<PathBuf> {
   if path.is_absolute() {
     Ok(normalize_path(path))
   } else {
-    let cwd =
-      current_dir().context("Failed to get current working directory")?;
-    Ok(normalize_path(cwd.join(path)))
+    Ok(normalize_path(base.join(path)))
+  }
+}
+
+/// resolves the given path from project prefix/root and checks for
+/// read permission. Returns Ok(resolved_path) if the permission
+/// for given path is granted, else returns error
+#[inline]
+#[allow(dead_code)]
+pub fn resolve_read_path(state: &mut OpState, path: &Path) -> Result<PathBuf> {
+  let permissions = state.borrow_mut::<PermissionsContainer>();
+
+  match permissions.fs.as_ref() {
+    Some(perm) => {
+      let resolved_path = resolve(&perm.root, path)?;
+      permissions.check_read(&resolved_path)?;
+      Ok(resolved_path)
+    }
+    None => bail!("No access to filesystem"),
   }
 }

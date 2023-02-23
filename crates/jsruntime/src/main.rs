@@ -10,7 +10,6 @@ use crate::permissions::PermissionsContainer;
 use anyhow::Result;
 use deno_core::resolve_url_or_path;
 use std::collections::HashSet;
-use std::path::Path;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -18,9 +17,7 @@ async fn main() -> Result<()> {
     enable_console: true,
     permissions: PermissionsContainer {
       fs: Some(FileSystemPermissions {
-        allowed_read_paths: HashSet::from_iter(vec![
-          Path::new("/").to_path_buf()
-        ]),
+        allowed_read_paths: HashSet::from_iter(vec!["/".to_owned()]),
         ..Default::default()
       }),
       ..Default::default()

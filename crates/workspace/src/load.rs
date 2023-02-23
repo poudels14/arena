@@ -1,7 +1,7 @@
 use super::Workspace;
 use crate::registry::Registry;
 use crate::WorkspaceConfig;
-use anyhow::Result;
+use anyhow::{bail, Result};
 use std::path::PathBuf;
 
 #[derive(Default, Clone, Debug)]
@@ -26,6 +26,13 @@ pub struct Options {
 /// In deployment more, this only loads essential files in the beginning and
 /// lazy load other files as necessary
 pub async fn load(options: Options) -> Result<Workspace> {
+  if !options.dir.is_absolute() {
+    bail!(
+      "Workspace directory should be abolute path. current value = {:?}",
+      options.dir
+    );
+  }
+
   let config =
     WorkspaceConfig::from_path(&options.dir.join("workspace.config.toml"))?;
 
