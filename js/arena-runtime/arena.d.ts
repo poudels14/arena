@@ -28,11 +28,11 @@ declare namespace Arena {
 
   type Env = Record<string, any>;
 
-  type TransformOptions = {
+  type TranspileOptions = {
     source_map?: "inline";
   };
 
-  type TransformResult = {
+  type TranspileResult = {
     code: string;
   };
 
@@ -43,11 +43,16 @@ declare namespace Arena {
       solid: any;
     };
 
-    transformFileAsync: (
-      filename: string,
-      options: TransformOptions
-    ) => Promise<TransformResult>;
-    transformSync: (code: string, options: TransformOptions) => TransformResult;
+    Transpiler: {
+      transpileFileAsync: (
+        filename: string,
+        options: TranspileOptions
+      ) => Promise<TranspileResult>;
+      transpileSync: (
+        code: string,
+        options: TranspileOptions
+      ) => TranspileResult;
+    };
   };
 
   let core: Core;

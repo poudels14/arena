@@ -280,7 +280,7 @@ impl IsolatedRuntime {
       extensions.push(super::ext::wasi::init());
     }
     if config.enable_build_tools {
-      extensions.push(crate::buildtools::exts::transform::init());
+      extensions.push(crate::buildtools::exts::transpiler::init());
     }
     extensions
   }

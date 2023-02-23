@@ -15,71 +15,74 @@ use std::path::Path;
 use std::rc::Rc;
 
 #[derive(Deserialize)]
-struct TransformOptions {
+struct TranspileOptions {
   /// disabled if not set
   /// only "inline" options supported right now
   source_map: Option<String>,
 }
 
 #[derive(Serialize)]
-struct TransformResult {
+struct TranspileResult {
   /// transpiled code
   code: Option<StringOrBuffer>,
 }
 
 pub fn init() -> Extension {
-  Extension::builder("<arena/buildtools/transforms>")
+  Extension::builder("<arena/buildtools/transpiler>")
     .ops(vec![
-      op_buildtools_transform_sync::decl(),
-      op_buildtools_transform_file_async::decl(),
+      op_transpiler_transpile_sync::decl(),
+      op_transpiler_transpile_file_async::decl(),
     ])
     .js(vec![(
-      "<arena/buildtools/transforms>",
-      include_str!("./transform.js"),
+      "<arena/buildtools/transpiler>",
+      include_str!("./transpiler.js"),
     )])
     .build()
 }
 
 #[op]
-async fn op_buildtools_transform_file_async(
+async fn op_transpiler_transpile_file_async(
   state: Rc<RefCell<OpState>>,
   filename: String,
-  options: TransformOptions,
-) -> Result<TransformResult> {
+  options: TranspileOptions,
+) -> Result<TranspileResult> {
   let resolved_path = {
     let mut state = state.borrow_mut();
     resolve_read_path(&mut state, &Path::new(&filename))
   }?;
 
   let code = tokio::fs::read_to_string(resolved_path).await?;
-  transform_code(filename, &code, &options)
+  transpile_code(filename, &code, &options)
 }
 
 #[op]
-fn op_buildtools_transform_sync(
+fn op_transpiler_transpile_sync(
   _state: &mut OpState,
   code: String,
-  options: TransformOptions,
-) -> Result<TransformResult> {
-  transform_code("<code>".to_owned(), &code, &options)
+  options: TranspileOptions,
+) -> Result<TranspileResult> {
+  transpile_code("<code>".to_owned(), &code, &options)
 }
 
-fn transform_code(
+fn transpile_code(
   filename: String,
   code: &str,
-  options: &TransformOptions,
-) -> Result<TransformResult> {
-  let parsed = deno_ast::parse_module(ParseParams {
-    specifier: filename.to_owned(),
-    text_info: SourceTextInfo::from_string(code.to_owned()),
-    // Note(sagar): treat everything as typescript so that all transformations
-    // are applied
-    // TODO(sagar): allow configuring this with options argument
-    media_type: MediaType::Tsx,
-    capture_tokens: false,
-    scope_analysis: false,
-    maybe_syntax: None,
-  })?;
+  options: &TranspileOptions,
+) -> Result<TranspileResult> {
+  let parsed = deno_ast::parse_module_with_post_process(
+    ParseParams {
+      specifier: filename.to_owned(),
+      text_info: SourceTextInfo::from_string(code.to_owned()),
+      // Note(sagar): treat everything as typescript so that all transformations
+      // are applied
+      // TODO(sagar): allow configuring this with options argument
+      media_type: MediaType::Tsx,
+      capture_tokens: false,
+      scope_analysis: false,
+      maybe_syntax: None,
+    },
+    |p| p,
+  )?;
 
   let parsed_code = parsed
     .transpile(
@@ -97,7 +100,7 @@ fn transform_code(
     )?
     .text;
 
-  Ok(TransformResult {
+  Ok(TranspileResult {
     code: Some(StringOrBuffer::String(parsed_code)),
   })
 }

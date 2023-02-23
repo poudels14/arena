@@ -1,7 +1,7 @@
 import { createHandler } from "@arena/core/server";
 import * as path from "path";
 
-const { BuildTools } = Arena;
+const { Transpiler } = Arena.BuildTools;
 export default createHandler(async (event) => {
   const ext = path.extname(event.ctx.path);
   if (!ext) {
@@ -9,16 +9,13 @@ export default createHandler(async (event) => {
   }
 
   try {
-    console.log(Arena.env);
-    const { code } = await BuildTools.transformFileAsync(
+    const { code } = await Transpiler.transpileFileAsync(
       "./" + Arena.env.ARENA_ENTRY_CLIENT,
       {}
     );
     const { babel, babelPlugins, babelPresets } = Arena.BuildTools;
     const { code: transpiledCode } = babel.transform(code, {
-      presets: [
-        [babelPresets.solid, { generate: "dom", hydratable: true }],
-      ],
+      presets: [[babelPresets.solid, { generate: "dom", hydratable: true }]],
       plugins: [[babelPlugins.transformCommonJs, { exportsOnly: true }]],
     });
 

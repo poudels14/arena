@@ -1,13 +1,13 @@
-const { BuildTools } = Arena;
+const { Transpiler } = Arena.BuildTools;
 
 console.log("************* Transforming inline code ******************");
 
-const inlineCode = BuildTools.transformSync(
+const inlineCode = Transpiler.transformSync(
   `const x : string = "test string";`
 );
 console.log(inlineCode);
 
 console.log("************* Transforming code from file ***************");
 
-const code = await BuildTools.transformFileAsync("./typescript/type-export.ts");
+const code = await Transpiler.transformFileAsync("./typescript/type-export.ts");
 console.log(code);
