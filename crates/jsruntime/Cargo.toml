@@ -28,6 +28,11 @@ deno_webidl.workspace = true
 deno_crypto.workspace = true
 deno_ast.workspace = true
 
+swc_ecma_visit.workspace = true
+swc_common.workspace = true
+swc_ecma_ast.workspace = true
+swc_atoms.workspace = true
+
 [build-dependencies]
 url.workspace = true
 deno_core.workspace = true

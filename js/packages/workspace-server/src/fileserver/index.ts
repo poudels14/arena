@@ -2,21 +2,34 @@ import { createHandler } from "@arena/core/server";
 import * as path from "path";
 
 const { Transpiler } = Arena.BuildTools;
+const transpiler = new Transpiler({
+  resolve_import: true,
+  resolver: {
+    conditions: ["browser", "development"]
+  },
+  replace: {
+    "Arena.env.MODE": JSON.stringify("development"),
+    "Arena.env.ARENA_SSR": JSON.stringify(false),
+  }
+});
+
 export default createHandler(async (event) => {
-  const ext = path.extname(event.ctx.path);
+  const filePath = event.ctx.path;
+  const ext = path.extname(filePath);
   if (!ext) {
     return;
   }
 
   try {
-    const { code } = await Transpiler.transpileFileAsync(
-      "./" + Arena.env.ARENA_ENTRY_CLIENT,
-      {}
-    );
+    const { code } = await transpiler.transpileFileAsync("./" + filePath);
+
     const { babel, babelPlugins, babelPresets } = Arena.BuildTools;
     const { code: transpiledCode } = babel.transform(code, {
       presets: [[babelPresets.solid, { generate: "dom", hydratable: true }]],
-      plugins: [[babelPlugins.transformCommonJs, { exportsOnly: true }]],
+      plugins: [
+        [babelPlugins.transformCommonJs, { exportsOnly: true }],
+        babelPlugins.importResolver,
+      ],
     });
 
     return new Response(transpiledCode, {

@@ -9,6 +9,7 @@ use derivative::Derivative;
 use futures::channel::oneshot;
 use std::cell::RefCell;
 use std::env::current_dir;
+use std::path::PathBuf;
 use std::rc::Rc;
 use tracing::error;
 use url::Url;
@@ -77,7 +78,8 @@ impl IsolatedRuntime {
       })
     });
 
-    let mut extensions_with_js = Self::get_js_extensions(&mut config);
+    let mut extensions_with_js =
+      Self::get_js_extensions(&project_root, &mut config);
     // Note(sagar): take extensions out of the config and set it to empty
     // vec![] so that config can be stored without having Send trait
     if config.extensions.len() > 0 {
@@ -240,7 +242,10 @@ impl IsolatedRuntime {
     super::function::Function::new(self.runtime.clone(), code, realm)
   }
 
-  fn get_js_extensions(config: &RuntimeConfig) -> Vec<Extension> {
+  fn get_js_extensions(
+    project_root: &PathBuf,
+    config: &RuntimeConfig,
+  ) -> Vec<Extension> {
     let mut js_files = Vec::new();
 
     js_files.push((
@@ -280,7 +285,15 @@ impl IsolatedRuntime {
       extensions.push(super::ext::wasi::init());
     }
     if config.enable_build_tools {
-      extensions.push(crate::buildtools::exts::transpiler::init());
+      extensions.append(&mut crate::buildtools::exts::init(
+        project_root,
+        config
+          .config
+          .as_ref()
+          .and_then(|c| c.javascript.as_ref())
+          .and_then(|j| j.resolve.clone())
+          .unwrap_or(Default::default()),
+      ));
     }
     extensions
   }

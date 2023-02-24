@@ -21,6 +21,14 @@ pub struct ResolverConfig {
   #[serde(skip_serializing_if = "IndexSet::is_empty")]
   #[serde(default)]
   pub conditions: IndexSet<String>,
+
+  /// A list of modules to dedupe
+  /// Deduping a module (external npm module) will always resolve the module
+  /// to the same path inside the `${project root}/node_modules` directory.
+  /// See rollup node resolve plugin's dedupe config for more info.
+  #[serde(skip_serializing_if = "IndexSet::is_empty")]
+  #[serde(default)]
+  pub dedupe: IndexSet<String>,
 }
 
 #[derive(Derivative, Serialize, Deserialize)]
@@ -54,5 +62,27 @@ impl ArenaConfig {
       fs::read(filepath).map_err(|e| anyhow!("{}: {:?}", e, filepath))?;
     toml::from_str(&std::str::from_utf8(&content)?)
       .map_err(|e| anyhow!("{}", e))
+  }
+}
+
+impl ResolverConfig {
+  pub(crate) fn merge(self, other: ResolverConfig) -> Self {
+    Self {
+      alias: if !other.alias.is_empty() {
+        other.alias
+      } else {
+        self.alias
+      },
+      conditions: if !other.conditions.is_empty() {
+        other.conditions
+      } else {
+        self.conditions
+      },
+      dedupe: if !other.dedupe.is_empty() {
+        other.dedupe
+      } else {
+        self.dedupe
+      },
+    }
   }
 }

@@ -5,11 +5,10 @@
   "type": "module",
   "main": "index.ts",
   "scripts": {
-    "build": "pnpm rollup -c rollup.config.js",
-    "dev": "pnpm rollup -c rollup.config.js -w"
+    "build": "pnpm esbuild index=./src/index.ts --outdir=dist --format=esm --bundle --minify",
+    "dev": "pnpm esbuild index=./src/index.ts --outdir=dist --format=esm --bundle --watch"
   },
-  "keywords": [],
-  "author": "",
+  "author": "Sagar Poudel",
   "private": true,
   "license": "UNLICENSED",
   "dependencies": {
@@ -20,11 +19,6 @@
     "util": "^0.12.5"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^24.0.1",
-    "@rollup/plugin-node-resolve": "^15.0.1",
-    "@rollup/plugin-terser": "^0.4.0",
-    "rollup": "^3.12.0",
-    "rollup-plugin-typescript2": "^0.34.1",
-    "typescript": "^4.9.5"
+    "esbuild": "^0.17.10"
   }
 }

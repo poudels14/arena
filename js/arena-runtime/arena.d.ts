@@ -1,4 +1,6 @@
 declare namespace Arena {
+  type Env = Record<string, any>;
+
   type Core = {
     ops: {
       /**
@@ -26,9 +28,34 @@ declare namespace Arena {
     };
   };
 
-  type Env = Record<string, any>;
+  type ResolverConfig = {
+    alias?: Record<string, string>;
 
-  type TranspileOptions = {
+    conditions?: string[];
+
+    dedupe?: string[];
+  };
+
+  class Resolver {
+    resolve(specifier: string, referrer: string): string;
+
+    close();
+  }
+
+  type TranspilerConfig = {
+    /**
+     * Whether to resolve the import when transpiling
+     */
+    resolve_import?: boolean;
+
+    resolver?: ResolverConfig;
+
+    /**
+     * A set of key/value that will be replaced
+     * when transpiling. Works similar to @rollup/plugin-replace
+     */
+    replace?: Record<string, string>;
+
     source_map?: "inline";
   };
 
@@ -36,23 +63,25 @@ declare namespace Arena {
     code: string;
   };
 
+  class Transpiler {
+    public transpileFileAsync: (filename: string) => Promise<TranspileResult>;
+
+    public transpileSync: (code: string) => TranspileResult;
+  }
+
   type BuildTools = {
     babel: any;
-    babelPlugins: any;
+    babelPlugins: {
+      transformCommonJs: any;
+      importResolver: any;
+    };
     babelPresets: {
       solid: any;
     };
 
-    Transpiler: {
-      transpileFileAsync: (
-        filename: string,
-        options: TranspileOptions
-      ) => Promise<TranspileResult>;
-      transpileSync: (
-        code: string,
-        options: TranspileOptions
-      ) => TranspileResult;
-    };
+    Transpiler: new (config?: TranspilerConfig) => Transpiler;
+
+    Resolver: new (config?: ResolverConfig) => Resolver;
   };
 
   let core: Core;

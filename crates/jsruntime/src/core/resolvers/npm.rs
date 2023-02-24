@@ -26,26 +26,42 @@ impl FsModuleResolver {
     match maybe_referrer.as_ref() {
       Some(referrer) => {
         let mut cache = self.cache.borrow_mut();
+        let root = self.project_root.clone();
 
-        let directories = match cache.node_module_dirs.get(referrer) {
+        // Note(sagar): if a module is deduped, it needs to be resolved from
+        // ${project root}/node_modules. using `./` specifier is a hack to
+        // force resolver to use same node_modules directory for all deduped
+        // modules
+        let referrer_url;
+        let referrer_to_use = if self.config.dedupe.contains(specifier) {
+          referrer_url = Url::from_file_path(&root)
+            .map_err(|_| InvalidPath(root.clone()))?;
+          referrer_url.as_str()
+        } else {
+          referrer
+        };
+        let directories = match cache.node_module_dirs.get(referrer_to_use) {
           Some(dir) => dir,
           None => {
-            let directories = Self::valid_node_modules_paths(referrer)?;
-            let root = self.project_root.clone();
-            let relative_dirs = directories
-              .iter()
-              .map(|d| {
-                pathdiff::diff_paths::<&PathBuf, &PathBuf>(d, &root).unwrap()
-              })
-              .collect::<Vec<PathBuf>>();
-            debug!(
-              "caching resolved node_modules directories: {:?}",
-              relative_dirs
-            );
+            let directories = Self::valid_node_modules_paths(referrer_to_use)?;
+
+            #[cfg(debug_assertions)]
+            {
+              let relative_dirs = directories
+                .iter()
+                .map(|d| {
+                  pathdiff::diff_paths::<&PathBuf, &PathBuf>(d, &root).unwrap()
+                })
+                .collect::<Vec<PathBuf>>();
+              debug!(
+                "caching resolved node_modules directories: {:?}",
+                relative_dirs
+              );
+            }
             cache
               .node_module_dirs
-              .insert(referrer.to_string(), directories);
-            cache.node_module_dirs.get(referrer).unwrap()
+              .insert(referrer_to_use.to_string(), directories);
+            cache.node_module_dirs.get(referrer_to_use).unwrap()
           }
         };
 
@@ -126,6 +142,8 @@ impl FsModuleResolver {
   }
 
   // reference: https://nodejs.org/api/modules.html#all-together
+  // TODO(sagar): is it possible to check for path permission when
+  // resolving instead of when loading the resolved files?
   fn valid_node_modules_paths(
     referrer: &str,
   ) -> Result<Vec<PathBuf>, ModuleResolutionError> {

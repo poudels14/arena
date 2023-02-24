@@ -2,7 +2,6 @@
 
 // @ts-ignore
 import { declare } from "@babel/helper-plugin-utils";
-// import { types as t } from '@babel/types';
 import * as t from "@babel/types";
 // @ts-ignore
 import { check } from "reserved-words";

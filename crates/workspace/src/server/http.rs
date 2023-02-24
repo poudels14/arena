@@ -22,6 +22,8 @@ use tracing::error;
 #[derive(Debug, Serialize)]
 pub struct HttpRequest {
   pub url: String,
+
+  pub headers: Vec<(String, String)>,
 }
 
 #[derive(Debug, Serialize)]
@@ -78,6 +80,16 @@ async fn handle_request(
 ) -> Response {
   let request = HttpRequest {
     url: format!("http://0.0.0.0{}", req.uri().to_string()),
+    headers: req
+      .headers()
+      .iter()
+      .map(|(key, value)| {
+        (
+          key.to_string(),
+          String::from_utf8(value.as_bytes().to_owned()).unwrap(),
+        )
+      })
+      .collect(),
   };
 
   let (tx, mut rx) = mpsc::channel(5);
