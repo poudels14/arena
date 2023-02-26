@@ -1,6 +1,7 @@
 interface FetchEvent {
   request: Request;
   env: Arena.Env;
+  tags: any[];
 }
 
 type RequestContext = {

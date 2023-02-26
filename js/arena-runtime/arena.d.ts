@@ -1,5 +1,11 @@
 declare namespace Arena {
-  type Env = Record<string, any>;
+  type Env = {
+    /**
+     * This flag can be used to tree-shake client and server side code
+     * branches depending on which env the bundle is being generated for
+     */
+    SSR: boolean;
+  } & Record<string, any>;
 
   type Core = {
     ops: {

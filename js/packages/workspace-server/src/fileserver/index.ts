@@ -5,12 +5,13 @@ const { Transpiler } = Arena.BuildTools;
 const transpiler = new Transpiler({
   resolve_import: true,
   resolver: {
-    conditions: ["browser", "development"]
+    conditions: ["browser", "development"],
   },
   replace: {
     "Arena.env.MODE": JSON.stringify("development"),
-    "Arena.env.ARENA_SSR": JSON.stringify(false),
-  }
+    "Arena.env.SSR": JSON.stringify(false),
+    "Arena.env.ARENA_SSR": JSON.stringify(true),
+  },
 });
 
 export default createHandler(async (event) => {

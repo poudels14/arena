@@ -23,6 +23,9 @@ class RequestListener {
 }
 
 const serve = async (handler: Handler) => {
+  // Note(sagar): since this is running in server, set SSR = true
+  Arena.env.SSR = true;
+
   // TODO(sagar): we need to store logs from Arena and logs from queries
   // separately
   console.log("[Arena.Workspace.handleRequest]: Listening to connections...");
@@ -43,6 +46,7 @@ const serve = async (handler: Handler) => {
           path: url.pathname,
           query: qs.parse(url.search),
         },
+        tags: [],
       };
 
       let file = await fileServer.execute(event);
