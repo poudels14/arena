@@ -10,6 +10,12 @@ use std::path::PathBuf;
 #[derive(Derivative, Serialize, Deserialize)]
 #[derivative(Clone, Debug, Default)]
 pub struct ResolverConfig {
+  /// to use pnpm, preserve_symlink should be false since packages
+  /// are hoisted
+  #[serde(skip_serializing_if = "Option::is_none")]
+  #[serde(default)]
+  pub preserve_symlink: Option<bool>,
+
   /// Module resolve alias as used by node resolvers, ViteJs, etc
   #[serde(skip_serializing_if = "IndexMap::is_empty")]
   #[serde(default)]
@@ -68,6 +74,7 @@ impl ArenaConfig {
 impl ResolverConfig {
   pub(crate) fn merge(self, other: ResolverConfig) -> Self {
     Self {
+      preserve_symlink: other.preserve_symlink.or(self.preserve_symlink),
       alias: if !other.alias.is_empty() {
         other.alias
       } else {

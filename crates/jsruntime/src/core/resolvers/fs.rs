@@ -90,6 +90,7 @@ impl FsModuleResolver {
             debug!("error loading as file: {:?}", e);
             load_as_directory(&filepath, &maybe_package)
           })
+          .and_then(|p| self.convert_to_url(p))
           .map_err(|_| InvalidPath(filepath))?
       }
 
@@ -123,22 +124,35 @@ impl FsModuleResolver {
     }
     specifier.to_owned()
   }
+
+  pub(super) fn convert_to_url(&self, path: PathBuf) -> Result<Url> {
+    let path = match self.config.preserve_symlink.unwrap_or(false) {
+      true => path,
+      false => {
+        // Note(sagar): canonicalize when preserve symlink is false so that
+        // pnpm works
+        path.canonicalize()?
+      }
+    };
+
+    Url::from_file_path(&path)
+      .map_err(|()| anyhow!("failed to convert {:?} to file url", path))
+  }
 }
 
 #[tracing::instrument]
-pub fn load_as_file(file: &PathBuf) -> Result<ModuleSpecifier> {
+pub fn load_as_file(file: &PathBuf) -> Result<PathBuf> {
   for ext in SUPPORTED_EXTENSIONS {
     let file_with_extension = file.with_extension(ext);
     if file_with_extension.exists() {
       debug!("matched extension: {}", ext);
-      return Url::from_file_path(file_with_extension)
-        .map_err(|e| anyhow!("{:?}", e));
+      return Ok(file_with_extension);
     }
   }
   bail!("file not found: {:?}", file);
 }
 
-pub fn load_index(path: &PathBuf) -> Result<ModuleSpecifier> {
+pub fn load_index(path: &PathBuf) -> Result<PathBuf> {
   debug!("checking index file at: {:?}", path);
   load_as_file(&path.join("index"))
 }
@@ -147,7 +161,7 @@ pub fn load_index(path: &PathBuf) -> Result<ModuleSpecifier> {
 pub fn load_as_directory(
   path: &PathBuf,
   maybe_package: &Option<Package>,
-) -> Result<ModuleSpecifier> {
+) -> Result<PathBuf> {
   debug!("load_as_directory path: {:?}", path);
 
   if let Some(package) = maybe_package.as_ref() {

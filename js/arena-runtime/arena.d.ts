@@ -35,6 +35,8 @@ declare namespace Arena {
   };
 
   type ResolverConfig = {
+    preserve_symlink?: boolean;
+
     alias?: Record<string, string>;
 
     conditions?: string[];

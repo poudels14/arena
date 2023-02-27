@@ -72,7 +72,7 @@ impl FsModuleResolver {
             &dir_path.join(&parsed_specifier.package_name),
           )
           .ok();
-          if let Ok(resolved) = self
+          let resolved = self
             .load_npm_package(&dir_path, &parsed_specifier, &maybe_package)
             .or_else(|e| {
               debug!("error loading npm package export: {:?}", e);
@@ -82,7 +82,9 @@ impl FsModuleResolver {
               debug!("error loading as file: {:?}", e);
               fs::load_as_directory(&dir_path.join(specifier), &maybe_package)
             })
-          {
+            .and_then(|p| self.convert_to_url(p));
+
+          if let Ok(resolved) = resolved {
             return Ok(resolved);
           }
         }
@@ -97,7 +99,7 @@ impl FsModuleResolver {
     base_dir: &PathBuf,
     specifier: &ParsedSpecifier,
     maybe_package: &Option<Package>,
-  ) -> Result<ModuleSpecifier> {
+  ) -> Result<PathBuf> {
     let package: &Package =
       maybe_package.as_ref().ok_or(anyhow!("not a npm package"))?;
 
@@ -124,7 +126,7 @@ impl FsModuleResolver {
     base_dir: &PathBuf,
     specifier: &ParsedSpecifier,
     package: &Package,
-  ) -> Result<ModuleSpecifier> {
+  ) -> Result<PathBuf> {
     // TODO(sagar): handle other exports type
     let resolved_path = normalize_path(
       base_dir
@@ -135,8 +137,7 @@ impl FsModuleResolver {
     debug!("resolved path: {:?}", resolved_path);
 
     if resolved_path.exists() {
-      return Url::from_file_path(&resolved_path)
-        .map_err(|e| anyhow!("{:?}", e));
+      return Ok(resolved_path);
     }
     bail!("package export not found for specifier: {:?}", &specifier);
   }
@@ -165,7 +166,7 @@ impl FsModuleResolver {
       // }
 
       let dir = referrer.join("node_modules");
-      if dir.exists() {
+      if dir.is_dir() {
         directories.push(dir);
       }
 
