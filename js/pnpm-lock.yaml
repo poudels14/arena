@@ -80,10 +80,14 @@ importers:
       '@vitest/ui': 0.28.5
       vitest: 0.28.5_@vitest+ui@0.28.5
 
-  packages/arena-server:
+  packages/arena-dashboard:
     specifiers:
+      '@arena/core': ^0.1.0
+      '@solidjs/router': ^0.7.0
       solid-js: ^1.6.9
     dependencies:
+      '@arena/core': link:../arena-core
+      '@solidjs/router': 0.7.0_solid-js@1.6.9
       solid-js: 1.6.9
 
   packages/workspace-server:
@@ -104,6 +108,16 @@ importers:
     devDependencies:
       '@types/mime': 3.0.1
       esbuild: 0.17.10
+
+  templates/default:
+    specifiers:
+      '@arena/core': ^0.1.0
+      '@solidjs/router': ^0.7.0
+      solid-js: ^1.6.9
+    dependencies:
+      '@arena/core': link:../../packages/arena-core
+      '@solidjs/router': 0.7.0_solid-js@1.6.9
+      solid-js: 1.6.9
 
 packages:
 

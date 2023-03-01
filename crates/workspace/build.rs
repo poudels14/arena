@@ -12,22 +12,19 @@ pub fn main() {
 
   let mut paths = Vec::new();
 
-  glob("./template/arena.config.toml")
-    .unwrap()
-    .for_each(|p| paths.push(p));
-  glob("./template/tsconfig.json")
-    .unwrap()
-    .for_each(|p| paths.push(p));
-  glob("./template/entry-server.tsx")
-    .unwrap()
-    .for_each(|p| paths.push(p));
-  glob("./template/.gitignore")
-    .unwrap()
-    .for_each(|p| paths.push(p));
-  // Copy all files under template/root in new workspace
-  glob("./template/src/**/*")
-    .unwrap()
-    .for_each(|p| paths.push(p));
+  vec![
+    "../../js/templates/default/arena.config.toml",
+    "../../js/templates/default/tsconfig.json",
+    "../../js/templates/default/entry-server.tsx",
+    "../../js/templates/default/entry-client.tsx",
+    "../../js/templates/default/.gitignore",
+    // Copy all files under template/root in new workspace
+    "../../js/templates/default/src/**/*",
+  ]
+  .iter()
+  .for_each(|pattern| {
+    glob(pattern).unwrap().for_each(|p| paths.push(p));
+  });
 
   for entry in paths {
     match entry {
@@ -36,7 +33,7 @@ pub fn main() {
           path.clone(),
           path
             .clone()
-            .strip_prefix("template")
+            .strip_prefix("../../js/templates/default")
             .expect("failed to strip template prefix"),
         )
         .unwrap();

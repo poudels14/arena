@@ -1,0 +1,9 @@
+[env]
+MODE="development"
+ARENA_SSR=false
+ARENA_ENTRY_CLIENT="entry-client.tsx"
+
+[javascript.resolve]
+alias = { "~" = "./src" }
+conditions = ["solid", "server", "node"]
+dedupe = ["solid-js", "solid-js/web", "@solidjs/router"]

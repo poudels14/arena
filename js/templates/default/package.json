@@ -1,0 +1,9 @@
+{
+  "name": "workspace-0",
+  "version": "0.0.1",
+  "dependencies": {
+    "@arena/core": "^0.1.0",
+    "@solidjs/router": "^0.7.0",
+    "solid-js": "^1.6.9"
+  }
+}

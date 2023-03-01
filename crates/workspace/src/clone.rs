@@ -42,8 +42,8 @@ pub async fn with_default_template(config: &Config) -> Result<()> {
 
   config.add_template_files()?;
 
-  config.create_dir(&workspace_dir.join("./src/queries"))?;
-  config.create_dir(&workspace_dir.join("./src/apps"))?;
+  // config.create_dir(&workspace_dir.join("./src/queries"))?;
+  // config.create_dir(&workspace_dir.join("./src/apps"))?;
 
   Ok(())
 }
@@ -63,8 +63,9 @@ impl Config {
 
   fn add_template_files(&self) -> Result<()> {
     debug!("Adding workspace.config.yaml");
-    let mut workspace_config: WorkspaceConfig =
-      toml::from_str(include_str!("../template/workspace.config.toml"))?;
+    let mut workspace_config: WorkspaceConfig = toml::from_str(include_str!(
+      "../../../js/templates/default/workspace.config.toml"
+    ))?;
     workspace_config.name = self.name.clone();
     self.create_file(
       "workspace.config.toml",
@@ -72,8 +73,9 @@ impl Config {
     )?;
 
     debug!("Adding package.json");
-    let mut package: Package =
-      serde_json::from_str(include_str!("../template/package.json"))?;
+    let mut package: Package = serde_json::from_str(include_str!(
+      "../../../js/templates/default/package.json"
+    ))?;
     package.name = self.name.clone();
     self.create_file(
       "package.json",
