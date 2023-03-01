@@ -20,7 +20,6 @@ importers:
       prettier: ^2.8.4
       reserved-words: ^0.1.2
       solid-js: ^1.6.9
-      type-fest: ^3.6.0
     dependencies:
       '@babel/helper-plugin-utils': 7.20.2
       '@babel/standalone': 7.21.1
@@ -33,26 +32,15 @@ importers:
     devDependencies:
       esbuild: 0.17.10
       prettier: 2.8.4
-      type-fest: 3.6.0
 
-  examples/hw:
+  examples/hello-world:
     specifiers:
       '@arena/core': ^0.1.0
-      react: ^18.2.0
-      react-dom: ^18.2.0
+      '@solidjs/router': ^0.7.0
       solid-js: ^1.6.9
     dependencies:
       '@arena/core': link:../../packages/arena-core
-      react: 18.2.0
-      react-dom: 18.2.0_react@18.2.0
-      solid-js: 1.6.9
-
-  examples/sample_workspace:
-    specifiers:
-      '@arena/core': ^0.1.0
-      solid-js: ^1.6.9
-    dependencies:
-      '@arena/core': link:../../packages/arena-core
+      '@solidjs/router': 0.7.0_solid-js@1.6.9
       solid-js: 1.6.9
 
   packages/arena-core:
@@ -67,6 +55,7 @@ importers:
       '@vitest/ui': ^0.28.5
       clean-set: ^1.1.2
       klona: ^2.0.6
+      query-string: ^8.1.0
       react: ^18.2.0
       solid-js: ^1.6.9
       trough: ^2.1.0
@@ -81,6 +70,7 @@ importers:
       '@solidjs/router': 0.7.0_solid-js@1.6.9
       clean-set: 1.1.2
       klona: 2.0.6
+      query-string: 8.1.0
       react: 18.2.0
       solid-js: 1.6.9
       trough: 2.1.0
@@ -100,26 +90,20 @@ importers:
     specifiers:
       '@arena/core': workspace:^0.1.0
       '@arena/runtime': workspace:^0.1.0
+      '@types/mime': ^3.0.1
       esbuild: ^0.17.10
+      mime: ^3.0.0
       path: ^0.12.7
-      query-string: ^8.1.0
       util: ^0.12.5
     dependencies:
       '@arena/core': link:../arena-core
       '@arena/runtime': link:../../arena-runtime
+      mime: 3.0.0
       path: 0.12.7
-      query-string: 8.1.0
       util: 0.12.5
     devDependencies:
+      '@types/mime': 3.0.1
       esbuild: 0.17.10
-
-  templates/hello-world:
-    specifiers:
-      '@arena/core': ^0.1.0
-      solid-js: ^1.6.9
-    dependencies:
-      '@arena/core': link:../../packages/arena-core
-      solid-js: 1.6.9
 
 packages:
 
@@ -1197,6 +1181,12 @@ packages:
       picomatch: 2.3.1
     dev: true
 
+  /mime/3.0.0:
+    resolution: {integrity: sha512-jSCU7/VB1loIWBZe14aEYHU/+1UMEHoaO7qxCOVJOw9GgH72VAWppxNcjU+x9a2k3GSIBXNKxXQFqRvvZ7vr3A==}
+    engines: {node: '>=10.0.0'}
+    hasBin: true
+    dev: false
+
   /mlly/1.1.0:
     resolution: {integrity: sha512-cwzBrBfwGC1gYJyfcy8TcZU1f+dbH/T+TuOhtYP2wLv/Fb51/uV7HJQfBPtEupZ2ORLRU1EKFS/QfS3eo9+kBQ==}
     dependencies:
@@ -1325,16 +1315,6 @@ packages:
     resolution: {integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==}
     dev: true
 
-  /react-dom/18.2.0_react@18.2.0:
-    resolution: {integrity: sha512-6IMTriUmvsjHUjNtEDudZfuDQUoWXVxKHhlEGSk81n4YFS+r/Kl99wXiwlVXtPBtJenozv2P+hxDsw9eA7Xo6g==}
-    peerDependencies:
-      react: ^18.2.0
-    dependencies:
-      loose-envify: 1.4.0
-      react: 18.2.0
-      scheduler: 0.23.0
-    dev: false
-
   /react-is/17.0.2:
     resolution: {integrity: sha512-w2GsyukL62IJnlaff/nRegPQR94C/XXamvMWmSHRJ4y7Ts/4ocGRmTHvOs8PSE6pB3dWOrD/nueuU5sduBsQ4w==}
     dev: true
@@ -1377,12 +1357,6 @@ packages:
     dependencies:
       queue-microtask: 1.2.3
     dev: true
-
-  /scheduler/0.23.0:
-    resolution: {integrity: sha512-CtuThmgHNg7zIZWAXi3AsyIzA3n4xx7aNyjwC2VJldO2LMVDhFK+63xGqq6CsJH4rTAt6/M+N4GhZiDYPx9eUw==}
-    dependencies:
-      loose-envify: 1.4.0
-    dev: false
 
   /siginfo/2.0.0:
     resolution: {integrity: sha512-ybx0WO1/8bSBLEWXZvEd7gMW3Sn3JFlW3TvX1nREbDLRNQNaeNN8WK0meBwPdAaOI7TtRRRJn/Es1zhrrCHu7g==}
@@ -1506,11 +1480,6 @@ packages:
   /type-detect/4.0.8:
     resolution: {integrity: sha512-0fr/mIH1dlO+x7TlcMy+bIDqKPsw/70tVyeHW787goQjhmqaZe10uwLujubK9q9Lg6Fiho1KUKDYz0Z7k7g5/g==}
     engines: {node: '>=4'}
-    dev: true
-
-  /type-fest/3.6.0:
-    resolution: {integrity: sha512-RqTRtKTzvPpNdDUp1dVkKQRunlPITk4mXeqFlAZoJsS+fLRn8AdPK0TcQDumGayhU7fjlBfiBjsq3pe3rIfXZQ==}
-    engines: {node: '>=14.16'}
     dev: true
 
   /ufo/1.0.1:

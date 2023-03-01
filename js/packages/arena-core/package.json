@@ -28,6 +28,7 @@
     "@solidjs/router": "^0.7.0",
     "clean-set": "^1.1.2",
     "klona": "^2.0.6",
+    "query-string": "^8.1.0",
     "react": "^18.2.0",
     "solid-js": "^1.6.9",
     "trough": "^2.1.0",

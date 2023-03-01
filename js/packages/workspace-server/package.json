@@ -14,11 +14,12 @@
   "dependencies": {
     "@arena/core": "workspace:^0.1.0",
     "@arena/runtime": "workspace:^0.1.0",
+    "mime": "^3.0.0",
     "path": "^0.12.7",
-    "query-string": "^8.1.0",
     "util": "^0.12.5"
   },
   "devDependencies": {
+    "@types/mime": "^3.0.1",
     "esbuild": "^0.17.10"
   }
 }

@@ -1,16 +1,22 @@
 interface FetchEvent {
   request: Request;
   env: Arena.Env;
-  tags: any[];
 }
 
 type RequestContext = {
   path: string;
-  query: unknown;
+
+  search: string;
+
+  /**
+   * Parsed {@link RequestContext.search}
+   */
+  query: Record<string, string>;
 };
 
 interface PageEvent extends FetchEvent {
   ctx: RequestContext;
+  tags: any[];
 }
 
-export type { PageEvent };
+export type { FetchEvent, PageEvent };

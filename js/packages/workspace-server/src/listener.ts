@@ -1,5 +1,4 @@
 import type { Handler } from "@arena/core/server";
-import qs from "query-string";
 import { ArenaRequest, RESOLVE } from "./request";
 import fileServer from "./fileserver";
 
@@ -37,16 +36,9 @@ const serve = async (handler: Handler) => {
     }
     let arenaRequest = new ArenaRequest(req.internal, req.rid);
     arenaRequest[RESOLVE](async () => {
-      let url = new URL(req.internal.url);
-
       let event = {
         request: arenaRequest,
         env: Arena.env,
-        ctx: {
-          path: url.pathname,
-          query: qs.parse(url.search),
-        },
-        tags: [],
       };
 
       let file = await fileServer.execute(event);

@@ -1,10 +1,26 @@
 import { trough } from "trough";
-import { PageEvent } from "./event";
+// @ts-ignore
+import qs from "query-string";
+import { FetchEvent, PageEvent } from "./event";
 
 type Middleware = (event: PageEvent) => Promise<Response | void>;
 
 type Handler = {
-  execute: (event: PageEvent) => Promise<Response>;
+  execute: (event: FetchEvent) => Promise<Response>;
+};
+
+const createPageEvent = (event: FetchEvent): PageEvent => {
+  let url = new URL(event.request.url);
+  return {
+    request: event.request,
+    env: Arena.env,
+    ctx: {
+      path: url.pathname,
+      search: url.search,
+      query: qs.parse(url.search) as Record<string, string>,
+    },
+    tags: [],
+  };
 };
 
 const createHandler = (...middlewares: Middleware[]): Handler => {
@@ -31,9 +47,10 @@ const createHandler = (...middlewares: Middleware[]): Handler => {
     /**
      * This returns the Response object
      */
-    execute(event: PageEvent) {
+    execute(event: FetchEvent) {
       return new Promise((resolve, reject) => {
-        pipeline.run(event, (err: any, data: any) => {
+        const pageEvent = createPageEvent(event);
+        pipeline.run(pageEvent, (err: any, data: any) => {
           // Note(sagar): if either data or error is of type Response,
           // return it early. Else, wrap it with Response and return it
           if (err instanceof Response) {
@@ -43,9 +60,10 @@ const createHandler = (...middlewares: Middleware[]): Handler => {
           }
 
           if (err) {
+            console.error(err);
             resolve(
               new Response(null, {
-                status: 500,
+                status: 503,
                 // TODO(sagar): use some library to get proper error messages
                 statusText: "Internal Server Error",
               })
