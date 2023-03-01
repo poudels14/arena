@@ -12,30 +12,35 @@ use std::rc::Rc;
 pub fn init() -> Extension {
   Extension::builder("<arena/core/fs>")
     .ops(vec![
+      op_file_exists_sync::decl(),
       op_read_file_sync::decl(),
       op_read_file_async::decl(),
       op_read_file_string_async::decl(),
     ])
+    .js(vec![("<arena/core/fs>", include_str!("./fs.js"))])
     .build()
 }
 
+#[op(fast)]
+fn op_file_exists_sync(state: &mut OpState, path: String) -> Result<bool> {
+  let resolved_path = resolve_read_path(state, &Path::new(&path))?;
+  Ok(resolved_path.exists())
+}
+
 #[op]
-fn op_read_file_sync(
-  state: &mut OpState,
-  specifier: String,
-) -> Result<ZeroCopyBuf> {
-  let resolved_path = resolve_read_path(state, &Path::new(&specifier))?;
+fn op_read_file_sync(state: &mut OpState, path: String) -> Result<ZeroCopyBuf> {
+  let resolved_path = resolve_read_path(state, &Path::new(&path))?;
   Ok(std::fs::read(resolved_path)?.into())
 }
 
 #[op]
 async fn op_read_file_async(
   state: Rc<RefCell<OpState>>,
-  specifier: String,
+  path: String,
 ) -> Result<ZeroCopyBuf> {
   let resolved_path = {
     let mut state = state.borrow_mut();
-    resolve_read_path(&mut state, &Path::new(&specifier))
+    resolve_read_path(&mut state, &Path::new(&path))
   }?;
   Ok(tokio::fs::read(resolved_path).await?.into())
 }
@@ -43,11 +48,11 @@ async fn op_read_file_async(
 #[op]
 async fn op_read_file_string_async(
   state: Rc<RefCell<OpState>>,
-  specifier: String,
+  path: String,
 ) -> Result<StringOrBuffer> {
   let resolved_path = {
     let mut state = state.borrow_mut();
-    resolve_read_path(&mut state, &Path::new(&specifier))
+    resolve_read_path(&mut state, &Path::new(&path))
   }?;
   Ok(StringOrBuffer::String(
     tokio::fs::read_to_string(resolved_path).await?,
