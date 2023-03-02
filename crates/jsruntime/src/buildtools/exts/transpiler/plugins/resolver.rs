@@ -1,4 +1,4 @@
-use super::Transpiler;
+use super::super::Transpiler;
 use crate::buildtools::exts::resolver::resolve;
 use std::borrow::Borrow;
 use std::rc::Rc;
@@ -12,7 +12,7 @@ pub(crate) struct Resolver {
   referrer: String,
 }
 
-pub(crate) fn resolver(
+pub(crate) fn init(
   transpiler: Rc<Transpiler>,
   referrer: &str,
 ) -> impl Fold + VisitMut {

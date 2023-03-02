@@ -31,16 +31,11 @@ pub fn transpile(
     })?
     .text;
 
-  let code = if let Some(ext) = module_path.extension() {
-    if ext == "tsx" || ext == "jsx" {
+  let code = match module_path.extension() {
+    Some(ext) if ext == "tsx" || ext == "jsx" => {
       transpile_jsx(runtime, &parsed_code)?
-    } else {
-      // TODO(sagar): passing all code through babel for now but only transform
-      // commonjs code to es6 if needed. use swc later
-      convert_to_es6(runtime, &parsed_code)?
     }
-  } else {
-    code.to_owned()
+    _ => parsed_code.to_owned(),
   };
 
   Ok(code)
@@ -57,30 +52,13 @@ fn transpile_jsx<'a>(
         const { babel, babelPlugins, babelPresets } = Arena.BuildTools;
         const { code : transpiledCode } = babel.transform(code, {
           presets: [
-            // TODO(sagar): make this configurable to server/client
-            [babelPresets.solid, { "generate": "ssr", "hydratable": true }]
+            // Note(sagar): since the code transpiled here is only used in
+            // server side, it should be transpiled for "ssr"
+            [babelPresets.solid, {
+              "generate": "ssr",
+              "hydratable": String(Arena.env.ARENA_SSR) === "true"
+            }]
           ],
-          plugins: [
-            [babelPlugins.transformCommonJs, { "exportsOnly": true }]
-          ]
-        });
-        return transpiledCode;
-      })
-    "#,
-    code,
-  )
-}
-
-fn convert_to_es6(
-  runtime: Rc<RefCell<IsolatedRuntime>>,
-  code: &str,
-) -> Result<String> {
-  execute_js(
-    runtime,
-    r#"
-      ((code) => {
-        const { babel, babelPlugins } = Arena.BuildTools;
-        const { code : transpiledCode } = babel.transform(code, {
           plugins: [
             [babelPlugins.transformCommonJs, { "exportsOnly": true }]
           ]

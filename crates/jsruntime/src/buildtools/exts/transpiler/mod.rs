@@ -1,4 +1,4 @@
-mod resolver;
+mod plugins;
 
 use super::BuildConfig;
 use crate::config::ResolverConfig;
@@ -161,7 +161,7 @@ fn transpile_code(
     |p| {
       let config = &transpiler.as_ref().config;
       p.fold_with(&mut Optional::new(
-        resolver::resolver(transpiler.clone(), filename_str),
+        plugins::resolver::init(transpiler.clone(), filename_str),
         config.resolve_import,
       ))
     },

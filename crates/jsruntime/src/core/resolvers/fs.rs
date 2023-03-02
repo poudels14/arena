@@ -12,8 +12,8 @@ use std::rc::Rc;
 use tracing::{debug, instrument};
 use url::{ParseError, Url};
 
-const SUPPORTED_EXTENSIONS: [&'static str; 5] =
-  ["ts", "tsx", "js", "jsx", "json"];
+const SUPPORTED_EXTENSIONS: [&'static str; 7] =
+  ["ts", "tsx", "js", "mjs", "jsx", "json", "cjs"];
 
 pub(crate) struct ResolverCache {
   pub node_module_dirs: IndexMap<String, Vec<PathBuf>>,
@@ -165,6 +165,12 @@ pub fn load_as_directory(
   debug!("load_as_directory path: {:?}", path);
 
   if let Some(package) = maybe_package.as_ref() {
+    // Note(sagar): prioritize ESM module
+    if let Some(module) = &package.module {
+      let module_file = path.join(module);
+      return load_as_file(&module_file).or_else(|_| load_index(&module_file));
+    }
+
     if let Some(main) = &package.main {
       let main_file = path.join(main);
       return load_as_file(&main_file).or_else(|_| load_index(&main_file));
