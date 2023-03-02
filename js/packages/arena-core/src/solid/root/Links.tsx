@@ -1,6 +1,6 @@
 // credit: solid-start
 import { useContext } from "solid-js";
-import { ServerContext } from "../server";
+import { ServerContext } from "../context";
 
 /**
  * Links are used to load assets for the server rendered HTML

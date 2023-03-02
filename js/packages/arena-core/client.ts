@@ -1,2 +1,2 @@
-export { default as mount } from "./src/client/mount";
-export { default as ClientRoot } from "./src/solid/client";
+export { mount } from "./src/solid/mount";
+export { ClientRoot } from "./src/solid/client";

@@ -2,7 +2,7 @@ import { MetaProvider } from "@solidjs/meta";
 import { Router, RouterProps } from "@solidjs/router";
 // @ts-ignore
 import Root from "~/root";
-import { ServerContextProvider } from "./server";
+import { ServerContextProvider } from "./context";
 
 const ArenaRouter = (props: RouterProps) => {
   return (
@@ -12,7 +12,7 @@ const ArenaRouter = (props: RouterProps) => {
   );
 };
 
-export default () => {
+const ClientRoot = () => {
   return (
     <ServerContextProvider
       value={
@@ -33,3 +33,5 @@ export default () => {
     </ServerContextProvider>
   );
 };
+
+export { ClientRoot };

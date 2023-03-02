@@ -15,8 +15,7 @@
     "@arena/core": "workspace:^0.1.0",
     "@arena/runtime": "workspace:^0.1.0",
     "mime": "^3.0.0",
-    "path": "^0.12.7",
-    "util": "^0.12.5"
+    "path": "^0.12.7"
   },
   "devDependencies": {
     "@types/mime": "^3.0.1",

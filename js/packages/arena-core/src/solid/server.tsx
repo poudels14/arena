@@ -1,14 +1,11 @@
 import { MetaProvider } from "@solidjs/meta";
 import { PageEvent } from "../server/event";
-import { createContext } from "solid-js";
 import { Router } from "@solidjs/router";
 import { ssr } from "solid-js/web";
 // Note(sagar): this is aliased to $PROJECT/src/root.tsx
 // @ts-ignore
 import Root from "~/root";
-
-const ServerContext = createContext({});
-const ServerContextProvider = ServerContext.Provider;
+import { ServerContextProvider } from "./context";
 
 const noSSR = !Arena.env.ARENA_SSR;
 const docType = ssr("<!DOCTYPE html>");
@@ -41,4 +38,4 @@ const ServerRoot = ({ event }: { event: PageEvent }) => {
   );
 };
 
-export { ServerRoot, ServerContextProvider, ServerContext };
+export { ServerRoot };

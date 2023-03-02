@@ -1,0 +1,31 @@
+lockfileVersion: 5.4
+
+specifiers:
+  '@arena/core': ^0.1.0
+  '@solidjs/router': ^0.7.0
+  solid-js: ^1.6.9
+
+dependencies:
+  '@arena/core': link:../../packages/arena-core
+  '@solidjs/router': 0.7.0_solid-js@1.6.11
+  solid-js: 1.6.11
+
+packages:
+
+  /@solidjs/router/0.7.0_solid-js@1.6.11:
+    resolution: {integrity: sha512-8HI84twe5FjYRebSLMAhtkL9bRuTDIlxJK56kjfjU9WKGoUCTaWpCnkuj8Hqde1bWZ0X+GOZxKDfNkn1CjtjxA==}
+    peerDependencies:
+      solid-js: ^1.5.3
+    dependencies:
+      solid-js: 1.6.11
+    dev: false
+
+  /csstype/3.1.1:
+    resolution: {integrity: sha512-DJR/VvkAvSZW9bTouZue2sSxDwdTN92uHjqeKVm+0dAqdfNykRzQ95tay8aXMBAAPpUiq4Qcug2L7neoRh2Egw==}
+    dev: false
+
+  /solid-js/1.6.11:
+    resolution: {integrity: sha512-JquQQHPArGq+i2PLURxJ99Pcz2/1docpbycSio/cKSA0SeI3z5zRjy0TNcH4NRYvbOLrcini+iovXwnexKabyw==}
+    dependencies:
+      csstype: 3.1.1
+    dev: false
