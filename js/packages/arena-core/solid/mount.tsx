@@ -3,13 +3,32 @@ import { JSX } from "solid-js";
 import { hydrate, render } from "solid-js/web";
 import { defineConfig, install } from "@twind/core";
 import presetAutoprefix from "@twind/preset-autoprefix";
-import presetTailwind from "@twind/preset-tailwind";
-import presetRadixUi from "@twind/preset-radix-ui";
+import presetTailwind from "@twind/preset-tailwind/base";
+import {
+  slate,
+  slateDark,
+  gray,
+  grayDark,
+} from "@twind/preset-radix-ui/colors";
 
 if (Arena.env.MODE === "development") {
   install(
     defineConfig({
-      presets: [presetAutoprefix(), presetTailwind(), presetRadixUi()],
+      presets: [
+        presetAutoprefix(),
+        presetTailwind({
+          colors: {
+            brand: gray,
+            brandDark: slateDark,
+            accent: gray,
+            accentDark: grayDark,
+            neutral: slate,
+            neutralDark: slateDark,
+            gray: gray,
+            grayDark: grayDark,
+          },
+        }),
+      ],
     })
   );
 }

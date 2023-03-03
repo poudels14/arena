@@ -6,14 +6,32 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "files": [
-    "solid.ts",
     "server.ts",
     "client.ts",
-    "src/server/**/*"
+    "solid/**/*",
+    "server/**/*"
   ],
   "scripts": {
     "test": "vitest",
     "coverage": "vitest run --coverage"
+  },
+  "exports": {
+    "./server": {
+      "import": "./server/index.ts",
+      "default": "./server/index.ts"
+    },
+    "./solid": {
+      "import": "./solid/index.ts",
+      "default": "./solid/index.ts"
+    },
+    "./solid/client": {
+      "import": "./solid/client.tsx",
+      "default": "./solid/client.tsx"
+    },
+    "./solid/server": {
+      "import": "./solid/server.tsx",
+      "default": "./solid/server.tsx"
+    }
   },
   "keywords": [],
   "author": "",

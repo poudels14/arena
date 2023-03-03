@@ -35,3 +35,4 @@ const ClientRoot = () => {
 };
 
 export { ClientRoot };
+export { mount } from "./mount";

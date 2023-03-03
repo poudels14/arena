@@ -14,10 +14,10 @@ const ServerRoot = ({ event }: { event: PageEvent }) => {
 
   return (
     <ServerContextProvider value={event}>
-      {noSSR ? (
-        <Root />
-      ) : (
-        <MetaProvider tags={event.tags}>
+      <MetaProvider tags={event.tags}>
+        {noSSR ? (
+          <Root />
+        ) : (
           <Router
             url={path}
             // TODO(sagar)
@@ -32,8 +32,8 @@ const ServerRoot = ({ event }: { event: PageEvent }) => {
             {docType as unknown as any}
             <Root />
           </Router>
-        </MetaProvider>
-      )}
+        )}
+      </MetaProvider>
     </ServerContextProvider>
   );
 };
