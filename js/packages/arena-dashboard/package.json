@@ -1,0 +1,13 @@
+{
+  "name": "arena-dashboard",
+  "version": "0.0.1",
+  "dependencies": {
+    "@arena/core": "^0.1.0",
+    "@solidjs/meta": "^0.28.2",
+    "@solidjs/router": "^0.7.0",
+    "solid-js": "^1.6.11"
+  },
+  "devDependencies": {
+    "typescript": "^4.9.5"
+  }
+}

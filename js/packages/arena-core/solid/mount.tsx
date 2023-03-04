@@ -4,6 +4,7 @@ import { hydrate, render } from "solid-js/web";
 import { defineConfig, install } from "@twind/core";
 import presetAutoprefix from "@twind/preset-autoprefix";
 import presetTailwind from "@twind/preset-tailwind/base";
+import * as tailwindColor from "@twind/preset-tailwind/colors";
 import {
   slate,
   slateDark,
@@ -18,14 +19,15 @@ if (Arena.env.MODE === "development") {
         presetAutoprefix(),
         presetTailwind({
           colors: {
-            brand: gray,
+            brand: slate,
             brandDark: slateDark,
-            accent: gray,
-            accentDark: grayDark,
-            neutral: slate,
-            neutralDark: slateDark,
+
             gray: gray,
             grayDark: grayDark,
+
+            cyan: tailwindColor.cyan,
+            blue: tailwindColor.blue,
+            slate: tailwindColor.slate,
           },
         }),
       ],

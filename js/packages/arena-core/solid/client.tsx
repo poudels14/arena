@@ -27,7 +27,7 @@ const ClientRoot = () => {
             // TODO(sagar): dataFn
           }}
         >
-          <Root />
+          {/* <Root /> //Note(sagar): idk why putting Root here crashes fontend */}
         </ArenaRouter>
       </MetaProvider>
     </ServerContextProvider>

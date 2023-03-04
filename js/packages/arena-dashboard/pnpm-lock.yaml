@@ -1,0 +1,51 @@
+lockfileVersion: 5.4
+
+specifiers:
+  '@arena/core': ^0.1.0
+  '@solidjs/meta': ^0.28.2
+  '@solidjs/router': ^0.7.0
+  solid-js: ^1.6.11
+  typescript: ^4.9.5
+
+dependencies:
+  '@arena/core': link:../arena-core
+  '@solidjs/meta': 0.28.2_solid-js@1.6.11
+  '@solidjs/router': 0.7.0_solid-js@1.6.11
+  solid-js: 1.6.11
+
+devDependencies:
+  typescript: 4.9.5
+
+packages:
+
+  /@solidjs/meta/0.28.2_solid-js@1.6.11:
+    resolution: {integrity: sha512-avlLgBPdk4KVxzRGFlYp/MIJo8B5jVgXPgk6OUnUP8km21Z+ovO+DUd7ZPA7ejv8PBdWi9GE3zCzw8RU2YuV2Q==}
+    peerDependencies:
+      solid-js: '>=1.4.0'
+    dependencies:
+      solid-js: 1.6.11
+    dev: false
+
+  /@solidjs/router/0.7.0_solid-js@1.6.11:
+    resolution: {integrity: sha512-8HI84twe5FjYRebSLMAhtkL9bRuTDIlxJK56kjfjU9WKGoUCTaWpCnkuj8Hqde1bWZ0X+GOZxKDfNkn1CjtjxA==}
+    peerDependencies:
+      solid-js: ^1.5.3
+    dependencies:
+      solid-js: 1.6.11
+    dev: false
+
+  /csstype/3.1.1:
+    resolution: {integrity: sha512-DJR/VvkAvSZW9bTouZue2sSxDwdTN92uHjqeKVm+0dAqdfNykRzQ95tay8aXMBAAPpUiq4Qcug2L7neoRh2Egw==}
+    dev: false
+
+  /solid-js/1.6.11:
+    resolution: {integrity: sha512-JquQQHPArGq+i2PLURxJ99Pcz2/1docpbycSio/cKSA0SeI3z5zRjy0TNcH4NRYvbOLrcini+iovXwnexKabyw==}
+    dependencies:
+      csstype: 3.1.1
+    dev: false
+
+  /typescript/4.9.5:
+    resolution: {integrity: sha512-1FXk9E2Hm+QzZQ7z+McJiHL4NW1F2EzMu9Nq9i3zAaGqibafqYwCVU6WyWAuyQRRzOlxou8xZSyXLEN8oKj24g==}
+    engines: {node: '>=4.2.0'}
+    hasBin: true
+    dev: true
