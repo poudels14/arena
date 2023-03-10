@@ -1,0 +1,17 @@
+{
+  "name": "@arena/editor",
+  "version": "0.1.0",
+  "description": "Arena low-code editor",
+  "type": "module",
+  "module": "index.ts",
+  "scripts": {},
+  "author": "Sagar Poudel",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@arena/components": "workspace:^0.1.0",
+    "@arena/solid-store": "workspace:^0.1.0",
+    "@blueprintjs/icons": "^4.14.3",
+    "@solidjs/meta": "^0.28.2",
+    "solid-js": "^1.6.12"
+  }
+}
