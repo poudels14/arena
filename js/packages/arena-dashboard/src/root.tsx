@@ -1,5 +1,5 @@
 import { Body, Head, Html, Link } from "@arena/core/solid";
-import { Dashboard } from "./dashboard";
+import { Routes } from "./routes";
 
 export default function Root() {
   return (
@@ -16,7 +16,7 @@ export default function Root() {
         </style>
       </Head>
       <Body>
-        <Dashboard />
+        <Routes />
       </Body>
     </Html>
   );

@@ -22,9 +22,9 @@ if (Arena.env.MODE === "development") {
             brand: slate,
             brandDark: slateDark,
 
-            gray: gray,
-            grayDark: grayDark,
-
+            gray: tailwindColor.gray,
+            green: tailwindColor.green,
+            red: tailwindColor.red,
             cyan: tailwindColor.cyan,
             blue: tailwindColor.blue,
             slate: tailwindColor.slate,

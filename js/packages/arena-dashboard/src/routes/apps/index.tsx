@@ -1,5 +1,6 @@
 import { Title } from "@arena/core/solid";
 import { For } from "solid-js";
+import { A } from "@solidjs/router";
 
 const App = (props: {
   id: string;
@@ -8,13 +9,16 @@ const App = (props: {
   access: string[];
 }) => {
   return (
-    <div class="w-80 h-40 relative group bg-brand-2 rounded-lg bg-gradient-to-r from-cyan-300 to-blue-300 cursor-pointer">
+    <A
+      href={"/apps/" + props.id}
+      class="w-80 h-40 block relative group bg-brand-2 rounded-lg bg-gradient-to-r from-cyan-300 to-blue-300 cursor-pointer"
+    >
       <div class="absolute bottom-0 px-4 py-2">
         <div class="font-medium text-brand-11 group-hover:text-brand-12">
           {props.title}
         </div>
       </div>
-    </div>
+    </A>
   );
 };
 

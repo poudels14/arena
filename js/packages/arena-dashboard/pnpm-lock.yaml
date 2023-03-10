@@ -2,6 +2,7 @@ lockfileVersion: 5.4
 
 specifiers:
   '@arena/core': ^0.1.0
+  '@arena/editor': workspace:^0.1.0
   '@solidjs/meta': ^0.28.2
   '@solidjs/router': ^0.7.0
   solid-js: ^1.6.11
@@ -9,6 +10,7 @@ specifiers:
 
 dependencies:
   '@arena/core': link:../arena-core
+  '@arena/editor': link:../editor
   '@solidjs/meta': 0.28.2_solid-js@1.6.11
   '@solidjs/router': 0.7.0_solid-js@1.6.11
   solid-js: 1.6.11
