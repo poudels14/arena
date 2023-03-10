@@ -1,0 +1,149 @@
+lockfileVersion: 5.4
+
+specifiers:
+  '@kobalte/core': ^0.6.2
+  solid-js: ^1.6.12
+
+dependencies:
+  '@kobalte/core': 0.6.2_solid-js@1.6.12
+  solid-js: 1.6.12
+
+packages:
+
+  /@floating-ui/core/1.2.2:
+    resolution: {integrity: sha512-FaO9KVLFnxknZaGWGmNtjD2CVFuc0u4yeGEofoyXO2wgRA7fLtkngT6UB0vtWQWuhH3iMTZZ/Y89CMeyGfn8pA==}
+    dev: false
+
+  /@floating-ui/dom/1.2.3:
+    resolution: {integrity: sha512-lK9cZUrHSJLMVAdCvDqs6Ug8gr0wmqksYiaoj/bxj2gweRQkSuhg2/V6Jswz2KiQ0RAULbqw1oQDJIMpQ5GfGA==}
+    dependencies:
+      '@floating-ui/core': 1.2.2
+    dev: false
+
+  /@internationalized/date/3.1.0:
+    resolution: {integrity: sha512-wjeur7K4AecT+YwoBmBXQ/+n5lP69tuZc34hw09s44EozZK7FZHSyfPvRp5/xEb2D6abLboskDY4jG+Nt0TNUQ==}
+    dependencies:
+      '@swc/helpers': 0.4.14
+    dev: false
+
+  /@internationalized/number/3.2.0:
+    resolution: {integrity: sha512-GUXkhXSX1Ee2RURnzl+47uvbOxnlMnvP9Er+QePTjDjOPWuunmLKlEkYkEcLiiJp7y4l9QxGDLOlVr8m69LS5w==}
+    dependencies:
+      '@swc/helpers': 0.4.14
+    dev: false
+
+  /@internationalized/string/3.1.0:
+    resolution: {integrity: sha512-TJQKiyUb+wyAfKF59UNeZ/kELMnkxyecnyPCnBI1ma4NaXReJW+7Cc2mObXAqraIBJUVv7rgI46RLKrLgi35ng==}
+    dependencies:
+      '@swc/helpers': 0.4.14
+    dev: false
+
+  /@kobalte/core/0.6.2_solid-js@1.6.12:
+    resolution: {integrity: sha512-bgdpT1SNab58Qdm6VX/jFFm/Axgg9TE65Fpg1mGWo1QpdlUlh9XMnJKHQioi2ntPDHGetiKjtohBctyRhzH6oQ==}
+    peerDependencies:
+      solid-js: ^1.6.10
+    dependencies:
+      '@floating-ui/dom': 1.2.3
+      '@internationalized/date': 3.1.0
+      '@internationalized/number': 3.2.0
+      '@internationalized/string': 3.1.0
+      '@kobalte/utils': 0.5.1_solid-js@1.6.12
+      solid-js: 1.6.12
+    dev: false
+
+  /@kobalte/utils/0.5.1_solid-js@1.6.12:
+    resolution: {integrity: sha512-CwJv76/PNSU5TnNrunVggaGBy/vhgrEbQvO6UcEPIPAOBNiviEP/90AkiNex7l5BKucpyCrNft74DFC0X3qkIQ==}
+    peerDependencies:
+      solid-js: ^1.6.10
+    dependencies:
+      '@solid-primitives/event-listener': 2.2.8_solid-js@1.6.12
+      '@solid-primitives/media': 2.1.3_solid-js@1.6.12
+      '@solid-primitives/refs': 0.3.7_solid-js@1.6.12
+      '@solid-primitives/utils': 4.0.1_solid-js@1.6.12
+      solid-js: 1.6.12
+    dev: false
+
+  /@solid-primitives/event-listener/2.2.8_solid-js@1.6.12:
+    resolution: {integrity: sha512-I3Fw6+1g1YrXBWHwnNi6UaYuRVeaRBN2pvfGvKgnHH4OtfN6mgkGXi7s+/QOJjS29sEdwRDR9tQgxckaIxKZ7A==}
+    peerDependencies:
+      solid-js: ^1.6.0
+    dependencies:
+      '@solid-primitives/utils': 5.4.0_solid-js@1.6.12
+      solid-js: 1.6.12
+    dev: false
+
+  /@solid-primitives/immutable/0.1.8_solid-js@1.6.12:
+    resolution: {integrity: sha512-qT+FfgweyVa5bjeEhOOd5mJrmOgzUbIbB7SCIT+MMR87K72s7+SuqLpWtQwNE4hac4rMg25mElwVHaM1HRtqHQ==}
+    peerDependencies:
+      solid-js: ^1.6.0
+    dependencies:
+      '@solid-primitives/utils': 5.4.0_solid-js@1.6.12
+      solid-js: 1.6.12
+    dev: false
+
+  /@solid-primitives/media/2.1.3_solid-js@1.6.12:
+    resolution: {integrity: sha512-3aO5HpScmYLTtfiQjTqSk0FEMwt1wzhw50P3lYV874PrWJzTONnc4Vcv8CO9pRqt3b/HBzPhSKY/7JDifE7m+g==}
+    peerDependencies:
+      solid-js: ^1.6.0
+    dependencies:
+      '@solid-primitives/event-listener': 2.2.8_solid-js@1.6.12
+      '@solid-primitives/rootless': 1.2.6_solid-js@1.6.12
+      '@solid-primitives/utils': 5.4.0_solid-js@1.6.12
+      solid-js: 1.6.12
+    dev: false
+
+  /@solid-primitives/refs/0.3.7_solid-js@1.6.12:
+    resolution: {integrity: sha512-aqidj/Sw5b2FvXgvNP8zH5HC2jEzDbFju+xRUCxZguaBmDJJyzec12fpZ9JV6SiWCyk08nZ/N4rfPNQnt1af1Q==}
+    peerDependencies:
+      solid-js: ^1.6.0
+    dependencies:
+      '@solid-primitives/immutable': 0.1.8_solid-js@1.6.12
+      '@solid-primitives/rootless': 1.2.6_solid-js@1.6.12
+      '@solid-primitives/utils': 5.4.0_solid-js@1.6.12
+      solid-js: 1.6.12
+    dev: false
+
+  /@solid-primitives/rootless/1.2.6_solid-js@1.6.12:
+    resolution: {integrity: sha512-gcEF2JqdLDyKsfA7FWRZok1JkbKKjQesaRAj4odfkHTakEzU95YfBQxH9NHZ/ezP5WSR7m/xEh5eQjHs+7XPPA==}
+    peerDependencies:
+      solid-js: ^1.6.11
+    dependencies:
+      '@solid-primitives/utils': 5.4.0_solid-js@1.6.12
+      solid-js: 1.6.12
+    dev: false
+
+  /@solid-primitives/utils/4.0.1_solid-js@1.6.12:
+    resolution: {integrity: sha512-06fSyBair7ZxCquMjIqJes29aNg65X776TVw4EUN7PBtdWsGUeIZ9F/H4ek7yrDSxaSDaPHeye5knEYsYAq2gA==}
+    peerDependencies:
+      solid-js: ^1.6.0
+    dependencies:
+      solid-js: 1.6.12
+    dev: false
+
+  /@solid-primitives/utils/5.4.0_solid-js@1.6.12:
+    resolution: {integrity: sha512-cSya9Tnh8KW6OYtJbZYs3//CVWWQAOXhMckH9paSzMQcoM09P+R1lLUN9BhQOws4c6PMA0apPNrbWsQzqZzIEw==}
+    peerDependencies:
+      solid-js: ^1.6.0
+    dependencies:
+      solid-js: 1.6.12
+    dev: false
+
+  /@swc/helpers/0.4.14:
+    resolution: {integrity: sha512-4C7nX/dvpzB7za4Ql9K81xK3HPxCpHMgwTZVyf+9JQ6VUbn9jjZVN7/Nkdz/Ugzs2CSjqnL/UPXroiVBVHUWUw==}
+    dependencies:
+      tslib: 2.5.0
+    dev: false
+
+  /csstype/3.1.1:
+    resolution: {integrity: sha512-DJR/VvkAvSZW9bTouZue2sSxDwdTN92uHjqeKVm+0dAqdfNykRzQ95tay8aXMBAAPpUiq4Qcug2L7neoRh2Egw==}
+    dev: false
+
+  /solid-js/1.6.12:
+    resolution: {integrity: sha512-JFqRobfG3q5r1l4RYVOAukk6+FWtHpXGIjgh/GEsHKweN/kK+iHOtzUALE6+P5t/jIcSNeGiVitX8gmJg+cYvQ==}
+    dependencies:
+      csstype: 3.1.1
+    dev: false
+
+  /tslib/2.5.0:
+    resolution: {integrity: sha512-336iVw3rtn2BUK7ORdIAHTyxHGRIHVReokCR3XjbckJMK7ms8FysBfhLR8IXnAgy7T0PTPNBWKiH514FOW/WSg==}
+    dev: false

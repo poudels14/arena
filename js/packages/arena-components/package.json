@@ -1,0 +1,16 @@
+{
+  "name": "@arena/components",
+  "version": "0.1.0",
+  "description": "A UI toolkit for @arena",
+  "type": "module",
+  "module": "index.tsx",
+  "author": "Sagar Poudel",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@kobalte/core": "^0.6.2",
+    "solid-js": "^1.6.12"
+  },
+  "peerDependencies": {
+    "solid-js": "^1.6.12"
+  }
+}
