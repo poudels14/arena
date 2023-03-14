@@ -176,7 +176,7 @@ const updatePath = (root: any, path: any[]) => {
   const rootNode = root[$NODE];
   // TODO(sagar): maybe we don't need immutable data since
   // epoch is used to keep track of when the data was updated
-  let nodeValue = (rootNode[$RAW] = copy(rootNode[$RAW]));
+  let nodeValue = rootNode[$RAW];
   rootNode[$UPDATEDAT] = updateEpoch;
   rootNode[$SET]?.(updateEpoch);
 
@@ -184,11 +184,10 @@ const updatePath = (root: any, path: any[]) => {
   let p = null;
   for (let i = 0; i < path.length - 1; i++) {
     p = path[i];
-    nodeValue = nodeValue[p] = copy(nodeValue[p]);
+    nodeValue = nodeValue[p]
     if (nodeNode && (nodeNode = nodeNode[toInternalKey(p)]?.[$NODE])) {
       nodeNode[$UPDATEDAT] = updateEpoch;
       nodeNode[$SET]?.(updateEpoch);
-      nodeNode[$RAW] = nodeValue;
     }
   }
 
@@ -211,23 +210,6 @@ const updatePath = (root: any, path: any[]) => {
     }
   }
 };
-
-function copy(source: any) {
-  // TODO(sagar): remove copy
-  // To allow using getters inside a store, property
-  // descriptor should be copied when copying data
-  // to make updates immutable. And copying property
-  // descriptors is ~4X slower. so, just mutate data
-  // and use $UPDATEDAT field to compare data in
-  // memo and etc.
-  // return source;
-  return source && !!source.pop
-    ? [...source]
-    : (Object.defineProperties(
-        {},
-        Object.getOwnPropertyDescriptors(source)
-      ) as typeof source);
-}
 
 const compareAndNotify = (node: any, value: any) => {
   let prev;
