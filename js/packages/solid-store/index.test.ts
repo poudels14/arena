@@ -42,6 +42,37 @@ describe("Store", () => {
       });
     }));
 
+  test("Using singal inside getter works", () =>
+    new Promise((done) => {
+      createRoot(() => {
+        const [store, setStore] = createStore({
+          data: {
+            name: "World",
+            get message() {
+              // @ts-ignore
+              return "Hello, " + this.name();
+            },
+          },
+        });
+
+        const cleanupFn = vitest.fn();
+        createEffect(() => {
+          void store.data.message();
+          onCleanup(() => cleanupFn());
+        });
+
+        setTimeout(() => {
+          setStore("data", "name", "Earth");
+
+          setTimeout(() => {
+            expect(cleanupFn).toBeCalledTimes(1);
+            expect(store.data.message()).toBe("Hello, Earth");
+            done(null);
+          });
+        });
+      });
+    }));
+
   test("Update nested store - parent value should be reactive", () =>
     new Promise((done) => {
       createRoot(() => {

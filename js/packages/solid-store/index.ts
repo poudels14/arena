@@ -50,10 +50,19 @@ const proxyHandlers = {
     // TODO(sagar): if getListener() is null, return $RAW data
     // this allows us to use store in non-reactive settings without
     // proxy, which is much more performant!
-    let tp = p === "name" ? $NAME : p === "length" ? $LENGTH : p;
+    let tp = toInternalKey(p);
     let v = target[tp];
     if (!v) {
-      const value = target[$RAW]?.[p];
+      const rawTarget = target[$RAW];
+      let desc;
+      if (
+        typeof rawTarget == "object" &&
+        (desc = Reflect.getOwnPropertyDescriptor(rawTarget, tp)) &&
+        desc.get
+      ) {
+        return desc.get;
+      }
+      const value = rawTarget?.[p];
       // Note(sagar): if the value of sub-field is null || undefined,
       // return undefined but make this call reactive
       if (value === undefined || value === null) {
@@ -117,6 +126,9 @@ const createDataNode = <T>(value: T, nodeName?: string) => {
   });
 };
 
+const toInternalKey = (p: any) =>
+  p === "name" ? $NAME : p === "length" ? $LENGTH : p;
+
 const UNDEFINED_TRAP = new Proxy(function () {}, {
   get(_target: any, _: any): any {
     return UNDEFINED_TRAP;
@@ -173,23 +185,27 @@ const updatePath = (root: any, path: any[]) => {
   for (let i = 0; i < path.length - 1; i++) {
     p = path[i];
     nodeValue = nodeValue[p] = copy(nodeValue[p]);
-    if (nodeNode && (nodeNode = nodeNode[p]?.[$NODE])) {
+    if (nodeNode && (nodeNode = nodeNode[toInternalKey(p)]?.[$NODE])) {
       nodeNode[$UPDATEDAT] = updateEpoch;
       nodeNode[$SET]?.(updateEpoch);
       nodeNode[$RAW] = nodeValue;
     }
   }
 
-  let field = path[path.length - 1];
+  const field = path[path.length - 1];
+  const internalField = toInternalKey(field);
   // Note(sagar): if the value if not primitive type, need
   // to update the children objects. so call compareAndNotify
   nodeNode &&
-    compareAndNotify(path.length > 0 ? nodeNode[field] : nodeNode, value);
+    compareAndNotify(
+      path.length > 0 ? nodeNode[internalField] : nodeNode,
+      value
+    );
 
   if (path.length > 0) {
     if (value === undefined) {
       delete nodeValue[field];
-      nodeNode && delete nodeNode[field];
+      nodeNode && delete nodeNode[internalField];
     } else {
       nodeValue[field] = value;
     }
@@ -197,7 +213,20 @@ const updatePath = (root: any, path: any[]) => {
 };
 
 function copy(source: any) {
-  return source && !!source.pop ? [...source] : { ...source };
+  // TODO(sagar): remove copy
+  // To allow using getters inside a store, property
+  // descriptor should be copied when copying data
+  // to make updates immutable. And copying property
+  // descriptors is ~4X slower. so, just mutate data
+  // and use $UPDATEDAT field to compare data in
+  // memo and etc.
+  // return source;
+  return source && !!source.pop
+    ? [...source]
+    : (Object.defineProperties(
+        {},
+        Object.getOwnPropertyDescriptors(source)
+      ) as typeof source);
 }
 
 const compareAndNotify = (node: any, value: any) => {
@@ -207,10 +236,14 @@ const compareAndNotify = (node: any, value: any) => {
   }
 
   if (typeof value === "object" || typeof prev === "object") {
-    const newKeys = isWrappable(value) ? Object.keys(value || {}) : [];
+    const newKeys = isWrappable(value)
+      ? Object.keys(value || {}).map((k) => toInternalKey(k))
+      : [];
 
     const removedFields = new Set(
-      isWrappable(prev) ? [...Object.keys(prev || {})] : []
+      isWrappable(prev)
+        ? Object.keys(prev || {}).map((k) => toInternalKey(k))
+        : []
     );
 
     for (let i = 0; i < newKeys.length; i++) {
