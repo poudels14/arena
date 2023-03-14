@@ -2,7 +2,7 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
-    conditions: ["browser"],
+    conditions: ["browser", "development"],
   },
   test: {
     watch: false,

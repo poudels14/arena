@@ -42,7 +42,7 @@ describe("Store", () => {
       });
     }));
 
-  test("Update nested store value - parent value should be reactive", () =>
+  test("Update nested store - parent value should be reactive", () =>
     new Promise((done) => {
       createRoot(() => {
         const [store, setStore] = createStore({
@@ -71,6 +71,48 @@ describe("Store", () => {
       });
     }));
 
+  /**
+   * This checks whether updating a leaf level field breaks when only
+   * the higher level field is being listened to.
+   */
+  test("Update 3+ level nested store - parent value should be reactive", () =>
+    new Promise((done) => {
+      createRoot(() => {
+        const [store, setStore] = createStore({
+          data: {
+            message: {
+              text: {
+                value: "Hello!",
+              },
+            },
+          },
+        });
+
+        const cleanupFn = vitest.fn();
+        createEffect(() => {
+          // Note: only listen to store.data
+          void store.data();
+          onCleanup(() => cleanupFn());
+        });
+
+        setTimeout(() => {
+          setStore("data", "message", "text", "value", "hello, new world!");
+
+          setTimeout(() => {
+            expect(cleanupFn).toBeCalledTimes(1);
+            expect(store.data[$RAW]).toStrictEqual({
+              message: {
+                text: {
+                  value: "hello, new world!",
+                },
+              },
+            });
+            done(null);
+          });
+        });
+      });
+    }));
+
   test("Update nested object to undefined - simple", () =>
     new Promise((done) => {
       createRoot(() => {
@@ -88,33 +130,6 @@ describe("Store", () => {
 
         setTimeout(() => {
           setStore("data", undefined!);
-
-          setTimeout(() => {
-            expect(cleanupFn).toBeCalledTimes(1);
-            expect(store.data.message()).toBe(undefined);
-            done(null);
-          });
-        });
-      });
-    }));
-
-  test("Update nested object to undefined - rest empty root", () =>
-    new Promise((done) => {
-      createRoot(() => {
-        const [store, setStore] = createStore({
-          data: {
-            message: "Hello!",
-          },
-        });
-
-        const cleanupFn = vitest.fn();
-        createEffect(() => {
-          void store.data.message();
-          onCleanup(() => cleanupFn());
-        });
-
-        setTimeout(() => {
-          setStore({});
 
           setTimeout(() => {
             expect(cleanupFn).toBeCalledTimes(1);
@@ -150,6 +165,33 @@ describe("Store", () => {
             expect(cleanupFn).toBeCalledTimes(1);
             expect(store.data.message()).toBe(undefined);
             expect(store.data.timestamp()).toBe(undefined);
+            done(null);
+          });
+        });
+      });
+    }));
+
+  test("Update nested object - set store value to empty object", () =>
+    new Promise((done) => {
+      createRoot(() => {
+        const [store, setStore] = createStore({
+          data: {
+            message: "Hello!",
+          },
+        });
+
+        const cleanupFn = vitest.fn();
+        createEffect(() => {
+          void store.data.message();
+          onCleanup(() => cleanupFn());
+        });
+
+        setTimeout(() => {
+          setStore({});
+
+          setTimeout(() => {
+            expect(cleanupFn).toBeCalledTimes(1);
+            expect(store.data.message()).toBe(undefined);
             done(null);
           });
         });

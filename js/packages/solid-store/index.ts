@@ -19,13 +19,13 @@ type StoreValue<T> = T extends {}
       [$RAW]: T;
       [$UPDATEDAT]: number;
     } & (() => T)
-  : null;
+  : () => T;
 type Store<T> = StoreValue<T>;
 
 type StoreSetter<T> = SetStoreFunction<T>;
 
 function createStore<T>(initValue: T) {
-  let store = trap(initValue, "$store");
+  let store = new Proxy(createDataNode(initValue, "$store"), proxyHandlers);
   Object.defineProperties(store, {
     [$STORE]: {
       value: true,
@@ -38,23 +38,34 @@ function createStore<T>(initValue: T) {
 
 const proxyHandlers = {
   get(target: any, p: any) {
-    if (p === $RAW || p === $GET || p === $SET) {
+    if (
+      p === $RAW ||
+      p === $NODE ||
+      p === $GET ||
+      p === $SET ||
+      p === $UPDATEDAT
+    ) {
       return target[p];
     }
+    // TODO(sagar): if getListener() is null, return $RAW data
+    // this allows us to use store in non-reactive settings without
+    // proxy, which is much more performant!
     let tp = p === "name" ? $NAME : p === "length" ? $LENGTH : p;
-    let t = target[tp];
-    if (!t && (tp === $NAME || p === $LENGTH || typeof p === "string")) {
-      const data = target[$RAW]?.[p];
+    let v = target[tp];
+    if (!v) {
+      const value = target[$RAW]?.[p];
       // Note(sagar): if the value of sub-field is null || undefined,
       // return undefined but make this call reactive
-      if (data === undefined || data === null) {
-        getListener() && void target.call();
-        return UNDEFINED_TRAP;
+      if (value === undefined || value === null) {
+        getListener() && void target();
+        return value === undefined ? UNDEFINED_TRAP : NULL_TRAP;
       }
-      t = trap(data, p);
-      target[tp] = t;
+      v = target[tp] = new Proxy(
+        (target[$NODE][tp] = createDataNode(value, p)),
+        proxyHandlers
+      );
     }
-    return t;
+    return v;
   },
   apply(target: any) {
     /**
@@ -83,9 +94,9 @@ const proxyHandlers = {
   // setStore should be called to trigger the reactive update
 };
 
-const trap = (value: any, nodeName?: string) => {
+const createDataNode = <T>(value: T, nodeName?: string) => {
   const node = function () {};
-  let target = Object.defineProperties(node, {
+  return Object.defineProperties(node, {
     [$RAW]: {
       // TODO(sagar): maybe store weak ref here? atleast check memory leaks
       value,
@@ -104,7 +115,6 @@ const trap = (value: any, nodeName?: string) => {
       enumerable: false,
     },
   });
-  return new Proxy(target, proxyHandlers);
 };
 
 const UNDEFINED_TRAP = new Proxy(function () {}, {
@@ -116,88 +126,128 @@ const UNDEFINED_TRAP = new Proxy(function () {}, {
   },
 });
 
+const NULL_TRAP = new Proxy(function () {}, {
+  get(_target: any, _: any): any {
+    return NULL_TRAP;
+  },
+  apply(_target: any) {
+    return null;
+  },
+});
+
+let clockStopped = false;
 function storeUpdater(root: any) {
   return (...path: any[]) => {
-    updateEpoch += 1;
+    if (!clockStopped) updateEpoch += 1;
     batch(() => {
-      const value = path.pop();
-
-      const rootNode = root[$NODE];
-      // TODO(sagar): maybe we don't need immutable data since
-      // epoch is used to keep track of when the data was updated
-      let nodeValue = (rootNode[$RAW] = copy(rootNode[$RAW]));
-      rootNode[$UPDATEDAT] = updateEpoch;
-      rootNode[$SET]?.(updateEpoch);
-
-      let node = root;
-      let p = null;
-      for (let i = 0; i < path.length - 1; i++) {
-        p = path[i];
-        node = node[p];
-        nodeValue = nodeValue[p] = copy(nodeValue[p]);
-
-        const nodeNode = node[$NODE];
-        nodeNode[$UPDATEDAT] = updateEpoch;
-        nodeNode[$SET]?.(updateEpoch);
-        nodeNode[$RAW] = nodeValue;
-      }
-
-      let field = path[path.length - 1];
-      // Note(sagar): if the value if not primitive type, need
-      // to update the children objects. so call compareAndNotify
-      compareAndNotify(path.length > 0 ? node[field] : node, value);
-
-      if (path.length > 0) {
-        if (value === undefined) {
-          delete nodeValue[field];
-          delete node[$NODE][field];
-        } else {
-          nodeValue[field] = value;
-        }
-      }
+      updatePath(root, path);
     });
   };
 }
+
+// TODO(sagar): not tested at all
+const batchUpdates = (fn: any) => {
+  updateEpoch += 1;
+  clockStopped = true;
+  // TODO(sagar): to improve batch performance, we can stop
+  // cloning/copying data if the epoch is same as previous
+  // since we know that the data wasn't changed
+  batch(() => {
+    fn();
+  });
+  clockStopped = false;
+};
+
+const updatePath = (root: any, path: any[]) => {
+  const value = path.pop();
+
+  const rootNode = root[$NODE];
+  // TODO(sagar): maybe we don't need immutable data since
+  // epoch is used to keep track of when the data was updated
+  let nodeValue = (rootNode[$RAW] = copy(rootNode[$RAW]));
+  rootNode[$UPDATEDAT] = updateEpoch;
+  rootNode[$SET]?.(updateEpoch);
+
+  let nodeNode = rootNode;
+  let p = null;
+  for (let i = 0; i < path.length - 1; i++) {
+    p = path[i];
+    nodeValue = nodeValue[p] = copy(nodeValue[p]);
+    if (nodeNode && (nodeNode = nodeNode[p]?.[$NODE])) {
+      nodeNode[$UPDATEDAT] = updateEpoch;
+      nodeNode[$SET]?.(updateEpoch);
+      nodeNode[$RAW] = nodeValue;
+    }
+  }
+
+  let field = path[path.length - 1];
+  // Note(sagar): if the value if not primitive type, need
+  // to update the children objects. so call compareAndNotify
+  nodeNode &&
+    compareAndNotify(path.length > 0 ? nodeNode[field] : nodeNode, value);
+
+  if (path.length > 0) {
+    if (value === undefined) {
+      delete nodeValue[field];
+      nodeNode && delete nodeNode[field];
+    } else {
+      nodeValue[field] = value;
+    }
+  }
+};
 
 function copy(source: any) {
   return source && !!source.pop ? [...source] : { ...source };
 }
 
 const compareAndNotify = (node: any, value: any) => {
-  const nodeNode = node[$NODE];
-  const prev = nodeNode[$RAW];
-  if (prev === value) {
+  let prev;
+  if (!node || !(node = node[$NODE]) || value === (prev = node[$RAW])) {
     return;
   }
 
   if (typeof value === "object" || typeof prev === "object") {
-    const newKeys = Object.keys(value || {});
+    const newKeys = isWrappable(value) ? Object.keys(value || {}) : [];
 
-    const removedFields = new Set([...Object.keys(prev || {})]);
+    const removedFields = new Set(
+      isWrappable(prev) ? [...Object.keys(prev || {})] : []
+    );
 
     for (let i = 0; i < newKeys.length; i++) {
       const k = newKeys[i];
       let v = value[k];
-      const refK = nodeNode[k];
+      const refK = node[k];
       removedFields.delete(k);
       // TODO: figure out how to "cache" array items properly
       compareAndNotify(refK, v);
     }
 
     [...removedFields].forEach((k) => {
-      compareAndNotify(nodeNode[k], undefined);
-      delete nodeNode[k];
+      compareAndNotify(node[k], undefined);
+      delete node[k];
     });
 
     if (prev?.length !== value?.length) {
-      nodeNode[$LENGTH][$SET]?.(value.length);
+      node[$LENGTH][$SET]?.(updateEpoch);
     }
   }
 
-  nodeNode[$UPDATEDAT] = updateEpoch;
-  nodeNode[$SET]?.(value);
-  nodeNode[$RAW] = value;
+  node[$UPDATEDAT] = updateEpoch;
+  node[$SET]?.(value);
+  node[$RAW] = value;
 };
 
-export { createStore, $RAW, $UPDATEDAT };
+export function isWrappable(obj: any) {
+  let proto;
+  return (
+    obj != null &&
+    typeof obj === "object" &&
+    (obj[$RAW] ||
+      !(proto = Object.getPrototypeOf(obj)) ||
+      proto === Object.prototype ||
+      Array.isArray(obj))
+  );
+}
+
+export { createStore, batchUpdates, $RAW, $UPDATEDAT };
 export type { StoreValue, Store, StoreSetter };
