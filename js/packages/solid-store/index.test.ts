@@ -42,6 +42,31 @@ describe("Store", () => {
       });
     }));
 
+  test("Update null field with non-null value", () =>
+    new Promise((done) => {
+      createRoot(() => {
+        const [store, setStore] = createStore<{ data: { message: string } }>({
+          data: null!,
+        });
+
+        const cleanupFn = vitest.fn();
+        createEffect(() => {
+          void store.data.message();
+          onCleanup(() => cleanupFn());
+        });
+
+        setTimeout(() => {
+          setStore("data", { message: "hello, new world!" });
+
+          setTimeout(() => {
+            expect(cleanupFn).toBeCalledTimes(1);
+            expect(store.data.message!()).toBe("hello, new world!");
+            done(null);
+          });
+        });
+      });
+    }));
+
   test("Using singal inside getter works", () =>
     new Promise((done) => {
       createRoot(() => {

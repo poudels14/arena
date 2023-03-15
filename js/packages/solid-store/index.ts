@@ -37,7 +37,7 @@ function createStore<T>(initValue: T) {
 }
 
 const proxyHandlers = {
-  get(target: any, p: any) {
+  get(target: any, p: any, receiver: any) {
     if (
       p === $RAW ||
       p === $NODE ||
@@ -59,10 +59,10 @@ const proxyHandlers = {
         return getter;
       }
       const value = rawTarget?.[p];
-      // Note(sagar): if the value of sub-field is null || undefined,
-      // return undefined but make this call reactive
       if (value === undefined || value === null) {
-        getListener() && void target();
+        // Note(sagar): if the value of sub-field is null || undefined,
+        // return undefined but make this call reactive
+        getListener() && void receiver();
         return value === undefined ? UNDEFINED_TRAP : NULL_TRAP;
       }
       v = target[tp] = new Proxy(
@@ -128,7 +128,9 @@ const toInternalKey = (p: any) => {
 
 const getFieldGetter = (obj: any, field: any) => {
   return (
-    typeof obj == "object" && Reflect.getOwnPropertyDescriptor(obj, field)?.get
+    obj &&
+    typeof obj == "object" &&
+    Reflect.getOwnPropertyDescriptor(obj, field)?.get
   );
 };
 
