@@ -73,6 +73,44 @@ describe("Store", () => {
       });
     }));
 
+  test("Updating field with getter shouldn't call getter during update", () =>
+    new Promise((done) => {
+      createRoot(() => {
+        const [store, setStore] = createStore({
+          data: {
+            text: "some text",
+            get message() {
+              return "Hello, World ";
+            },
+          },
+        });
+
+        const cleanupFn = vitest.fn();
+        createEffect(() => {
+          void store.data.text();
+          onCleanup(() => cleanupFn());
+        });
+
+        const messagedAccessed = vitest.fn();
+        setTimeout(() => {
+          setStore("data", {
+            text: "some text",
+            get message() {
+              return "Hello, Earth";
+            },
+          });
+
+          setTimeout(() => {
+            expect(messagedAccessed).toBeCalledTimes(0);
+            // Note: since same text is passed, cleanup shouldn't run
+            expect(cleanupFn).toBeCalledTimes(0);
+            expect(store.data.message()).toBe("Hello, Earth");
+            done(null);
+          });
+        });
+      });
+    }));
+
   test("Update nested store - parent value should be reactive", () =>
     new Promise((done) => {
       createRoot(() => {

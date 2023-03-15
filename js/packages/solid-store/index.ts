@@ -54,13 +54,9 @@ const proxyHandlers = {
     let v = target[tp];
     if (!v) {
       const rawTarget = target[$RAW];
-      let desc;
-      if (
-        typeof rawTarget == "object" &&
-        (desc = Reflect.getOwnPropertyDescriptor(rawTarget, tp)) &&
-        desc.get
-      ) {
-        return desc.get;
+      let getter = getFieldGetter(rawTarget, tp);
+      if (getter) {
+        return getter;
       }
       const value = rawTarget?.[p];
       // Note(sagar): if the value of sub-field is null || undefined,
@@ -126,8 +122,15 @@ const createDataNode = <T>(value: T, nodeName?: string) => {
   });
 };
 
-const toInternalKey = (p: any) =>
-  p === "name" ? $NAME : p === "length" ? $LENGTH : p;
+const toInternalKey = (p: any) => {
+  return p === "name" ? $NAME : p === "length" ? $LENGTH : p;
+};
+
+const getFieldGetter = (obj: any, field: any) => {
+  return (
+    typeof obj == "object" && Reflect.getOwnPropertyDescriptor(obj, field)?.get
+  );
+};
 
 const UNDEFINED_TRAP = new Proxy(function () {}, {
   get(_target: any, _: any): any {
@@ -184,7 +187,7 @@ const updatePath = (root: any, path: any[]) => {
   let p = null;
   for (let i = 0; i < path.length - 1; i++) {
     p = path[i];
-    nodeValue = nodeValue[p]
+    nodeValue = nodeValue[p];
     if (nodeNode && (nodeNode = nodeNode[toInternalKey(p)]?.[$NODE])) {
       nodeNode[$UPDATEDAT] = updateEpoch;
       nodeNode[$SET]?.(updateEpoch);
@@ -193,13 +196,13 @@ const updatePath = (root: any, path: any[]) => {
 
   const field = path[path.length - 1];
   const internalField = toInternalKey(field);
+
   // Note(sagar): if the value if not primitive type, need
   // to update the children objects. so call compareAndNotify
+  let nodeToUpdate;
   nodeNode &&
-    compareAndNotify(
-      path.length > 0 ? nodeNode[internalField] : nodeNode,
-      value
-    );
+    (nodeToUpdate = path.length > 0 ? nodeNode[internalField] : nodeNode) &&
+    compareAndNotify(nodeToUpdate, value);
 
   if (path.length > 0) {
     if (value === undefined) {
@@ -230,15 +233,17 @@ const compareAndNotify = (node: any, value: any) => {
 
     for (let i = 0; i < newKeys.length; i++) {
       const k = newKeys[i];
-      let v = value[k];
       const refK = node[k];
       removedFields.delete(k);
       // TODO: figure out how to "cache" array items properly
-      compareAndNotify(refK, v);
+      if (refK && !getFieldGetter(node, k)) compareAndNotify(refK, value[k]);
     }
 
+    // TODO(sagar): support merging so that fields that are not in
+    // the new value arent removed
     [...removedFields].forEach((k) => {
-      compareAndNotify(node[k], undefined);
+      let childNode = node[k];
+      childNode && compareAndNotify(childNode, undefined);
       delete node[k];
     });
 
