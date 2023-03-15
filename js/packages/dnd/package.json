@@ -1,0 +1,15 @@
+{
+  "name": "@arena/solid-dnd",
+  "version": "0.1.0",
+  "description": "Drag and Drop library for Arena",
+  "type": "module",
+  "module": "index.ts",
+  "types": "index.ts",
+  "keywords": [],
+  "author": "Sagar Poudel",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@arena/solid-store": "workspace:^0.1.0",
+    "solid-js": "^1.6.14"
+  }
+}
