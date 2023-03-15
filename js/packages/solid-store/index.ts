@@ -1,4 +1,4 @@
-import { batch, createSignal, getListener } from "solid-js";
+import { Accessor, batch, createSignal, getListener } from "solid-js";
 import type { SetStoreFunction } from "solid-js/store";
 
 let updateEpoch = 1;
@@ -14,13 +14,32 @@ const $SET = Symbol("_set_signal_");
 const $NAME = Symbol("_name_");
 const $LENGTH = Symbol("_length_");
 
-type StoreValue<T> = T extends {}
-  ? { [K in keyof T]: StoreValue<T[K]> & (() => T[K]) } & {
-      [$RAW]: T;
-      [$UPDATEDAT]: number;
-    } & (() => T)
-  : () => T;
-type Store<T> = StoreValue<T>;
+type UndefinedValue =
+  | Record<string, undefined>
+  | Record<string, Record<string, undefined>>
+  | Record<string, Record<string, Record<string, undefined>>>
+  | Record<string, Record<string, Record<string, Record<string, undefined>>>>
+  | Record<
+      string,
+      Record<string, Record<string, Record<string, Record<string, undefined>>>>
+    >;
+
+type Node<T> = {
+  [$RAW]: T;
+  [$UPDATEDAT]: number;
+} & Accessor<T>;
+
+type StoreValue<Shape, Value> = Shape extends null
+  ? StoreValue<UndefinedValue, null>
+  : Shape extends UndefinedValue
+  ? {
+      [K in keyof Shape]: StoreValue<Shape[K], undefined>;
+    } & Accessor<undefined>
+  : Shape extends {}
+  ? { [K in keyof Shape]: StoreValue<Shape[K], Shape[K]> } & Node<Value>
+  : never;
+
+type Store<T> = StoreValue<T, T>;
 
 type StoreSetter<T> = SetStoreFunction<T>;
 
@@ -272,4 +291,4 @@ export function isWrappable(obj: any) {
 }
 
 export { createStore, batchUpdates, $RAW, $UPDATEDAT };
-export type { StoreValue, Store, StoreSetter };
+export type { Store, StoreSetter };
