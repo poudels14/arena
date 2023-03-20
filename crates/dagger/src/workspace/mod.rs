@@ -5,10 +5,10 @@ use anyhow::Result;
 #[derive(clap::Subcommand, Debug)]
 pub enum Command {
   /// Create a new workspace
-  New(new::NewCommand),
+  New(new::Command),
 
   /// Serve a workspace in dev mode
-  Dev(dev::DevCommand),
+  Dev(dev::Command),
 }
 
 impl Command {

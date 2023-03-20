@@ -19,7 +19,6 @@ tracing-subscriber.workspace = true
 tracing-tree.workspace = true
 deno_core.workspace = true
 colored = "2.0.0"
-axum.workspace = true
 jsruntime = { path = "../jsruntime" }
 common = { path = "../common" }
 arena_workspace = { path = "../workspace" }

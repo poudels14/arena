@@ -7,7 +7,7 @@ use std::path::Path;
 use tracing::{info, Level};
 
 #[derive(Parser, Debug)]
-pub struct DevCommand {
+pub struct Command {
   /// Port to listen to
   #[arg(short, long, default_value_t = 8000)]
   pub port: u16,
@@ -17,7 +17,7 @@ pub struct DevCommand {
   pub dir: Option<String>,
 }
 
-impl DevCommand {
+impl Command {
   pub async fn execute(&self) -> Result<()> {
     let cwd = env::current_dir()?;
     let workspaces_dir = self

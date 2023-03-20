@@ -5,7 +5,7 @@ use std::env;
 use std::path::Path;
 
 #[derive(Parser, Debug)]
-pub struct NewCommand {
+pub struct Command {
   /// Workspace name
   pub name: String,
 
@@ -14,7 +14,7 @@ pub struct NewCommand {
   pub dir: Option<String>,
 }
 
-impl NewCommand {
+impl Command {
   pub async fn execute(&self) -> Result<()> {
     let dir = self
       .dir
