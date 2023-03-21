@@ -2,8 +2,6 @@ import type { Handler } from "@arena/core/server";
 import { ArenaRequest, RESOLVE } from "./request";
 import fileServer from "./fileserver";
 
-const { ops } = Arena.core;
-
 class RequestListener {
   [Symbol.asyncIterator]() {
     return this;
@@ -11,7 +9,7 @@ class RequestListener {
 
   async next() {
     try {
-      const req = await ops.op_receive_request();
+      const req = await Arena.core.opAsync("op_receive_request");
       return { value: req, done: false };
     } catch (error) {
       console.error(error);

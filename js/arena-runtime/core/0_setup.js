@@ -1,33 +1,70 @@
-"use strict";
-
-// Note(sagar): this is initialized during snapshotting
-const { performance } = globalThis.__bootstrap.performance;
-const {
+import { performance, setTimeOrigin } from "ext:deno_web/15_performance.js";
+import {
   setTimeout,
   clearTimeout,
   setInterval,
   clearInterval,
   handleTimerMacrotask,
-} = globalThis.__bootstrap.timers;
-const { Request, Response } = globalThis.__bootstrap.fetch;
-const { ReadableStream } = globalThis.__bootstrap.streams;
-const { crypto } = globalThis.__bootstrap.crypto;
-
-const {
+} from "ext:deno_web/02_timers.js";
+import * as event from "ext:deno_web/02_event.js";
+import {
   TextEncoder,
   TextDecoder,
   TextEncoderStream,
   TextDecoderStream,
-  encode,
-  decode,
-} = globalThis.__bootstrap.encoding;
+} from "ext:deno_web/08_text_encoding.js";
+import { ReadableStream } from "ext:deno_web/06_streams.js";
+import { Request } from "ext:deno_fetch/23_request.js";
+import { Response } from "ext:deno_fetch/23_response.js";
+import { crypto } from "ext:deno_crypto/00_crypto.js";
+import { URL, URLSearchParams } from "ext:deno_url/00_url.js";
+import { Console } from "ext:deno_console/02_console.js";
 
-const { URL, URLSearchParams } = globalThis.__bootstrap.url;
+function promiseRejectCallback(type, promise, reason) {
+  console.log("promiseRejectCallback called: ", arguments);
+  switch (type) {
+    case 0: {
+      ops.op_store_pending_promise_rejection(promise, reason);
+      ArrayPrototypePush(pendingRejections, promise);
+      WeakMapPrototypeSet(pendingRejectionsReasons, promise, reason);
+      break;
+    }
+    case 1: {
+      ops.op_remove_pending_promise_rejection(promise);
+      const index = ArrayPrototypeIndexOf(pendingRejections, promise);
+      if (index > -1) {
+        ArrayPrototypeSplice(pendingRejections, index, 1);
+        WeakMapPrototypeDelete(pendingRejectionsReasons, promise);
+      }
+      break;
+    }
+    default:
+      return false;
+  }
 
-// Note(sagar): assign to globalThis so that other modules can access
+  return (
+    !!globalThis_.onunhandledrejection ||
+    event.listenerCount(globalThis_, "unhandledrejection") > 0
+  );
+}
+
+const primordials = globalThis.__bootstrap.primordials;
+const { DateNow } = primordials;
+
+// Note(sagar): this is initialized during snapshotting
+// assign to globalThis so that other modules can access
 // these objects with `globalThis.{}`
 ((globalThis) => {
+  const { core } = Deno;
+  setTimeOrigin(DateNow());
+
+  core.setPromiseRejectCallback(promiseRejectCallback);
+
   Object.assign(globalThis, {
+    __bootstrap: {
+      handleTimerMacrotask,
+      Console,
+    },
     crypto,
     setTimeout,
     clearTimeout,

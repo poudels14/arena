@@ -24,7 +24,6 @@ pub fn init(
           root: root.clone(),
           resolver: resolver_config.clone(),
         });
-        Ok(())
       })
       .build(),
     transpiler::init(),

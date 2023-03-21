@@ -27,7 +27,8 @@ async fn main() -> Result<()> {
 
   let args: Vec<String> = std::env::args().collect();
   if args.len() > 1 {
-    let main_module = resolve_url_or_path(&args[1]).unwrap();
+    let main_module =
+      resolve_url_or_path(&args[1], &std::env::current_dir()?).unwrap();
     runtime.execute_main_module(&main_module).await.unwrap();
     runtime.run_event_loop().await.unwrap();
   }

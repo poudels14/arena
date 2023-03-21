@@ -50,7 +50,6 @@ pub fn init(
     .state(move |state| {
       state
         .put::<RequestReceiver>(RequestReceiver(requests_receiver.to_owned()));
-      Ok(())
     })
     .build()
 }

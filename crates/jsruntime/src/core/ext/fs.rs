@@ -2,6 +2,8 @@ use crate::utils::fs::resolve_read_path;
 use anyhow::Result;
 use deno_core::op;
 use deno_core::Extension;
+use deno_core::ExtensionFileSource;
+use deno_core::ExtensionFileSourceCode;
 use deno_core::OpState;
 use deno_core::StringOrBuffer;
 use deno_core::ZeroCopyBuf;
@@ -10,14 +12,17 @@ use std::path::Path;
 use std::rc::Rc;
 
 pub fn init() -> Extension {
-  Extension::builder("<arena/core/fs>")
+  Extension::builder("arena/fs")
     .ops(vec![
       op_file_exists_sync::decl(),
       op_read_file_sync::decl(),
       op_read_file_async::decl(),
       op_read_file_string_async::decl(),
     ])
-    .js(vec![("<arena/core/fs>", include_str!("./fs.js"))])
+    .js(vec![ExtensionFileSource {
+      specifier: "setup".to_string(),
+      code: ExtensionFileSourceCode::IncludedInBinary(include_str!("./fs.js")),
+    }])
     .build()
 }
 

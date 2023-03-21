@@ -1,6 +1,6 @@
 "use strict";
 ((global) => {
-  const { ops } = Arena.core;
+  const { ops, opAsync } = Arena.core;
 
   class Transpiler {
     #rid;
@@ -11,7 +11,7 @@
     }
 
     async transpileFileAsync(filename) {
-      return await ops.op_transpiler_transpile_file_async(this.#rid, filename);
+      return await opAsync("op_transpiler_transpile_file_async", this.#rid, filename);
     }
 
     transpileSync(code) {

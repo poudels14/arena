@@ -1,4 +1,4 @@
-"use strict";
+import { toInnerResponse } from "ext:deno_fetch/23_response.js";
 
 // Note(sagar): this is initialized during snapshotting
 ((global) => {
@@ -9,5 +9,5 @@
     };
   }
 
-  global.Arena.toInnerResponse = globalThis.__bootstrap.fetch.toInnerResponse;
+  global.Arena.toInnerResponse = toInnerResponse;
 })(globalThis);

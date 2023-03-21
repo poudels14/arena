@@ -6,6 +6,8 @@ use anyhow::bail;
 use anyhow::Result;
 use deno_core::op;
 use deno_core::Extension;
+use deno_core::ExtensionFileSource;
+use deno_core::ExtensionFileSourceCode;
 use deno_core::OpState;
 use deno_core::Resource;
 use deno_core::ResourceId;
@@ -18,12 +20,14 @@ impl Resource for FsModuleResolver {
 }
 
 pub fn init() -> Extension {
-  Extension::builder("<arena/buildtools/resolver>")
+  Extension::builder("arena/buildtools/resolver")
     .ops(vec![op_resolver_new::decl(), op_resolver_resolve::decl()])
-    .js(vec![(
-      "<arena/buildtools/resolver>",
-      include_str!("./resolver.js"),
-    )])
+    .js(vec![ExtensionFileSource {
+      specifier: "setup".to_string(),
+      code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
+        "./resolver.js"
+      )),
+    }])
     .build()
 }
 

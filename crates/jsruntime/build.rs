@@ -1,5 +1,6 @@
 #![allow(unused_doc_comments)]
 use deno_core::{anyhow, JsRuntime, OpState, RuntimeOptions};
+use deno_core::{ExtensionFileSource, ExtensionFileSourceCode};
 use std::env;
 use std::path::Path;
 use std::path::PathBuf;
@@ -89,21 +90,44 @@ fn generate_builder_snapshot(path: &Path) {
 }
 
 fn get_basic_runtime() -> JsRuntime {
-  let mut runtime = JsRuntime::new(RuntimeOptions {
-    extensions_with_js: vec![
+  let core_extension = deno_core::Extension::builder("core")
+    .esm(vec![
+      ExtensionFileSource {
+        specifier: "setup".to_string(),
+        code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
+          "../../js/arena-runtime/core/0_setup.js"
+        )),
+      },
+      ExtensionFileSource {
+        specifier: "arena/setup".to_string(),
+        code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
+          "../../js/arena-runtime/core/1_arena.js"
+        )),
+      },
+      ExtensionFileSource {
+        specifier: "arena/process".to_string(),
+        code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
+          "../../js/arena-runtime/core/dummy-process.js"
+        )),
+      },
+    ])
+    .build();
+
+  let runtime = JsRuntime::new(RuntimeOptions {
+    extensions: vec![
       /**
        * Note(sagar): deno_webidl, deno_url, deno_web need to be included for
        * timer (setTimeout, etc) to work
        */
-      deno_webidl::init(),
-      deno_console::init(),
-      deno_url::init(),
-      deno_web::init::<Permissions>(
+      deno_webidl::init_esm(),
+      deno_console::init_esm(),
+      deno_url::init_ops_and_esm(),
+      deno_web::init_ops_and_esm::<Permissions>(
         deno_web::BlobStore::default(),
         Default::default(),
       ),
-      deno_crypto::init(None),
-      deno_fetch::init::<Permissions>(deno_fetch::Options {
+      deno_crypto::init_ops_and_esm(None),
+      deno_fetch::init_ops_and_esm::<Permissions>(deno_fetch::Options {
         user_agent: "arena/snapshot".to_owned(),
         root_cert_store: None,
         proxy: None,
@@ -112,29 +136,11 @@ fn get_basic_runtime() -> JsRuntime {
         client_cert_chain_and_key: None,
         file_fetch_handler: Rc::new(deno_fetch::DefaultFileFetchHandler),
       }),
+      core_extension,
     ],
     will_snapshot: true,
     ..Default::default()
   });
-
-  runtime
-    .execute_script(
-      "<setup>",
-      include_str!("../../js/arena-runtime/core/0_setup.js"),
-    )
-    .unwrap();
-  runtime
-    .execute_script(
-      "<arena/setup>",
-      include_str!("../../js/arena-runtime/core/1_arena.js"),
-    )
-    .unwrap();
-  runtime
-    .execute_script(
-      "<arena/core/process>",
-      include_str!("../../js/arena-runtime/core/dummy-process.js"),
-    )
-    .unwrap();
 
   runtime
 }

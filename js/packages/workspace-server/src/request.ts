@@ -1,5 +1,5 @@
 const RESOLVE = Symbol("_request_resolver_");
-const { ops } = Arena.core;
+const { opAsync } = Arena.core;
 
 class ArenaRequest extends Request {
   rid: number;
@@ -19,11 +19,17 @@ class ArenaRequest extends Request {
       } else {
         // If the result isn't of type Response, respond with it's string
         // value
-        await ops.op_send_response(this.rid, 200, [], String(res));
+        await opAsync("op_send_response", this.rid, 200, [], String(res));
       }
     } catch (e) {
       console.error(e);
-      await ops.op_send_response(this.rid, 500, [], "Internal Server Error");
+      await opAsync(
+        "op_send_response",
+        this.rid,
+        500,
+        [],
+        "Internal Server Error"
+      );
     }
   }
 
@@ -38,7 +44,8 @@ class ArenaRequest extends Request {
     // if (content == undefined) {
     //   throw new Error("Stream response not supported!");
     // }
-    await ops.op_send_response(
+    await opAsync(
+      "op_send_response",
       this.rid,
       innerResponse.status,
       innerResponse.headerList || [],

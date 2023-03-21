@@ -7,28 +7,32 @@ declare namespace Arena {
     SSR: boolean;
   } & Record<string, any>;
 
-  type Core = {
-    ops: {
-      /**
-       * Receive a HTTP request.
-       *
-       * Only to be used by Arena Workspace Server!
-       */
-      op_receive_request: () => Promise<{ rid: number; internal: Request }>;
+  /**
+   * Receive a HTTP request.
+   *
+   * Only to be used by Arena Workspace Server!
+   */
+  function OpAsync(
+    name: "op_receive_request"
+  ): Promise<{ rid: number; internal: Request }>;
 
-      /**
-       * Send a response to the HTTP request
-       *
-       * Only to be used by Arena Workspace Server!
-       */
-      op_send_response: (
-        rid: number,
-        status: number,
-        headers: [string, string][],
-        data?: null | string | number
-      ) => Promise<void>;
-    };
-  };
+  /**
+   * Send a response to the HTTP request
+   *
+   * Only to be used by Arena Workspace Server!
+   */
+  function OpAsync(
+    fn: "op_send_response",
+    rid: number,
+    status: number,
+    headers: [string, string][],
+    data?: null | string | number
+  ): Promise<void>;
+
+  interface Core {
+    ops: {};
+    opAsync: typeof OpAsync;
+  }
 
   type ResolverConfig = {
     preserve_symlink?: boolean;

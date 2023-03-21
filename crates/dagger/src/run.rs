@@ -38,7 +38,8 @@ impl Command {
       ..Default::default()
     })?;
 
-    let main_module = resolve_url_or_path(&self.file)?;
+    let main_module =
+      resolve_url_or_path(&self.file, &std::env::current_dir()?)?;
     runtime.execute_main_module(&main_module).await?;
 
     runtime.run_event_loop().await

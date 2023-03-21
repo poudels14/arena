@@ -112,9 +112,7 @@ pub async fn serve(
         };
         return Ok(handle)
     },
-    e = terminated_event => {
-      bail!("Error starting workspace server: {}", e?.as_str().unwrap_or("Unknown error"));
-    },
+    Err(e) = terminated_event => bail!("Error starting workspace server: {:?}", e),
   }
 }
 
@@ -231,7 +229,7 @@ impl WorkspaceServer {
     // same directory as the workspace entry file so that we can
     // resolve files for the workspace using `import.meta.resolve`
     let virtual_workspace_server_file = &Url::parse(&format!(
-      "file://{}/workspace-server.virutal.js",
+      "file://{}/workspace-server/dist/index.js",
       entry_file
         .parent()
         .and_then(|p| p.to_str())
@@ -260,7 +258,7 @@ impl WorkspaceServer {
             // whatever the entry file is for the workspace so that it's
             // transpiled properly
 
-            import("file://{}").then(async ({{ default: m }}) => {{
+            await import("file://{}").then(async ({{ default: m }}) => {{
               serve(m);
             }});
           "#,

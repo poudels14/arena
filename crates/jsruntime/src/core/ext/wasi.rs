@@ -1,21 +1,26 @@
 use anyhow::Result;
-use deno_core::{op, Extension, OpState, ZeroCopyBuf};
+use deno_core::{
+  op, Extension, ExtensionFileSource, ExtensionFileSourceCode, OpState,
+  ZeroCopyBuf,
+};
 
 struct WasmerWasiBytes(&'static [u8; 327480]);
 
 pub fn init() -> Extension {
-  Extension::builder("<arena/wasi>")
+  Extension::builder("arena/wasi")
     .state(move |state| {
       state.put::<WasmerWasiBytes>(WasmerWasiBytes(include_bytes!(
         "../../../../../js/arena-runtime/libs/wasi/deno/pkg/wasmer_wasi_js_bg.wasm"
       )));
-      Ok(())
     })
     .ops(vec![op_read_wasmer_wasi_bytes::decl()])
-    .js(vec![(
-      "<arena/wasi/load>",
-      include_str!("../../../../../js/arena-runtime/dist/wasmer-wasi.js"),
-    )])
+    .js(vec![ExtensionFileSource {
+        specifier: "setup".to_string(),
+        code: ExtensionFileSourceCode::IncludedInBinary(
+          include_str!("../../../../../js/arena-runtime/dist/wasmer-wasi.js")
+        ),
+      }
+    ])
     .build()
 }
 

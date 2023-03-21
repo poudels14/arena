@@ -3,7 +3,9 @@ use crate::config::ArenaConfig;
 use crate::permissions::PermissionsContainer;
 use anyhow::{anyhow, Result};
 use common::fs::has_file_in_file_tree;
-use deno_core::{v8, JsRealm, ModuleLoader};
+use deno_core::{
+  v8, ExtensionFileSource, ExtensionFileSourceCode, JsRealm, ModuleLoader,
+};
 use deno_core::{Extension, JsRuntime, Snapshot};
 use derivative::Derivative;
 use futures::channel::oneshot;
@@ -78,13 +80,38 @@ impl IsolatedRuntime {
       })
     });
 
-    let mut extensions_with_js =
-      Self::get_js_extensions(&project_root, &mut config);
+    let permissions = config.permissions.clone();
+    let mut extensions = vec![
+      deno_webidl::init(),
+      deno_console::init(),
+      deno_url::init_ops(),
+      deno_web::init_ops::<PermissionsContainer>(
+        deno_web::BlobStore::default(),
+        Default::default(),
+      ),
+      deno_crypto::init_ops(None),
+      deno_fetch::init_ops::<PermissionsContainer>(deno_fetch::Options {
+        user_agent: "arena/server".to_string(),
+        root_cert_store: None,
+        proxy: None,
+        request_builder_hook: None,
+        unsafely_ignore_certificate_errors: None,
+        client_cert_chain_and_key: None,
+        file_fetch_handler: Rc::new(deno_fetch::DefaultFileFetchHandler),
+      }),
+      Extension::builder("<arena/core/permissions>")
+        .state(move |state| {
+          state.put::<PermissionsContainer>(permissions.to_owned());
+        })
+        .build(),
+    ];
+    extensions.extend(Self::get_js_extensions(&project_root, &mut config));
+
     // Note(sagar): take extensions out of the config and set it to empty
     // vec![] so that config can be stored without having Send trait
     if config.extensions.len() > 0 {
       let exts = config.extensions;
-      extensions_with_js.extend(exts);
+      extensions.extend(exts);
       config.extensions = vec![];
     }
 
@@ -113,7 +140,6 @@ impl IsolatedRuntime {
         )))
       };
 
-    let permissions = config.permissions.clone();
     let mut js_runtime = JsRuntime::new(deno_core::RuntimeOptions {
       // TODO(sagar): remove build snapshot from deployed app runner to save memory
       startup_snapshot: Some(if config.enable_build_tools {
@@ -126,32 +152,7 @@ impl IsolatedRuntime {
       // Note(sagar) Since the following extensions were snapshotted, pass them
       // as `extensions` instead of `extensions_with_js`; only rust bindings are
       // necessary since JS is already loaded
-      extensions: vec![
-        deno_webidl::init(),
-        deno_console::init(),
-        deno_url::init(),
-        deno_web::init::<PermissionsContainer>(
-          deno_web::BlobStore::default(),
-          Default::default(),
-        ),
-        deno_crypto::init(None),
-        deno_fetch::init::<PermissionsContainer>(deno_fetch::Options {
-          user_agent: "arena/server".to_string(),
-          root_cert_store: None,
-          proxy: None,
-          request_builder_hook: None,
-          unsafely_ignore_certificate_errors: None,
-          client_cert_chain_and_key: None,
-          file_fetch_handler: Rc::new(deno_fetch::DefaultFileFetchHandler),
-        }),
-        Extension::builder("<arena/core/permissions>")
-          .state(move |state| {
-            state.put::<PermissionsContainer>(permissions.to_owned());
-            Ok(())
-          })
-          .build(),
-      ],
-      extensions_with_js,
+      extensions,
       ..Default::default()
     });
 
@@ -248,36 +249,38 @@ impl IsolatedRuntime {
   ) -> Vec<Extension> {
     let mut js_files = Vec::new();
 
-    js_files.push((
-      "<arena/init>",
-      r#"
+    js_files.push(ExtensionFileSource {
+      specifier: "init".to_string(),
+      code: ExtensionFileSourceCode::IncludedInBinary(
+        r#"
         Arena.core = Deno.core;
-        Arena.core.initializeAsyncOps();
-        Arena.core.setMacrotaskCallback(handleTimerMacrotask);
+        Arena.core.setMacrotaskCallback(globalThis.__bootstrap.handleTimerMacrotask);
       "#,
-    ));
+      ),
+    });
 
     if config.enable_console {
-      js_files.push((
-        "<arena/console>",
-        r#"
-          ((globalThis) => {
-            globalThis.console = new globalThis.__bootstrap.console.Console(Arena.core.print);
-          })(globalThis);
-        "#,
-      ));
+      js_files.push(ExtensionFileSource {
+        specifier: "console".to_string(),
+        code: ExtensionFileSourceCode::IncludedInBinary(r#"
+          globalThis.console = new globalThis.__bootstrap.Console(Arena.core.print);
+        "#,),
+      });
     }
 
-    js_files.push((
-      "<arena/init/finalize>",
-      r#"
+    js_files.push(ExtensionFileSource {
+      specifier: "init/finalize".to_string(),
+      code: ExtensionFileSourceCode::IncludedInBinary(
+        r#"
         // Remove bootstrapping data from the global scope
         delete globalThis.__bootstrap;
         delete globalThis.bootstrap;
       "#,
-    ));
+      ),
+    });
+
     let mut extensions = vec![
-      Extension::builder("<arena/init>").js(js_files).build(),
+      Extension::builder("arena").js(js_files).build(),
       super::ext::fs::init(),
       super::ext::env::init(config.config.as_ref().and_then(|c| c.env.clone())),
     ];

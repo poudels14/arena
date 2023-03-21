@@ -11,6 +11,8 @@ use deno_ast::ParseParams;
 use deno_ast::SourceTextInfo;
 use deno_core::op;
 use deno_core::Extension;
+use deno_core::ExtensionFileSource;
+use deno_core::ExtensionFileSourceCode;
 use deno_core::OpState;
 use deno_core::Resource;
 use deno_core::ResourceId;
@@ -61,16 +63,18 @@ impl Resource for Transpiler {
 }
 
 pub fn init() -> Extension {
-  Extension::builder("<arena/buildtools/transpiler>")
+  Extension::builder("arena/buildtools/transpiler")
     .ops(vec![
       op_transpiler_new::decl(),
       op_transpiler_transpile_sync::decl(),
       op_transpiler_transpile_file_async::decl(),
     ])
-    .js(vec![(
-      "<arena/buildtools/transpiler>",
-      include_str!("./transpiler.js"),
-    )])
+    .js(vec![ExtensionFileSource {
+      specifier: "setup".to_string(),
+      code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
+        "./transpiler.js"
+      )),
+    }])
     .build()
 }
 
