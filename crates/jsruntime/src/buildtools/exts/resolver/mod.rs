@@ -42,6 +42,7 @@ fn op_resolver_new(
   let resolver = FsModuleResolver::new(
     build_config.root.clone(),
     config.unwrap_or(build_config.resolver.clone()),
+    vec![],
   );
   let rid = state.resource_table.add(resolver);
   Ok(rid)

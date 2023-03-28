@@ -26,16 +26,23 @@ pub struct FsModuleResolver {
   pub(crate) config: ResolverConfig,
 
   pub(crate) cache: Rc<RefCell<ResolverCache>>,
+
+  pub(crate) builtin_modules: Vec<String>,
 }
 
 impl FsModuleResolver {
-  pub fn new(project_root: PathBuf, config: ResolverConfig) -> Self {
+  pub fn new(
+    project_root: PathBuf,
+    config: ResolverConfig,
+    builtin_modules: Vec<String>,
+  ) -> Self {
     Self {
       project_root,
       config,
       cache: Rc::new(RefCell::new(ResolverCache {
         node_module_dirs: IndexMap::new(),
       })),
+      builtin_modules,
     }
   }
 
@@ -47,8 +54,12 @@ impl FsModuleResolver {
   ) -> Result<ModuleSpecifier, ModuleResolutionError> {
     // TODO(sagar): cache the resolved module specifier?
 
-    let specifier = &self.resolve_alias(specifier);
-    let url = match Url::parse(specifier) {
+    let mut specifier = self.resolve_alias(specifier);
+    if self.builtin_modules.contains(&specifier) {
+      debug!("Using builtin module: {specifier}");
+      specifier = format!("builtin:///{}", specifier);
+    }
+    let url = match Url::parse(&specifier) {
       // 1. Apply the URL parser to specifier.
       //    If the result is not failure, return he result.
       Ok(url) => {
@@ -70,7 +81,7 @@ impl FsModuleResolver {
         } else {
           Some(base.to_string())
         };
-        return self.resolve_npm_module(specifier, maybe_referrer);
+        return self.resolve_npm_module(&specifier, maybe_referrer);
       }
 
       // 3. Return the result of applying the URL parser to specifier with base
@@ -78,7 +89,7 @@ impl FsModuleResolver {
       Err(ParseError::RelativeUrlWithoutBase) => {
         let filepath = Url::parse(base)
           .map_err(InvalidBaseUrl)?
-          .join(specifier)
+          .join(&specifier)
           .map_err(InvalidBaseUrl)?
           .to_file_path()
           .map_err(|_| InvalidBaseUrl(ParseError::RelativeUrlWithoutBase))?;

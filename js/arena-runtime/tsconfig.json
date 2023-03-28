@@ -1,13 +1,13 @@
 {
   "compilerOptions": {
-    "suppressImplicitAnyIndexErrors": true,
-    "noImplicitAny": false,
-    "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true,
+    "noEmit": true,
+    "strict": true,
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "node",
-    "jsx": "preserve",
-    "strict": true
+    "suppressImplicitAnyIndexErrors": true,
+    "noImplicitAny": false,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true
   }
 }

@@ -1,4 +1,6 @@
+use super::ext::{self, node};
 use super::loaders;
+use crate::buildtools;
 use crate::config::ArenaConfig;
 use crate::permissions::PermissionsContainer;
 use anyhow::{anyhow, Result};
@@ -9,18 +11,16 @@ use deno_core::{
 use deno_core::{Extension, JsRuntime, Snapshot};
 use derivative::Derivative;
 use futures::channel::oneshot;
+use itertools::Itertools;
 use std::cell::RefCell;
 use std::env::current_dir;
 use std::path::PathBuf;
 use std::rc::Rc;
-use tracing::error;
+use tracing::{debug, error};
 use url::Url;
 
 pub static RUNTIME_PROD_SNAPSHOT: &[u8] =
   include_bytes!(concat!(env!("OUT_DIR"), "/RUNTIME_PROD_SNAPSHOT.bin"));
-
-pub static RUNTIME_BUILD_SNAPSHOT: &[u8] =
-  include_bytes!(concat!(env!("OUT_DIR"), "/RUNTIME_BUILD_SNAPSHOT.bin"));
 
 #[derive(Derivative)]
 #[derivative(Default)]
@@ -54,6 +54,11 @@ pub struct RuntimeConfig {
   pub transpile: bool,
 
   pub disable_module_loader: bool,
+
+  /// enables importing from node modules like "node:fs"
+  pub enable_node_modules: bool,
+
+  pub side_modules: Option<Vec<ExtensionFileSource>>,
 }
 
 pub struct IsolatedRuntime {
@@ -81,6 +86,12 @@ impl IsolatedRuntime {
     });
 
     let permissions = config.permissions.clone();
+    let mut builtin_modules = config
+      .side_modules
+      .as_ref()
+      .map(|sm| sm.clone())
+      .unwrap_or(vec![]);
+
     let mut extensions = vec![
       deno_webidl::init(),
       deno_console::init(),
@@ -99,7 +110,7 @@ impl IsolatedRuntime {
         client_cert_chain_and_key: None,
         file_fetch_handler: Rc::new(deno_fetch::DefaultFileFetchHandler),
       }),
-      Extension::builder("<arena/core/permissions>")
+      Extension::builder("arena/core/permissions")
         .state(move |state| {
           state.put::<PermissionsContainer>(permissions.to_owned());
         })
@@ -107,12 +118,23 @@ impl IsolatedRuntime {
     ];
     extensions.extend(Self::get_js_extensions(&project_root, &mut config));
 
+    // Note(sagar): right now, build tools, specifically rollup requires
+    // built-in node modules. so, enable then when build tools are enabled
+    if config.enable_node_modules || config.enable_build_tools {
+      extensions.push(ext::node::init());
+      builtin_modules.extend(node::get_builtin_modules());
+    }
+
     // Note(sagar): take extensions out of the config and set it to empty
     // vec![] so that config can be stored without having Send trait
     if config.extensions.len() > 0 {
       let exts = config.extensions;
       extensions.extend(exts);
       config.extensions = vec![];
+    }
+
+    if config.enable_build_tools {
+      builtin_modules.extend(buildtools::get_build_tools_modules());
     }
 
     let create_params = config.heap_limits.map(|(initial, max)| {
@@ -135,6 +157,10 @@ impl IsolatedRuntime {
                 .and_then(|c| c.javascript.as_ref())
                 .and_then(|j| j.resolve.clone())
                 .unwrap_or(Default::default()),
+              builtin_modules
+                .iter()
+                .map(|sm| sm.specifier.clone())
+                .collect(),
             ),
           },
         )))
@@ -142,11 +168,7 @@ impl IsolatedRuntime {
 
     let mut js_runtime = JsRuntime::new(deno_core::RuntimeOptions {
       // TODO(sagar): remove build snapshot from deployed app runner to save memory
-      startup_snapshot: Some(if config.enable_build_tools {
-        Snapshot::Static(RUNTIME_BUILD_SNAPSHOT)
-      } else {
-        Snapshot::Static(RUNTIME_PROD_SNAPSHOT)
-      }),
+      startup_snapshot: Some(Snapshot::Static(RUNTIME_PROD_SNAPSHOT)),
       create_params,
       module_loader,
       // Note(sagar) Since the following extensions were snapshotted, pass them
@@ -168,6 +190,24 @@ impl IsolatedRuntime {
       );
     }
 
+    for module in builtin_modules.iter().unique_by(|m| m.specifier.clone()) {
+      futures::executor::block_on(async {
+        debug!(
+          "Loading built-in module into the runtime: {}",
+          module.specifier
+        );
+        let mod_id = js_runtime
+          .load_side_module(
+            &Url::parse(&format!("builtin:///{}", module.specifier))?,
+            Some(module.code.load()?),
+          )
+          .await?;
+        let receiver = js_runtime.mod_evaluate(mod_id);
+        js_runtime.run_event_loop(false).await?;
+        receiver.await?
+      })?;
+    }
+
     let runtime = IsolatedRuntime {
       config,
       runtime: Rc::new(RefCell::new(js_runtime)),
@@ -186,7 +226,7 @@ impl IsolatedRuntime {
   }
 
   #[allow(dead_code)]
-  pub async fn execute_side_module(
+  pub async fn load_and_evaluate_side_module(
     &mut self,
     url: &Url,
     code: Option<String>,
@@ -264,7 +304,7 @@ impl IsolatedRuntime {
         specifier: "console".to_string(),
         code: ExtensionFileSourceCode::IncludedInBinary(r#"
           globalThis.console = new globalThis.__bootstrap.Console(Arena.core.print);
-        "#,),
+        "#),
       });
     }
 

@@ -30,8 +30,30 @@ declare namespace Arena {
   ): Promise<void>;
 
   interface Core {
-    ops: {};
+    ops: {
+      op_node_create_hash: (algorithm: string) => number;
+      op_node_hash_update: (ctx: number, data: any) => boolean;
+      op_node_hash_update_str: (ctx: number, data: any) => boolean;
+      op_node_hash_digest: (ctx: number) => number[];
+      op_node_hash_digest_hex: (ctx: number) => string;
+    };
     opAsync: typeof OpAsync;
+  }
+
+  function readFile(path: string): Promise<Uint16Array>;
+  function readFile(path: string, encoding?: "utf8"): Promise<String>;
+  interface FileSystem {
+    // get absolute path to project root
+    cwd: () => string;
+    lstat: (file: string) => Record<string, any>;
+    realpath: (file: string) => string;
+    readdir: (file: string) => string[];
+    existsSync: (pathh: string) => boolean;
+    mkdir: (path: string, options: { recursive: boolean }) => void;
+    readFileSync: (pathh: string) => Uint16Array;
+    readFile: typeof readFile;
+    readToString: (pathh: string) => Promise<string>;
+    writeFileSync: (path: string, data: any) => void;
   }
 
   type ResolverConfig = {
@@ -94,12 +116,7 @@ declare namespace Arena {
 
   let core: Core;
   let env: Env;
-  let fs: {
-    existsSync: (path) => boolean;
-    readFileSync: (path) => Uint16Array;
-    readFile: (path) => Promise<Uint16Array>;
-    readToString: (path) => Promise<string>;
-  };
+  let fs: FileSystem;
   let BuildTools: BuildTools;
   let wasi: any;
 
@@ -113,4 +130,20 @@ interface ImportMeta {
    * Return the resolved absolute path of the given path/module
    */
   resolve: (path: string) => string;
+}
+
+declare function encodeToBase64(digest: any): string;
+declare function encodeToBase64Url(digetst: any): string;
+
+declare module "@arena/babel" {
+  export const solidPreset;
+}
+
+declare module "@arena/rollup" {
+  export const rollup;
+  export const plugins: {
+    arenaResolver: () => any;
+    babel: (options: any) => any;
+  };
+  export const build: (options: any) => Promise<void>;
 }

@@ -96,6 +96,7 @@ fn op_transpiler_new(
     resolver: Rc::new(FsModuleResolver::new(
       build_config.root.clone(),
       resolver_config,
+      vec![],
     )),
   };
 

@@ -15,19 +15,25 @@ pub struct Command {
   disable_transpile: bool,
 
   /// Whether to enable build tools in main runtime; default false
-  #[arg(short, long)]
+  #[arg(short('b'), long)]
   enable_build_tools: bool,
 }
 
 impl Command {
+  #[tracing::instrument(skip_all)]
   pub async fn execute(&self) -> Result<()> {
     let mut runtime = IsolatedRuntime::new(RuntimeConfig {
       enable_console: true,
       transpile: !self.disable_transpile,
       enable_build_tools: self.enable_build_tools,
+      enable_node_modules: true,
       permissions: PermissionsContainer {
         fs: Some(FileSystemPermissions {
           allowed_read_paths: HashSet::from_iter(vec![
+            // allow all files
+            "/".to_owned(),
+          ]),
+          allowed_write_paths: HashSet::from_iter(vec![
             // allow all files
             "/".to_owned(),
           ]),

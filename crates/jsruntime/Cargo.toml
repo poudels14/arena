@@ -17,6 +17,15 @@ once_cell.workspace = true
 tracing.workspace = true
 toml.workspace = true
 pathdiff.workspace = true
+itertools.workspace = true
+digest.workspace = true
+rsa.workspace = true
+hex = "0.4.3"
+md4 = "0.10.2"
+md-5 = "0.10.5"
+sha-1 = "0.10.0"
+sha2 = "0.10.6"
+ripemd = "0.1.3"
 common = { path = "../common" }
 
 deno_core.workspace = true

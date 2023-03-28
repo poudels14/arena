@@ -32,3 +32,21 @@ pub fn resolve_read_path(state: &mut OpState, path: &Path) -> Result<PathBuf> {
     None => bail!("No access to filesystem"),
   }
 }
+
+/// resolves the given path from project prefix/root and checks for
+/// write permission. Returns Ok(resolved_path) if the permission
+/// for given path is granted, else returns error
+#[inline]
+#[allow(dead_code)]
+pub fn resolve_write_path(state: &mut OpState, path: &Path) -> Result<PathBuf> {
+  let permissions = state.borrow_mut::<PermissionsContainer>();
+
+  match permissions.fs.as_ref() {
+    Some(perm) => {
+      let resolved_path = resolve(&perm.root, path)?;
+      permissions.check_write(&resolved_path)?;
+      Ok(resolved_path)
+    }
+    None => bail!("No access to filesystem"),
+  }
+}

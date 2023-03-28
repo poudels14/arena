@@ -238,7 +238,7 @@ impl WorkspaceServer {
 
     // Note(sagar): preload this module so that it can be used later
     runtime
-      .execute_side_module(
+      .load_and_evaluate_side_module(
         virtual_workspace_server_file,
         Some(workspace_server_code),
       )

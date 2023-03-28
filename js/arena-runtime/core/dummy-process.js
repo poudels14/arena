@@ -1,11 +1,11 @@
 "use strict";
 
+// Note(sagar): this is just a dummy process that can be used
+// when node modules aren't enabled
 ((globalThis) => {
-  const p = {
+  globalThis.process = globalThis.process ?? {
     env: {
       TERM: "xterm-256color",
     },
   };
-
-  globalThis.process = p;
 })(globalThis);

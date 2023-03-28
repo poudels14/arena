@@ -13,6 +13,10 @@ import {
   TextEncoderStream,
   TextDecoderStream,
 } from "ext:deno_web/08_text_encoding.js";
+import {
+  forgivingBase64Encode as encodeToBase64,
+  forgivingBase64UrlEncode as encodeToBase64Url,
+} from "ext:deno_web/00_infra.js";
 import { ReadableStream } from "ext:deno_web/06_streams.js";
 import { Request } from "ext:deno_fetch/23_request.js";
 import { Response } from "ext:deno_fetch/23_response.js";
@@ -20,6 +24,17 @@ import { crypto } from "ext:deno_crypto/00_crypto.js";
 import { URL, URLSearchParams } from "ext:deno_url/00_url.js";
 import { Console } from "ext:deno_console/02_console.js";
 
+const primordials = globalThis.__bootstrap.primordials;
+const {
+  ArrayPrototypePush,
+  ArrayPrototypeIndexOf,
+  ArrayPrototypeSplice,
+  WeakMapPrototypeSet,
+  WeakMapPrototypeDelete,
+  DateNow,
+} = primordials;
+
+// credit: deno
 function promiseRejectCallback(type, promise, reason) {
   console.log("promiseRejectCallback called: ", arguments);
   switch (type) {
@@ -48,8 +63,13 @@ function promiseRejectCallback(type, promise, reason) {
   );
 }
 
-const primordials = globalThis.__bootstrap.primordials;
-const { DateNow } = primordials;
+const Buffer = () => {
+  throw new Error("Buffer not implemented");
+};
+Buffer.isBuffer = () => {
+  console.error("Buffer not implemented. Buffer.isBuffer called");
+  return false;
+};
 
 // Note(sagar): this is initialized during snapshotting
 // assign to globalThis so that other modules can access
@@ -62,6 +82,7 @@ const { DateNow } = primordials;
 
   Object.assign(globalThis, {
     __bootstrap: {
+      ...globalThis.__bootstrap,
       handleTimerMacrotask,
       Console,
     },
@@ -78,7 +99,10 @@ const { DateNow } = primordials;
     TextDecoder,
     TextEncoderStream,
     TextDecoderStream,
+    encodeToBase64,
+    encodeToBase64Url,
     URL,
     URLSearchParams,
+    Buffer,
   });
 })(globalThis);

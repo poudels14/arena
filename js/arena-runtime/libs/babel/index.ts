@@ -17,3 +17,11 @@ Object.assign(globalThis.Arena.BuildTools, {
     importResolver,
   },
 });
+
+export {
+  loadPartialConfig,
+  loadPartialConfigAsync,
+  transformSync,
+  transformAsync,
+} from "@babel/core";
+export { solidPreset };

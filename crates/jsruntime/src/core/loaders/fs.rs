@@ -32,8 +32,15 @@ impl FsModuleLoader {
       true => Some(Rc::new(RefCell::new(
         IsolatedRuntime::new(RuntimeConfig {
           enable_console: true,
+          // Note(sagar): build tools is needed to transpile when loading
+          // modules
           enable_build_tools: true,
-          disable_module_loader: true,
+          enable_node_modules: true,
+          // Note(sagar): since rollup is loaded as side-module when build
+          // tools is enabled and rollup needs node modules,
+          // need to enable module loader
+          disable_module_loader: false,
+          transpile: false,
           ..Default::default()
         })
         .unwrap(),

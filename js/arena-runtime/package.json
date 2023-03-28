@@ -4,8 +4,8 @@
   "description": "Javascript files for core Arena runtime",
   "type": "module",
   "scripts": {
-    "build": "pnpm esbuild babel=libs/babel/index.ts wasmer-wasi=libs/wasi/wasmer.ts --outdir=dist --bundle --minify",
-    "dev": "pnpm esbuild babel=libs/babel/index.ts wasmer-wasi=libs/wasi/wasmer.ts --outdir=dist --bundle --watch"
+    "build": "pnpm node build.mjs --minify",
+    "dev": "pnpm node build.mjs"
   },
   "author": "Sagar Poudel",
   "private": true,
@@ -15,17 +15,26 @@
     "arena.d.ts"
   ],
   "dependencies": {
+    "@babel/core": "^7.21.3",
     "@babel/helper-plugin-utils": "^7.20.2",
     "@babel/standalone": "^7.20.14",
     "@babel/types": "^7.20.7",
+    "@rollup/plugin-babel": "^6.0.3",
     "assert": "^2.0.0",
     "babel-preset-solid": "^1.6.9",
+    "commander": "^10.0.0",
+    "events": "^3.3.0",
     "lodash": "^4.17.21",
+    "path": "^0.12.7",
     "reserved-words": "^0.1.2",
-    "solid-js": "^1.6.9"
+    "rollup": "^3.17.3",
+    "solid-js": "^1.6.9",
+    "url": "^0.11.0",
+    "util": "^0.12.5"
   },
   "devDependencies": {
     "esbuild": "^0.17.10",
+    "glob": "^9.3.2",
     "prettier": "^2.8.4"
   }
 }

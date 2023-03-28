@@ -118,15 +118,35 @@ impl PermissionsContainer {
       None => {}
     };
     bail!(
-      "doesn't have permission to read: {}",
+      "doesn't have permission to read file: {}",
       path.to_string_lossy()
     )
   }
 
   /// Checks write access to a file path
   #[allow(dead_code)]
-  pub fn check_write(&mut self, _path: &Path) -> Result<()> {
-    bail!("not implemented");
+  pub fn check_write(&mut self, path: &Path) -> Result<()> {
+    match self.fs.as_ref() {
+      Some(perms) => {
+        // TODO(sagar): cache the paths
+        // TODO(sagar): write tests
+        if perms.allowed_write_paths.iter().any(|p| {
+          perms
+            .root
+            .join(p)
+            .canonicalize()
+            .and_then(|p| Ok(path.starts_with(p)))
+            .unwrap_or(false)
+        }) {
+          return Ok(());
+        }
+      }
+      None => {}
+    }
+    bail!(
+      "doesn't have permission to write to file: {}",
+      path.to_string_lossy()
+    )
   }
 }
 

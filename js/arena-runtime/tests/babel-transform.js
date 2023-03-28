@@ -1,4 +1,4 @@
-const { babel, babelPresets } = Arena;
+const { babel, babelPresets } = Arena.BuildTools;
 
 const { code } = babel.transform(
   `
