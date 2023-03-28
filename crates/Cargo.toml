@@ -58,12 +58,12 @@ deno_fetch = "0.117.0"
 deno_web = "0.124.0"
 deno_webidl = "0.93.0"
 deno_crypto = "0.107.0"
-deno_ast = { version = "0.24.0", features = ["transpiling"] }
+deno_ast = { version = "0.25.0", features = ["transpiling"] }
 
-swc_ecma_visit = "=0.82.3"
-swc_common = "=0.29.29"
-swc_ecma_ast = "=0.96.3"
-swc_atoms = "=0.4.34"
+swc_ecma_visit = "=0.86.1"
+swc_common = "=0.29.37"
+swc_ecma_ast = "=0.100.1"
+swc_atoms = "=0.4.39"
 
 [profile.release]
 strip = true

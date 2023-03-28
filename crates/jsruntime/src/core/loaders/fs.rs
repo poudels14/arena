@@ -87,7 +87,8 @@ impl ModuleLoader for FsModuleLoader {
         )
       })?;
 
-      let (module_type, _should_transpile) = match MediaType::from(&path) {
+      let media_type = MediaType::from_specifier(&module_specifier);
+      let (module_type, _should_transpile) = match media_type {
         MediaType::JavaScript | MediaType::Mjs | MediaType::Cjs => {
           (ModuleType::JavaScript, false)
         }
@@ -108,7 +109,6 @@ impl ModuleLoader for FsModuleLoader {
       // so that even cjs modules are transformed to es6
       let code = match transpile {
         true => {
-          let media_type = MediaType::from(&path);
           transpiler::transpile(runtime.unwrap(), &path, &media_type, &code)?
         }
         false => code,

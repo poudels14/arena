@@ -180,6 +180,7 @@ impl FsModuleResolver {
     Ok(directories)
   }
 
+  #[tracing::instrument(skip(self, package))]
   fn get_package_json_export(
     &self,
     package: &Package,
@@ -214,8 +215,8 @@ fn parse_specifier(specifier: &str) -> ParsedSpecifier {
   };
 
   let sub_path = match sub_path.len() == 0 {
-    true => ".".to_owned() + &sub_path,
-    false => "./".to_owned() + &sub_path,
+    true => format!(".{sub_path}"),
+    false => format!("./{sub_path}"),
   };
 
   ParsedSpecifier {
