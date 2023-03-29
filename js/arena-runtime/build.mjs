@@ -3,12 +3,14 @@ import * as esbuild from "esbuild";
 import glob from "glob";
 
 const build = async (options) => {
+  const { external = [], ...restOptions } = options;
   try {
     await esbuild.build({
       bundle: true,
       outdir: "dist",
       format: "esm",
-      ...options,
+      external: ["node:*", ...external],
+      ...restOptions,
     });
   } catch (e) {
     console.error(e);
@@ -37,7 +39,11 @@ program.option("--minify").action(async (options, cmd) => {
       entryPoints: {
         babel: "./libs/babel/index.ts",
       },
-      external: ["fs"],
+      alias: {
+        // Note(sagar): need to alias these to a file to avoid dynamic import
+        fs: "./libs/alias/fs.ts",
+        path: "./libs/alias/path.ts",
+      },
     }),
     build({
       ...options,
@@ -52,7 +58,7 @@ program.option("--minify").action(async (options, cmd) => {
         os: "node:os",
         "@babel/core": "@arena/babel",
       },
-      external: ["node:*", "fs", "tty", "stream", "@arena/babel"],
+      external: ["fs", "tty", "stream", "@arena/babel"],
     }),
   ]);
 });

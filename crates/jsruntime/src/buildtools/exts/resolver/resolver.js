@@ -4,10 +4,12 @@
 
   class Resolver {
     #rid;
+    root;
     
     constructor(options) {
-      const rid = ops.op_resolver_new(options || {});
+      const [rid, root] = ops.op_resolver_new(options || {});
       this.#rid = rid;
+      this.root = root;
     }
 
     resolve(specifier, referrer) {

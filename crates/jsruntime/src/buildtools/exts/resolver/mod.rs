@@ -37,15 +37,22 @@ pub fn init() -> Extension {
 fn op_resolver_new(
   state: &mut OpState,
   config: Option<ResolverConfig>,
-) -> Result<ResourceId> {
+) -> Result<(ResourceId, String)> {
   let build_config = state.borrow_mut::<BuildConfig>();
+  let root = build_config.root.clone();
   let resolver = FsModuleResolver::new(
-    build_config.root.clone(),
+    root.clone(),
     config.unwrap_or(build_config.resolver.clone()),
     vec![],
   );
   let rid = state.resource_table.add(resolver);
-  Ok(rid)
+  Ok((
+    rid,
+    root
+      .to_str()
+      .map(|s| s.to_string())
+      .ok_or(anyhow!("Failed to unwrap project root"))?,
+  ))
 }
 
 #[op]
@@ -54,7 +61,7 @@ fn op_resolver_resolve(
   rid: ResourceId,
   specifier: String,
   referrer: String,
-) -> Result<String> {
+) -> Result<Option<String>> {
   let state = state.borrow_mut();
   let resolver = state.resource_table.get::<FsModuleResolver>(rid)?;
   let build_config = state.borrow::<BuildConfig>();
@@ -66,7 +73,7 @@ pub(crate) fn resolve(
   root: &PathBuf,
   referrer: &str,
   specifier: &str,
-) -> Result<String> {
+) -> Result<Option<String>> {
   let referrer = match referrer.starts_with(".") || referrer.starts_with("/") {
     true => {
       let p = root.join(referrer);
@@ -85,6 +92,6 @@ pub(crate) fn resolve(
   );
 
   // Note(sagar): since all resolved paths are relative to project root,
-  // prefix it with /
-  Ok(format!("/{}", relative.unwrap().to_str().unwrap()))
+  // prefix it with ./
+  Ok(relative.and_then(|p| p.to_str().and_then(|s| Some(format!("./{s}")))))
 }

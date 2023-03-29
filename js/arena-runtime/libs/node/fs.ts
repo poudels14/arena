@@ -1,4 +1,4 @@
-const { readFileSync, lstat: statSync } = Arena.fs;
+const { readFileSync, lstatSync: statSync } = Arena.fs;
 
 const fs = {
   readFileSync,

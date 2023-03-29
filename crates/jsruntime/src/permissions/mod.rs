@@ -8,13 +8,11 @@ use std::path::{Path, PathBuf};
 use url::Url;
 
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
-#[serde(rename_all = "camelCase")]
 pub struct TimerPermissions {
   pub allow_hrtime: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
-#[serde(rename_all = "camelCase")]
 pub struct FetchPermissions {
   pub allowed_urls: Option<HashSet<Url>>,
   pub restricted_urls: Option<HashSet<Url>>,
@@ -22,7 +20,6 @@ pub struct FetchPermissions {
 
 #[derive(Derivative, Deserialize, Serialize)]
 #[derivative(Clone, Debug, Default)]
-#[serde(rename_all = "camelCase")]
 pub struct FileSystemPermissions {
   /// The prefix that's used for the relative paths
   /// that are allowed for read/writes
@@ -33,7 +30,6 @@ pub struct FileSystemPermissions {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
-#[serde(rename_all = "camelCase")]
 pub struct PermissionsContainer {
   pub timer: Option<TimerPermissions>,
   pub net: Option<FetchPermissions>,

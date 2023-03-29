@@ -1,6 +1,6 @@
 function noop() {}
 
-const cwd = Arena.fs.cwd;
+const cwd = Arena.fs.cwdSync;
 const env = {
   TERM: "xterm-256color",
 };

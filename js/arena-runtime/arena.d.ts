@@ -44,19 +44,20 @@ declare namespace Arena {
   function readFile(path: string, encoding?: "utf8"): Promise<String>;
   interface FileSystem {
     // get absolute path to project root
-    cwd: () => string;
-    lstat: (file: string) => Record<string, any>;
-    realpath: (file: string) => string;
-    readdir: (file: string) => string[];
+    cwdSync: () => string;
+    lstatSync: (file: string) => Record<string, any>;
+    realpathSync: (file: string) => string;
+    readdirSync: (file: string) => string[];
     existsSync: (pathh: string) => boolean;
-    mkdir: (path: string, options: { recursive: boolean }) => void;
+    mkdirSync: (path: string, options: { recursive: boolean }) => void;
     readFileSync: (pathh: string) => Uint16Array;
     readFile: typeof readFile;
-    readToString: (pathh: string) => Promise<string>;
+    readToString: (path: string) => Promise<string>;
+    readAsJson: (path: string) => Promise<string>;
     writeFileSync: (path: string, data: any) => void;
   }
 
-  type ResolverConfig = {
+  export type ResolverConfig = {
     preserve_symlink?: boolean;
 
     alias?: Record<string, string>;
@@ -67,6 +68,17 @@ declare namespace Arena {
   };
 
   class Resolver {
+    /**
+     * Project root
+     *
+     * All resolved paths are relative to this path
+     */
+    root: string;
+
+    /**
+     * Returns a resolved path of the specifier relative
+     * to the project root, which is same as {@link root}
+     */
     resolve(specifier: string, referrer: string): string;
 
     close();
@@ -94,6 +106,8 @@ declare namespace Arena {
   };
 
   class Transpiler {
+    root: string;
+
     public transpileFileAsync: (filename: string) => Promise<TranspileResult>;
 
     public transpileSync: (code: string) => TranspileResult;
@@ -142,7 +156,11 @@ declare module "@arena/babel" {
 declare module "@arena/rollup" {
   export const rollup;
   export const plugins: {
-    arenaResolver: () => any;
+    terser: () => any;
+    arenaResolver: (options: Arena.ResolverConfig) => any;
+    arenaLoader: (options: {
+      replace?: Arena.TranspilerConfig["replace"];
+    }) => any;
     babel: (options: any) => any;
   };
   export const build: (options: any) => Promise<void>;

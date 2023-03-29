@@ -4,10 +4,12 @@
 
   class Transpiler {
     #rid;
+    root;
 
     constructor(config) {
-      const rid = ops.op_transpiler_new(config || {});
+      const [rid, root] = ops.op_transpiler_new(config || {});
       this.#rid = rid;
+      this.root = root;
     }
 
     async transpileFileAsync(filename) {

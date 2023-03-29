@@ -8,6 +8,7 @@ const transpiler = new Transpiler({
   resolver: {
     preserve_symlink: true,
     conditions: ["browser", "development"],
+    dedupe: ["solid-js", "solid-js/web", "@solidjs/meta", "@solidjs/router"],
   },
   replace: {
     "Arena.env.MODE": JSON.stringify(Arena.env.MODE),

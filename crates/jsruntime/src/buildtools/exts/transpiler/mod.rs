@@ -4,6 +4,7 @@ use super::BuildConfig;
 use crate::config::ResolverConfig;
 use crate::core::FsModuleResolver;
 use crate::utils::fs::resolve_read_path;
+use anyhow::anyhow;
 use anyhow::Result;
 use deno_ast::EmitOptions;
 use deno_ast::MediaType;
@@ -82,7 +83,7 @@ pub fn init() -> Extension {
 fn op_transpiler_new(
   state: &mut OpState,
   config: TranspilerConfig,
-) -> Result<ResourceId> {
+) -> Result<(ResourceId, String)> {
   let build_config = state.borrow_mut::<BuildConfig>();
 
   let resolver_config = build_config
@@ -90,20 +91,28 @@ fn op_transpiler_new(
     .clone()
     .merge(config.resolver.clone().unwrap_or_default());
 
+  let root = build_config.root.clone();
   let transpiler = Transpiler {
-    root: build_config.root.clone(),
+    root: root.clone(),
     config,
     resolver: Rc::new(FsModuleResolver::new(
-      build_config.root.clone(),
+      root.clone(),
       resolver_config,
       vec![],
     )),
   };
 
   let rid = state.resource_table.add(transpiler);
-  Ok(rid)
+  Ok((
+    rid,
+    root
+      .to_str()
+      .map(|s| s.to_string())
+      .ok_or(anyhow!("Failed to unwrap project root"))?,
+  ))
 }
 
+/// Note(sagar): all filenames are resolved from root
 #[op]
 async fn op_transpiler_transpile_file_async(
   state: Rc<RefCell<OpState>>,

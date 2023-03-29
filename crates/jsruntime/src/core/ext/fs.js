@@ -3,8 +3,8 @@
   const { ops, opAsync } = Arena.core;
   Object.assign(global.Arena, {
     fs: {
-      cwd: ops.op_fs_cwd_sync,
-      lstat: (file) => {
+      cwdSync: ops.op_fs_cwd_sync,
+      lstatSync: (file) => {
         const stat = ops.op_fs_lstat_sync(file);
         const { isFile } = stat;
         return Object.assign(stat, {
@@ -20,10 +20,10 @@
           },
         });
       },
-      realpath: ops.op_fs_realpath_sync,
-      readdir: ops.op_fs_readdir_sync,
+      realpathSync: ops.op_fs_realpath_sync,
+      readdirSync: ops.op_fs_readdir_sync,
       existsSync: ops.op_fs_file_exists_sync,
-      mkdir(dir, options = {}) {
+      mkdirSync(dir, options = {}) {
         return ops.op_fs_mkdir_sync(dir, options.recursive || false);
       },
       readFileSync: ops.op_fs_read_file_sync,
@@ -32,6 +32,9 @@
       },
       readToString(...args) {
         return opAsync("op_fs_read_file_string_async", ...args);
+      },
+      readAsJson(...args) {
+        return opAsync("op_fs_read_file_as_json_async", ...args);
       },
       writeFileSync(path, data, options) {
         if (options) {

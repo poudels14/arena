@@ -9,7 +9,7 @@ use indexmap::IndexMap;
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
-use tracing::{debug, instrument};
+use tracing::{debug, error, instrument};
 use url::{ParseError, Url};
 
 const SUPPORTED_EXTENSIONS: [&'static str; 7] =
@@ -94,11 +94,11 @@ impl FsModuleResolver {
           .to_file_path()
           .map_err(|_| InvalidBaseUrl(ParseError::RelativeUrlWithoutBase))?;
 
-        let maybe_package =
-          super::npm::load_package_json_in_dir(&filepath).ok();
         load_as_file(&filepath)
           .or_else(|e| {
             debug!("error loading as file: {:?}", e);
+            let maybe_package =
+              super::npm::load_package_json_in_dir(&filepath).ok();
             load_as_directory(&filepath, &maybe_package)
           })
           .and_then(|p| self.convert_to_url(p))
@@ -109,7 +109,10 @@ impl FsModuleResolver {
       // it being relative, always return the original error. We don't want to
       // return `ImportPrefixMissing` or `InvalidBaseUrl` if the real
       // problem lies somewhere else.
-      Err(err) => return Err(InvalidUrl(err)),
+      Err(err) => {
+        error!("Parsing specifier failed! specifier = {specifier:?}");
+        return Err(InvalidUrl(err));
+      }
     };
 
     Ok(url)
@@ -153,8 +156,19 @@ impl FsModuleResolver {
 
 #[tracing::instrument]
 pub fn load_as_file(file: &PathBuf) -> Result<PathBuf> {
+  if file.is_file() {
+    return Ok(file.clone());
+  }
+
   for ext in SUPPORTED_EXTENSIONS {
-    let file_with_extension = file.with_extension(ext);
+    let ext = match file.extension().and_then(|e| e.to_str()) {
+      // Note(sagar): if file already has extension that's not
+      // in SUPPORTED_EXTENSIONS, combine the extensions
+      // the is needed to load files with multiple `.` in the filename
+      Some(e) if !SUPPORTED_EXTENSIONS.contains(&e) => format!("{}.{}", e, ext),
+      _ => ext.to_owned(),
+    };
+    let file_with_extension = file.with_extension(&ext);
     if file_with_extension.exists() {
       debug!("matched extension: {}", ext);
       return Ok(file_with_extension);

@@ -1,3 +1,4 @@
+import { join } from "path";
 import { declare } from "@babel/helper-plugin-utils";
 import * as t from "@babel/types";
 
@@ -24,7 +25,13 @@ const resolver = declare((_api, _options) => {
               path.node.source.value,
               "./" // TODO(sagar): support customizing referer?
             );
-            path.node.source = t.stringLiteral(resolvedImport);
+            path.node.source = t.stringLiteral(
+              // Note(sagar): since resolved path is relative to project root,
+              // convert it to absolute path. This is necessary since this
+              // plugin is used to resolve import in dev mode for browser files
+              // and all assets are served from project root
+              join("/", resolvedImport)
+            );
           }
         },
       },

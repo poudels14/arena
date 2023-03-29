@@ -1,20 +1,25 @@
 import { rollup } from "rollup";
 import { babel } from "@rollup/plugin-babel";
+import { createFilter } from "@rollup/pluginutils";
+import { terser } from "./terser";
 import { resolver } from "./resolver";
+import { loader } from "./loader";
 
 const plugins = {
   babel,
+  terser,
   arenaResolver: resolver,
+  arenaLoader: loader,
 };
 
 const build = async (options) => {
   const { plugins, ...restOptions } = options || {};
   const bundle = await rollup({
     ...restOptions,
-    plugins: [...(plugins || []), resolver()],
+    plugins,
   });
   await bundle.write(options.output);
   await bundle.close();
 };
 
-export { rollup, plugins, build };
+export { rollup, plugins, createFilter, build };
