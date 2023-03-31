@@ -223,7 +223,17 @@ impl WorkspaceServer {
       include_str!("../../../../js/packages/workspace-server/dist/index.js")
         .to_owned();
 
-    let server_entry = self.workspace.server_entry();
+    runtime.execute_script(
+      "workspace:init",
+      &format!(
+        r#"
+        globalThis.Arena.Workspace = {{
+          config: JSON.parse(`{}`),
+        }};
+        "#,
+        json!(self.workspace.config)
+      ),
+    )?;
 
     // Note(sagar): set the workspace server's module file in the
     // same directory as the workspace entry file so that we can
@@ -239,6 +249,7 @@ impl WorkspaceServer {
       )
       .await?;
 
+    let server_entry = self.workspace.server_entry();
     let server_entry = server_entry
       .to_str()
       .ok_or(anyhow!("Unable to get workspace entry file"))?;
@@ -253,17 +264,11 @@ impl WorkspaceServer {
             // whatever the entry file is for the workspace so that it's
             // transpiled properly
 
-            globalThis.Arena.Workspace = {{
-              config: JSON.parse(`{}`),
-            }};
-
             await import("file://{}").then(async ({{ default: m }}) => {{
               serve(m);
             }});
           "#,
-          virtual_workspace_server_file,
-          json!(self.workspace.config),
-          server_entry
+          virtual_workspace_server_file, server_entry
         ),
       )
       .await?;

@@ -2,13 +2,21 @@ import { createHandler } from "@arena/core/server";
 import * as mime from "mime";
 import * as path from "path";
 
+// @ts-ignore
+const resolve = Arena.Workspace.config?.client?.javascript || {};
 const { Transpiler } = Arena.BuildTools;
 const transpiler = new Transpiler({
   resolve_import: true,
   resolver: {
-    preserve_symlink: true,
-    conditions: ["browser", "development"],
-    dedupe: ["solid-js", "solid-js/web", "@solidjs/meta", "@solidjs/router"],
+    preserve_symlink: resolve?.preserve_symlink || true,
+    conditions: resolve?.conditions || ["browser", "development"],
+    dedupe: resolve?.dedupe || [
+      "solid-js",
+      "solid-js/web",
+      "@solidjs/meta",
+      "@solidjs/router",
+      "@arena/solid-store",
+    ],
   },
   replace: {
     "Arena.env.MODE": JSON.stringify(Arena.env.MODE),
