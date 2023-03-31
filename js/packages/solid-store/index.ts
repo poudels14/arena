@@ -1,18 +1,23 @@
-import { Accessor, batch, createSignal, getListener } from "solid-js";
+import {
+  Accessor,
+  batch,
+  createMemo,
+  createSignal,
+  getListener,
+} from "solid-js";
 import type { SetStoreFunction } from "solid-js/store";
+import {
+  $GET,
+  $LENGTH,
+  $NAME,
+  $NODE,
+  $RAW,
+  $SET,
+  $STORE,
+  $UPDATEDAT,
+} from "./symbols";
 
 let updateEpoch = 1;
-const $STORE = Symbol("_solid_store_");
-const $RAW = Symbol("_value_");
-const $NODE = Symbol("_node_");
-const $UPDATEDAT = Symbol("_updated_at_");
-const $GET = Symbol("_get_signal_");
-const $SET = Symbol("_set_signal_");
-// since function is the target of the proxy,
-// name and length can't be changed. so, use symbol
-// for those fields
-const $NAME = Symbol("_name_");
-const $LENGTH = Symbol("_length_");
 
 type UndefinedValue =
   | Record<string, undefined>
@@ -37,7 +42,7 @@ type StoreValue<Shape, Value> = Shape extends null
     } & Accessor<undefined>
   : Shape extends {}
   ? { [K in keyof Shape]: StoreValue<Shape[K], Shape[K]> } & Node<Value>
-  : never;
+  : Node<Value>;
 
 type Store<T> = StoreValue<T, T>;
 
@@ -56,7 +61,7 @@ function createStore<T>(initValue: T) {
 }
 
 const proxyHandlers = {
-  get(target: any, p: any, receiver: any) {
+  get(target: any, p: any, receiver: any): any {
     if (
       p === $RAW ||
       p === $NODE ||
@@ -71,25 +76,32 @@ const proxyHandlers = {
     // proxy, which is much more performant!
     let tp = toInternalKey(p);
     let v = target[tp];
-    if (!v) {
-      const rawTarget = target[$RAW];
-      let getter = getFieldGetter(rawTarget, tp);
-      if (getter) {
-        return getter;
-      }
-      const value = rawTarget?.[p];
-      if (value === undefined || value === null) {
-        // Note(sagar): if the value of sub-field is null || undefined,
-        // return undefined but make this call reactive
-        getListener() && void receiver();
-        return value === undefined ? UNDEFINED_TRAP : NULL_TRAP;
-      }
-      v = target[tp] = new Proxy(
-        (target[$NODE][tp] = createDataNode(value, p)),
-        proxyHandlers
-      );
+    if (v) return v;
+
+    const rawTarget = target[$RAW];
+    let getter = getFieldGetter(rawTarget, tp);
+    if (getter) {
+      return getter;
     }
-    return v;
+    const value = rawTarget?.[p];
+    if (value === undefined || value === null) {
+      // Note(sagar): if the value of sub-field is null || undefined,
+      // return undefined but make this call reactive
+      getListener() && void receiver();
+      return value === undefined ? UNDEFINED_TRAP : NULL_TRAP;
+    }
+
+    // Note(sagar): if `.length` of an array is being accessed,
+    // return a memo that updates when array length change
+    if (p === "length" && rawTarget.push) {
+      return (target[tp] = createMemo(() => {
+        return receiver().length;
+      }));
+    }
+    return (target[tp] = new Proxy(
+      (target[$NODE][tp] = createDataNode(value, p)),
+      proxyHandlers
+    ));
   },
   apply(target: any) {
     /**
@@ -236,8 +248,8 @@ const updatePath = (root: any, path: any[]) => {
 };
 
 const compareAndNotify = (node: any, value: any) => {
-  let prev;
-  if (!node || !(node = node[$NODE]) || value === (prev = node[$RAW])) {
+  let nodeNode: any, prev;
+  if (!node || !(nodeNode = node[$NODE]) || value === (prev = nodeNode[$RAW])) {
     return;
   }
 
@@ -254,28 +266,25 @@ const compareAndNotify = (node: any, value: any) => {
 
     for (let i = 0; i < newKeys.length; i++) {
       const k = newKeys[i];
-      const refK = node[k];
+      const refK = nodeNode[k];
       removedFields.delete(k);
       // TODO: figure out how to "cache" array items properly
-      if (refK && !getFieldGetter(node, k)) compareAndNotify(refK, value[k]);
+      if (refK && !getFieldGetter(nodeNode, k))
+        compareAndNotify(refK, value[k]);
     }
 
     // TODO(sagar): support merging so that fields that are not in
     // the new value arent removed
     [...removedFields].forEach((k) => {
-      let childNode = node[k];
+      let childNode = nodeNode[k];
       childNode && compareAndNotify(childNode, undefined);
-      delete node[k];
+      delete nodeNode[k];
     });
-
-    if (prev?.length !== value?.length) {
-      node[$LENGTH][$SET]?.(updateEpoch);
-    }
   }
 
-  node[$UPDATEDAT] = updateEpoch;
-  node[$SET]?.(value);
-  node[$RAW] = value;
+  nodeNode[$UPDATEDAT] = updateEpoch;
+  nodeNode[$SET]?.(value);
+  nodeNode[$RAW] = value;
 };
 
 export function isWrappable(obj: any) {
