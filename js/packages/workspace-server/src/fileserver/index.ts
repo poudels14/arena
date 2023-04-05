@@ -4,6 +4,12 @@ import * as path from "path";
 
 // @ts-ignore
 const resolve = Arena.Workspace.config?.client?.javascript || {};
+const clientEnv = Object.assign(
+  {},
+  Arena.env,
+  // @ts-ignore
+  Arena.Workspace.config?.client?.env
+);
 const { Transpiler } = Arena.BuildTools;
 const transpiler = new Transpiler({
   resolve_import: true,
@@ -18,13 +24,14 @@ const transpiler = new Transpiler({
       "@arena/solid-store",
     ],
   },
-  replace: {
-    "Arena.env.MODE": JSON.stringify(Arena.env.MODE),
-    // Note(sagar): SSR should always be false since this
-    // transpiler is used for browser code
-    "Arena.env.SSR": JSON.stringify(false),
-    "Arena.env.ARENA_SSR": JSON.stringify(Arena.env.ARENA_SSR),
-  },
+  replace: Object.fromEntries(
+    Object.entries(clientEnv).flatMap(([k, v]) => {
+      return [
+        [`Arena.env.${k}`, JSON.stringify(v)],
+        [`process.env.${k}`, JSON.stringify(v)],
+      ];
+    })
+  ),
 });
 
 const getTranspiledJavascript = async (filePath: string, ext: string) => {
