@@ -11,3 +11,4 @@ export {
   ContextMenu,
 } from "@kobalte/core";
 export { InlineIcon } from "./InlineIcon";
+// exported Table builder from "@arena/components/table"

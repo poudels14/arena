@@ -7,7 +7,9 @@
   "author": "Sagar Poudel",
   "license": "UNLICENSED",
   "dependencies": {
+    "@arena/solid-store": "workspace:^0.1.0",
     "@kobalte/core": "^0.6.2",
+    "klona": "^2.0.6",
     "solid-js": "^1.6.12"
   },
   "peerDependencies": {
