@@ -1,12 +1,20 @@
 import { JSXElement } from "solid-js";
 
+type Header = {
+  id: string;
+  colSpan: number;
+  column: {
+    def: ColumnDef;
+  };
+};
+
 type ColumnDef = {
   /**
    * Column accessor key
    */
   key: string;
-  header: string | (() => JSXElement);
+  header: string | JSXElement;
   cell?: (value: any) => JSXElement;
 };
 
-export { ColumnDef };
+export type { Header, ColumnDef };

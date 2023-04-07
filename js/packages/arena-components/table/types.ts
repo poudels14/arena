@@ -1,6 +1,7 @@
 import { Store, StoreSetter } from "@arena/solid-store";
-import { ColumnDef } from "./column";
-import { Row } from "./row";
+import { JSX, JSXElement } from "solid-js";
+import { ColumnDef, Header } from "./column";
+import { Cell, Row } from "./row";
 
 type TableState<PluginsState> = {
   rows: Row[];
@@ -29,7 +30,7 @@ type BaseConfig<Row> = {
   data: Row[];
 };
 
-type InternalTable<PluginsState, Methods, R> = {
+type InternalTable<PluginsState, Methods> = {
   /**
    * Current state of the table
    */
@@ -37,18 +38,24 @@ type InternalTable<PluginsState, Methods, R> = {
 
   setState: StoreSetter<TableState<PluginsState>>;
 
+  ui: {
+    Th: (props: JSX.HTMLElementTags["th"] & { header: Header }) => JSXElement;
+    Tr: (props: JSX.HTMLElementTags["tr"]) => JSXElement;
+    Td: (
+      props: JSX.HTMLElementTags["td"] & { cell: Cell<unknown> }
+    ) => JSXElement;
+  };
+
   internal: {
     getVisibleRows: () => Row[];
   };
 } & Methods;
 
-type AnyInternalTable = InternalTable<unknown, unknown, unknown>;
+type AnyInternalTable = InternalTable<unknown, unknown>;
 
-type Table<S, M, R> = Pick<InternalTable<S, M, R>, "state"> & M;
+type Table<S, M, R> = Pick<InternalTable<S, M>, "state" | "ui"> & M;
 
-type Plugin<C, PS, M> = (
-  config: C
-) => (table: InternalTable<PS, M, any>) => void;
+type Plugin<C, PS, M> = (config: C) => (table: InternalTable<PS, M>) => void;
 
 export type {
   BaseConfig,

@@ -1,15 +1,7 @@
 import { createComputed, createMemo, JSXElement } from "solid-js";
 import { klona } from "klona";
 import { Plugin } from "..";
-import { ColumnDef } from "../column";
-
-type Header = {
-  id: string;
-  colSpan: number;
-  column: {
-    def: ColumnDef;
-  };
-};
+import { Header } from "../column";
 
 type HeaderGroup = {
   id: string;
@@ -26,7 +18,7 @@ namespace Config {
     /**
      * Displlay title of the column
      */
-    header?: string | (() => JSXElement);
+    header?: string | JSXElement;
 
     /**
      * Render row cell
@@ -52,7 +44,7 @@ namespace Config {
 }
 
 type State = {
-  withHeaders: {
+  headers: {
     config: Config.Headers;
   };
 };
@@ -64,10 +56,10 @@ type Methods = {
 const withHeaders: Plugin<Config.Headers, State, Methods> = (config) => {
   return (table) => {
     const { setState, state } = table;
-    setState("_plugins", "withHeaders", { config: klona(config) });
+    setState("_plugins", "headers", { config: klona(config) });
 
     const headerGroups = createMemo(() => {
-      const config = state._plugins.withHeaders.config();
+      const config = state._plugins.headers.config();
       const headerGroups: HeaderGroup[] = [
         {
           id: "0",

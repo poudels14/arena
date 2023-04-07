@@ -10,9 +10,9 @@
     "@arena/solid-store": "workspace:^0.1.0",
     "@kobalte/core": "^0.6.2",
     "klona": "^2.0.6",
-    "solid-js": "^1.6.12"
+    "solid-js": "^1.7.2"
   },
   "peerDependencies": {
-    "solid-js": "^1.6.12"
+    "solid-js": "^1.7.2"
   }
 }

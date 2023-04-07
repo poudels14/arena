@@ -41,43 +41,41 @@ type PaginationMethods = {
 
 const withPagination: Plugin<
   PaginationConfig,
-  { withPagination: PaginationState },
+  { pagination: PaginationState },
   PaginationMethods
 > = (config) => {
   config = klona(config);
   return (table) => {
     const setPage = (page: number) => {
-      table.setState("_plugins", "withPagination", "currentPage", page);
+      table.setState("_plugins", "pagination", "currentPage", page);
       return page;
     };
 
-    table.setState("_plugins", "withPagination", {
+    table.setState("_plugins", "pagination", {
       currentPage: 0,
       pageSize: config.pageSize || Infinity,
     });
 
     Object.assign(table, {
       hasPreviousPage() {
-        return table.state._plugins.withPagination.currentPage() > 1;
+        return table.state._plugins.pagination.currentPage() > 1;
       },
       previousPage() {
-        const currentPage =
-          table.state[$RAW]._plugins.withPagination.currentPage;
+        const currentPage = table.state[$RAW]._plugins.pagination.currentPage;
         if (untrack(table.hasPreviousPage)) {
           return setPage(currentPage - 1);
         }
         return currentPage;
       },
       hasNextPage() {
-        const pagination = table.state._plugins.withPagination();
+        const pagination = table.state._plugins.pagination();
         return (
           pagination.currentPage + 1 <
           table.state._core.data().length / pagination.pageSize
         );
       },
       nextPage() {
-        const currentPage =
-          table.state[$RAW]._plugins.withPagination.currentPage;
+        const currentPage = table.state[$RAW]._plugins.pagination.currentPage;
         if (untrack(table.hasNextPage)) {
           return setPage(currentPage + 1);
         }
@@ -89,7 +87,7 @@ const withPagination: Plugin<
       getVisibleRows() {
         // generate new rows if data is changed
         void table.state._core.data();
-        const pagination = table.state._plugins.withPagination();
+        const pagination = table.state._plugins.pagination();
         const startIdx = pagination.currentPage * pagination.pageSize;
 
         return [...Array(pagination.pageSize)].map((_, idx) => {
