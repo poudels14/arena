@@ -12,8 +12,9 @@ use std::rc::Rc;
 use tracing::{debug, error, instrument};
 use url::{ParseError, Url};
 
-const SUPPORTED_EXTENSIONS: [&'static str; 7] =
-  ["ts", "tsx", "js", "mjs", "jsx", "json", "cjs"];
+const SUPPORTED_EXTENSIONS: [&'static str; 9] = [
+  "ts", "tsx", "js", "mjs", "jsx", "json", "cjs", "css", ".scss",
+];
 
 pub(crate) struct ResolverCache {
   pub node_module_dirs: IndexMap<String, Vec<PathBuf>>,

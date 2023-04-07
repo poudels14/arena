@@ -135,10 +135,11 @@ async fn op_transpiler_transpile_file_async(
 fn op_transpiler_transpile_sync(
   state: &mut OpState,
   rid: ResourceId,
+  filename: String,
   code: String,
 ) -> Result<TranspileResult> {
   let transpiler = state.resource_table.get::<Transpiler>(rid)?;
-  transpile_code(transpiler, &PathBuf::from("<code>"), &code)
+  transpile_code(transpiler, &PathBuf::from(filename), &code)
 }
 
 fn transpile_code(

@@ -13,11 +13,19 @@
     }
 
     async transpileFileAsync(filename) {
-      return await opAsync("op_transpiler_transpile_file_async", this.#rid, filename);
+      return await opAsync(
+        "op_transpiler_transpile_file_async",
+        this.#rid,
+        filename
+      );
     }
 
-    transpileSync(code) {
-      return ops.op_transpiler_transpile_sync(this.#rid, code);
+    transpileSync(code, filename) {
+      return ops.op_transpiler_transpile_sync(
+        this.#rid,
+        filename || "<code>",
+        code
+      );
     }
   }
 

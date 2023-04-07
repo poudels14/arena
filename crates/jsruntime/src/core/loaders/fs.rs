@@ -9,6 +9,7 @@ use deno_core::{
 };
 use futures::future::FutureExt;
 use std::cell::RefCell;
+use std::path::PathBuf;
 use std::pin::Pin;
 use std::rc::Rc;
 
@@ -88,34 +89,49 @@ impl ModuleLoader for FsModuleLoader {
       })?;
 
       let media_type = MediaType::from_specifier(&module_specifier);
-      let (module_type, _should_transpile) = match media_type {
+      let (module_type, maybe_code, _should_transpile) = match media_type {
         MediaType::JavaScript | MediaType::Mjs | MediaType::Cjs => {
-          (ModuleType::JavaScript, false)
+          (ModuleType::JavaScript, None, false)
         }
-        MediaType::Jsx => (ModuleType::JavaScript, transpile),
         MediaType::TypeScript
         | MediaType::Mts
         | MediaType::Cts
         | MediaType::Dts
         | MediaType::Dmts
         | MediaType::Dcts
-        | MediaType::Tsx => (ModuleType::JavaScript, transpile),
-        MediaType::Json => (ModuleType::Json, false),
-        _ => bail!("Unknown extension {:?}", path.extension()),
+        | MediaType::Tsx
+        | MediaType::Jsx => (ModuleType::JavaScript, None, transpile),
+        MediaType::Json => (ModuleType::Json, None, false),
+        _ => match path.extension().and_then(|e| e.to_str()) {
+          Some("css") => {
+            (ModuleType::JavaScript, Some(self::load_css(&path)?), false)
+          }
+          _ => bail!("Unknown extension {:?}", path.extension()),
+        },
       };
 
-      let code = std::fs::read_to_string(path.clone())?;
-      // Note(sagar): transpile all JS files if transpile is enabled
-      // so that even cjs modules are transformed to es6
-      let code = match transpile {
-        true => {
-          transpiler::transpile(runtime.unwrap(), &path, &media_type, &code)?
+      let code = match maybe_code {
+        Some(code) => code,
+        None => {
+          let code = std::fs::read_to_string(path.clone())?;
+          // Note(sagar): transpile all JS files if transpile is enabled
+          // so that even cjs modules are transformed to es6
+          match transpile {
+            true => transpiler::transpile(
+              runtime.unwrap(),
+              &path,
+              &media_type,
+              &code,
+            )?,
+            false => code,
+          }
+          .as_bytes()
+          .into()
         }
-        false => code,
       };
 
       let module = ModuleSource {
-        code: code.as_bytes().into(),
+        code,
         module_type,
         module_url_specified: module_specifier.to_string(),
         module_url_found: module_specifier.to_string(),
@@ -124,4 +140,19 @@ impl ModuleLoader for FsModuleLoader {
     }
     .boxed_local()
   }
+}
+
+fn load_css(path: &PathBuf) -> Result<Box<[u8]>, Error> {
+  let css = std::fs::read_to_string(path.clone())?;
+  Ok(
+    format!(
+      r#"import styleInject from "style-inject";
+      const css = `{css}`;
+      styleInject(css);
+      export default css;
+    "#
+    )
+    .as_bytes()
+    .into(),
+  )
 }
