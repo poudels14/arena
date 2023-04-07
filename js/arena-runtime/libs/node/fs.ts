@@ -7,3 +7,4 @@ const fs = {
 
 export { readFileSync, statSync };
 export default fs;
+export * as promises from "./fs_promises";

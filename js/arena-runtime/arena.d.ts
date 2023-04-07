@@ -110,7 +110,11 @@ declare namespace Arena {
 
     public transpileFileAsync: (filename: string) => Promise<TranspileResult>;
 
-    public transpileSync: (code: string) => TranspileResult;
+    /**
+     * If import resolution is enabled, the filename should be passed such that
+     * the imports are resolved using the filename as a referrer
+     */
+    public transpileSync: (code: string, filename?: string) => TranspileResult;
   }
 
   type BuildTools = {
@@ -150,7 +154,10 @@ declare function encodeToBase64(digest: any): string;
 declare function encodeToBase64Url(digetst: any): string;
 
 declare module "@arena/babel" {
+  export const babel;
   export const solidPreset;
+  export const transformCommonJsPlugin;
+  export const importResolverPlugin;
 }
 
 declare module "@arena/rollup" {
@@ -162,6 +169,7 @@ declare module "@arena/rollup" {
       replace?: Arena.TranspilerConfig["replace"];
     }) => any;
     babel: (options: any) => any;
+    postcss: (options: any) => any;
   };
   export const build: (options: any) => Promise<void>;
 }

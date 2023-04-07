@@ -55,10 +55,22 @@ program.option("--minify").action(async (options, cmd) => {
         // need to alias this here so that build is successful. I think the
         // bundle doesn't need os module because watch and any other code that
         // uses 'os' module isn't being included in the bundle
-        os: "node:os",
+
+        os: "./libs/alias/os.ts",
+        fs: "./libs/alias/fs.ts",
+        resolve: "./libs/alias/resolve.ts",
+        module: "./libs/alias/module.ts",
+        "postcss-load-config": "./libs/alias/postcss-load-config.ts",
         "@babel/core": "@arena/babel",
       },
-      external: ["fs", "tty", "stream", "@arena/babel"],
+      external: ["tty", "crypto", "module", "stream", "@arena/babel"],
+    }),
+    build({
+      ...options,
+      entryPoints: {
+        buildtools: "./libs/buildtools.ts",
+      },
+      external: ["@arena/babel"],
     }),
   ]);
 });

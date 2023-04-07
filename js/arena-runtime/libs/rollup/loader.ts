@@ -1,3 +1,5 @@
+import { createFilter } from "@rollup/pluginutils";
+
 /**
  * This loader strips typescript types when loading. Since we need
  * typescript plugin in rollup to support typescript, instead of using
@@ -10,6 +12,7 @@ const loader = (options: { replace: any }) => {
     replace: options.replace,
   });
 
+  const filter = createFilter("**/*.(js|ts|jsx|tsx|mjs|cjs)");
   return {
     name: "arena-loader",
     async load(id) {
@@ -17,6 +20,9 @@ const loader = (options: { replace: any }) => {
       // key/value pair in `options.replace`. If there's another
       // way to replace, we can only transpile `.ts` and `.tsx` files
       // to strip Typescript
+      if (!filter(id)) {
+        return;
+      }
       const { code } = await transpiler.transpileFileAsync(id);
       return code;
     },

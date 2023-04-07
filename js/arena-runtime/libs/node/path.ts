@@ -9,4 +9,5 @@ export {
   resolve,
   posix,
   win32,
+  sep,
 } from "path";
