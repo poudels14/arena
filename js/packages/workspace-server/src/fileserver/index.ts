@@ -3,12 +3,12 @@ import * as mime from "mime";
 import * as path from "path";
 
 // @ts-ignore
-const resolve = Arena.Workspace.config?.client?.javascript || {};
+const resolve = Arena.Workspace?.config?.client?.javascript || {};
 const clientEnv = Object.assign(
   {},
   Arena.env,
   // @ts-ignore
-  Arena.Workspace.config?.client?.env
+  Arena.Workspace?.config?.client?.env
 );
 const { Transpiler } = Arena.BuildTools;
 const transpiler = new Transpiler({
@@ -53,6 +53,20 @@ const getTranspiledJavascript = async (filePath: string, ext: string) => {
   return transpiledCode;
 };
 
+const getTransformedCss = async (filePath: string, ext: string) => {
+  const css = await Arena.fs.readToString("./" + filePath);
+  const { code } = await transpiler.transpileSync(
+    `import styleInject from "style-inject";
+  const css = \`${css}\`;
+  styleInject(css);
+  export default css;
+`,
+    filePath
+  );
+  // TODO(sagar): transform using postcss
+  return code;
+};
+
 export default createHandler(async (event) => {
   const filePath = event.ctx.path;
   const ext = path.extname(filePath);
@@ -73,8 +87,12 @@ export default createHandler(async (event) => {
 
   try {
     let content;
+    let responseContentType = contentType;
     if ([".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"].includes(ext)) {
       content = await getTranspiledJavascript(filename, ext);
+    } else if ([".css"].includes(ext)) {
+      content = await getTransformedCss(filename, ext);
+      responseContentType = "application/javascript";
     } else {
       if (["application/json"].includes(contentType)) {
         content = await Arena.fs.readToString(filename);
@@ -85,7 +103,7 @@ export default createHandler(async (event) => {
 
     return new Response(content, {
       headers: {
-        "content-type": contentType!,
+        "content-type": responseContentType!,
       },
       status: 200,
     });
