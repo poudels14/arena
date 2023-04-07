@@ -3,47 +3,55 @@ lockfileVersion: 5.4
 specifiers:
   '@arena/core': ^0.1.0
   '@arena/editor': workspace:^0.1.0
-  '@solidjs/meta': ^0.28.2
-  '@solidjs/router': ^0.7.0
-  solid-js: ^1.6.11
+  '@arena/solid-store': workspace:^0.1.0
+  '@solidjs/meta': ^0.28.4
+  '@solidjs/router': ^0.8.2
+  solid-js: ^1.7.2
   typescript: ^4.9.5
 
 dependencies:
   '@arena/core': link:../arena-core
   '@arena/editor': link:../editor
-  '@solidjs/meta': 0.28.2_solid-js@1.6.11
-  '@solidjs/router': 0.7.0_solid-js@1.6.11
-  solid-js: 1.6.11
+  '@arena/solid-store': link:../solid-store
+  '@solidjs/meta': 0.28.4_solid-js@1.7.2
+  '@solidjs/router': 0.8.2_solid-js@1.7.2
+  solid-js: 1.7.2
 
 devDependencies:
   typescript: 4.9.5
 
 packages:
 
-  /@solidjs/meta/0.28.2_solid-js@1.6.11:
-    resolution: {integrity: sha512-avlLgBPdk4KVxzRGFlYp/MIJo8B5jVgXPgk6OUnUP8km21Z+ovO+DUd7ZPA7ejv8PBdWi9GE3zCzw8RU2YuV2Q==}
+  /@solidjs/meta/0.28.4_solid-js@1.7.2:
+    resolution: {integrity: sha512-1USElsQuGVcJnmZ6CxPfUVmKvCsVdBQoGrUyMxLtFw36Ytt90dPs/qLyXLvPR/ZPD16/qauWqg6APEkbrDOLcA==}
     peerDependencies:
       solid-js: '>=1.4.0'
     dependencies:
-      solid-js: 1.6.11
+      solid-js: 1.7.2
     dev: false
 
-  /@solidjs/router/0.7.0_solid-js@1.6.11:
-    resolution: {integrity: sha512-8HI84twe5FjYRebSLMAhtkL9bRuTDIlxJK56kjfjU9WKGoUCTaWpCnkuj8Hqde1bWZ0X+GOZxKDfNkn1CjtjxA==}
+  /@solidjs/router/0.8.2_solid-js@1.7.2:
+    resolution: {integrity: sha512-gUKW+LZqxtX6y/Aw6JKyy4gQ9E7dLqp513oB9pSYJR1HM5c56Pf7eijzyXX+b3WuXig18Cxqah4tMtF0YGu80w==}
     peerDependencies:
       solid-js: ^1.5.3
     dependencies:
-      solid-js: 1.6.11
+      solid-js: 1.7.2
     dev: false
 
   /csstype/3.1.1:
     resolution: {integrity: sha512-DJR/VvkAvSZW9bTouZue2sSxDwdTN92uHjqeKVm+0dAqdfNykRzQ95tay8aXMBAAPpUiq4Qcug2L7neoRh2Egw==}
     dev: false
 
-  /solid-js/1.6.11:
-    resolution: {integrity: sha512-JquQQHPArGq+i2PLURxJ99Pcz2/1docpbycSio/cKSA0SeI3z5zRjy0TNcH4NRYvbOLrcini+iovXwnexKabyw==}
+  /seroval/0.5.1:
+    resolution: {integrity: sha512-ZfhQVB59hmIauJG5Ydynupy8KHyr5imGNtdDhbZG68Ufh1Ynkv9KOYOAABf71oVbQxJ8VkWnMHAjEHE7fWkH5g==}
+    engines: {node: '>=10'}
+    dev: false
+
+  /solid-js/1.7.2:
+    resolution: {integrity: sha512-01f8GIc+HTTlfDXtK+TFku3AllHyJ3hNsIpxM2qpObRP4VbEGVIP6VbULnThPlpse+J1y/I/1N9QeQ9MNkE8Ow==}
     dependencies:
       csstype: 3.1.1
+      seroval: 0.5.1
     dev: false
 
   /typescript/4.9.5:

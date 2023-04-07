@@ -4,9 +4,10 @@
   "dependencies": {
     "@arena/core": "^0.1.0",
     "@arena/editor": "workspace:^0.1.0",
-    "@solidjs/meta": "^0.28.2",
-    "@solidjs/router": "^0.7.0",
-    "solid-js": "^1.6.11"
+    "@arena/solid-store": "workspace:^0.1.0",
+    "@solidjs/meta": "^0.28.4",
+    "@solidjs/router": "^0.8.2",
+    "solid-js": "^1.7.2"
   },
   "devDependencies": {
     "typescript": "^4.9.5"
