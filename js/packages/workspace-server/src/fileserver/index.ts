@@ -3,7 +3,7 @@ import * as mime from "mime";
 import * as path from "path";
 
 // @ts-ignore
-const resolve = Arena.Workspace?.config?.client?.javascript || {};
+const { resolve } = Arena.Workspace?.config?.client?.javascript || {};
 const clientEnv = Object.assign(
   {},
   Arena.env,
@@ -16,13 +16,7 @@ const transpiler = new Transpiler({
   resolver: {
     preserve_symlink: resolve?.preserve_symlink || true,
     conditions: resolve?.conditions || ["browser", "development"],
-    dedupe: resolve?.dedupe || [
-      "solid-js",
-      "solid-js/web",
-      "@solidjs/meta",
-      "@solidjs/router",
-      "@arena/solid-store",
-    ],
+    dedupe: resolve?.dedupe,
   },
   replace: Object.fromEntries(
     Object.entries(clientEnv).flatMap(([k, v]) => {
