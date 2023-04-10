@@ -25,6 +25,7 @@ impl FsModuleResolver {
   ) -> Result<ModuleSpecifier, ModuleResolutionError> {
     match maybe_referrer.as_ref() {
       Some(referrer) => {
+        let parsed_specifier = parse_specifier(&specifier);
         let mut cache = self.cache.borrow_mut();
         let root = self.project_root.clone();
 
@@ -33,13 +34,14 @@ impl FsModuleResolver {
         // force resolver to use same node_modules directory for all deduped
         // modules
         let referrer_url;
-        let referrer_to_use = if self.config.dedupe.contains(specifier) {
-          referrer_url = Url::from_file_path(&root)
-            .map_err(|_| InvalidPath(root.clone()))?;
-          referrer_url.as_str()
-        } else {
-          referrer
-        };
+        let referrer_to_use =
+          if self.config.dedupe.contains(&parsed_specifier.package_name) {
+            referrer_url = Url::from_file_path(&root)
+              .map_err(|_| InvalidPath(root.clone()))?;
+            referrer_url.as_str()
+          } else {
+            referrer
+          };
         let directories = match cache.node_module_dirs.get(referrer_to_use) {
           Some(dir) => dir,
           None => {
@@ -65,7 +67,6 @@ impl FsModuleResolver {
           }
         };
 
-        let parsed_specifier = parse_specifier(&specifier);
         for dir_path in directories {
           debug!("using node_module in: {}", &dir_path.display());
           let maybe_package = load_package_json_in_dir(
