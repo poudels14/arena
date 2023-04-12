@@ -5,11 +5,15 @@ import * as path from "path";
 // @ts-ignore
 const { resolve } = Arena.Workspace?.config?.client?.javascript || {};
 const clientEnv = Object.assign(
-  {},
+  {
+    // Note(sagar): since this is client env, always set SSR = true
+    SSR: false,
+  },
   Arena.env,
   // @ts-ignore
   Arena.Workspace?.config?.client?.env
 );
+
 const { Transpiler } = Arena.BuildTools;
 const transpiler = new Transpiler({
   resolve_import: true,

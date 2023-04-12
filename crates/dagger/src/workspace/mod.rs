@@ -1,3 +1,4 @@
+mod bundle;
 mod dev;
 mod new;
 use anyhow::Result;
@@ -9,6 +10,9 @@ pub enum Command {
 
   /// Serve a workspace in dev mode
   Dev(dev::Command),
+
+  /// Bundle Arena workspace to client and server files
+  Bundle(bundle::Command),
 }
 
 impl Command {
@@ -16,6 +20,7 @@ impl Command {
     match self {
       Self::New(cmd) => cmd.execute().await?,
       Self::Dev(cmd) => cmd.execute().await?,
+      Self::Bundle(cmd) => cmd.execute().await?,
     }
     Ok(())
   }

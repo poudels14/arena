@@ -10,7 +10,6 @@ use deno_core::{
 };
 use deno_core::{Extension, JsRuntime, Snapshot};
 use derivative::Derivative;
-use futures::channel::oneshot;
 use itertools::Itertools;
 use std::cell::RefCell;
 use std::env::current_dir;
@@ -58,7 +57,7 @@ pub struct RuntimeConfig {
   /// enables importing from node modules like "node:fs"
   pub enable_node_modules: bool,
 
-  pub side_modules: Option<Vec<ExtensionFileSource>>,
+  pub side_modules: Vec<ExtensionFileSource>,
 }
 
 pub struct IsolatedRuntime {
@@ -86,11 +85,7 @@ impl IsolatedRuntime {
     });
 
     let permissions = config.permissions.clone();
-    let mut builtin_modules = config
-      .side_modules
-      .as_ref()
-      .map(|sm| sm.clone())
-      .unwrap_or(vec![]);
+    let mut builtin_modules = vec![];
 
     let mut extensions = vec![
       deno_webidl::init(),
@@ -136,6 +131,11 @@ impl IsolatedRuntime {
     if config.enable_build_tools {
       builtin_modules.extend(buildtools::get_build_tools_modules());
     }
+
+    // Note(sagar): add passed in side-modules at the end so that
+    // builtin modules are already loaded in case external modules depend on
+    // builtin modules
+    builtin_modules.extend(config.side_modules.clone());
 
     let create_params = config.heap_limits.map(|(initial, max)| {
       v8::Isolate::create_params().heap_limits(initial, max)
@@ -250,10 +250,13 @@ impl IsolatedRuntime {
     &mut self,
     url: &Url,
     code: &str,
-  ) -> Result<oneshot::Receiver<Result<()>>> {
+  ) -> Result<()> {
     let mut runtime = self.runtime.borrow_mut();
     let mod_id = runtime.load_main_module(url, Some(code.to_owned())).await?;
-    Ok(runtime.mod_evaluate(mod_id))
+    let receiver = runtime.mod_evaluate(mod_id);
+
+    runtime.run_event_loop(false).await?;
+    receiver.await?
   }
 
   pub async fn run_event_loop(&mut self) -> Result<()> {

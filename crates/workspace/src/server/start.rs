@@ -7,13 +7,12 @@ use crate::server::{
 };
 use crate::Workspace;
 use anyhow::{anyhow, bail, Result};
+use deno_core::{ExtensionFileSource, ExtensionFileSourceCode};
 use jsruntime::permissions::{FileSystemPermissions, PermissionsContainer};
 use jsruntime::{IsolatedRuntime, RuntimeConfig};
 use serde_json::{json, Value};
 use std::cell::RefCell;
 use std::collections::HashSet;
-#[cfg(debug_assertions)]
-use std::path::Path;
 use std::rc::Rc;
 use std::thread;
 use tokio::sync::mpsc;
@@ -120,7 +119,7 @@ impl WorkspaceServer {
   async fn start_all(&mut self) -> Result<()> {
     let (tx, rx) = mpsc::channel::<(HttpRequest, ResponseSender)>(100);
     self.vm_serice = Some(VmService { sender: tx });
-    let mut js_runtime = self.start_workspace_js_server(rx).await?;
+    let js_server = self.start_workspace_js_server(rx);
 
     // Note(sagar): in a adhoc benchmarking, running tcp server in localset
     // performed better than without it. probably due to async locking on
@@ -146,7 +145,7 @@ impl WorkspaceServer {
           _ => debug!("TCP server terminated.")
         }
       }
-      c = js_runtime.run_event_loop() => {
+      c = js_server => {
         match c {
           Err(e) => error!("JS runtime terminated with error: {:?}", e),
           _ => debug!("JS runtime terminated.")
@@ -186,7 +185,13 @@ impl WorkspaceServer {
   async fn start_workspace_js_server(
     &self,
     rx: mpsc::Receiver<(HttpRequest, ResponseSender)>,
-  ) -> Result<IsolatedRuntime> {
+  ) -> Result<()> {
+    // TODO(sagar): only give read access to workspace directory
+    let mut allowed_read_paths = vec![];
+    if let Some(dir) = self.workspace.dir.to_str() {
+      allowed_read_paths.push(dir.to_string());
+    }
+
     let mut runtime = IsolatedRuntime::new(RuntimeConfig {
       // TODO(sagar): disabled this when running deployed workspace
       enable_console: true,
@@ -206,22 +211,15 @@ impl WorkspaceServer {
         ..Default::default()
       },
       extensions: vec![super::ext::init(Rc::new(RefCell::new(rx)))],
+      side_modules: vec![ExtensionFileSource {
+        specifier: "@arena/workspace-server".to_owned(),
+        code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
+          "../../../../js/packages/workspace-server/dist/index.js"
+        )),
+      }],
       heap_limits: self.workspace.heap_limits,
       ..Default::default()
     })?;
-
-    // In debug mode, load the module dynamically during runtime but
-    // in release mode, include the js code in the binary
-    // let workspace_server_code = if cfg!(debug_assertions) {
-    #[cfg(debug_assertions)]
-    let workspace_server_code = std::fs::read_to_string(
-      Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../js/packages/workspace-server/dist/index.js"),
-    )?;
-    #[cfg(not(debug_assertions))]
-    let workspace_server_code =
-      include_str!("../../../../js/packages/workspace-server/dist/index.js")
-        .to_owned();
 
     runtime.execute_script(
       "workspace:init",
@@ -235,30 +233,16 @@ impl WorkspaceServer {
       ),
     )?;
 
-    // Note(sagar): set the workspace server's module file in the
-    // same directory as the workspace entry file so that we can
-    // resolve files for the workspace using `import.meta.resolve`
-    let virtual_workspace_server_file =
-      &Url::parse("builtin://workspace-server")?;
-
-    // Note(sagar): preload this module so that it can be used later
-    runtime
-      .load_and_evaluate_side_module(
-        virtual_workspace_server_file,
-        Some(workspace_server_code),
-      )
-      .await?;
-
     let server_entry = self.workspace.server_entry();
     let server_entry = server_entry
       .to_str()
       .ok_or(anyhow!("Unable to get workspace entry file"))?;
-    let receiver = runtime
+    runtime
       .execute_main_module_code(
         &Url::parse("file://arena/workspace-server/init")?,
         &format!(
           r#"
-            import {{ serve }} from "{}";
+            import {{ serve }} from "@arena/workspace-server";
 
             // Note(sagar): need to dynamically load the entry-server.tsx or
             // whatever the entry file is for the workspace so that it's
@@ -268,13 +252,12 @@ impl WorkspaceServer {
               serve(m);
             }});
           "#,
-          virtual_workspace_server_file, server_entry
+          server_entry
         ),
       )
       .await?;
 
-    tokio::spawn(receiver);
-
-    Ok(runtime)
+    runtime.run_event_loop().await?;
+    Ok(())
   }
 }

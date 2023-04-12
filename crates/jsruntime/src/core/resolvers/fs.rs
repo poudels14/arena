@@ -47,7 +47,7 @@ impl FsModuleResolver {
     }
   }
 
-  #[instrument(skip_all)]
+  #[instrument(skip(self))]
   pub(crate) fn resolve_import(
     &self,
     specifier: &str,
