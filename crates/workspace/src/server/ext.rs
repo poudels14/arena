@@ -42,7 +42,7 @@ impl Resource for ResponseHandler {
 pub fn init(
   requests_receiver: Rc<RefCell<mpsc::Receiver<(HttpRequest, ResponseSender)>>>,
 ) -> Extension {
-  Extension::builder("<arena/workspace/server>")
+  Extension::builder("arena/workspace-server/init")
     .ops(vec![
       self::op_receive_request::decl(),
       self::op_send_response::decl(),
