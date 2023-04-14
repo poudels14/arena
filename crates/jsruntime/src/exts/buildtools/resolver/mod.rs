@@ -1,9 +1,9 @@
 use super::BuildConfig;
-use crate::config::ResolverConfig;
 use crate::core::FsModuleResolver;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Result;
+use common::config::ResolverConfig;
 use deno_core::op;
 use deno_core::Extension;
 use deno_core::ExtensionFileSource;

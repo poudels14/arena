@@ -1,5 +1,4 @@
-use crate::utils::fs::resolve_read_path;
-use crate::utils::fs::resolve_write_path;
+use super::super::utils::fs::{resolve_read_path, resolve_write_path};
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Result;
@@ -7,6 +6,7 @@ use deno_core::op;
 use deno_core::Extension;
 use deno_core::ExtensionFileSource;
 use deno_core::ExtensionFileSourceCode;
+use deno_core::OpDecl;
 use deno_core::OpState;
 use deno_core::StringOrBuffer;
 use serde_json::json;
@@ -18,26 +18,30 @@ use std::path::Path;
 use std::rc::Rc;
 use std::time::SystemTime;
 
-pub fn init() -> Extension {
+pub fn init_js_and_ops() -> Extension {
   Extension::builder("arena/fs")
-    .ops(vec![
-      op_fs_cwd_sync::decl(),
-      op_fs_lstat_sync::decl(),
-      op_fs_realpath_sync::decl(),
-      op_fs_readdir_sync::decl(),
-      op_fs_file_exists_sync::decl(),
-      op_fs_mkdir_sync::decl(),
-      op_fs_read_file_sync::decl(),
-      op_fs_read_file_async::decl(),
-      op_fs_read_file_string_async::decl(),
-      op_fs_read_file_as_json_async::decl(),
-      op_fs_write_file_sync::decl(),
-    ])
+    .ops(self::ops())
     .js(vec![ExtensionFileSource {
       specifier: "setup".to_string(),
       code: ExtensionFileSourceCode::IncludedInBinary(include_str!("./fs.js")),
     }])
     .build()
+}
+
+fn ops() -> Vec<OpDecl> {
+  vec![
+    op_fs_cwd_sync::decl(),
+    op_fs_lstat_sync::decl(),
+    op_fs_realpath_sync::decl(),
+    op_fs_readdir_sync::decl(),
+    op_fs_file_exists_sync::decl(),
+    op_fs_mkdir_sync::decl(),
+    op_fs_read_file_sync::decl(),
+    op_fs_read_file_async::decl(),
+    op_fs_read_file_string_async::decl(),
+    op_fs_read_file_as_json_async::decl(),
+    op_fs_write_file_sync::decl(),
+  ]
 }
 
 #[op(fast)]

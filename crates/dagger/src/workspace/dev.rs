@@ -1,7 +1,7 @@
 use anyhow::Result;
 use arena_workspace::server::ServerOptions;
 use clap::Parser;
-use common::fs::has_file_in_file_tree;
+use common::utils::fs::has_file_in_file_tree;
 use std::env;
 use std::path::Path;
 use tracing::{info, Level};

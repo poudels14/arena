@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
+use common::config::{EnvironmentVariables, JavascriptConfig};
 use derivative::Derivative;
 use json_patch::merge;
-use jsruntime::config::{EnvironmentVariables, JavascriptConfig};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::fs;

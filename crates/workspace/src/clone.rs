@@ -1,8 +1,8 @@
 use crate::WorkspaceConfig;
 use anyhow::{anyhow, bail, Result};
 use bytes::Buf;
-use common::fs::has_file_in_file_tree;
 use common::node::Package;
+use common::utils::fs::has_file_in_file_tree;
 use std::fs::{self, File};
 use std::io::prelude::*;
 use std::path::PathBuf;

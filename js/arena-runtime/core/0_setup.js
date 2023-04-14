@@ -80,6 +80,9 @@ Buffer.isBuffer = () => {
 
   core.setPromiseRejectCallback(promiseRejectCallback);
 
+  event.setEventTargetData(globalThis);
+  event.saveGlobalThisReference(globalThis);
+
   Object.assign(globalThis, {
     __bootstrap: {
       ...globalThis.__bootstrap,

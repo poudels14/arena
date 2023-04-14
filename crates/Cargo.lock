@@ -616,9 +616,24 @@ name = "common"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "deno_core",
+ "deno_fetch",
+ "deno_web",
+ "derivative",
+ "digest 0.10.6",
+ "hex",
  "indexmap",
+ "md-5",
+ "md4",
+ "ripemd",
  "serde",
  "serde_json",
+ "sha-1",
+ "sha2",
+ "tokio",
+ "toml",
+ "tracing",
+ "url",
 ]
 
 [[package]]

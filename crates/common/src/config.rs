@@ -72,7 +72,7 @@ impl ArenaConfig {
 }
 
 impl ResolverConfig {
-  pub(crate) fn merge(self, other: ResolverConfig) -> Self {
+  pub fn merge(self, other: ResolverConfig) -> Self {
     Self {
       preserve_symlink: other.preserve_symlink.or(self.preserve_symlink),
       alias: if !other.alias.is_empty() {

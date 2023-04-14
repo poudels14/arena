@@ -1,6 +1,6 @@
 function noop() {}
 
-const cwd = Arena.fs.cwdSync;
+const cwd = () => Arena.fs.cwdSync();
 const env = {
   TERM: "xterm-256color",
 };
@@ -14,6 +14,5 @@ const process = {
   memoryUsage,
 };
 
-globalThis.process = process;
 export default process;
 export { cwd, env, memoryUsage };

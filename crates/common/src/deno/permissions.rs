@@ -151,8 +151,8 @@ impl PermissionsContainer {
 /*********************************************************************/
 #[cfg(test)]
 mod tests {
-  use crate::permissions::PermissionsContainer;
-  use crate::permissions::TimerPermissions;
+  use super::super::permissions::PermissionsContainer;
+  use super::super::permissions::TimerPermissions;
   use deno_fetch::FetchPermissions;
   use deno_web::TimersPermission;
   use url::Url;

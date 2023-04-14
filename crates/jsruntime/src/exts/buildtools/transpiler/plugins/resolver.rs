@@ -1,5 +1,5 @@
+use super::super::super::resolver::resolve;
 use super::super::Transpiler;
-use crate::buildtools::exts::resolver::resolve;
 use deno_core::normalize_path;
 use std::borrow::Borrow;
 use std::path::Path;

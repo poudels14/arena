@@ -173,3 +173,10 @@ declare module "@arena/rollup" {
   };
   export const build: (options: any) => Promise<void>;
 }
+
+/**
+ * Following node modules are only accessible when node modules are enabled
+ */
+
+declare var path: any;
+declare var process: any;

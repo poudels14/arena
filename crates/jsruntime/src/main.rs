@@ -1,13 +1,10 @@
-mod buildtools;
-mod config;
 mod core;
-mod permissions;
-mod utils;
+mod exts;
 
 use crate::core::{IsolatedRuntime, RuntimeConfig};
-use crate::permissions::FileSystemPermissions;
-use crate::permissions::PermissionsContainer;
 use anyhow::Result;
+use common::deno::permissions::FileSystemPermissions;
+use common::deno::permissions::PermissionsContainer;
 use deno_core::resolve_url_or_path;
 use std::collections::HashSet;
 

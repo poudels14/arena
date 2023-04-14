@@ -44,7 +44,7 @@ impl Command {
 
     runtime
       .execute_main_module_code(
-        &Url::parse("file://workspace-bundler").unwrap(),
+        &Url::parse("file://main").unwrap(),
         include_str!("./bundler.js"),
       )
       .await?;

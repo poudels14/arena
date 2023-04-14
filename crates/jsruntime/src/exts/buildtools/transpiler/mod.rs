@@ -1,11 +1,11 @@
 mod plugins;
 
 use super::BuildConfig;
-use crate::config::ResolverConfig;
 use crate::core::FsModuleResolver;
-use crate::utils::fs::resolve_read_path;
 use anyhow::anyhow;
 use anyhow::Result;
+use common::config::ResolverConfig;
+use common::deno::utils::fs::resolve_read_path;
 use deno_ast::EmitOptions;
 use deno_ast::MediaType;
 use deno_ast::ParseParams;

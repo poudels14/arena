@@ -1,9 +1,15 @@
 #![allow(unused_doc_comments)]
-use deno_core::{anyhow, JsRuntime, OpState, RuntimeOptions};
+use deno_core::anyhow::{bail, Error, Result};
+use deno_core::{
+  anyhow, JsRuntime, ModuleLoader, ModuleSourceFuture, ModuleSpecifier,
+  OpState, ResolutionKind, RuntimeOptions,
+};
 use deno_core::{ExtensionFileSource, ExtensionFileSourceCode};
+use futures::FutureExt;
 use std::env;
 use std::path::Path;
 use std::path::PathBuf;
+use std::pin::Pin;
 use std::rc::Rc;
 use url::Url;
 
@@ -43,7 +49,32 @@ pub fn main() {
 }
 
 fn generate_prod_snapshot(path: &Path) {
-  let runtime = get_basic_runtime();
+  let mut runtime = get_basic_runtime();
+
+  let exts: Vec<ExtensionFileSource> = vec![
+    common::deno::extensions::node::get_modules_for_snapshotting(),
+    common::deno::extensions::buildtools::get_modules_for_snapshotting(),
+  ]
+  .iter()
+  .flatten()
+  .map(|s| s.clone())
+  .collect();
+
+  for module in exts.iter() {
+    futures::executor::block_on(async {
+      let mod_id = runtime
+        .load_side_module(
+          &Url::parse(&format!("builtin:///{}", module.specifier))?,
+          Some(module.code.load()?),
+        )
+        .await?;
+      let receiver = runtime.mod_evaluate(mod_id);
+      runtime.run_event_loop(false).await?;
+      receiver.await?
+    })
+    .unwrap();
+  }
+
   let snapshot: &[u8] = &*runtime.snapshot();
   std::fs::write(path, snapshot).unwrap();
 }
@@ -70,6 +101,14 @@ fn get_basic_runtime() -> JsRuntime {
         )),
       },
     ])
+    .js(vec![ExtensionFileSource {
+      specifier: "init".to_string(),
+      code: ExtensionFileSourceCode::IncludedInBinary(
+        r#"
+          Arena.core = Deno.core;
+        "#,
+      ),
+    }])
     .build();
 
   let runtime = JsRuntime::new(RuntimeOptions {
@@ -96,10 +135,55 @@ fn get_basic_runtime() -> JsRuntime {
         file_fetch_handler: Rc::new(deno_fetch::DefaultFileFetchHandler),
       }),
       core_extension,
+      common::deno::extensions::fs::init_js_and_ops(),
     ],
     will_snapshot: true,
+    module_loader: Some(Rc::new(BuiltInModuleLoader {})),
     ..Default::default()
   });
 
   runtime
+}
+
+struct BuiltInModuleLoader {}
+
+impl ModuleLoader for BuiltInModuleLoader {
+  fn resolve(
+    &self,
+    specifier: &str,
+    _referrer: &str,
+    _kind: ResolutionKind,
+  ) -> Result<ModuleSpecifier, Error> {
+    // Note(sagar): since all modules during build are builtin modules,
+    // add url schema `builtin:///` prefix
+    let specifier = match specifier.starts_with("builtin:///") {
+      true => specifier.to_string(),
+      false => format!("builtin:///{}", specifier),
+    };
+
+    match Url::parse(&specifier) {
+      Ok(url) => Ok(url),
+      _ => {
+        bail!("Failed to resolve specifier: {:?}", specifier);
+      }
+    }
+  }
+
+  fn load(
+    &self,
+    module_specifier: &ModuleSpecifier,
+    maybe_referrer: Option<ModuleSpecifier>,
+    _is_dynamic: bool,
+  ) -> Pin<Box<ModuleSourceFuture>> {
+    let specifier = module_specifier.clone();
+    let referrer = maybe_referrer.clone();
+    async move {
+      bail!(
+        "Module loading not supported: specifier = {:?}, referrer = {:?}",
+        specifier.as_str(),
+        referrer.as_ref().map(|r| r.as_str())
+      );
+    }
+    .boxed_local()
+  }
 }

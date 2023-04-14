@@ -1,6 +1,6 @@
 // credit: deno
 // This is very basic crypto module and may not work properly in all cases
-const { ops } = globalThis.Arena.core;
+const { ops } = Arena.core;
 
 // TODO(@littledivy): Use Result<T, E> instead of boolean when
 // https://bugs.chromium.org/p/v8/issues/detail?id=13600 is fixed.

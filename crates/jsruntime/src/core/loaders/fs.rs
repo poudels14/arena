@@ -1,4 +1,4 @@
-use crate::buildtools::transpiler;
+use super::super::transpiler;
 use crate::core::resolvers::fs::FsModuleResolver;
 use crate::{IsolatedRuntime, RuntimeConfig};
 use anyhow::{anyhow, bail, Error};
@@ -106,7 +106,7 @@ impl ModuleLoader for FsModuleLoader {
           Some("css") => {
             (ModuleType::JavaScript, Some(self::load_css(&path)?), false)
           }
-          _ => bail!("Unknown extension {:?}", path.extension()),
+          _ => bail!("Unknown extension of path: {:?}", path),
         },
       };
 
@@ -144,15 +144,5 @@ impl ModuleLoader for FsModuleLoader {
 
 fn load_css(path: &PathBuf) -> Result<Box<[u8]>, Error> {
   let css = std::fs::read_to_string(path.clone())?;
-  Ok(
-    format!(
-      r#"import styleInject from "style-inject";
-      const css = `{css}`;
-      styleInject(css);
-      export default css;
-    "#
-    )
-    .as_bytes()
-    .into(),
-  )
+  Ok(format!(r#"export default `{css}`;"#).as_bytes().into())
 }

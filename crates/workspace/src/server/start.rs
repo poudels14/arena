@@ -5,10 +5,12 @@ use crate::server::{
   ClientRequest, ServerHandle, ServerOptions, ServerRequest,
   WorkspaceServerHandle,
 };
-use crate::Workspace;
+use crate::{Workspace, WorkspaceConfig};
 use anyhow::{anyhow, bail, Result};
-use deno_core::{ExtensionFileSource, ExtensionFileSourceCode};
-use jsruntime::permissions::{FileSystemPermissions, PermissionsContainer};
+use common::deno::permissions::{FileSystemPermissions, PermissionsContainer};
+use deno_core::{
+  op, Extension, ExtensionFileSource, ExtensionFileSourceCode, OpState,
+};
 use jsruntime::{IsolatedRuntime, RuntimeConfig};
 use serde_json::{json, Value};
 use std::cell::RefCell;
@@ -192,6 +194,7 @@ impl WorkspaceServer {
       allowed_read_paths.push(dir.to_string());
     }
 
+    let workspace_config = self.workspace.config.clone();
     let mut runtime = IsolatedRuntime::new(RuntimeConfig {
       // TODO(sagar): disabled this when running deployed workspace
       enable_console: true,
@@ -210,7 +213,27 @@ impl WorkspaceServer {
         }),
         ..Default::default()
       },
-      extensions: vec![super::ext::init(Rc::new(RefCell::new(rx)))],
+      extensions: vec![
+        super::ext::init(Rc::new(RefCell::new(rx))),
+        Extension::builder("arena/workspace-server/config")
+          .ops(vec![op_load_workspace_config::decl()])
+          .state(move |state| {
+            state.put::<WorkspaceConfig>(workspace_config.clone());
+          })
+          .js(vec![ExtensionFileSource {
+            specifier: "init".to_owned(),
+            code: ExtensionFileSourceCode::IncludedInBinary(
+              r#"
+              Object.assign(globalThis.Arena, {
+                Workspace: {
+                  config: Arena.core.ops.op_load_workspace_config()
+                }
+              });
+              "#,
+            ),
+          }])
+          .build(),
+      ],
       side_modules: vec![ExtensionFileSource {
         specifier: "@arena/workspace-server".to_owned(),
         code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
@@ -221,25 +244,14 @@ impl WorkspaceServer {
       ..Default::default()
     })?;
 
-    runtime.execute_script(
-      "workspace:init",
-      &format!(
-        r#"
-        globalThis.Arena.Workspace = {{
-          config: JSON.parse(`{}`),
-        }};
-        "#,
-        json!(self.workspace.config)
-      ),
-    )?;
-
     let server_entry = self.workspace.server_entry();
     let server_entry = server_entry
       .to_str()
       .ok_or(anyhow!("Unable to get workspace entry file"))?;
+
     runtime
       .execute_main_module_code(
-        &Url::parse("file://arena/workspace-server/init")?,
+        &Url::parse("file:///arena/workspace-server/init")?,
         &format!(
           r#"
             import {{ serve }} from "@arena/workspace-server";
@@ -260,4 +272,10 @@ impl WorkspaceServer {
     runtime.run_event_loop().await?;
     Ok(())
   }
+}
+
+#[op]
+pub fn op_load_workspace_config(state: &mut OpState) -> Result<Value> {
+  let config = state.borrow_mut::<WorkspaceConfig>();
+  Ok(json!(config))
 }

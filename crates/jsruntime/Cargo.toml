@@ -20,12 +20,12 @@ pathdiff.workspace = true
 itertools.workspace = true
 digest.workspace = true
 rsa.workspace = true
-hex = "0.4.3"
-md4 = "0.10.2"
-md-5 = "0.10.5"
-sha-1 = "0.10.0"
-sha2 = "0.10.6"
-ripemd = "0.1.3"
+hex.workspace = true
+md4.workspace = true
+md-5.workspace = true
+sha-1.workspace = true
+sha2.workspace = true
+ripemd.workspace = true
 common = { path = "../common" }
 
 deno_core.workspace = true
@@ -43,6 +43,8 @@ swc_ecma_ast.workspace = true
 swc_atoms.workspace = true
 
 [build-dependencies]
+common = { path = "../common" }
+futures.workspace = true
 url.workspace = true
 deno_core.workspace = true
 deno_console.workspace = true

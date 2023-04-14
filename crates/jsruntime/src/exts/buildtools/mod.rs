@@ -1,5 +1,5 @@
-use crate::config::ResolverConfig;
-use deno_core::Extension;
+use common::config::ResolverConfig;
+use deno_core::{Extension, ExtensionFileSource, ExtensionFileSourceCode};
 use std::path::{Path, PathBuf};
 
 pub mod resolver;
@@ -18,7 +18,7 @@ pub fn init(
   let root = project_root.to_path_buf();
 
   vec![
-    Extension::builder("<arena/buildtools>")
+    Extension::builder("arena/buildtools")
       .state(move |state| {
         state.put::<BuildConfig>(BuildConfig {
           root: root.clone(),
@@ -28,5 +28,18 @@ pub fn init(
       .build(),
     transpiler::init(),
     resolver::init(),
+  ]
+}
+
+pub fn get_runtime_modules() -> Vec<ExtensionFileSource> {
+  vec![
+    // Note(sagar): this extension exposes built-in modules if buildtools
+    // is enabled
+    ExtensionFileSource {
+      specifier: "setup".to_string(),
+      code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
+        "./buildtools.js"
+      )),
+    },
   ]
 }

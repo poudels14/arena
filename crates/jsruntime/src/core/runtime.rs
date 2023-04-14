@@ -1,10 +1,9 @@
-use super::ext::{self, node};
 use super::loaders;
-use crate::buildtools;
-use crate::config::ArenaConfig;
-use crate::permissions::PermissionsContainer;
 use anyhow::{anyhow, Result};
-use common::fs::has_file_in_file_tree;
+use common::config::ArenaConfig;
+use common::deno::extensions::{self, node};
+use common::deno::permissions::PermissionsContainer;
+use common::utils::fs::has_file_in_file_tree;
 use deno_core::{
   v8, ExtensionFileSource, ExtensionFileSourceCode, JsRealm, ModuleLoader,
 };
@@ -85,7 +84,8 @@ impl IsolatedRuntime {
     });
 
     let permissions = config.permissions.clone();
-    let mut builtin_modules = vec![];
+    let mut builtin_module_sources = vec![];
+    let mut enabled_builtin_modules: Vec<String> = vec![];
 
     let mut extensions = vec![
       deno_webidl::init(),
@@ -116,8 +116,14 @@ impl IsolatedRuntime {
     // Note(sagar): right now, build tools, specifically rollup requires
     // built-in node modules. so, enable then when build tools are enabled
     if config.enable_node_modules || config.enable_build_tools {
-      extensions.push(ext::node::init());
-      builtin_modules.extend(node::get_builtin_modules());
+      extensions.push(node::init_ops());
+      builtin_module_sources.extend(crate::exts::node::get_runtime_modules());
+      enabled_builtin_modules.extend(
+        node::get_modules_for_snapshotting()
+          .iter()
+          .map(|m| m.specifier.clone())
+          .collect::<Vec<String>>(),
+      );
     }
 
     // Note(sagar): take extensions out of the config and set it to empty
@@ -129,13 +135,26 @@ impl IsolatedRuntime {
     }
 
     if config.enable_build_tools {
-      builtin_modules.extend(buildtools::get_build_tools_modules());
+      builtin_module_sources
+        .extend(crate::exts::buildtools::get_runtime_modules());
+      enabled_builtin_modules.extend(
+        extensions::buildtools::get_modules_for_snapshotting()
+          .iter()
+          .map(|m| m.specifier.clone())
+          .collect::<Vec<String>>(),
+      );
     }
 
     // Note(sagar): add passed in side-modules at the end so that
     // builtin modules are already loaded in case external modules depend on
     // builtin modules
-    builtin_modules.extend(config.side_modules.clone());
+    builtin_module_sources.extend(config.side_modules.clone());
+    enabled_builtin_modules.extend(
+      builtin_module_sources
+        .iter()
+        .map(|sm| sm.specifier.clone())
+        .collect::<Vec<String>>(),
+    );
 
     let create_params = config.heap_limits.map(|(initial, max)| {
       v8::Isolate::create_params().heap_limits(initial, max)
@@ -157,10 +176,7 @@ impl IsolatedRuntime {
                 .and_then(|c| c.javascript.as_ref())
                 .and_then(|j| j.resolve.clone())
                 .unwrap_or(Default::default()),
-              builtin_modules
-                .iter()
-                .map(|sm| sm.specifier.clone())
-                .collect(),
+              enabled_builtin_modules,
             ),
           },
         )))
@@ -190,7 +206,10 @@ impl IsolatedRuntime {
       );
     }
 
-    for module in builtin_modules.iter().unique_by(|m| m.specifier.clone()) {
+    for module in builtin_module_sources
+      .iter()
+      .unique_by(|m| m.specifier.clone())
+    {
       futures::executor::block_on(async {
         debug!(
           "Loading built-in module into the runtime: {}",
@@ -324,14 +343,14 @@ impl IsolatedRuntime {
 
     let mut extensions = vec![
       Extension::builder("arena").js(js_files).build(),
-      super::ext::fs::init(),
-      super::ext::env::init(config.config.as_ref().and_then(|c| c.env.clone())),
+      extensions::fs::init_js_and_ops(),
+      extensions::env::init(config.config.as_ref().and_then(|c| c.env.clone())),
     ];
     if config.enable_wasm {
-      extensions.push(super::ext::wasi::init());
+      extensions.push(extensions::wasi::init());
     }
     if config.enable_build_tools {
-      extensions.append(&mut crate::buildtools::exts::init(
+      extensions.append(&mut crate::exts::buildtools::init(
         project_root,
         config
           .config

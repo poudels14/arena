@@ -1,14 +1,15 @@
-const promisify =
-  (fn: any) =>
-  (...args) =>
-    new Promise((r) => r(fn(...args)));
-
 const fs = Arena.fs;
-const lstat = promisify(fs.lstatSync);
-const realpath = promisify(fs.realpathSync);
-const readdir = promisify(fs.readdirSync);
-const readFile = Arena.fs.readFile;
-const mkdir = promisify(Arena.fs.mkdirSync);
-const writeFile = promisify(Arena.fs.writeFileSync);
+
+const promisify =
+  (param: string) =>
+  (...args) =>
+    new Promise((r) => r(fs[param](...args)));
+
+const lstat = promisify("lstatSync");
+const realpath = promisify("realpathSync");
+const readdir = promisify("readdirSync");
+const readFile = (...args: [any]) => fs.readFile(...args);
+const mkdir = promisify("mkdirSync");
+const writeFile = promisify("writeFileSync");
 
 export { lstat, realpath, readdir, readFile, mkdir, writeFile };

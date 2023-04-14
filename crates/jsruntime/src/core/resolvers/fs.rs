@@ -1,5 +1,5 @@
-use crate::config::ResolverConfig;
 use anyhow::{anyhow, bail, Result};
+use common::config::ResolverConfig;
 use common::node::Package;
 use deno_core::ModuleResolutionError::{
   InvalidBaseUrl, InvalidPath, InvalidUrl,
@@ -55,6 +55,7 @@ impl FsModuleResolver {
   ) -> Result<ModuleSpecifier, ModuleResolutionError> {
     // TODO(sagar): cache the resolved module specifier?
 
+    let specifier = specifier.strip_prefix("node:").unwrap_or(specifier);
     let mut specifier = self.resolve_alias(specifier);
     if self.builtin_modules.contains(&specifier) {
       debug!("Using builtin module: {specifier}");

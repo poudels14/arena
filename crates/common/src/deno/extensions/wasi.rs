@@ -3,7 +3,6 @@ use deno_core::{
   op, Extension, ExtensionFileSource, ExtensionFileSourceCode, OpState,
   ZeroCopyBuf,
 };
-
 struct WasmerWasiBytes(&'static [u8; 327480]);
 
 pub fn init() -> Extension {

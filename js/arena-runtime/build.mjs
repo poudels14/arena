@@ -63,14 +63,7 @@ program.option("--minify").action(async (options, cmd) => {
         "postcss-load-config": "./libs/alias/postcss-load-config.ts",
         "@babel/core": "@arena/babel",
       },
-      external: ["tty", "crypto", "module", "stream", "@arena/babel"],
-    }),
-    build({
-      ...options,
-      entryPoints: {
-        buildtools: "./libs/buildtools.ts",
-      },
-      external: ["@arena/babel"],
+      external: ["tty", "crypto", "stream", "@arena/babel"],
     }),
   ]);
 });

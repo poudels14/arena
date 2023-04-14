@@ -1,11 +1,8 @@
 mod core;
+mod exts;
+
 pub use crate::core::function;
 pub use crate::core::IsolatedRuntime;
 pub use crate::core::RuntimeConfig;
 
-pub mod config;
-pub use config::ArenaConfig;
-
-pub mod buildtools;
-pub mod permissions;
-pub(crate) mod utils;
+pub use common::deno::permissions;

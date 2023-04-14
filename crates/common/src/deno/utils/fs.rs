@@ -1,4 +1,4 @@
-use crate::permissions::PermissionsContainer;
+use super::super::permissions::PermissionsContainer;
 use anyhow::bail;
 use anyhow::Result;
 use deno_core::normalize_path;
