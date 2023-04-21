@@ -1,0 +1,3 @@
+db:
+  summary: Create a new database migration schema
+  exec: robo --config {{ .robo.path }}/db.yml

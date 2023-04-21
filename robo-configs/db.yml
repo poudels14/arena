@@ -1,0 +1,10 @@
+create:
+  summary: Create a new database migration schema
+  exec: migrate create -dir {{ .dir }} -ext .sql
+
+up:
+  summary: Apply database schema changes
+  exec: migrate -source file://{{ .dir }} -database postgres://postgres@localhost:6000/arena?sslmode=disable up
+
+variables:
+  dir: $(echo $ARENA_ROOT/schemas)
