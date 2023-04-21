@@ -7,6 +7,7 @@ use crate::server::{
 };
 use crate::{Workspace, WorkspaceConfig};
 use anyhow::{anyhow, bail, Result};
+use common::deno::extensions;
 use common::deno::permissions::{FileSystemPermissions, PermissionsContainer};
 use deno_core::{
   op, Extension, ExtensionFileSource, ExtensionFileSourceCode, OpState,
@@ -233,13 +234,18 @@ impl WorkspaceServer {
             ),
           }])
           .build(),
+        extensions::postgres::init(),
       ],
-      side_modules: vec![ExtensionFileSource {
-        specifier: "@arena/workspace-server".to_owned(),
-        code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
-          "../../../../js/packages/workspace-server/dist/index.js"
-        )),
-      }],
+      side_modules: vec![
+        vec![ExtensionFileSource {
+          specifier: "@arena/workspace-server".to_owned(),
+          code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
+            "../../../../js/packages/workspace-server/dist/index.js"
+          )),
+        }],
+        extensions::postgres::get_modules_for_snapshotting(),
+      ]
+      .concat(),
       heap_limits: self.workspace.heap_limits,
       ..Default::default()
     })?;

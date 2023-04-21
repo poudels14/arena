@@ -153,6 +153,13 @@ interface ImportMeta {
 declare function encodeToBase64(digest: any): string;
 declare function encodeToBase64Url(digetst: any): string;
 
+/**
+ * Following node modules are only accessible when node modules are enabled
+ */
+declare var path: any;
+declare var process: any;
+declare var Buffer: any;
+
 declare module "@arena/babel" {
   export const babel;
   export const solidPreset;
@@ -174,9 +181,26 @@ declare module "@arena/rollup" {
   export const build: (options: any) => Promise<void>;
 }
 
-/**
- * Following node modules are only accessible when node modules are enabled
- */
+declare module "@arena/postgres" {
+  type ClientConfig =
+    | {
+        connectionStringId: number;
+      }
+    | {
+        connectionString: string;
+      };
 
-declare var path: any;
-declare var process: any;
+  type Client = {
+    connect(): Promise<void>;
+    isConnected(): boolean;
+
+    query<T>(sql: string, parameters?: any[]): Promise<{ rows: T[] }>;
+    query<T>(query: {
+      type: "SLONIK_TOKEN_SQL";
+      sql: string;
+      values: readonly any[];
+    }): Promise<{ rows: T[] }>;
+  };
+
+  export const Client: new (config: ClientConfig) => Client;
+}

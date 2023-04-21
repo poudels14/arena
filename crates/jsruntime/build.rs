@@ -1,4 +1,5 @@
 #![allow(unused_doc_comments)]
+use common::deno::extensions;
 use deno_core::anyhow::{bail, Error, Result};
 use deno_core::{
   anyhow, JsRuntime, ModuleLoader, ModuleSourceFuture, ModuleSpecifier,
@@ -52,8 +53,8 @@ fn generate_prod_snapshot(path: &Path) {
   let mut runtime = get_basic_runtime();
 
   let exts: Vec<ExtensionFileSource> = vec![
-    common::deno::extensions::node::get_modules_for_snapshotting(),
-    common::deno::extensions::buildtools::get_modules_for_snapshotting(),
+    extensions::node::get_modules_for_snapshotting(),
+    extensions::buildtools::get_modules_for_snapshotting(),
   ]
   .iter()
   .flatten()
@@ -135,7 +136,7 @@ fn get_basic_runtime() -> JsRuntime {
         file_fetch_handler: Rc::new(deno_fetch::DefaultFileFetchHandler),
       }),
       core_extension,
-      common::deno::extensions::fs::init_js_and_ops(),
+      extensions::fs::init_js_and_ops(),
     ],
     will_snapshot: true,
     module_loader: Some(Rc::new(BuiltInModuleLoader {})),
