@@ -1,0 +1,9 @@
+{
+  "name": "@arena/fast-safe-stringify",
+  "version": "0.1.0",
+  "description": "fast-safe-stringify fork to make it work with @arena/runtime",
+  "type": "module",
+  "module": "index.ts",
+  "author": "Sagar Poudel",
+  "license": "UNLICENSED"
+}

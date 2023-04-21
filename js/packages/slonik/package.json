@@ -1,0 +1,14 @@
+{
+  "name": "@arena/slonik",
+  "version": "0.1.0",
+  "description": "Slonik fork to make it work with @arena/runtime",
+  "type": "module",
+  "module": "index.ts",
+  "author": "Sagar Poudel",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@arena/fast-safe-stringify": "workspace:^",
+    "is-plain-object": "^5.0.0",
+    "serialize-error": "^11.0.0"
+  }
+}
