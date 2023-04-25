@@ -4,6 +4,7 @@ import presetAutoprefix from "@twind/preset-autoprefix";
 import presetTailwind from "@twind/preset-tailwind/base";
 import * as tailwindColor from "@twind/preset-tailwind/colors";
 import { slate, slateDark } from "@twind/preset-radix-ui/colors";
+import "./style.css";
 
 type Config = {
   presets?: Preset[];
