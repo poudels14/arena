@@ -1,6 +1,9 @@
 lockfileVersion: '6.0'
 
 dependencies:
+  '@arena/appkit':
+    specifier: workspace:^
+    version: link:../appkit
   '@arena/components':
     specifier: workspace:^0.1.0
     version: link:../arena-components
@@ -10,12 +13,18 @@ dependencies:
   '@arena/uikit':
     specifier: workspace:^0.1.0
     version: link:../uikit
+  '@arena/widgets':
+    specifier: workspace:^
+    version: link:../widgets
   '@blueprintjs/icons':
     specifier: ^4.14.3
     version: 4.14.3
   '@solidjs/meta':
     specifier: ^0.28.4
     version: 0.28.4(solid-js@1.7.2)
+  klona:
+    specifier: ^2.0.6
+    version: 2.0.6
   solid-js:
     specifier: ^1.7.2
     version: 1.7.2
@@ -98,6 +107,11 @@ packages:
     dependencies:
       capital-case: 1.0.4
       tslib: 2.3.1
+    dev: false
+
+  /klona@2.0.6:
+    resolution: {integrity: sha512-dhG34DXATL5hSxJbIexCft8FChFXtmskoZYnoPWjXQuebWYCNkVeV3KkGegCK9CP1oswI/vQibS2GY7Em/sJJA==}
+    engines: {node: '>= 8'}
     dev: false
 
   /lower-case@2.0.2:
