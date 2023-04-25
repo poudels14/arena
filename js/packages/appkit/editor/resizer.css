@@ -1,0 +1,129 @@
+.widget-resizer {
+  --x: 0px;
+  --y: 0px;
+  --resizer-content-width: 0px;
+  --resizer-content-height: 0px;
+  --resizer-offset-x: 0px;
+  --resizer-offset-y: 0px;
+  --resizer-offset-width: 0px;
+  --resizer-offset-height: 0px;
+
+  --resizer-hand-thickness: 5px;
+  --resizer-hand-border-thickness: 1px;
+  --resize-corner-size: 6px;
+  --resize-corner-offset: -3px; /* --resize-corner-size / 2 */
+
+  --resizer-corner-color: white;
+  --resize-corner-border: 1px solid gray;
+  --display: none;
+  margin: 0px !important;
+  display: var(--display);
+  z-index: 99999;
+
+  > * {
+    position: absolute;
+    border: 0px solid rgb(79, 70, 229);
+    /* TODO(sagar): use gradient background on surrounding box background: rgba(79, 70, 229, 0.2); */
+  }
+
+  .left {
+    width: var(--resizer-hand-thickness);
+    height: calc(
+      var(--resizer-content-height) + var(--resizer-offset-height) -
+        var(--resizer-offset-y)
+    );
+    cursor: ew-resize;
+    border-left-width: var(--resizer-hand-border-thickness);
+  }
+
+  .right {
+    width: var(--resizer-hand-thickness);
+    height: calc(
+      var(--resizer-content-height) + var(--resizer-offset-height) -
+        var(--resizer-offset-y)
+    );
+    left: calc(
+      var(--resizer-content-width) + var(--resizer-offset-width) -
+        var(--resizer-offset-x) - var(--resizer-hand-thickness)
+    );
+    cursor: ew-resize;
+    border-right-width: var(--resizer-hand-border-thickness);
+  }
+
+  .top {
+    top: 0px;
+    width: calc(
+      var(--resizer-content-width) + var(--resizer-offset-width) -
+        var(--resizer-offset-x)
+    );
+    height: var(--resizer-hand-thickness);
+    cursor: ns-resize;
+    border-top-width: var(--resizer-hand-border-thickness);
+
+    &:before {
+      content: "";
+      display: var(--display);
+      position: absolute;
+      top: var(--resize-corner-offset);
+      left: var(--resize-corner-offset);
+      background-color: var(--resizer-corner-color);
+      border: var(--resize-corner-border);
+      width: var(--resize-corner-size);
+      height: var(--resize-corner-size);
+      border-radius: 100%;
+    }
+
+    &:after {
+      content: "";
+      display: var(--display);
+      position: absolute;
+      top: var(--resize-corner-offset);
+      right: var(--resize-corner-offset);
+      background-color: var(--resizer-corner-color);
+      border: var(--resize-corner-border);
+      width: var(--resize-corner-size);
+      height: var(--resize-corner-size);
+      border-radius: 100%;
+    }
+  }
+
+  .bottom {
+    top: calc(
+      var(--resizer-content-height) + var(--resizer-offset-height) -
+        var(--resizer-offset-y) - var(--resizer-hand-thickness)
+    );
+    width: calc(
+      var(--resizer-content-width) + var(--resizer-offset-width) -
+        var(--resizer-offset-x)
+    );
+    height: var(--resizer-hand-thickness);
+    cursor: ns-resize;
+    border-bottom-width: var(--resizer-hand-border-thickness);
+
+    &:before {
+      content: "";
+      display: var(--display);
+      position: absolute;
+      bottom: var(--resize-corner-offset);
+      left: var(--resize-corner-offset);
+      background-color: var(--resizer-corner-color);
+      border: var(--resize-corner-border);
+      width: var(--resize-corner-size);
+      height: var(--resize-corner-size);
+      border-radius: 100%;
+    }
+
+    &:after {
+      content: "";
+      display: var(--display);
+      position: absolute;
+      bottom: var(--resize-corner-offset);
+      right: var(--resize-corner-offset);
+      background-color: var(--resizer-corner-color);
+      border: var(--resize-corner-border);
+      width: var(--resize-corner-size);
+      height: var(--resize-corner-size);
+      border-radius: 100%;
+    }
+  }
+}
