@@ -9,9 +9,9 @@ use axum::{
   routing::{self},
   Router,
 };
-use deno_core::ByteString;
+use deno_core::{ByteString, ZeroCopyBuf};
 use http::{header::HeaderName, HeaderMap, HeaderValue, Method, StatusCode};
-use hyper::Body;
+use hyper::{body::HttpBody, Body};
 use serde::Serialize;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::str::FromStr;
@@ -19,11 +19,16 @@ use tokio::sync::mpsc;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tracing::error;
 
+// TODO(sagar): use fast serialization?
 #[derive(Debug, Serialize)]
 pub struct HttpRequest {
   pub url: String,
 
+  pub method: String,
+
   pub headers: Vec<(String, String)>,
+
+  pub body: Option<ZeroCopyBuf>,
 }
 
 #[derive(Debug, Serialize)]
@@ -58,6 +63,8 @@ pub(crate) async fn listen(server: WorkspaceServer) -> Result<()> {
     .layer(cors)
     .route("/", routing::get(handle_request))
     .route("/*path", routing::get(handle_request))
+    .route("/", routing::post(handle_request))
+    .route("/*path", routing::post(handle_request))
     .with_state(server.clone());
   let app = axum::Server::bind(&addr);
 
@@ -76,9 +83,11 @@ pub(crate) async fn listen(server: WorkspaceServer) -> Result<()> {
 
 async fn handle_request(
   State(server): State<WorkspaceServer>,
-  req: Request<Body>,
+  mut req: Request<Body>,
 ) -> Response {
+  let body = req.body_mut().data().await;
   let request = HttpRequest {
+    method: req.method().as_str().to_string(),
     url: format!("http://0.0.0.0{}", req.uri().to_string()),
     headers: req
       .headers()
@@ -90,6 +99,9 @@ async fn handle_request(
         )
       })
       .collect(),
+    body: body
+      .and_then(|r| r.ok())
+      .map(|r| r.to_vec().into_boxed_slice().into()),
   };
 
   let (tx, mut rx) = mpsc::channel(5);

@@ -5,9 +5,7 @@ class ArenaRequest extends Request {
   rid: number;
 
   constructor(internal: any, response_rid: number) {
-    super(internal.url, {
-      headers: internal.headers,
-    });
+    super(internal.url, internal);
     this.rid = response_rid;
   }
 
