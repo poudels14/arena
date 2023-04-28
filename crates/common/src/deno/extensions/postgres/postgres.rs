@@ -263,7 +263,15 @@ impl ToSql for Param {
 
   fn accepts(ty: &Type) -> bool {
     match *ty {
-      Type::INT4 | Type::INT8 | Type::VARCHAR | Type::TEXT => true,
+      Type::BOOL
+      | Type::INT4
+      | Type::INT8
+      | Type::VARCHAR
+      | Type::TEXT
+      | Type::TIMESTAMP
+      | Type::TIMESTAMPTZ
+      | Type::JSONB
+      | Type::JSON_ARRAY => true,
       _ => {
         error!("Unsupported type: {}", ty);
         false
