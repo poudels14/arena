@@ -33,12 +33,15 @@ const Data = () => {
           </div>
         </Match>
         <Match when={true}>
-          <div class="w-40">
-            <For each={fieldConfigs()}>
-              {(field) => {
-                return <Field title={field.title} />;
-              }}
-            </For>
+          <div class="w-40 space-y-1">
+            <div class="text-xs">Data Fields</div>
+            <div>
+              <For each={fieldConfigs()}>
+                {(field) => {
+                  return <Field title={field.title} />;
+                }}
+              </For>
+            </div>
           </div>
           <div class="">Data field editor</div>
         </Match>
@@ -49,7 +52,7 @@ const Data = () => {
 
 const Field = (props: { title: string }) => {
   return (
-    <div class="px-2 py-1 cursor-pointer rounded bg-slate-600 hover:bg-slate-500">
+    <div class="px-2 py-1 text-xs cursor-pointer rounded bg-slate-600 hover:bg-slate-500">
       {props.title}
     </div>
   );

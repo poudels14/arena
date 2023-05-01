@@ -7,6 +7,9 @@ dependencies:
   '@arena/components':
     specifier: workspace:^0.1.0
     version: link:../arena-components
+  '@arena/solid-dnd':
+    specifier: workspace:^
+    version: link:../dnd
   '@arena/solid-store':
     specifier: workspace:^0.1.0
     version: link:../solid-store

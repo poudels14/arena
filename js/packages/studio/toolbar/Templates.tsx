@@ -1,6 +1,7 @@
-import { TemplateMetadata } from "@arena/appkit/widget";
+import { Template } from "@arena/appkit/widget";
 import { useEditorContext, TemplateStoreContext } from "@arena/appkit/editor";
 import { For, createMemo } from "solid-js";
+import { createDraggable } from "@arena/solid-dnd";
 
 const Templates = () => {
   const { useTemplates } = useEditorContext<TemplateStoreContext>();
@@ -36,9 +37,17 @@ const Templates = () => {
   );
 };
 
-const TemplateCard = (props: { metadata: TemplateMetadata<any> }) => {
+const TemplateCard = (props: { metadata: Template.Metadata<any> }) => {
+  const draggable = createDraggable("template-card-" + props.metadata.id, {
+    templateId: props.metadata.id,
+  });
+
+  void draggable;
   return (
-    <div class="px-2 py-2 cursor-pointer rounded bg-slate-600 hover:bg-slate-500">
+    <div
+      class="px-2 py-2 cursor-pointer rounded bg-slate-600 hover:bg-slate-500"
+      use:draggable={draggable}
+    >
       {props.metadata.name}
     </div>
   );
