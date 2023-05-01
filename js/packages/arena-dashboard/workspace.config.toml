@@ -1,3 +1,48 @@
 name = "arena-dashboard"
 version = "0.1.0"
-server_entry = "entry-server.tsx"
+
+[server]
+entry = "./entry-server.tsx"
+
+[server.env]
+MODE = "development"
+SSR = true
+
+[server.javascript.resolve]
+alias = { "~" = "./src" }
+conditions = ["solid", "server", "deno"]
+dedupe = [
+  "solid-js",
+  "solid-js/web",
+  "@solidjs/meta",
+  "@solidjs/router",
+  "@arena/solid-store",
+  "@arena/solid-dnd",
+  "@arena/uikit",
+  "@arena/appkit",
+  "@arena/components",
+]
+
+[client]
+entry = "./entry-client.tsx"
+
+[client.env]
+MODE = "development"
+NODE_ENV = "development"
+SSR = false
+ARENA_SSR = false
+
+[client.javascript.resolve]
+alias = { "~" = "./src" }
+conditions = ["browser", "solid"]
+dedupe = [
+  "solid-js",
+  "solid-js/web",
+  "@solidjs/meta",
+  "@solidjs/router",
+  "@arena/solid-store",
+  "@arena/solid-dnd",
+  "@arena/uikit",
+  "@arena/appkit",
+  "@arena/components",
+]

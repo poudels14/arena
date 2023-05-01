@@ -2,14 +2,26 @@
   "name": "arena-dashboard",
   "version": "0.0.1",
   "dependencies": {
+    "@arena/appkit": "workspace:^",
+    "@arena/components": "workspace:^0.1.0",
     "@arena/core": "^0.1.0",
-    "@arena/editor": "workspace:^0.1.0",
+    "@arena/runtime": "workspace:^",
+    "@arena/slonik": "workspace:^",
+    "@arena/solid-dnd": "workspace:^",
     "@arena/solid-store": "workspace:^0.1.0",
+    "@arena/studio": "workspace:^",
+    "@arena/uikit": "workspace:^0.1.0",
     "@solidjs/meta": "^0.28.4",
     "@solidjs/router": "^0.8.2",
-    "solid-js": "^1.7.2"
+    "@trpc/client": "^10.21.0",
+    "@trpc/server": "^10.21.0",
+    "lodash-es": "^4.17.21",
+    "solid-js": "^1.7.2",
+    "style-inject": "^0.3.0",
+    "zod": "^3.21.4"
   },
   "devDependencies": {
+    "@types/lodash-es": "^4.17.7",
     "typescript": "^4.9.5"
   }
 }
