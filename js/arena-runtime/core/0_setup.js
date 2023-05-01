@@ -18,9 +18,9 @@ import {
   forgivingBase64UrlEncode as encodeToBase64Url,
 } from "ext:deno_web/00_infra.js";
 import { ReadableStream } from "ext:deno_web/06_streams.js";
+import { Headers } from "ext:deno_fetch/20_headers.js";
 import { Request } from "ext:deno_fetch/23_request.js";
 import { Response } from "ext:deno_fetch/23_response.js";
-import { crypto } from "ext:deno_crypto/00_crypto.js";
 import { URL, URLSearchParams } from "ext:deno_url/00_url.js";
 import { Console } from "ext:deno_console/02_console.js";
 
@@ -89,12 +89,12 @@ Buffer.isBuffer = () => {
       handleTimerMacrotask,
       Console,
     },
-    crypto,
     setTimeout,
     clearTimeout,
     setInterval,
     clearInterval,
     performance,
+    Headers,
     Request,
     Response,
     ReadableStream,
