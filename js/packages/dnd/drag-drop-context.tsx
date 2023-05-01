@@ -4,34 +4,23 @@ import {
   createEffect,
   useContext,
   onCleanup,
+  untrack,
 } from "solid-js";
 import { createStore, Store, StoreSetter } from "@arena/solid-store";
 import { Draggable } from "./draggable";
-
-type Id = string | number;
-
-type Coordinates = {
-  x: number;
-  y: number;
-};
-
-type Sensor = {
-  id: Id;
-  origin: Coordinates;
-  current: Coordinates;
-  get delta(): Coordinates;
-};
-
-type Overlay = {
-  node: HTMLElement;
-};
+import { Droppable } from "./droppable";
+import { findDroppableWithClosestCenter } from "./collisions/closest-center";
+import { Collision, Sensor } from "./types";
+import { Overlay } from "./overlay";
 
 type State = {
   active: {
     sensor: Sensor | null;
     draggable: Draggable | null;
+    collision: Collision | null;
     overlay: Overlay | null;
   };
+  droppables: Droppable[];
 };
 
 type Context = {
@@ -44,15 +33,21 @@ const useDragDropContext = () => useContext(DragDropContext)!;
 
 type DragEvent = {
   draggable: Draggable;
-  // droppable?: Droppable | null;
   overlay?: Overlay | null;
 };
 
 type DragEventHandler = (event: DragEvent) => void;
 
+type DragEndEvent = {
+  draggable: Draggable;
+  droppable: Droppable | null;
+};
+
+type DragEndHandler = (e: DragEndEvent) => void;
+
 type DragAndDropProviderProps = {
   onDragMove?: DragEventHandler;
-  onDragEnd?: DragEventHandler;
+  onDragEnd?: DragEndHandler;
   children: JSX.Element;
 };
 
@@ -61,20 +56,22 @@ const DragDropProvider = (props: DragAndDropProviderProps) => {
     active: {
       sensor: null,
       draggable: null,
+      collision: null,
       overlay: null,
     },
+    droppables: [],
   });
 
-  const pointerUpHandler = (e: PointerEvent) => {
-    const active = state.active();
+  const dragEndHandler = (_: PointerEvent) => {
+    const active = untrack(() => state.active());
+    // Note(sagar): since drag end handler is attached to the document,
+    // only act on it if draggable isn't null
     if (!active.draggable) {
       return;
     }
-
-    const origin = active.sensor!.origin!;
-    setState("active", "sensor", "current", {
-      x: origin.x,
-      y: origin.y,
+    props.onDragEnd?.({
+      draggable: active.draggable!,
+      droppable: active.collision?.droppable || null,
     });
     setState("active", "sensor", null);
     setState("active", "draggable", null);
@@ -91,30 +88,50 @@ const DragDropProvider = (props: DragAndDropProviderProps) => {
     });
   };
 
-  document.addEventListener("pointerup", pointerUpHandler);
-  document.addEventListener("pointercancel", pointerUpHandler);
+  document.addEventListener("pointerup", dragEndHandler);
+  document.addEventListener("pointercancel", dragEndHandler);
+  document.addEventListener("pointerleave", dragEndHandler);
   document.addEventListener("pointermove", pointerMoveHandler);
 
   createEffect(() => {
-    const node = state.active.overlay.node()!;
+    const draggable = state.active.draggable.node();
+    const node = state.active.overlay.node() || draggable;
     if (!node) return;
     const { style } = node;
-    style.setProperty("user-select", "none");
-    style.setProperty("transition-timing-function", "ease");
+    if (draggable) {
+      style.setProperty("user-select", "none");
+      style.setProperty("transition-timing-function", "ease");
+      style.setProperty("z-index", "99999999");
+    }
     onCleanup(() => {
       style.removeProperty("user-select");
       style.removeProperty("transition-timing-function");
+      style.removeProperty("z-index");
+      style.removeProperty("transform");
     });
   });
 
   createEffect(() => {
     const delta = state.active.sensor.delta();
-    const overlay = state.active.overlay();
+    const overlay = state.active.overlay() || state.active.draggable();
     if (!delta || !overlay) return;
     overlay.node.style.setProperty(
       "transform",
       `translate3d(${delta.x}px, ${delta.y}px, 0)`
     );
+    onCleanup(() => overlay.node.style.removeProperty("transform"));
+  });
+
+  // detect collisions
+  createEffect(() => {
+    const sensor = state.active.sensor();
+    if (!sensor) {
+      setState("active", "collision", null);
+      return;
+    }
+    const droppables = state.droppables();
+    const collision = findDroppableWithClosestCenter(sensor, droppables);
+    setState("active", "collision", collision);
   });
 
   return (
@@ -125,4 +142,4 @@ const DragDropProvider = (props: DragAndDropProviderProps) => {
 };
 
 export { DragDropProvider, useDragDropContext };
-export type { DragEvent, DragEventHandler };
+export type { DragEvent, DragEventHandler, DragEndEvent, Sensor };
