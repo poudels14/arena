@@ -1,39 +1,45 @@
-import { DataSource } from "./data";
-import { Template } from "./template";
+import { z } from "zod";
+import { dataSourceSchema } from "./data";
 
-type Template = {
+export const templateSchema = z.object({
   /**
    * Id of the template
    */
-  id: string;
+  id: z.string(),
 
   /**
    * Name of the template
    */
-  name: string;
+  name: z.string(),
 
   /**
    * Url to load the component from
    */
-  url: string;
-};
+  url: z.string(),
+});
 
-export type WidgetConfig = {
-  data: Record<string, DataSource<any>>;
-  classList?: string[];
-};
+export const widgetConfigSchema = z.object({
+  data: z.record(dataSourceSchema),
+  classList: z.string().array().optional(),
+});
 
-export type Widget = {
+export const widgetSchema = z.object({
   /**
    * Id of the widget
    */
-  id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  parentId: string | null;
-  template: Template;
-  config: WidgetConfig;
-};
+  id: z.string(),
+  name: z.string(),
+  slug: z.string(),
+  description: z.string().optional(),
 
+  /**
+   * parentId is null for root widgets
+   */
+  parentId: z.string().nullable(),
+  template: templateSchema,
+  config: widgetConfigSchema,
+});
+
+export type WidgetConfig = z.infer<typeof widgetConfigSchema>;
+export type Widget = z.infer<typeof widgetSchema>;
 export type { DataSources } from "./data";

@@ -8,6 +8,11 @@ type withDefaultConfig<Source extends Record<"type" | "config", unknown>> = {
 };
 
 export namespace Template {
+  type dataConfigType<
+    T extends Record<string, unknown>,
+    Field extends keyof T
+  > = Record<Field, DataFieldConfig<T[Field]>>;
+
   export type DataFieldConfig<T> = {
     title: string;
     description?: string;
@@ -18,26 +23,25 @@ export namespace Template {
       | withDefaultConfig<DataSources.Dynamic<T>>;
   };
 
-  type dataConfigType<
-    T extends Record<string, unknown>,
-    Field extends keyof T
-  > = Record<Field, DataFieldConfig<T[Field]>>;
-
   export type DataConfig<T extends Record<string, unknown>> = dataConfigType<
     T,
     keyof T
   >;
+
+  export type Metadata<Data extends Record<string, unknown>> = {
+    id: string;
+    name: string;
+    description: string;
+    data: DataConfig<Data>;
+  };
+
+  export type Props<Data extends Record<string, unknown>> = {
+    /**
+     * Widget id
+     */
+    id: string;
+    attributes: any;
+    data: Data;
+    setData: StoreSetter<Data>;
+  };
 }
-
-export type TemplateMetadata<Data extends Record<string, unknown>> = {
-  id: string;
-  name: string;
-  description: string;
-  data: Template.DataConfig<Data>;
-};
-
-export type TemplateProps<Data extends Record<string, unknown>> = {
-  attributes: any;
-  data: Data;
-  setData: StoreSetter<Data>;
-};

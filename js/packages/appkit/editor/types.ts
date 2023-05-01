@@ -1,33 +1,38 @@
 import { Store, StoreSetter } from "@arena/solid-store";
 import { JSX } from "solid-js";
+import { App } from "../App";
+import { Widget } from "../widget/types";
 
-type EditorState<PluginsState> = {
-  _core: {
-    config: BaseConfig;
-  };
-
-  /**
-   * Internal state stored by plugins using plugin name as a key
-   */
-  _plugins: PluginsState;
+type CoreState = {
+  app: App;
+  widgetsById: Record<string, Widget>;
 };
 
 type BaseConfig = {};
 
 type InternalEditor<PluginsState, Context> = {
-  context: Context;
+  context: Context & {
+    state: Store<CoreState>;
+  };
 
   /**
    * These are components added by plugins
    */
   components: (() => JSX.Element)[];
 
-  /**
-   * Current state of the table
-   */
-  state: Store<EditorState<PluginsState>>;
+  core: {
+    config: BaseConfig;
+    state: Store<{
+      app: App;
+      widgetsById: Record<string, Widget>;
+    }>;
+    setState: StoreSetter<CoreState>;
+  };
 
-  setState: StoreSetter<EditorState<PluginsState>>;
+  plugins: {
+    state: Store<PluginsState>;
+    setState: StoreSetter<PluginsState>;
+  };
 };
 
 type AnyInternalEditor = InternalEditor<unknown, unknown>;
@@ -48,7 +53,7 @@ type Plugin<PluginConfig, PluginsState, Context> = (config: PluginConfig) => (
 export type {
   BaseConfig,
   InternalEditor,
-  EditorState,
+  CoreState,
   AnyInternalEditor,
   EditorContextProvider,
   EditorProps,

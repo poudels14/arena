@@ -2,12 +2,12 @@ import { JSX } from "solid-js";
 import { Plugin } from "./types";
 import { Store, StoreSetter, createStore } from "@arena/solid-store";
 import { Widget } from "../widget/types";
-import { TemplateMetadata } from "../widget";
+import { Template } from "../widget";
 
 type Templates = Record<
   string,
   {
-    metadata: TemplateMetadata<any>;
+    metadata: Template.Metadata<any>;
     Component: (props: any) => JSX.Element;
   }
 >;
@@ -18,8 +18,8 @@ type TemplateStore = {
 
 type TemplateStoreContext = {
   useTemplates: () => Store<Templates>;
-  useTemplate: (template: Widget["template"]["id"]) => {
-    metadata: TemplateMetadata<any>;
+  useTemplate: (templateId: Widget["template"]["id"]) => {
+    metadata: Template.Metadata<any>;
     Component: (props: any) => JSX.Element;
   };
   setTemplatesStore: StoreSetter<TemplateStore>;

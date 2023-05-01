@@ -4,9 +4,15 @@ dependencies:
   '@arena/components':
     specifier: workspace:^
     version: link:../arena-components
+  '@arena/solid-dnd':
+    specifier: workspace:^
+    version: link:../dnd
   '@arena/solid-store':
     specifier: workspace:^
     version: link:../solid-store
+  '@arena/uikit':
+    specifier: workspace:^
+    version: link:../uikit
   '@blueprintjs/icons':
     specifier: ^4.14.3
     version: 4.15.0
@@ -19,6 +25,9 @@ dependencies:
   solid-js:
     specifier: ^1.7.3
     version: 1.7.3
+  zod:
+    specifier: ^3.21.4
+    version: 3.21.4
 
 packages:
 
@@ -176,4 +185,8 @@ packages:
     resolution: {integrity: sha512-KgdgDGJt2TpuwBUIjgG6lzw2GWFRCW9Qkfkiv0DxqHHLYJHmtmdUIKcZd8rHgFSjopVTlw6ggzCm1b8MFQwikg==}
     dependencies:
       tslib: 2.5.0
+    dev: false
+
+  /zod@3.21.4:
+    resolution: {integrity: sha512-m46AKbrzKVzOzs/DZgVnG5H55N1sv1M8qZU3A8RIKbs3mrACDNeIOeilDymVb2HdmP8uwshOCF4uJ8uM9rCqJw==}
     dev: false

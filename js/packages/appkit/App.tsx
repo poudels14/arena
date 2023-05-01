@@ -11,11 +11,6 @@ type App = {
   description?: string;
 
   /**
-   * Id of the root widget
-   */
-  widgetId: string;
-
-  /**
    * List of all the widgets in the app
    */
   widgets: Widget[];

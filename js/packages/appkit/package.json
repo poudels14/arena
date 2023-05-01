@@ -9,10 +9,13 @@
   "license": "UNLICENSED",
   "dependencies": {
     "@arena/components": "workspace:^",
+    "@arena/solid-dnd": "workspace:^",
     "@arena/solid-store": "workspace:^",
+    "@arena/uikit": "workspace:^",
     "@blueprintjs/icons": "^4.14.3",
     "@popperjs/core": "^2.11.7",
     "klona": "^2.0.6",
-    "solid-js": "^1.7.3"
+    "solid-js": "^1.7.3",
+    "zod": "^3.21.4"
   }
 }

@@ -5,10 +5,14 @@ import { Plugin } from "./types";
 import { InlineIcon } from "@arena/components";
 import DragHandle from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/drag-handle-horizontal";
 import "./resizer.css";
+import { useEditorContext } from "./Editor";
 
 const RESIZER_OFFSET = 1 /* EFFECTIVE_GAP */ + 1; /* BORDER_THICKNESS */
 
 const Resizer = (props: { widgetId: string; node: HTMLElement }) => {
+  const { useWidgetById } = useEditorContext();
+  const widget = useWidgetById(props.widgetId);
+
   let resizerRef: any, resizerTarget: any;
   let popper: any;
   const resizer = createResizer();
@@ -104,10 +108,7 @@ const Resizer = (props: { widgetId: string; node: HTMLElement }) => {
               <path d={DragHandle[0]} />
             </InlineIcon>
           </div>
-          <div>
-            Yoo!
-            {/* {activeWidgetState.name} */}
-          </div>
+          <div>{widget.name()}</div>
         </div>
       </div>
       <div class="left" draggable={true} data-move-dir="left"></div>

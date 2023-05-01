@@ -69,6 +69,7 @@ const Widget = (props: WidgetProps) => {
   );
 
   const widget = {
+    id: props.id,
     data,
     attributes: {
       id: props.id,
