@@ -20,31 +20,36 @@ import {
 let updateEpoch = 1;
 
 type UndefinedValue =
-  | Record<string, undefined>
-  | Record<string, Record<string, undefined>>
-  | Record<string, Record<string, Record<string, undefined>>>
-  | Record<string, Record<string, Record<string, Record<string, undefined>>>>
-  | Record<
-      string,
-      Record<string, Record<string, Record<string, Record<string, undefined>>>>
-    >;
+  | Record<any, undefined>
+  | Record<any, Record<any, undefined>>
+  | Record<any, Record<any, Record<any, undefined>>>
+  | Record<any, Record<any, Record<any, Record<any, undefined>>>>
+  | Record<any, Record<any, Record<any, Record<any, Record<any, undefined>>>>>;
 
 type Node<T> = {
   [$RAW]: T;
   [$UPDATEDAT]: number;
 } & Accessor<T>;
 
-type StoreValue<Shape, Value> = Shape extends null
-  ? StoreValue<UndefinedValue, null>
-  : Shape extends UndefinedValue
-  ? {
-      [K in keyof Shape]: StoreValue<Shape[K], undefined>;
-    } & Accessor<undefined>
-  : Shape extends {}
-  ? { [K in keyof Shape]: StoreValue<Shape[K], Shape[K]> } & Node<Value>
-  : Node<Value>;
+type StoreValue<Shape, Value> = Node<Value> &
+  (Value extends null
+    ? {
+        [K in keyof Shape]: StoreValue<NonNullable<Shape[K]>, undefined>;
+      }
+    : Value extends undefined
+    ? {
+        [K in keyof Shape]: StoreValue<NonNullable<Shape[K]>, undefined>;
+      }
+    : Shape extends {}
+    ? {
+        [K in keyof Shape]: K extends keyof Value
+          ? StoreValue<NonNullable<Shape[K]>, Value[K]>
+          : // : StoreValue<Shape[K], Shape[K]>;
+            never;
+      }
+    : Node<Value>);
 
-type Store<T> = StoreValue<T, T>;
+type Store<T> = StoreValue<NonNullable<T>, T>;
 
 type StoreSetter<T> = SetStoreFunction<T>;
 
@@ -99,7 +104,7 @@ const proxyHandlers = {
       }));
     }
     return (target[tp] = new Proxy(
-      (target[$NODE][tp] = createDataNode(value, p)),
+      (target[tp] = createDataNode(value, p)),
       proxyHandlers
     ));
   },
@@ -207,42 +212,56 @@ const batchUpdates = (fn: any) => {
 };
 
 const updatePath = (root: any, path: any[]) => {
-  const value = path.pop();
+  const valueFn = path.pop();
+
+  // Keep track of nodes to be updated and only update them if the new
+  // value is different than the previous value
+  const updates = [];
 
   const rootNode = root[$NODE];
   // TODO(sagar): maybe we don't need immutable data since
   // epoch is used to keep track of when the data was updated
   let nodeValue = rootNode[$RAW];
-  rootNode[$UPDATEDAT] = updateEpoch;
-  rootNode[$SET]?.(updateEpoch);
+  updates.push(rootNode);
 
   let nodeNode = rootNode;
   let p = null;
   for (let i = 0; i < path.length - 1; i++) {
     p = path[i];
-    nodeValue = nodeValue[p];
+    nodeValue = nodeValue[p] || (nodeValue[p] = {});
     if (nodeNode && (nodeNode = nodeNode[toInternalKey(p)]?.[$NODE])) {
-      nodeNode[$UPDATEDAT] = updateEpoch;
-      nodeNode[$SET]?.(updateEpoch);
+      updates.push(nodeNode);
     }
   }
 
   const field = path[path.length - 1];
-  const internalField = toInternalKey(field);
+  const internalKey = toInternalKey(field);
 
   // Note(sagar): if the value if not primitive type, need
   // to update the children objects. so call compareAndNotify
   let nodeToUpdate;
-  nodeNode &&
-    (nodeToUpdate = path.length > 0 ? nodeNode[internalField] : nodeNode) &&
+  let value =
+    typeof valueFn == "function" ? valueFn(nodeValue[internalKey]) : valueFn;
+
+  // if value is same as previous, return
+  if (value === nodeValue[internalKey]) {
+    return;
+  }
+  updates.forEach((n) => {
+    n[$UPDATEDAT] = updateEpoch;
+    n[$SET]?.(updateEpoch);
+  });
+  if (nodeNode) {
+    nodeToUpdate = path.length > 0 ? nodeNode[internalKey] : nodeNode;
     compareAndNotify(nodeToUpdate, value);
+  }
 
   if (path.length > 0) {
     if (value === undefined) {
       delete nodeValue[field];
-      nodeNode && delete nodeNode[internalField];
+      nodeNode && delete nodeNode[internalKey];
     } else {
-      nodeValue[field] = value;
+      nodeValue[internalKey] = value;
     }
   }
 };
