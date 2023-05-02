@@ -15,12 +15,7 @@ const Scripts = () => {
               <script
                 type="module"
                 async
-                src={
-                  "/" +
-                  Arena.env.ARENA_ENTRY_CLIENT +
-                  "?t=" +
-                  new Date().getTime()
-                }
+                src={"/" + Arena.env.ARENA_ENTRY_CLIENT}
                 $ServerOnly
               ></script>
             </>
