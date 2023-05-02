@@ -28,6 +28,11 @@ pub struct ResolverConfig {
   #[serde(default)]
   pub conditions: IndexSet<String>,
 
+  /// A list of external modules which shouldn't be resolved, esp when bundling
+  #[serde(skip_serializing_if = "IndexSet::is_empty")]
+  #[serde(default)]
+  pub external: IndexSet<String>,
+
   /// A list of modules to dedupe
   /// Deduping a module (external npm module) will always resolve the module
   /// to the same path inside the `${project root}/node_modules` directory.
@@ -84,6 +89,11 @@ impl ResolverConfig {
         other.conditions
       } else {
         self.conditions
+      },
+      external: if !other.external.is_empty() {
+        other.external
+      } else {
+        self.external
       },
       dedupe: if !other.dedupe.is_empty() {
         other.dedupe
