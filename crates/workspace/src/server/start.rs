@@ -31,6 +31,9 @@ pub(crate) struct VmService {
 
 #[derive(Clone, Debug)]
 pub(crate) struct WorkspaceServer {
+  /// Whether to run the server in dev mode
+  pub dev_mode: bool,
+
   /// Socket address of the workspace
   pub address: String,
 
@@ -60,6 +63,7 @@ pub async fn serve(
   options: ServerOptions,
 ) -> Result<WorkspaceServerHandle> {
   let server = WorkspaceServer {
+    dev_mode: options.dev_mode,
     workspace: workspace.clone(),
     address: options.address,
     port: options.port,
@@ -199,8 +203,9 @@ impl WorkspaceServer {
     let mut runtime = IsolatedRuntime::new(RuntimeConfig {
       // TODO(sagar): disabled this when running deployed workspace
       enable_console: true,
-      transpile: true,
-      enable_build_tools: true,
+      transpile: self.dev_mode,
+      enable_build_tools: self.dev_mode,
+      enable_node_modules: true,
       // TODO(sagar): file permissions is required to server static files
       // move the fileserver to rust so that file permission isn't ncessary
       permissions: PermissionsContainer {
@@ -237,7 +242,7 @@ impl WorkspaceServer {
         vec![ExtensionFileSource {
           specifier: "@arena/workspace-server".to_owned(),
           code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
-            "../../../../js/packages/workspace-server/dist/index.js"
+            "../../../../js/packages/workspace-server/dist/server.js"
           )),
         }],
         extensions::postgres::get_modules_for_snapshotting(),
@@ -264,10 +269,12 @@ impl WorkspaceServer {
             // transpiled properly
 
             await import("file://{}").then(async ({{ default: m }}) => {{
-              serve(m);
+              serve(m, {{
+                serveFiles: {}
+              }});
             }});
           "#,
-          server_entry
+          server_entry, self.dev_mode
         ),
       )
       .await?;

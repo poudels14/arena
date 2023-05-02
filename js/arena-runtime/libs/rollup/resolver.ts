@@ -24,7 +24,7 @@ const resolver = (
           id: source,
           external: true,
           resolvedBy: "arena-resolver",
-        }
+        };
       }
       const resolvedPath = resolver.resolve(source, importer || "./");
       if (resolvedPath) {

@@ -42,7 +42,7 @@ const build = async (options: {
     const { entry, config, minify } = options.client;
     await buildClient(config, {
       input: entry,
-      outDir: path.join(outDir, "public"),
+      outDir: path.join(outDir, "static"),
       hydratable,
       minify,
     });

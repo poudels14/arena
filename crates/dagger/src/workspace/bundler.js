@@ -1,5 +1,5 @@
 import path from "path";
-import { build } from "@arena/workspace-server";
+import { build } from "@arena/workspace-server/builder";
 
 await Arena.fs
   .readAsJson(path.join(process.cwd(), "./workspace.config.toml"))

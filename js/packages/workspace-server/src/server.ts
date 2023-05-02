@@ -1,6 +1,6 @@
 import type { Handler } from "@arena/core/server";
 import { ArenaRequest, RESOLVE } from "./request";
-import fileServer from "./fileserver";
+import { createFileServer } from "./fileserver";
 
 class RequestListener {
   [Symbol.asyncIterator]() {
@@ -19,14 +19,18 @@ class RequestListener {
   }
 }
 
-const serve = async (handler: Handler) => {
+const serve = async (
+  handler: Handler,
+  options: { serveFiles?: boolean } = {}
+) => {
   // Note(sagar): since this is running in server, set SSR = true
   Arena.env.SSR = true;
 
   // TODO(sagar): we need to store logs from Arena and logs from queries
   // separately
-  console.log("[Arena.Workspace.handleRequest]: Listening to connections...");
+  console.log("[Arena.Workspace.serve]: Listening to connections...");
 
+  const fileServer = options.serveFiles ? createFileServer() : null;
   const listener = new RequestListener();
   for await (const req of listener) {
     if (!req) {
@@ -39,9 +43,11 @@ const serve = async (handler: Handler) => {
         env: Arena.env,
       };
 
-      let file = await fileServer.execute(event);
-      if (file.status !== 404) {
-        return file;
+      if (fileServer) {
+        let file = await fileServer.execute(event);
+        if (file.status !== 404) {
+          return file;
+        }
       }
       return await handler.execute(event);
     });

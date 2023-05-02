@@ -34,9 +34,9 @@ impl Command {
         ..Default::default()
       },
       side_modules: vec![ExtensionFileSource {
-        specifier: "@arena/workspace-server".to_owned(),
+        specifier: "@arena/workspace-server/builder".to_owned(),
         code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
-          "../../../../js/packages/workspace-server/dist/index.js"
+          "../../../../js/packages/workspace-server/dist/builder.js"
         )),
       }],
       ..Default::default()

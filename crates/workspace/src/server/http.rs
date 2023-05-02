@@ -3,6 +3,7 @@ use super::start::WorkspaceServer;
 use crate::server::events::ServerStarted;
 use anyhow::Result;
 use axum::{
+  body::boxed,
   extract::State,
   http::Request,
   response::{IntoResponse, Response},
@@ -16,7 +17,9 @@ use serde::Serialize;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::str::FromStr;
 use tokio::sync::mpsc;
+use tower::util::ServiceExt;
 use tower_http::cors::{AllowOrigin, CorsLayer};
+use tower_http::services::ServeDir;
 use tracing::error;
 
 // TODO(sagar): use fast serialization?
@@ -99,6 +102,15 @@ async fn handle_request(
   State(server): State<WorkspaceServer>,
   mut req: Request<Body>,
 ) -> Response {
+  // Note(sagar): serve static files directly from axum when not in dev mode
+  if !server.dev_mode && req.uri().path().starts_with("/static") {
+    let res = ServeDir::new(server.workspace.dir).oneshot(req).await;
+    return match res {
+      Ok(r) => r.map(boxed),
+      Err(_) => (StatusCode::INTERNAL_SERVER_ERROR).into_response(),
+    };
+  }
+
   let body = req.body_mut().data().await;
   let request = HttpRequest {
     method: req.method().as_str().to_string(),

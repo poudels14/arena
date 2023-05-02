@@ -5,9 +5,9 @@
   "type": "module",
   "main": "index.ts",
   "scripts": {
-    "build": "pnpm bundle --minify",
-    "dev": "pnpm bundle --watch",
-    "bundle": "pnpm esbuild index=./src/index.ts --external:path --external:process --external:@arena/babel --external:@arena/rollup --outdir=dist --format=esm --bundle"
+    "build": "pnpm bundle:server && pnpm bundle:builder",
+    "bundle:server": "pnpm esbuild server=./src/server.ts --external:path --external:process --outdir=dist --format=esm --bundle",
+    "bundle:builder": "pnpm esbuild builder=./src/builder/index.ts --external:path --external:process --external:@arena/babel --external:@arena/rollup --outdir=dist --format=esm --bundle"
   },
   "author": "Sagar Poudel",
   "private": true,

@@ -9,6 +9,9 @@ use tokio::sync::oneshot;
 #[derive(Derivative)]
 #[derivative(Clone, Debug, Default)]
 pub struct ServerOptions {
+  /// Whether to run the server in dev mode
+  pub dev_mode: bool,
+
   /// Socket address of the workspace
   /// Defaults to 0.0.0.0
   #[derivative(Default(value = "String::from(\"0.0.0.0\")"))]

@@ -25,6 +25,10 @@ impl Workspace {
 
   /// Returns the entry file of the workspace
   pub fn server_entry(&self) -> PathBuf {
-    self.dir.join(&self.config.server.entry)
+    self
+      .dir
+      .join(&self.config.server.entry)
+      .canonicalize()
+      .unwrap()
   }
 }

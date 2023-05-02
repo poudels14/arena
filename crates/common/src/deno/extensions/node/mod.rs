@@ -51,7 +51,7 @@ pub fn get_modules_for_snapshotting() -> Vec<ExtensionFileSource> {
       ),
     ),
     duplicate_modules(
-      vec!["node:crypto"],
+      vec!["crypto", "node:crypto"],
       ExtensionFileSourceCode::LoadedFromFsDuringSnapshot(
         "../../js/arena-runtime/dist/node/crypto.js".into(),
       ),

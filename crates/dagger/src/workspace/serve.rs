@@ -1,8 +1,7 @@
 use anyhow::Result;
 use arena_workspace::server::ServerOptions;
+use arena_workspace::WorkspaceConfig;
 use clap::Parser;
-use common::utils::fs::has_file_in_file_tree;
-use std::env;
 use std::path::Path;
 use tracing::{info, Level};
 
@@ -14,31 +13,24 @@ pub struct Command {
 
   /// Directory of a workspace to serve; defaults to `${pwd}`
   #[arg(short, long)]
-  pub dir: Option<String>,
+  pub dir: String,
 }
 
 impl Command {
   pub async fn execute(&self) -> Result<()> {
-    let cwd = env::current_dir()?;
-    let workspaces_dir = self
-      .dir
-      .as_ref()
-      .map_or_else(
-        || has_file_in_file_tree(Some(&cwd), "workspace.config.toml"),
-        |p| Some(Path::new(&p).to_path_buf()),
-      )
-      .unwrap_or(cwd);
+    let mut config = WorkspaceConfig::from_path(
+      &Path::new(&self.dir).join("workspace.config.toml"),
+    )?;
+    // Note(sagar): just override the server entry
+    config.server.entry = "./server/index.js".to_owned();
 
-    let workspace =
-      arena_workspace::load::load(arena_workspace::load::Options {
-        dir: env::current_dir()
-          .unwrap()
-          .join(workspaces_dir)
-          .canonicalize()?,
-        registry: None,
-        ..Default::default()
-      })
-      .await?;
+    let workspaces_dir = Path::new(&self.dir).join("build").to_path_buf();
+    let workspace = arena_workspace::Workspace {
+      registry: None,
+      config,
+      dir: workspaces_dir,
+      heap_limits: None,
+    };
 
     let handle = {
       let span = tracing::span!(Level::DEBUG, "starting workspace server");
@@ -46,7 +38,6 @@ impl Command {
       arena_workspace::server::serve(
         workspace,
         ServerOptions {
-          dev_mode: true,
           port: 8000,
           ..Default::default()
         },
@@ -54,7 +45,7 @@ impl Command {
       .await?
     };
 
-    info!("Dev server started...");
+    info!("Server started...");
     handle.wait_for_termination().await
   }
 }

@@ -219,6 +219,7 @@ dependencies = [
  "tar",
  "tokio",
  "toml",
+ "tower",
  "tower-http",
  "tracing",
  "url",
