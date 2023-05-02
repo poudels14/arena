@@ -76,7 +76,21 @@ pub(crate) async fn listen(server: WorkspaceServer) -> Result<()> {
     })?,
   ))?;
 
-  app.serve(router.into_make_service()).await.unwrap();
+  app
+    .serve(router.into_make_service())
+    .with_graceful_shutdown(
+      #[allow(unused_must_use)]
+      async {
+        // TODO(sagar): not sure if this is actually needed
+        // Note(sagar): server terminated event can be sent from
+        // else where, like JS runtime. so, if that event is
+        // received, terinate the server
+        server.events.wait_until(ServerEvent::Terminated).await;
+        println!("Shutting down HTTP server...");
+      },
+    )
+    .await
+    .unwrap();
 
   Ok(())
 }

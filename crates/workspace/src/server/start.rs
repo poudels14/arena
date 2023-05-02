@@ -206,10 +206,7 @@ impl WorkspaceServer {
       permissions: PermissionsContainer {
         fs: Some(FileSystemPermissions {
           root: self.workspace.dir.clone(),
-          allowed_read_paths: HashSet::from_iter(vec![
-            // Note(sagar): only give read access to workspace directory
-            "./".to_owned(),
-          ]),
+          allowed_read_paths: HashSet::from_iter(allowed_read_paths),
           ..Default::default()
         }),
         ..Default::default()

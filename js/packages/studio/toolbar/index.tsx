@@ -35,14 +35,15 @@ type ToolbarTab =
   | "templates";
 
 type ToolbarState = {
+  collapsed: boolean;
   tab: {
     active: ToolbarTab;
   };
 };
 
 const ToolbarContext = createContext<{
-  store: Store<ToolbarState>;
-  setStore: StoreSetter<ToolbarState>;
+  state: Store<ToolbarState>;
+  setState: StoreSetter<ToolbarState>;
 }>();
 
 const Toolbar = () => {

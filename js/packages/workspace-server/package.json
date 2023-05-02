@@ -7,7 +7,7 @@
   "scripts": {
     "build": "pnpm bundle --minify",
     "dev": "pnpm bundle --watch",
-    "bundle": "pnpm esbuild index=./src/index.ts --external:path --outdir=dist --format=esm --bundle"
+    "bundle": "pnpm esbuild index=./src/index.ts --external:path --external:process --external:@arena/babel --external:@arena/rollup --outdir=dist --format=esm --bundle"
   },
   "author": "Sagar Poudel",
   "private": true,

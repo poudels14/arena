@@ -291,4 +291,7 @@ describe("Store", () => {
         });
       });
     }));
+
+  // TODO(sagar): test a case where updating an object doesn't update and
+  // notify it's sub fields if subfields aren't being used in reactive context
 });
