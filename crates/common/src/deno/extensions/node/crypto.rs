@@ -7,6 +7,7 @@ use deno_core::op;
 use deno_core::OpState;
 use deno_core::ResourceId;
 use deno_core::ZeroCopyBuf;
+use rand::Rng;
 use std::rc::Rc;
 
 #[op(fast)]
@@ -64,4 +65,9 @@ pub fn op_node_hash_digest_hex(
     .map_err(|_| type_error("Hash context is already in use"))?;
   let digest = context.digest()?;
   Ok(hex::encode(digest))
+}
+
+#[op]
+pub fn op_node_generate_secret(buf: &mut [u8]) {
+  rand::thread_rng().fill(buf);
 }

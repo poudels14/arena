@@ -36,6 +36,7 @@ declare namespace Arena {
       op_node_hash_update_str: (ctx: number, data: any) => boolean;
       op_node_hash_digest: (ctx: number) => number[];
       op_node_hash_digest_hex: (ctx: number) => string;
+      op_node_generate_secret: (buffer: any) => void;
     };
     opAsync: typeof OpAsync;
   }

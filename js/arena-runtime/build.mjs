@@ -1,6 +1,5 @@
 import { program } from "commander";
 import * as esbuild from "esbuild";
-import glob from "glob";
 
 const build = async (options) => {
   const { external = [], ...restOptions } = options;
@@ -20,13 +19,30 @@ const build = async (options) => {
 
 program.option("--minify").action(async (options, cmd) => {
   await Promise.all([
-    glob(["libs/node/*"]).then((entryPoints) =>
-      build({
-        ...options,
-        entryPoints,
-        outdir: "dist/node",
-      })
-    ),
+    build({
+      ...options,
+      entryPoints: {
+        assert: "libs/node/assert.ts",
+        events: "libs/node/events.ts",
+        fs: "libs/node/fs.ts",
+        path: "libs/node/path.ts",
+        pref_hooks: "libs/node/perf_hooks.ts",
+        process: "libs/node/process.ts",
+        tty: "libs/node/tty.ts",
+        util: "libs/node/util.ts",
+        buffer: "libs/node/buffer.ts",
+      },
+      outdir: "dist/node",
+    }),
+    build({
+      ...options,
+      entryPoints: {
+        crypto: "libs/node/crypto/crypto.ts",
+      },
+      external: ["buffer"],
+      outdir: "dist/node",
+    }),
+
     build({
       ...options,
       entryPoints: {

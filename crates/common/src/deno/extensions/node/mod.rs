@@ -13,6 +13,7 @@ pub fn init_ops() -> Extension {
       crypto::op_node_hash_update_str::decl(),
       crypto::op_node_hash_digest::decl(),
       crypto::op_node_hash_digest_hex::decl(),
+      crypto::op_node_generate_secret::decl(),
     ])
     .build()
 }
@@ -41,6 +42,12 @@ pub fn get_modules_for_snapshotting() -> Vec<ExtensionFileSource> {
       vec!["node:perf_hooks"],
       ExtensionFileSourceCode::LoadedFromFsDuringSnapshot(
         "../../js/arena-runtime/dist/node/perf_hooks.js".into(),
+      ),
+    ),
+    duplicate_modules(
+      vec!["buffer"],
+      ExtensionFileSourceCode::LoadedFromFsDuringSnapshot(
+        "../../js/arena-runtime/dist/node/buffer.js".into(),
       ),
     ),
     duplicate_modules(

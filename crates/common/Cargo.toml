@@ -34,6 +34,7 @@ md-5.workspace = true
 sha-1.workspace = true
 sha2.workspace = true
 ripemd.workspace = true
+rand.workspace = true
 
 deno_core.workspace = true
 deno_fetch.workspace = true

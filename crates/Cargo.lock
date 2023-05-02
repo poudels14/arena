@@ -645,6 +645,7 @@ dependencies = [
  "md-5",
  "md4",
  "postgres",
+ "rand",
  "ring",
  "ripemd",
  "rustls 0.21.0",

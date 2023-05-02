@@ -74,3 +74,4 @@ export function createHash(algorithm: string) {
 export default {
   createHash,
 };
+export { randomFillSync } from "./randomFill";

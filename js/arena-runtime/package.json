@@ -22,6 +22,7 @@
     "@rollup/plugin-babel": "^6.0.3",
     "assert": "^2.0.0",
     "babel-preset-solid": "^1.6.9",
+    "buffer": "^6.0.3",
     "commander": "^10.0.0",
     "events": "^3.3.0",
     "lodash": "^4.17.21",
