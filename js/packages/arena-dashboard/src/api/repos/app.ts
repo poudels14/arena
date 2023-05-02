@@ -18,6 +18,12 @@ const createRepo = (ctx: Context) => {
       );
       return rows?.[0];
     },
+    async fetchByOwnerId(ownerId: string): Promise<App[]> {
+      const { rows } = await ctx.client.query<App>(
+        sql`SELECT * FROM apps WHERE archived_at IS NULL AND owner_id = ${ownerId}`
+      );
+      return rows;
+    },
   };
 };
 

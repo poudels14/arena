@@ -1,18 +1,8 @@
 import { Editor } from "@arena/studio";
-import { createTRPCProxyClient, httpLink } from "@trpc/client";
-import type { AppRouter } from "~/api";
+import { useDashboardContext } from "~/context";
 
 const App = (props: { id: string }) => {
-  const client = createTRPCProxyClient<AppRouter>({
-    links: [
-      httpLink({
-        url: "http://localhost:8000/api",
-        async headers() {
-          return {};
-        },
-      }),
-    ],
-  });
+  const { client } = useDashboardContext();
 
   return (
     <Editor

@@ -5,6 +5,14 @@ import { procedure, router as trpcRouter } from "../trpc";
 import { notFound } from "../utils/errors";
 
 const appsRouter = trpcRouter({
+  listApps: procedure.query(
+    async ({ ctx }): Promise<Omit<App, "widgets">[]> => {
+      const apps = await ctx.repo.apps.fetchByOwnerId("sagar");
+      return apps.map((app) => {
+        return pick(app, "id", "name", "description");
+      });
+    }
+  ),
   getApp: procedure
     .input(zod.string())
     .query(async ({ ctx, input: appId }): Promise<App> => {

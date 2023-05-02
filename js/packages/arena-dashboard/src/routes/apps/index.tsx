@@ -1,10 +1,11 @@
+import { Show, For, createResource } from "solid-js";
 import { Title } from "@arena/core/solid";
-import { For } from "solid-js";
 import { A } from "@solidjs/router";
+import { useDashboardContext } from "~/context";
 
 const App = (props: {
   id: string;
-  title: string;
+  name: string;
   description: string;
   access: string[];
 }) => {
@@ -15,7 +16,7 @@ const App = (props: {
     >
       <div class="absolute bottom-0 px-4 py-2">
         <div class="font-medium text-brand-11 group-hover:text-brand-12">
-          {props.title}
+          {props.name}
         </div>
       </div>
     </A>
@@ -23,27 +24,25 @@ const App = (props: {
 };
 
 const Apps = () => {
-  const apps = [
-    {
-      id: "app1",
-      title: "My first app",
-      description: "",
-      access: [],
-    },
-  ];
+  const { client } = useDashboardContext();
+
+  const [apps] = createResource(() => {
+    return client.apps.listApps.query();
+  });
+
   return (
-    <>
+    <Show when={apps()}>
       <Title>Apps</Title>
       <div class="">
         <div class="mt-40 px-16">
-          <For each={apps} fallback="No apps">
+          <For each={apps()} fallback="No apps">
             {(app) => {
               return <App {...app} />;
             }}
           </For>
         </div>
       </div>
-    </>
+    </Show>
   );
 };
 
