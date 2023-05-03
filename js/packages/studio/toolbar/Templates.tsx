@@ -46,7 +46,7 @@ const TemplateCard = (props: { metadata: Template.Metadata<any> }) => {
   return (
     <div
       class="px-2 py-2 cursor-pointer rounded bg-slate-600 hover:bg-slate-500"
-      use:draggable={draggable}
+      ref={draggable.ref}
     >
       {props.metadata.name}
     </div>

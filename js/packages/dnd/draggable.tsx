@@ -5,6 +5,10 @@ import { useDragDropContext } from "./drag-drop-context";
 type Draggable = {
   id: string | number;
   node: HTMLElement;
+  /**
+   * Set DOM element reference
+   */
+  ref: (node: HTMLElement) => void;
   data?: any;
   isActiveDraggable: boolean;
 };
@@ -13,28 +17,17 @@ const createDraggable = (id: string, data?: any) => {
   const { state, setState } = useDragDropContext();
 
   const isActiveDraggable = () => state.active.draggable.id() === id;
-  const [node, setNode] = createSignal<HTMLElement | null>(null);
+  const [getNode, setNode] = createSignal<HTMLElement | null>(null);
 
-  let draggable: Draggable;
-  draggable = Object.defineProperties(
-    (node: HTMLElement) => {
-      setNode(node);
-      createEffect(() => {
-        const handler = createPointerDownHandler(setState, {
-          node,
-          id,
-          data,
-          get isActiveDraggable() {
-            return isActiveDraggable();
-          },
-        });
-        node.addEventListener("pointerdown", handler);
-        onCleanup(() => node.removeEventListener("pointerdown", handler));
-      });
-    },
+  let draggable = Object.defineProperties(
+    {},
     {
       node: {
-        get: node,
+        get: getNode,
+      },
+      ref: {
+        get: getNode,
+        set: setNode,
       },
       id: {
         value: id,
@@ -47,6 +40,13 @@ const createDraggable = (id: string, data?: any) => {
       },
     }
   ) as unknown as Draggable;
+
+  createEffect(() => {
+    const handler = createPointerDownHandler(setState, draggable);
+    const node = getNode();
+    node?.addEventListener("pointerdown", handler);
+    onCleanup(() => node?.removeEventListener("pointerdown", handler));
+  });
 
   return draggable;
 };

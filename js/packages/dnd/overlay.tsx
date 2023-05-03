@@ -14,8 +14,8 @@ const DragOverlay = () => {
   };
 
   createEffect(() => {
-    const overlay = state.active.overlay.node()!;
-    const draggable = state.active.draggable.node()!;
+    const overlay = state.active.overlay()?.node!;
+    const draggable = state.active.draggable()?.node!;
     const propertiesToClone = [
       "color",
       "background",
@@ -23,6 +23,7 @@ const DragOverlay = () => {
       "border-radius",
       "font-size",
     ];
+
     if (draggable) {
       const rect = draggable.getBoundingClientRect();
       const style = window.getComputedStyle(draggable, null);
@@ -38,6 +39,7 @@ const DragOverlay = () => {
       );
     }
     onCleanup(() => {
+      if (!overlay) return;
       ["top", "left", "width", "height"].forEach((p) =>
         overlay.style.removeProperty(p)
       );
@@ -48,7 +50,7 @@ const DragOverlay = () => {
 
   return (
     <div ref={setRef} style="position: fixed; opacity: 0;">
-      {state.active.draggable.node()?.cloneNode(true)}
+      {state.active.draggable()?.node?.cloneNode(true)}
     </div>
   );
 };

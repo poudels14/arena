@@ -15,7 +15,7 @@ type SlotProps = {
 };
 
 const Slot = (props: SlotProps) => {
-  const droppable = createDroppable("slot-id-1", {
+  const droppable = createDroppable("slot-" + props.parentId, {
     parentId: props.parentId,
   });
 
@@ -24,12 +24,7 @@ const Slot = (props: SlotProps) => {
   const { useChildren } = useEditorContext<ComponentTreeContext>();
 
   return (
-    <div
-      use:droppable={droppable}
-      classList={{
-        "bg-red-400": droppable.isActiveDroppable,
-      }}
-    >
+    <div ref={droppable.ref} class="widget-slot">
       <For each={useChildren(props.parentId)}>
         {(child) => <Widget widgetId={child} />}
       </For>
@@ -41,7 +36,7 @@ const Slot = (props: SlotProps) => {
 };
 
 const PreviewTemplate = (props: { draggable: Draggable }) => {
-  return <div>NICE!: {props.draggable.data?.templateId}</div>;
+  return <div class="h-1 w-full bg-blue-400"></div>;
 };
 
 export { Slot };

@@ -94,8 +94,8 @@ const DragDropProvider = (props: DragAndDropProviderProps) => {
   document.addEventListener("pointermove", pointerMoveHandler);
 
   createEffect(() => {
-    const draggable = state.active.draggable.node();
-    const node = state.active.overlay.node() || draggable;
+    const draggable = state.active.draggable();
+    const node = state.active.overlay()?.node || draggable?.node;
     if (!node) return;
     const { style } = node;
     if (draggable) {

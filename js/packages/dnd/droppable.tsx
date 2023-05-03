@@ -4,6 +4,10 @@ import { useDragDropContext } from "./drag-drop-context";
 type Droppable = {
   id: string | number;
   node: HTMLElement;
+  /**
+   * Set DOM element reference
+   */
+  ref: (node: HTMLElement) => void;
   data?: any;
   isActiveDroppable: boolean;
 };
@@ -14,15 +18,17 @@ const createDroppable = (id: string, data?: any) => {
   const isActiveDroppable = () => {
     return state.active.collision.droppable()?.id === id;
   };
-  const [node, setNode] = createSignal<HTMLElement | null>(null);
+  const [getNode, setNode] = createSignal<HTMLElement | null>(null);
 
   const droppable = Object.defineProperties(
-    (node: HTMLElement) => {
-      setNode(node);
-    },
+    {},
     {
       node: {
-        get: node,
+        get: getNode,
+      },
+      ref: {
+        get: getNode,
+        set: setNode,
       },
       id: {
         value: id,
@@ -37,8 +43,7 @@ const createDroppable = (id: string, data?: any) => {
   ) as unknown as Droppable;
 
   setState("droppables", (droppables) => {
-    droppables.push(droppable);
-    return droppables;
+    return [...droppables, droppable];
   });
 
   return droppable;
