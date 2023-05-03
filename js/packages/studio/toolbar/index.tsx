@@ -61,7 +61,7 @@ const Toolbar = () => {
 
   return (
     <ToolbarContext.Provider value={{ state, setState }}>
-      <div class="toolbar-container absolute bottom-4 w-full flex flex-row justify-center pointer-events-none	z-[10000]">
+      <div class="toolbar-container absolute bottom-4 w-full flex flex-row justify-center pointer-events-none	z-[99999]">
         <Switch>
           <Match when={state.collapsed()}>
             <div

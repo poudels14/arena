@@ -18,7 +18,7 @@
   --display: none;
   margin: 0px !important;
   display: var(--display);
-  z-index: 99999;
+  z-index: 9999;
 
   > * {
     position: absolute;
