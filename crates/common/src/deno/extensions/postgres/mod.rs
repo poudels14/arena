@@ -135,7 +135,7 @@ pub fn op_postgres_is_connected(
   Ok(
     !resource
       .and_then(|r| Some(r.client.is_closed()))
-      .unwrap_or(false),
+      .unwrap_or(true),
   )
 }
 
