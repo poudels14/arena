@@ -1,10 +1,9 @@
-import { createResource, createEffect, batch, createComputed } from "solid-js";
+import { createResource, batch, createComputed } from "solid-js";
 import { Store } from "@arena/solid-store";
 import { uniqueId } from "@arena/uikit";
 import { App } from "../../App";
 import { Plugin } from "../types";
 import { Widget, Template } from "../../widget";
-import { widgetSchema } from "../../widget/types";
 
 type EditorStateContext = {
   useWidgetById: (id: string) => Store<Widget>;
@@ -93,7 +92,9 @@ const withEditorState: Plugin<
         appId: config.appId,
         templateId,
         config: {
+          // TODO(sagar): set widget's config in server
           data: defaultDataConfig,
+          class: templateMetadata.class,
         },
       };
 

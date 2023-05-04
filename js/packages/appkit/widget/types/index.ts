@@ -20,7 +20,7 @@ export const templateSchema = z.object({
 
 export const widgetConfigSchema = z.object({
   data: z.record(dataSourceSchema),
-  classList: z.string().array().optional(),
+  class: z.string().optional(),
 });
 
 export const widgetSchema = z.object({

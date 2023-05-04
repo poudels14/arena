@@ -1,4 +1,4 @@
-import { onCleanup, untrack, JSX, children } from "solid-js";
+import { onCleanup, untrack, JSX, children, createMemo } from "solid-js";
 import { useAppContext } from "../App";
 import type { Widget, WidgetConfig } from "./types";
 import { useEditorContext, WidgetDataContext } from "../editor";
@@ -63,10 +63,19 @@ const Widget = (props: WidgetProps) => {
             props.config.data[fieldName]
           );
         }
-        return target[fieldName];
+        return target[fieldName]();
       },
     }
   );
+
+  const classList = createMemo(() => {
+    const c = props.config.class!()!;
+    return {
+      "ar-widget": true,
+      [props.class!]: Boolean(props.class),
+      [c]: Boolean(c),
+    };
+  });
 
   const widget = {
     id: props.id,
@@ -76,8 +85,8 @@ const Widget = (props: WidgetProps) => {
       ref(node: HTMLElement) {
         setWidgetRef(props.id, node);
       },
-      classList: {
-        [props.class!]: Boolean(props.class),
+      get classList() {
+        return classList();
       },
     },
   };

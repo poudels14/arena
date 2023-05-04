@@ -33,6 +33,12 @@ export namespace Template {
     name: string;
     description: string;
     data: DataConfig<Data>;
+
+    /**
+     * Default tailwind classes for styling
+     * These can be edited by the users
+     */
+    class?: string;
   };
 
   export type Props<Data extends Record<string, unknown>> = {
