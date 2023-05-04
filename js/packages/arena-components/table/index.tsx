@@ -1,6 +1,6 @@
 import { createStore } from "@arena/solid-store";
 import { klona } from "klona";
-import { batch, createComputed, JSX, splitProps } from "solid-js";
+import { batch, createComputed, createRoot, JSX, splitProps } from "solid-js";
 import { Header } from "./column";
 import { Cell, Row } from "./row";
 import { BaseConfig, InternalTable, Plugin, Table, TableState } from "./types";
@@ -50,20 +50,25 @@ function createTableWithPlugins<Config, PluginState, Methods>(
   ...plugins: ReturnType<Plugin<Config, PluginState, Methods>>[]
 ) {
   return (config: BaseConfig<Row>) => {
-    return batch(() => {
-      const internalTable = createBaseTable<PluginState, Methods, Row>(config);
-      plugins.reduce((table, plugin) => {
-        plugin(table);
+    return createRoot((dispose) => {
+      // TODO(sagar): dispose
+      return batch(() => {
+        const internalTable = createBaseTable<PluginState, Methods, Row>(
+          config
+        );
+        plugins.reduce((table, plugin) => {
+          plugin(table);
+          return table;
+        }, internalTable);
+
+        // Don't expose internal API's like setState
+        const { setState, internal, ...table } = internalTable;
+
+        createComputed(() => {
+          setState("rows", internalTable.internal.getVisibleRows());
+        });
         return table;
-      }, internalTable);
-
-      // Don't expose internal API's like setState
-      const { setState, internal, ...table } = internalTable;
-
-      createComputed(() => {
-        setState("rows", internalTable.internal.getVisibleRows());
       });
-      return table;
     });
   };
 }
@@ -71,11 +76,10 @@ function createTableWithPlugins<Config, PluginState, Methods>(
 function createBaseTable<S, M, R>(config: BaseConfig<R>) {
   config = klona(config);
   const [state, setState] = createStore<TableState<any>>({
-    rows: [],
     _core: {
       config,
       data: [...config.data],
-      visibleColumns: Object.keys(config.data[0]!).map((c) => ({
+      visibleColumns: Object.keys(config.data[0] || {}).map((c) => ({
         key: c,
         header: c,
       })),
@@ -103,6 +107,9 @@ function createBaseTable<S, M, R>(config: BaseConfig<R>) {
   const table = {
     state,
     setState,
+    setData(data: any[]) {
+      setState("_core", "data", data);
+    },
     ui,
     internal: {
       getVisibleRows() {

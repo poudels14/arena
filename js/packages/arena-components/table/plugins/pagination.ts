@@ -1,6 +1,6 @@
 import { $RAW } from "@arena/solid-store";
 import { klona } from "klona";
-import { untrack } from "solid-js/web";
+import { untrack } from "solid-js";
 import { Plugin } from "..";
 import { Row } from "../row";
 
@@ -85,14 +85,15 @@ const withPagination: Plugin<
 
     Object.assign(table.internal, {
       getVisibleRows() {
-        // generate new rows if data is changed
-        void table.state._core.data();
+        const rows = table.state._core.data();
         const pagination = table.state._plugins.pagination();
         const startIdx = pagination.currentPage * pagination.pageSize;
 
-        return [...Array(pagination.pageSize)].map((_, idx) => {
-          return new Row(table.state, startIdx + idx);
-        });
+        return [...Array(Math.min(pagination.pageSize, rows.length))].map(
+          (_, idx) => {
+            return new Row(table.state, startIdx + idx);
+          }
+        );
       },
     });
   };

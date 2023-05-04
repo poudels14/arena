@@ -4,6 +4,7 @@ import { ColumnDef, Header } from "./column";
 import { Cell, Row } from "./row";
 
 type TableState<PluginsState> = {
+  /** Interface to expose final rows */
   rows: Row[];
 
   _core: {
@@ -37,6 +38,8 @@ type InternalTable<PluginsState, Methods> = {
   state: Store<TableState<PluginsState>>;
 
   setState: StoreSetter<TableState<PluginsState>>;
+
+  setData: (data: any[]) => void;
 
   ui: {
     Th: (props: JSX.HTMLElementTags["th"] & { header: Header }) => JSXElement;

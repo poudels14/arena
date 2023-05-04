@@ -15,6 +15,7 @@ import {
 import Heading1, { metadata as heading1 } from "@arena/widgets/core/Heading1";
 import Heading2, { metadata as heading2 } from "@arena/widgets/core/Heading2";
 import Heading3, { metadata as heading3 } from "@arena/widgets/core/Heading3";
+import Table, { metadata as tableMetadata } from "@arena/widgets/table";
 import Layout, { metadata as layoutMetadata } from "@arena/widgets/core/Layout";
 import GridLayout, {
   metadata as gridLayoutMetadata,
@@ -59,6 +60,10 @@ const Editor = (props: EditorProps) => {
         [gridLayoutMetadata.id]: {
           Component: GridLayout,
           metadata: gridLayoutMetadata,
+        },
+        [tableMetadata.id]: {
+          Component: Table,
+          metadata: tableMetadata,
         },
       },
     }),
