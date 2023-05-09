@@ -26,6 +26,7 @@ use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 use tokio::task::spawn_local;
 use tower::ServiceBuilder;
+use tower_http::compression::CompressionLayer;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 mod executor;
 mod request;
@@ -89,14 +90,17 @@ async fn op_http_accept(state: Rc<RefCell<OpState>>) -> Result<ResourceId> {
     .allow_methods([Method::GET])
     .allow_origin(AllowOrigin::list(vec![]));
 
-  let service = ServiceBuilder::new().layer(cors).service_fn(move |req| {
-    request::handle_request(
-      server.address.clone(),
-      server.port,
-      tx.clone(),
-      req,
-    )
-  });
+  let service = ServiceBuilder::new()
+    .layer(CompressionLayer::new())
+    .layer(cors)
+    .service_fn(move |req| {
+      request::handle_request(
+        server.address.clone(),
+        server.port,
+        tx.clone(),
+        req,
+      )
+    });
 
   let conn_fut = Http::new()
     .with_executor(executor::LocalExecutor)
