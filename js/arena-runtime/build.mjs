@@ -81,6 +81,12 @@ program.option("--minify").action(async (options, cmd) => {
       },
       external: ["tty", "crypto", "stream", "@arena/babel"],
     }),
+    build({
+      ...options,
+      entryPoints: {
+        server: "./libs/server/index.ts",
+      },
+    }),
   ]);
 });
 

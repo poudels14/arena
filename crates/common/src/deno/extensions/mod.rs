@@ -3,4 +3,5 @@ pub mod env;
 pub mod fs;
 pub mod node;
 pub mod postgres;
+pub mod server;
 pub mod wasi;

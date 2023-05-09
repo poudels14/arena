@@ -8,21 +8,28 @@ declare namespace Arena {
   } & Record<string, any>;
 
   /**
-   * Receive a HTTP request.
-   *
-   * Only to be used by Arena Workspace Server!
+   * Start TCP server; Works only if the http server extension is used
+   */
+  function OpAsync(name: "op_http_listen"): Promise<void>;
+
+  /**
+   * Listen for new TCP connection
+   */
+  function OpAsync(name: "op_http_accept"): Promise<number>;
+
+  /**
+   * Receive a HTTP request
    */
   function OpAsync(
-    name: "op_receive_request"
-  ): Promise<{ rid: number; internal: Request }>;
+    name: "op_http_start",
+    rid: number
+  ): Promise<[rid: number, internal: Request] | undefined>;
 
   /**
    * Send a response to the HTTP request
-   *
-   * Only to be used by Arena Workspace Server!
    */
   function OpAsync(
-    fn: "op_send_response",
+    fn: "op_http_send_response",
     rid: number,
     status: number,
     headers: [string, string][],
@@ -204,4 +211,12 @@ declare module "@arena/postgres" {
   };
 
   export const Client: new (config: ClientConfig) => Client;
+}
+
+declare module "@arena/server" {
+  type ServeConfig = {
+    fetch: (req: Request) => Promise<Response>;
+  };
+
+  export const serve: (config: ServeConfig) => Promise<void>;
 }

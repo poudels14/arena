@@ -54,6 +54,9 @@ dependencies:
   rollup-plugin-postcss:
     specifier: ^4.0.2
     version: 4.0.2(patch_hash=sbxv3rjcaej2t6meymgee6e27q)(postcss@8.4.21)
+  rxjs:
+    specifier: ^7.8.1
+    version: 7.8.1
   solid-js:
     specifier: ^1.6.9
     version: 1.6.11
@@ -1809,6 +1812,12 @@ packages:
       fsevents: 2.3.2
     dev: false
 
+  /rxjs@7.8.1:
+    resolution: {integrity: sha512-AA3TVj+0A2iuIoQkWEK/tqFjBq2j+6PO6Y0zJcvzLAFhEFIO3HL0vls9hWLncZbAAbK0mar7oZ4V079I/qPMxg==}
+    dependencies:
+      tslib: 2.5.0
+    dev: false
+
   /safe-identifier@0.4.2:
     resolution: {integrity: sha512-6pNbSMW6OhAi9j+N8V+U715yBQsaWJ7eyEUaOrawX+isg5ZxhUlV1NipNtgaKHmFGiABwt+ZF04Ii+3Xjkg+8w==}
     dev: false
@@ -1912,6 +1921,10 @@ packages:
   /to-fast-properties@2.0.0:
     resolution: {integrity: sha512-/OaKK0xYrs3DmxRYqL/yDc+FxFUVYhDlXMhRmv3z915w2HF1tnN1omB354j8VUGO/hbRzyD6Y3sA7v7GS/ceog==}
     engines: {node: '>=4'}
+    dev: false
+
+  /tslib@2.5.0:
+    resolution: {integrity: sha512-336iVw3rtn2BUK7ORdIAHTyxHGRIHVReokCR3XjbckJMK7ms8FysBfhLR8IXnAgy7T0PTPNBWKiH514FOW/WSg==}
     dev: false
 
   /update-browserslist-db@1.0.10(browserslist@4.21.5):

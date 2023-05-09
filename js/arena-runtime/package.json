@@ -31,6 +31,7 @@
     "reserved-words": "^0.1.2",
     "rollup": "^3.17.3",
     "rollup-plugin-postcss": "^4.0.2",
+    "rxjs": "^7.8.1",
     "solid-js": "^1.6.9",
     "terser": "^5.16.8",
     "url": "^0.11.0",
