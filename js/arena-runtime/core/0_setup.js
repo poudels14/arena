@@ -18,10 +18,6 @@ import {
   forgivingBase64UrlEncode as encodeToBase64Url,
 } from "ext:deno_web/00_infra.js";
 import { ReadableStream } from "ext:deno_web/06_streams.js";
-import { Headers } from "ext:deno_fetch/20_headers.js";
-import { Request } from "ext:deno_fetch/23_request.js";
-import { Response } from "ext:deno_fetch/23_response.js";
-import { URL, URLSearchParams } from "ext:deno_url/00_url.js";
 import { Console } from "ext:deno_console/02_console.js";
 
 const primordials = globalThis.__bootstrap.primordials;
@@ -63,14 +59,6 @@ function promiseRejectCallback(type, promise, reason) {
   );
 }
 
-const Buffer = () => {
-  throw new Error("Buffer not implemented");
-};
-Buffer.isBuffer = () => {
-  console.error("Buffer not implemented. Buffer.isBuffer called");
-  return false;
-};
-
 // Note(sagar): this is initialized during snapshotting
 // assign to globalThis so that other modules can access
 // these objects with `globalThis.{}`
@@ -94,9 +82,6 @@ Buffer.isBuffer = () => {
     setInterval,
     clearInterval,
     performance,
-    Headers,
-    Request,
-    Response,
     ReadableStream,
     TextEncoder,
     TextDecoder,
@@ -104,8 +89,5 @@ Buffer.isBuffer = () => {
     TextDecoderStream,
     encodeToBase64,
     encodeToBase64Url,
-    URL,
-    URLSearchParams,
-    Buffer,
   });
 })(globalThis);

@@ -11,7 +11,9 @@ class ArenaRequest extends Request {
   public async send(response: Response) {
     // TODO(sagar): consider not using Deno's Request/Response type, too
     // much going on there
-    let innerResponse = Arena.toInnerResponse(response);
+    let innerResponse = (Response as unknown as Arena.Response).toInnerResponse(
+      response
+    );
 
     let content =
       innerResponse.body?.streamOrStatic?.body || innerResponse.body?.source;

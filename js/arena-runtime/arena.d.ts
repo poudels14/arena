@@ -114,8 +114,6 @@ declare namespace Arena {
   let fs: FileSystem;
   let wasi: any;
 
-  let toInnerResponse: (response: Response) => any;
-
   type ResolverConfig = {
     preserve_symlink?: boolean;
 
@@ -141,6 +139,11 @@ declare namespace Arena {
     replace?: Record<string, string>;
 
     source_map?: "inline";
+  };
+
+  // this should be exposed by runtime
+  export type Response = globalThis.Response & {
+    toInnerResponse: (response: globalThis.Response) => any;
   };
 }
 

@@ -1,5 +1,5 @@
 #![allow(unused_doc_comments)]
-use common::deno::extensions::{self, BuiltinExtensions};
+use common::deno::extensions::BuiltinExtensions;
 use deno_core::anyhow::{bail, Error, Result};
 use deno_core::{
   anyhow, JsRuntime, ModuleLoader, ModuleSourceFuture, ModuleSpecifier,
@@ -52,7 +52,9 @@ pub fn main() {
 fn generate_prod_snapshot(path: &Path) {
   let mut runtime = get_basic_runtime();
 
-  BuiltinExtensions::load_all_snapshot_modules(&mut runtime);
+  BuiltinExtensions::with_all_modules()
+    .load_snapshot_modules(&mut runtime)
+    .unwrap();
 
   let snapshot: &[u8] = &*runtime.snapshot();
   std::fs::write(path, snapshot).unwrap();
@@ -77,6 +79,12 @@ fn get_basic_runtime() -> JsRuntime {
         specifier: "arena/process".to_string(),
         code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
           "../../js/arena-runtime/core/dummy-process.js"
+        )),
+      },
+      ExtensionFileSource {
+        specifier: "http".to_string(),
+        code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
+          "../../js/arena-runtime/core/http.js"
         )),
       },
     ])
@@ -114,7 +122,6 @@ fn get_basic_runtime() -> JsRuntime {
         file_fetch_handler: Rc::new(deno_fetch::DefaultFileFetchHandler),
       }),
       core_extension,
-      extensions::fs::init_js_and_ops(),
     ],
     will_snapshot: true,
     module_loader: Some(Rc::new(BuiltInModuleLoader {})),

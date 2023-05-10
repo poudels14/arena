@@ -32,7 +32,7 @@ pub fn extension() -> BuiltinExtension {
   }
 }
 
-pub fn init() -> Extension {
+fn init() -> Extension {
   Extension::builder("arena/runtime/postgres")
     .ops(vec![
       op_postgres_create_connection::decl(),

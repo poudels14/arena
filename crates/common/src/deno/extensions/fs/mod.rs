@@ -27,7 +27,7 @@ pub fn extension() -> BuiltinExtension {
   }
 }
 
-pub fn init_js_and_ops() -> Extension {
+fn init_js_and_ops() -> Extension {
   Extension::builder("arena/runtime/fs")
     .ops(self::ops())
     .js(vec![ExtensionFileSource {
