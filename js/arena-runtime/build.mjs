@@ -25,8 +25,9 @@ program.option("--minify").action(async (options, cmd) => {
         assert: "libs/node/assert.ts",
         events: "libs/node/events.ts",
         fs: "libs/node/fs.ts",
+        "fs/promises": "libs/node/fs_promises.ts",
         path: "libs/node/path.ts",
-        pref_hooks: "libs/node/perf_hooks.ts",
+        perf_hooks: "libs/node/perf_hooks.ts",
         process: "libs/node/process.ts",
         tty: "libs/node/tty.ts",
         util: "libs/node/util.ts",
@@ -60,6 +61,7 @@ program.option("--minify").action(async (options, cmd) => {
         fs: "./libs/alias/fs.ts",
         path: "./libs/alias/path.ts",
       },
+      external: ["@arena/runtime/resolver"],
     }),
     build({
       ...options,
@@ -77,14 +79,33 @@ program.option("--minify").action(async (options, cmd) => {
         resolve: "./libs/alias/resolve.ts",
         module: "./libs/alias/module.ts",
         "postcss-load-config": "./libs/alias/postcss-load-config.ts",
-        "@babel/core": "@arena/babel",
+        "@babel/core": "@arena/runtime/babel",
       },
-      external: ["tty", "crypto", "stream", "@arena/babel"],
+      external: [
+        "tty",
+        "crypto",
+        "stream",
+        "@arena/runtime/babel",
+        "@arena/runtime/resolver",
+        "@arena/runtime/transpiler",
+      ],
     }),
     build({
       ...options,
       entryPoints: {
         server: "./libs/server/index.ts",
+      },
+    }),
+    build({
+      ...options,
+      entryPoints: {
+        resolver: "./libs/resolver.ts",
+      },
+    }),
+    build({
+      ...options,
+      entryPoints: {
+        transpiler: "./libs/transpiler.ts",
       },
     }),
   ]);

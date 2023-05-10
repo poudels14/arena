@@ -1,4 +1,5 @@
 use super::super::utils::fs::{resolve_read_path, resolve_write_path};
+use super::extension::BuiltinExtension;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Result;
@@ -18,8 +19,16 @@ use std::path::Path;
 use std::rc::Rc;
 use std::time::SystemTime;
 
+pub fn extension() -> BuiltinExtension {
+  BuiltinExtension {
+    extension: Some(self::init_js_and_ops()),
+    runtime_modules: vec![],
+    snapshot_modules: vec![],
+  }
+}
+
 pub fn init_js_and_ops() -> Extension {
-  Extension::builder("arena/fs")
+  Extension::builder("arena/runtime/fs")
     .ops(self::ops())
     .js(vec![ExtensionFileSource {
       specifier: "setup".to_string(),

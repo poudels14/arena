@@ -54,7 +54,7 @@ fn transpile_jsx<'a>(
           presets: [
             // Note(sagar): since the code transpiled here is only used in
             // server side, it should be transpiled for "ssr"
-            [babelPresets.solid, {
+            [babelPresets.solidjs, {
               "generate": "ssr",
               "hydratable": String(Arena.env.ARENA_SSR) === "true"
             }]

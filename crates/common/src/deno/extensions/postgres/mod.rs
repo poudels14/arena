@@ -3,14 +3,14 @@ mod tls;
 
 pub use self::postgres::execute_query;
 pub use self::postgres::Param;
+use super::extension::BuiltinExtension;
 use crate::deno::SecretResource;
+use crate::resolve_from_file;
 use anyhow::anyhow;
 use anyhow::Result;
 use deno_core::op;
 use deno_core::serde::{Deserialize, Serialize};
 use deno_core::Extension;
-use deno_core::ExtensionFileSource;
-use deno_core::ExtensionFileSourceCode;
 use deno_core::Resource;
 use deno_core::{OpState, ResourceId};
 use serde_json::Map;
@@ -20,6 +20,27 @@ use std::rc::Rc;
 use tokio::task::JoinHandle;
 use tokio_postgres::Client;
 use tracing::error;
+
+pub fn extension() -> BuiltinExtension {
+  BuiltinExtension {
+    extension: Some(self::init()),
+    runtime_modules: vec![],
+    snapshot_modules: vec![(
+      "@arena/runtime/postgres",
+      resolve_from_file!("./postgres.js"),
+    )],
+  }
+}
+
+pub fn init() -> Extension {
+  Extension::builder("arena/runtime/postgres")
+    .ops(vec![
+      op_postgres_create_connection::decl(),
+      op_postgres_is_connected::decl(),
+      op_postgres_execute_query::decl(),
+    ])
+    .build()
+}
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -52,29 +73,6 @@ impl Resource for PostgresConnectionResource {
     self.handle.abort();
     drop(self);
   }
-}
-
-pub fn init() -> Extension {
-  Extension::builder("postgres")
-    .ops(vec![
-      op_postgres_create_connection::decl(),
-      op_postgres_is_connected::decl(),
-      op_postgres_execute_query::decl(),
-    ])
-    .build()
-}
-
-pub fn get_modules_for_snapshotting() -> Vec<ExtensionFileSource> {
-  vec![ExtensionFileSource {
-    specifier: "@arena/postgres".to_owned(),
-    code: ExtensionFileSourceCode::LoadedFromFsDuringSnapshot(
-      format!(
-        "{}/src/deno/extensions/postgres/postgres.js",
-        env!("CARGO_MANIFEST_DIR")
-      )
-      .into(),
-    ),
-  }]
 }
 
 #[op]

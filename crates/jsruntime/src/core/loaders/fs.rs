@@ -1,7 +1,9 @@
 use super::super::transpiler;
-use crate::core::resolvers::fs::FsModuleResolver;
 use crate::{IsolatedRuntime, RuntimeConfig};
 use anyhow::{anyhow, bail, Error};
+use common::config::ArenaConfig;
+use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
+use common::deno::resolver::fs::FsModuleResolver;
 use deno_ast::MediaType;
 use deno_core::{
   ModuleLoader, ModuleSource, ModuleSourceFuture, ModuleSpecifier, ModuleType,
@@ -16,7 +18,6 @@ use std::rc::Rc;
 pub(crate) struct FsModuleLoader {
   transpile: bool,
   runtime: Option<Rc<RefCell<IsolatedRuntime>>>,
-
   resolver: FsModuleResolver,
 }
 
@@ -32,11 +33,26 @@ impl FsModuleLoader {
     let runtime = match option.transpile {
       true => Some(Rc::new(RefCell::new(
         IsolatedRuntime::new(RuntimeConfig {
+          project_root: Some(option.resolver.project_root.clone()),
+          config: Some(ArenaConfig::default()),
           enable_console: true,
-          // Note(sagar): build tools is needed to transpile when loading
-          // modules
-          enable_build_tools: true,
-          enable_node_modules: true,
+          builtin_extensions: BuiltinExtensions::with_modules(vec![
+            BuiltinModule::Fs,
+            BuiltinModule::Env,
+            BuiltinModule::Resolver(option.resolver.project_root.clone()),
+            BuiltinModule::Transpiler,
+            BuiltinModule::CustomRuntimeModule(
+              "arena/core/fs/loader",
+              r#"
+              // Note(sagar): load these into global variables so that transpiler
+              // can use it inside a function
+              import { babel, plugins, presets } from "@arena/runtime/babel";
+              Arena.BuildTools = {
+                babel, babelPlugins: plugins, babelPresets: presets
+              };
+            "#,
+            ),
+          ]),
           // Note(sagar): since rollup is loaded as side-module when build
           // tools is enabled and rollup needs node modules,
           // need to enable module loader
@@ -67,7 +83,7 @@ impl ModuleLoader for FsModuleLoader {
     referrer: &str,
     _kind: ResolutionKind,
   ) -> Result<ModuleSpecifier, Error> {
-    Ok(self.resolver.resolve_import(&specifier, referrer)?)
+    Ok(self.resolver.resolve(&specifier, referrer)?)
   }
 
   fn load(

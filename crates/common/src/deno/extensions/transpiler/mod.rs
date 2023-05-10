@@ -1,19 +1,18 @@
 mod plugins;
 
-use super::BuildConfig;
-use crate::core::FsModuleResolver;
+use crate::deno::extensions::extension::BuiltinExtension;
+use crate::deno::resolver;
+use crate::deno::resolver::fs::FsModuleResolver;
+use crate::deno::utils::fs::resolve_read_path;
+use crate::resolve_from_root;
 use anyhow::anyhow;
 use anyhow::Result;
-use common::config::ResolverConfig;
-use common::deno::utils::fs::resolve_read_path;
 use deno_ast::EmitOptions;
 use deno_ast::MediaType;
 use deno_ast::ParseParams;
 use deno_ast::SourceTextInfo;
 use deno_core::op;
 use deno_core::Extension;
-use deno_core::ExtensionFileSource;
-use deno_core::ExtensionFileSourceCode;
 use deno_core::OpState;
 use deno_core::Resource;
 use deno_core::ResourceId;
@@ -27,6 +26,29 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use swc_common::pass::Optional;
 use swc_ecma_visit::FoldWith;
+
+use super::resolver::BuildConfig;
+
+pub fn extension() -> BuiltinExtension {
+  BuiltinExtension {
+    extension: Some(self::init()),
+    runtime_modules: vec![],
+    snapshot_modules: vec![(
+      "@arena/runtime/transpiler",
+      resolve_from_root!("../../js/arena-runtime/dist/transpiler.js"),
+    )],
+  }
+}
+
+pub fn init() -> Extension {
+  Extension::builder("arena/buildtools/transpiler")
+    .ops(vec![
+      op_transpiler_new::decl(),
+      op_transpiler_transpile_sync::decl(),
+      op_transpiler_transpile_file_async::decl(),
+    ])
+    .build()
+}
 
 #[derive(Serialize)]
 struct TranspileResult {
@@ -47,7 +69,7 @@ struct TranspilerConfig {
   resolve_import: bool,
 
   #[serde(default)]
-  resolver: Option<ResolverConfig>,
+  resolver: Option<resolver::Config>,
 
   #[serde(default)]
   source_map: Option<String>,
@@ -61,22 +83,6 @@ pub(crate) struct Transpiler {
 
 impl Resource for Transpiler {
   fn close(self: Rc<Self>) {}
-}
-
-pub fn init() -> Extension {
-  Extension::builder("arena/buildtools/transpiler")
-    .ops(vec![
-      op_transpiler_new::decl(),
-      op_transpiler_transpile_sync::decl(),
-      op_transpiler_transpile_file_async::decl(),
-    ])
-    .js(vec![ExtensionFileSource {
-      specifier: "setup".to_string(),
-      code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
-        "./transpiler.js"
-      )),
-    }])
-    .build()
 }
 
 #[op]

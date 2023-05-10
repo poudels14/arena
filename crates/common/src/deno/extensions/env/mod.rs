@@ -1,4 +1,5 @@
-use crate::config::EnvironmentVariables;
+use super::extension::BuiltinExtension;
+use crate::config::ArenaConfig;
 use anyhow::Result;
 use deno_core::op;
 use deno_core::Extension;
@@ -7,13 +8,17 @@ use deno_core::ExtensionFileSourceCode;
 use deno_core::OpState;
 use serde_json::Value;
 
-pub fn init(env: Option<EnvironmentVariables>) -> Extension {
-  Extension::builder("arena/env")
+pub fn extension() -> BuiltinExtension {
+  BuiltinExtension {
+    extension: Some(self::init()),
+    runtime_modules: vec![],
+    snapshot_modules: vec![],
+  }
+}
+
+fn init() -> Extension {
+  Extension::builder("arena/runtime/env")
     .ops(vec![op_load_env::decl()])
-    .state(move |state| {
-      state
-        .put::<EnvironmentVariables>(env.clone().unwrap_or(Default::default()));
-    })
     .js(vec![ExtensionFileSource {
       specifier: "setup".to_string(),
       code: ExtensionFileSourceCode::IncludedInBinary(
@@ -25,6 +30,9 @@ pub fn init(env: Option<EnvironmentVariables>) -> Extension {
 
 #[op]
 pub fn op_load_env(state: &mut OpState) -> Result<Value> {
-  let vars = state.borrow_mut::<EnvironmentVariables>();
-  Ok(vars.0.clone())
+  let env = state
+    .try_borrow::<ArenaConfig>()
+    .and_then(|c| c.env.clone())
+    .unwrap_or_default();
+  Ok(env.0)
 }

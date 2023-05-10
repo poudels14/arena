@@ -1,5 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
+use common::config::ArenaConfig;
+use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use deno_core::resolve_url_or_path;
 use jsruntime::permissions::{FileSystemPermissions, PermissionsContainer};
 use jsruntime::{IsolatedRuntime, RuntimeConfig};
@@ -22,11 +24,27 @@ pub struct Command {
 impl Command {
   #[tracing::instrument(skip_all)]
   pub async fn execute(&self) -> Result<()> {
+    let mut builtin_modules = vec![
+      BuiltinModule::Fs,
+      BuiltinModule::Node,
+      BuiltinModule::Postgres,
+    ];
+
+    if self.enable_build_tools {
+      builtin_modules.extend(vec![
+        BuiltinModule::Transpiler,
+        BuiltinModule::Resolver(ArenaConfig::find_project_root()?),
+        BuiltinModule::Babel,
+        BuiltinModule::Rollup,
+      ])
+    }
+
     let mut runtime = IsolatedRuntime::new(RuntimeConfig {
+      project_root: Some(ArenaConfig::find_project_root()?),
+      config: Some(ArenaConfig::default()),
       enable_console: true,
       transpile: !self.disable_transpile,
-      enable_build_tools: self.enable_build_tools,
-      enable_node_modules: true,
+      builtin_extensions: BuiltinExtensions::with_modules(builtin_modules),
       permissions: PermissionsContainer {
         fs: Some(FileSystemPermissions {
           allowed_read_paths: HashSet::from_iter(vec![

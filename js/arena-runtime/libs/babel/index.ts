@@ -1,7 +1,7 @@
 import * as babel from "@babel/standalone";
-import solidPreset from "babel-preset-solid";
-import transformCommonJsPlugin from "./plugins/transform-commonjs";
-import importResolverPlugin from "./plugins/import-resolver";
+import solidjs from "babel-preset-solid";
+import transformCommonJs from "./plugins/transform-commonjs";
+import importResolver from "./plugins/import-resolver";
 
 export {
   loadPartialConfig,
@@ -9,4 +9,14 @@ export {
   transformSync,
   transformAsync,
 } from "@babel/core";
-export { babel, solidPreset, transformCommonJsPlugin, importResolverPlugin };
+
+const presets = {
+  solidjs,
+};
+
+const plugins = {
+  transformCommonJs,
+  importResolver,
+};
+
+export { babel, presets, plugins };

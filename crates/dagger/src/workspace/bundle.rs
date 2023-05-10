@@ -1,6 +1,7 @@
 use anyhow::Result;
 use clap::{value_parser, Parser};
-use deno_core::{ExtensionFileSource, ExtensionFileSourceCode};
+use common::config::ArenaConfig;
+use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use jsruntime::permissions::{FileSystemPermissions, PermissionsContainer};
 use jsruntime::{IsolatedRuntime, RuntimeConfig};
 use std::collections::HashSet;
@@ -18,10 +19,30 @@ impl Command {
   pub async fn execute(&self) -> Result<()> {
     let cwd = std::env::current_dir()?;
     let cwd = cwd.to_str().unwrap();
+    let project_root = ArenaConfig::find_project_root()?;
     let mut runtime = IsolatedRuntime::new(RuntimeConfig {
+      project_root: Some(project_root.clone()),
+      config: Some(ArenaConfig::default()),
       enable_console: true,
-      enable_build_tools: true,
-      enable_node_modules: true,
+      builtin_extensions: BuiltinExtensions::with_modules(vec![
+        BuiltinModule::Fs,
+        BuiltinModule::Node,
+        BuiltinModule::Postgres,
+        BuiltinModule::Transpiler,
+        BuiltinModule::Resolver(project_root),
+        BuiltinModule::Babel,
+        BuiltinModule::Rollup,
+        BuiltinModule::CustomRuntimeModule(
+          "@arena/workspace-server/builder",
+          include_str!(
+            "../../../../js/packages/workspace-server/dist/builder.js"
+          ),
+        ),
+        BuiltinModule::CustomRuntimeModule(
+          "dagger/bundler",
+          include_str!("bundler.js"),
+        ),
+      ]),
       permissions: PermissionsContainer {
         fs: Some(FileSystemPermissions {
           root: cwd.into(),
@@ -37,20 +58,6 @@ impl Command {
         }),
         ..Default::default()
       },
-      side_modules: vec![
-        ExtensionFileSource {
-          specifier: "@arena/workspace-server/builder".to_owned(),
-          code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
-            "../../../../js/packages/workspace-server/dist/builder.js"
-          )),
-        },
-        ExtensionFileSource {
-          specifier: "dagger/bundler".to_owned(),
-          code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
-            "bundler.js"
-          )),
-        },
-      ],
       ..Default::default()
     })?;
 

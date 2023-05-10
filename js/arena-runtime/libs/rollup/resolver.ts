@@ -1,4 +1,5 @@
 import path from "path";
+import { Resolver } from "@arena/runtime/resolver";
 
 /**
  * Since rollup's buitin resolver only resolves ".js" and ".mjs",
@@ -10,7 +11,6 @@ import path from "path";
 const resolver = (
   options: Arena.ResolverConfig & { external?: string[] } = {}
 ) => {
-  const { Resolver } = Arena.BuildTools;
   const resolver = new Resolver({
     preserve_symlink: true,
     ...options,

@@ -1,6 +1,5 @@
+use crate::node::Package;
 use anyhow::{anyhow, bail, Result};
-use common::config::ResolverConfig;
-use common::node::Package;
 use deno_core::ModuleResolutionError::{
   InvalidBaseUrl, InvalidPath, InvalidUrl,
 };
@@ -24,7 +23,7 @@ pub struct FsModuleResolver {
   /// The root directory of the project. It's usually where package.json is
   pub project_root: PathBuf,
 
-  pub(crate) config: ResolverConfig,
+  pub(crate) config: super::Config,
 
   pub(crate) cache: Rc<RefCell<ResolverCache>>,
 
@@ -34,7 +33,7 @@ pub struct FsModuleResolver {
 impl FsModuleResolver {
   pub fn new(
     project_root: PathBuf,
-    config: ResolverConfig,
+    config: super::Config,
     builtin_modules: Vec<String>,
   ) -> Self {
     Self {
@@ -48,7 +47,7 @@ impl FsModuleResolver {
   }
 
   #[instrument(skip(self))]
-  pub(crate) fn resolve_import(
+  pub fn resolve(
     &self,
     specifier: &str,
     base: &str,
@@ -57,7 +56,9 @@ impl FsModuleResolver {
 
     let specifier = specifier.strip_prefix("node:").unwrap_or(specifier);
     let mut specifier = self.resolve_alias(specifier);
-    if self.builtin_modules.contains(&specifier) {
+    if self.builtin_modules.contains(&specifier)
+      || specifier.starts_with("@arena/runtime/")
+    {
       debug!("Using builtin module: {specifier}");
       specifier = format!("builtin:///{}", specifier);
     }

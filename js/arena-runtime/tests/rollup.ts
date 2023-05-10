@@ -1,6 +1,6 @@
 // Note(sagar): build-tools should be enabled for this
-import { solidPreset } from "@arena/babel";
-import { build, plugins } from "@arena/rollup";
+import { presets } from "@arena/runtime/babel";
+import { build, plugins } from "@arena/runtime/rollup";
 
 let start = performance.now();
 
@@ -17,7 +17,7 @@ build({
       babelHelpers: "bundled",
       presets: [
         [
-          solidPreset,
+          presets.solidjs,
           {
             generate: "ssr",
             hydratable: false,

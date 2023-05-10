@@ -10,7 +10,6 @@ use swc_ecma_visit::{as_folder, Fold, VisitMut};
 
 pub(crate) struct Resolver {
   transpiler: Rc<Transpiler>,
-
   referrer: String,
 }
 

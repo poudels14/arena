@@ -1,20 +1,18 @@
 use super::loaders;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use common::config::ArenaConfig;
-use common::deno::extensions::{self, node};
+use common::deno::extensions::BuiltinExtensions;
 use common::deno::permissions::PermissionsContainer;
-use common::utils::fs::has_file_in_file_tree;
+use common::deno::resolver::fs::FsModuleResolver;
 use deno_core::{
   v8, ExtensionFileSource, ExtensionFileSourceCode, JsRealm, ModuleLoader,
 };
 use deno_core::{Extension, JsRuntime, Snapshot};
 use derivative::Derivative;
-use itertools::Itertools;
 use std::cell::RefCell;
-use std::env::current_dir;
 use std::path::PathBuf;
 use std::rc::Rc;
-use tracing::{debug, error};
+use tracing::error;
 use url::Url;
 
 pub static RUNTIME_PROD_SNAPSHOT: &[u8] =
@@ -23,6 +21,13 @@ pub static RUNTIME_PROD_SNAPSHOT: &[u8] =
 #[derive(Derivative)]
 #[derivative(Default)]
 pub struct RuntimeConfig {
+  /// Project root must be passed
+  /// This should either be a directory where arena.config.toml is located
+  /// or current directory
+  /// Use {@link has_file_in_file_tree(Some(&cwd), "arena.config.toml")}
+  /// to find the directory with arena.config.toml in file hierarchy
+  pub project_root: Option<PathBuf>,
+
   /// Arena config to be used for the runtime
   /// If None is passed, arena.config.toml is checked
   /// in the current directory as well as up the directory tree
@@ -30,14 +35,11 @@ pub struct RuntimeConfig {
   pub config: Option<ArenaConfig>,
 
   /// Name of the HTTP user_agent
-  pub user_agent: String,
+  pub user_agent: Option<String>,
 
   pub permissions: PermissionsContainer,
 
   pub enable_console: bool,
-
-  #[derivative(Default(value = "true"))]
-  pub enable_wasm: bool,
 
   /// Additional extensions to add to the runtime
   pub extensions: Vec<Extension>,
@@ -45,18 +47,12 @@ pub struct RuntimeConfig {
   /// Heap limit tuple: (initial size, max hard limit) in bytes
   pub heap_limits: Option<(usize, usize)>,
 
-  /// enable build tools like babel, babel plugins, etc
-  pub enable_build_tools: bool,
-
   /// whether to auto-transpile the code when loading
   pub transpile: bool,
 
   pub disable_module_loader: bool,
 
-  /// enables importing from node modules like "node:fs"
-  pub enable_node_modules: bool,
-
-  pub side_modules: Vec<ExtensionFileSource>,
+  pub builtin_extensions: BuiltinExtensions,
 }
 
 pub struct IsolatedRuntime {
@@ -66,27 +62,15 @@ pub struct IsolatedRuntime {
 
 impl IsolatedRuntime {
   pub fn new(mut config: RuntimeConfig) -> Result<IsolatedRuntime> {
-    let cwd = current_dir()?;
-    let maybe_arena_config_dir =
-      has_file_in_file_tree(Some(&cwd), "arena.config.toml");
-
-    // If arena.config.toml is found, use it as project_root, else
-    // use current dir
-    let project_root = maybe_arena_config_dir.clone().unwrap_or(cwd);
-
-    // If Arena config isn't passed, load from config file
-    config.config = config.config.or_else(|| {
-      maybe_arena_config_dir.and_then(|dir| {
-        // Note(sagar): this changes Err => None, which means all errors
-        // are silently ignored
-        ArenaConfig::from_path(&dir.join("arena.config.toml")).ok()
-      })
-    });
+    if config.project_root.is_none() {
+      bail!("config.project_root must be set");
+    } else if config.config.is_none() {
+      bail!("config.config must be set");
+    }
 
     let permissions = config.permissions.clone();
-    let mut builtin_module_sources = vec![];
-    let mut enabled_builtin_modules: Vec<String> = vec![];
 
+    let arena_config = config.config.clone().unwrap_or_default();
     let mut extensions = vec![
       deno_webidl::init(),
       deno_console::init(),
@@ -95,9 +79,12 @@ impl IsolatedRuntime {
         deno_web::BlobStore::default(),
         Default::default(),
       ),
-      deno_crypto::init_ops(None),
       deno_fetch::init_ops::<PermissionsContainer>(deno_fetch::Options {
-        user_agent: "arena/server".to_string(),
+        user_agent: config
+          .user_agent
+          .as_ref()
+          .unwrap_or(&"arena/runtime".to_owned())
+          .to_string(),
         root_cert_store: None,
         proxy: None,
         request_builder_hook: None,
@@ -110,21 +97,17 @@ impl IsolatedRuntime {
           state.put::<PermissionsContainer>(permissions.to_owned());
         })
         .build(),
+      // Note(sagar): put ArenaConfig in the state so that other extensions
+      // can use it
+      Extension::builder("arena/config")
+        .state(move |state| {
+          state.put::<ArenaConfig>(arena_config.to_owned());
+        })
+        .build(),
+      Self::get_setup_extension(&config),
     ];
-    extensions.extend(Self::get_js_extensions(&project_root, &mut config));
 
-    // Note(sagar): right now, build tools, specifically rollup requires
-    // built-in node modules. so, enable then when build tools are enabled
-    if config.enable_node_modules || config.enable_build_tools {
-      extensions.push(node::init_ops());
-      builtin_module_sources.extend(crate::exts::node::get_runtime_modules());
-      enabled_builtin_modules.extend(
-        node::get_modules_for_snapshotting()
-          .iter()
-          .map(|m| m.specifier.clone())
-          .collect::<Vec<String>>(),
-      );
-    }
+    extensions.extend(config.builtin_extensions.deno_extensions());
 
     // Note(sagar): take extensions out of the config and set it to empty
     // vec![] so that config can be stored without having Send trait
@@ -134,28 +117,6 @@ impl IsolatedRuntime {
       config.extensions = vec![];
     }
 
-    if config.enable_build_tools {
-      builtin_module_sources
-        .extend(crate::exts::buildtools::get_runtime_modules());
-      enabled_builtin_modules.extend(
-        extensions::buildtools::get_modules_for_snapshotting()
-          .iter()
-          .map(|m| m.specifier.clone())
-          .collect::<Vec<String>>(),
-      );
-    }
-
-    // Note(sagar): add passed in side-modules at the end so that
-    // builtin modules are already loaded in case external modules depend on
-    // builtin modules
-    builtin_module_sources.extend(config.side_modules.clone());
-    enabled_builtin_modules.extend(
-      builtin_module_sources
-        .iter()
-        .map(|sm| sm.specifier.clone())
-        .collect::<Vec<String>>(),
-    );
-
     let create_params = config.heap_limits.map(|(initial, max)| {
       v8::Isolate::create_params().heap_limits(initial, max)
     });
@@ -164,19 +125,25 @@ impl IsolatedRuntime {
       if config.disable_module_loader {
         None
       } else {
+        let builtin_modules: Vec<String> = config
+          .builtin_extensions
+          .get_specifiers()
+          .iter()
+          .map(|s| s.to_string())
+          .collect::<Vec<String>>();
         // Note(sagar): module loader should be disabled for deployed app
         Some(Rc::new(loaders::FsModuleLoader::new(
           loaders::ModuleLoaderOption {
             transpile: config.transpile,
-            resolver: super::FsModuleResolver::new(
-              project_root,
+            resolver: FsModuleResolver::new(
+              config.project_root.clone().unwrap(),
               config
                 .config
                 .as_ref()
                 .and_then(|c| c.javascript.as_ref())
                 .and_then(|j| j.resolve.clone())
                 .unwrap_or(Default::default()),
-              enabled_builtin_modules,
+              builtin_modules,
             ),
           },
         )))
@@ -206,26 +173,9 @@ impl IsolatedRuntime {
       );
     }
 
-    for module in builtin_module_sources
-      .iter()
-      .unique_by(|m| m.specifier.clone())
-    {
-      futures::executor::block_on(async {
-        debug!(
-          "Loading built-in module into the runtime: {}",
-          module.specifier
-        );
-        let mod_id = js_runtime
-          .load_side_module(
-            &Url::parse(&format!("builtin:///{}", module.specifier))?,
-            Some(module.code.load()?),
-          )
-          .await?;
-        let receiver = js_runtime.mod_evaluate(mod_id);
-        js_runtime.run_event_loop(false).await?;
-        receiver.await?
-      })?;
-    }
+    config
+      .builtin_extensions
+      .load_runtime_modules(&mut js_runtime)?;
 
     let runtime = IsolatedRuntime {
       config,
@@ -305,10 +255,7 @@ impl IsolatedRuntime {
     super::function::Function::new(self.runtime.clone(), code, realm)
   }
 
-  fn get_js_extensions(
-    project_root: &PathBuf,
-    config: &RuntimeConfig,
-  ) -> Vec<Extension> {
+  fn get_setup_extension(config: &RuntimeConfig) -> Extension {
     let mut js_files = Vec::new();
 
     js_files.push(ExtensionFileSource {
@@ -341,25 +288,6 @@ impl IsolatedRuntime {
       ),
     });
 
-    let mut extensions = vec![
-      Extension::builder("arena").js(js_files).build(),
-      extensions::fs::init_js_and_ops(),
-      extensions::env::init(config.config.as_ref().and_then(|c| c.env.clone())),
-    ];
-    if config.enable_wasm {
-      extensions.push(extensions::wasi::init());
-    }
-    if config.enable_build_tools {
-      extensions.append(&mut crate::exts::buildtools::init(
-        project_root,
-        config
-          .config
-          .as_ref()
-          .and_then(|c| c.javascript.as_ref())
-          .and_then(|j| j.resolve.clone())
-          .unwrap_or(Default::default()),
-      ));
-    }
-    extensions
+    Extension::builder("arena").js(js_files).build()
   }
 }

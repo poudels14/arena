@@ -1,13 +1,14 @@
-use super::BuildConfig;
-use crate::core::FsModuleResolver;
+use crate::config::ArenaConfig;
+use crate::deno;
+use crate::deno::extensions::extension::BuiltinExtension;
+use crate::deno::resolver;
+use crate::deno::resolver::fs::FsModuleResolver;
+use crate::resolve_from_root;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Result;
-use common::config::ResolverConfig;
 use deno_core::op;
 use deno_core::Extension;
-use deno_core::ExtensionFileSource;
-use deno_core::ExtensionFileSourceCode;
 use deno_core::OpState;
 use deno_core::Resource;
 use deno_core::ResourceId;
@@ -15,20 +16,49 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-impl Resource for FsModuleResolver {
-  fn close(self: Rc<Self>) {}
+pub fn extension(root: PathBuf) -> BuiltinExtension {
+  BuiltinExtension {
+    extension: Some(self::init(root)),
+    runtime_modules: vec![(
+      "arena/resolver/setup",
+      include_str!("./resolver.js"),
+    )],
+    snapshot_modules: vec![(
+      "@arena/runtime/resolver",
+      resolve_from_root!("../../js/arena-runtime/dist/resolver.js"),
+    )],
+  }
 }
 
-pub fn init() -> Extension {
+pub(crate) fn init(root: PathBuf) -> Extension {
   Extension::builder("arena/buildtools/resolver")
     .ops(vec![op_resolver_new::decl(), op_resolver_resolve::decl()])
-    .js(vec![ExtensionFileSource {
-      specifier: "setup".to_string(),
-      code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
-        "./resolver.js"
-      )),
-    }])
+    .state(move |state| {
+      let resolver = {
+        let config = state.borrow::<ArenaConfig>();
+        config
+          .javascript
+          .as_ref()
+          .and_then(|j| j.resolve.clone())
+          .unwrap_or(Default::default())
+      };
+
+      state.put::<BuildConfig>(BuildConfig {
+        root: root.to_owned(),
+        resolver,
+      });
+    })
     .build()
+}
+
+#[derive(Clone)]
+pub struct BuildConfig {
+  pub root: PathBuf,
+  pub resolver: deno::resolver::Config,
+}
+
+impl Resource for FsModuleResolver {
+  fn close(self: Rc<Self>) {}
 }
 
 // TODO(sagar): should the resolver created here be dropped
@@ -36,7 +66,7 @@ pub fn init() -> Extension {
 #[op]
 fn op_resolver_new(
   state: &mut OpState,
-  config: Option<ResolverConfig>,
+  config: Option<resolver::Config>,
 ) -> Result<(ResourceId, String)> {
   let build_config = state.borrow_mut::<BuildConfig>();
   let root = build_config.root.clone();
@@ -85,7 +115,7 @@ pub(crate) fn resolve(
     ),
   };
 
-  let resolved = resolver.resolve_import(&specifier, &referrer)?;
+  let resolved = resolver.resolve(&specifier, &referrer)?;
   let relative = pathdiff::diff_paths::<&PathBuf, &PathBuf>(
     &resolved.to_file_path().map_err(|e| anyhow!("{:?}", e))?,
     &root,

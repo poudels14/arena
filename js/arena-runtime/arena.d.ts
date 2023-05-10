@@ -36,6 +36,15 @@ declare namespace Arena {
     data?: null | string | number
   ): Promise<void>;
 
+  /**
+   * Transpile the given filename
+   */
+  function OpAsync(
+    name: "op_transpiler_transpile_file_async",
+    rid: number,
+    filename: string
+  ): Promise<string>;
+
   interface Core {
     ops: {
       op_node_create_hash: (algorithm: string) => number;
@@ -44,6 +53,41 @@ declare namespace Arena {
       op_node_hash_digest: (ctx: number) => number[];
       op_node_hash_digest_hex: (ctx: number) => string;
       op_node_generate_secret: (buffer: any) => void;
+
+      /**
+       * Only set if Resolver module is used
+       *
+       * @param config
+       * @returns [resource_id, root_dir]
+       */
+      op_resolver_new: (config: ResolverConfig) => [number, string];
+
+      /**
+       *
+       * @param rid resource id of the resolver
+       * @param specifier module specifier
+       * @param referrer referrer
+       * @returns resolved path of the specifier if found
+       */
+      op_resolver_resolve: (
+        rid: number,
+        specifier: string,
+        referrer: string
+      ) => string | undefined;
+
+      /**
+       * Only set if Transpiler module is used
+       *
+       * @param config
+       * @returns [resource_id, root_dir]
+       */
+      op_transpiler_new: (config: TranspilerConfig) => [number, string];
+
+      op_transpiler_transpile_sync: (
+        rid: number,
+        filename: string,
+        code: string
+      ) => string;
     };
     opAsync: typeof OpAsync;
   }
@@ -65,7 +109,14 @@ declare namespace Arena {
     writeFileSync: (path: string, data: any) => void;
   }
 
-  export type ResolverConfig = {
+  let core: Core;
+  let env: Env;
+  let fs: FileSystem;
+  let wasi: any;
+
+  let toInnerResponse: (response: Response) => any;
+
+  type ResolverConfig = {
     preserve_symlink?: boolean;
 
     alias?: Record<string, string>;
@@ -74,23 +125,6 @@ declare namespace Arena {
 
     dedupe?: string[];
   };
-
-  class Resolver {
-    /**
-     * Project root
-     *
-     * All resolved paths are relative to this path
-     */
-    root: string;
-
-    /**
-     * Returns a resolved path of the specifier relative
-     * to the project root, which is same as {@link root}
-     */
-    resolve(specifier: string, referrer: string): string;
-
-    close();
-  }
 
   type TranspilerConfig = {
     /**
@@ -108,45 +142,6 @@ declare namespace Arena {
 
     source_map?: "inline";
   };
-
-  type TranspileResult = {
-    code: string;
-  };
-
-  class Transpiler {
-    root: string;
-
-    public transpileFileAsync: (filename: string) => Promise<TranspileResult>;
-
-    /**
-     * If import resolution is enabled, the filename should be passed such that
-     * the imports are resolved using the filename as a referrer
-     */
-    public transpileSync: (code: string, filename?: string) => TranspileResult;
-  }
-
-  type BuildTools = {
-    babel: any;
-    babelPlugins: {
-      transformCommonJs: any;
-      importResolver: any;
-    };
-    babelPresets: {
-      solid: any;
-    };
-
-    Transpiler: new (config?: TranspilerConfig) => Transpiler;
-
-    Resolver: new (config?: ResolverConfig) => Resolver;
-  };
-
-  let core: Core;
-  let env: Env;
-  let fs: FileSystem;
-  let BuildTools: BuildTools;
-  let wasi: any;
-
-  let toInnerResponse: (response: Response) => any;
 }
 
 interface ImportMeta {
@@ -168,14 +163,59 @@ declare var path: any;
 declare var process: any;
 declare var Buffer: any;
 
-declare module "@arena/babel" {
-  export const babel;
-  export const solidPreset;
-  export const transformCommonJsPlugin;
-  export const importResolverPlugin;
+declare module "@arena/runtime/resolver" {
+  export class Resolver {
+    constructor(config?: Arena.ResolverConfig);
+
+    /**
+     * Project root
+     *
+     * All resolved paths are relative to this path
+     */
+    root: string;
+
+    /**
+     * Returns a resolved path of the specifier relative
+     * to the project root, which is same as {@link root}
+     */
+    resolve(specifier: string, referrer: string): string;
+
+    close();
+  }
 }
 
-declare module "@arena/rollup" {
+declare module "@arena/runtime/transpiler" {
+  type TranspileResult = {
+    code: string;
+  };
+
+  class Transpiler {
+    root: string;
+
+    constructor(config?: Arena.TranspilerConfig);
+
+    public transpileFileAsync: (filename: string) => Promise<TranspileResult>;
+
+    /**
+     * If import resolution is enabled, the filename should be passed such that
+     * the imports are resolved using the filename as a referrer
+     */
+    public transpileSync: (code: string, filename?: string) => TranspileResult;
+  }
+}
+
+declare module "@arena/runtime/babel" {
+  export const babel;
+  export const presets: {
+    solidjs;
+  };
+  export const plugins: {
+    transformCommonJs;
+    importResolver;
+  };
+}
+
+declare module "@arena/runtime/rollup" {
   export const rollup;
   export const plugins: {
     terser: () => any;
@@ -189,7 +229,7 @@ declare module "@arena/rollup" {
   export const build: (options: any) => Promise<void>;
 }
 
-declare module "@arena/postgres" {
+declare module "@arena/runtime/postgres" {
   type ClientConfig =
     | {
         connectionStringId: number;
@@ -213,7 +253,7 @@ declare module "@arena/postgres" {
   export const Client: new (config: ClientConfig) => Client;
 }
 
-declare module "@arena/server" {
+declare module "@arena/runtime/server" {
   type ServeConfig = {
     fetch: (req: Request) => Promise<Response>;
   };

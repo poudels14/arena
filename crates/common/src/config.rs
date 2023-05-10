@@ -1,53 +1,19 @@
+use crate::deno::resolver;
+use crate::utils::fs::has_file_in_file_tree;
 use anyhow::{anyhow, Result};
 use derivative::Derivative;
-use indexmap::map::IndexMap;
-use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::env::current_dir;
 use std::fs;
 use std::path::PathBuf;
-
-#[derive(Derivative, Serialize, Deserialize)]
-#[derivative(Clone, Debug, Default)]
-pub struct ResolverConfig {
-  /// to use pnpm, preserve_symlink should be false since packages
-  /// are hoisted
-  #[serde(skip_serializing_if = "Option::is_none")]
-  #[serde(default)]
-  pub preserve_symlink: Option<bool>,
-
-  /// Module resolve alias as used by node resolvers, ViteJs, etc
-  #[serde(skip_serializing_if = "IndexMap::is_empty")]
-  #[serde(default)]
-  pub alias: IndexMap<String, String>,
-
-  /// A list of conditions that should be used when resolving modules using
-  /// exports field in package.json
-  /// similar to exportConditions option for @rollup/plugin-node-resolve
-  #[serde(skip_serializing_if = "IndexSet::is_empty")]
-  #[serde(default)]
-  pub conditions: IndexSet<String>,
-
-  /// A list of external modules which shouldn't be resolved, esp when bundling
-  #[serde(skip_serializing_if = "IndexSet::is_empty")]
-  #[serde(default)]
-  pub external: IndexSet<String>,
-
-  /// A list of modules to dedupe
-  /// Deduping a module (external npm module) will always resolve the module
-  /// to the same path inside the `${project root}/node_modules` directory.
-  /// See rollup node resolve plugin's dedupe config for more info.
-  #[serde(skip_serializing_if = "IndexSet::is_empty")]
-  #[serde(default)]
-  pub dedupe: IndexSet<String>,
-}
 
 #[derive(Derivative, Serialize, Deserialize)]
 #[derivative(Clone, Debug, Default)]
 pub struct JavascriptConfig {
   /// Config related to Javascript and Typescript
   #[serde(skip_serializing_if = "Option::is_none")]
-  pub resolve: Option<ResolverConfig>,
+  pub resolve: Option<resolver::Config>,
 }
 
 #[derive(Derivative, Serialize, Deserialize)]
@@ -74,32 +40,16 @@ impl ArenaConfig {
     toml::from_str(&std::str::from_utf8(&content)?)
       .map_err(|e| anyhow!("{}", e))
   }
-}
 
-impl ResolverConfig {
-  pub fn merge(self, other: ResolverConfig) -> Self {
-    Self {
-      preserve_symlink: other.preserve_symlink.or(self.preserve_symlink),
-      alias: if !other.alias.is_empty() {
-        other.alias
-      } else {
-        self.alias
-      },
-      conditions: if !other.conditions.is_empty() {
-        other.conditions
-      } else {
-        self.conditions
-      },
-      external: if !other.external.is_empty() {
-        other.external
-      } else {
-        self.external
-      },
-      dedupe: if !other.dedupe.is_empty() {
-        other.dedupe
-      } else {
-        self.dedupe
-      },
-    }
+  /// Find a directory with "arena.config.toml" in the directory
+  /// hierarchy
+  /// Defaults to env::current_dir() if config file not found
+  pub fn find_project_root() -> Result<PathBuf> {
+    let cwd = current_dir()?;
+    let maybe_arena_config_dir =
+      has_file_in_file_tree(Some(&cwd), "arena.config.toml");
+
+    // If arena.config.toml is not found, use current dir
+    Ok(maybe_arena_config_dir.clone().unwrap_or(cwd))
   }
 }

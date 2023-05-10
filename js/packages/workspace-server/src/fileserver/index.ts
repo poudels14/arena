@@ -1,4 +1,6 @@
 import { createHandler } from "@arena/core/server";
+import { Transpiler } from "@arena/runtime/transpiler";
+import { babel, presets, plugins } from "@arena/runtime/babel";
 import * as mime from "mime";
 import * as path from "path";
 
@@ -15,7 +17,6 @@ const createFileServer = () => {
     Arena.Workspace?.config?.client?.env
   );
 
-  const { Transpiler } = Arena.BuildTools;
   const transpiler = new Transpiler({
     resolve_import: true,
     resolver: {
@@ -81,7 +82,7 @@ const createFileServer = () => {
 };
 
 const getTranspiledJavascript = async (
-  transpiler: Arena.Transpiler,
+  transpiler: Transpiler,
   filePath: string,
   ext: string
 ) => {
@@ -90,12 +91,11 @@ const getTranspiledJavascript = async (
 
   // Note(sagar): further transpile JSX using babel plugins
   if ([".tsx", ".jsx"].includes(ext)) {
-    const { babel, babelPlugins, babelPresets } = Arena.BuildTools;
     const { code: solidjsCode } = babel.transform(code, {
-      presets: [[babelPresets.solid, { generate: "dom", hydratable: true }]],
+      presets: [[presets.solidjs, { generate: "dom", hydratable: true }]],
       plugins: [
-        [babelPlugins.transformCommonJs, { exportsOnly: true }],
-        babelPlugins.importResolver,
+        [plugins.transformCommonJs, { exportsOnly: true }],
+        plugins.importResolver,
       ],
     });
     transpiledCode = solidjsCode;
@@ -104,7 +104,7 @@ const getTranspiledJavascript = async (
 };
 
 const getTransformedCss = async (
-  transpiler: Arena.Transpiler,
+  transpiler: Transpiler,
   filePath: string,
   ext: string
 ) => {

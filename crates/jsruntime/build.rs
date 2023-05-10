@@ -1,5 +1,5 @@
 #![allow(unused_doc_comments)]
-use common::deno::extensions;
+use common::deno::extensions::{self, BuiltinExtensions};
 use deno_core::anyhow::{bail, Error, Result};
 use deno_core::{
   anyhow, JsRuntime, ModuleLoader, ModuleSourceFuture, ModuleSpecifier,
@@ -52,29 +52,7 @@ pub fn main() {
 fn generate_prod_snapshot(path: &Path) {
   let mut runtime = get_basic_runtime();
 
-  let exts: Vec<ExtensionFileSource> = vec![
-    extensions::node::get_modules_for_snapshotting(),
-    extensions::buildtools::get_modules_for_snapshotting(),
-  ]
-  .iter()
-  .flatten()
-  .map(|s| s.clone())
-  .collect();
-
-  for module in exts.iter() {
-    futures::executor::block_on(async {
-      let mod_id = runtime
-        .load_side_module(
-          &Url::parse(&format!("builtin:///{}", module.specifier))?,
-          Some(module.code.load()?),
-        )
-        .await?;
-      let receiver = runtime.mod_evaluate(mod_id);
-      runtime.run_event_loop(false).await?;
-      receiver.await?
-    })
-    .unwrap();
-  }
+  BuiltinExtensions::load_all_snapshot_modules(&mut runtime);
 
   let snapshot: &[u8] = &*runtime.snapshot();
   std::fs::write(path, snapshot).unwrap();
@@ -155,6 +133,7 @@ impl ModuleLoader for BuiltInModuleLoader {
     _referrer: &str,
     _kind: ResolutionKind,
   ) -> Result<ModuleSpecifier, Error> {
+    let specifier = specifier.strip_prefix("node:").unwrap_or(specifier);
     // Note(sagar): since all modules during build are builtin modules,
     // add url schema `builtin:///` prefix
     let specifier = match specifier.starts_with("builtin:///") {

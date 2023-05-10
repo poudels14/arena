@@ -2,12 +2,13 @@ use self::request::HttpRequest;
 use self::resources::{
   HttpConnection, HttpResponseHandle, HttpServer, HttpServerConfig,
 };
+use super::extension::BuiltinExtension;
+use crate::resolve_from_root;
 use anyhow::{anyhow, Result};
+use deno_core::CancelFuture;
 use deno_core::{
-  op, ByteString, CancelHandle, Extension, ExtensionFileSourceCode, OpState,
-  ResourceId, StringOrBuffer,
+  op, ByteString, CancelHandle, Extension, OpState, ResourceId, StringOrBuffer,
 };
-use deno_core::{CancelFuture, ExtensionFileSource};
 use futures::future::{pending, select, Either};
 use futures::never::Never;
 use futures::FutureExt;
@@ -32,9 +33,20 @@ mod executor;
 mod request;
 mod resources;
 
-pub fn init(address: &str, port: u16) -> Extension {
-  let address = address.to_string();
-  Extension::builder("arena/http-server")
+pub fn extension(option: (String, u16)) -> BuiltinExtension {
+  BuiltinExtension {
+    extension: Some(self::init(option)),
+    runtime_modules: vec![],
+    snapshot_modules: vec![(
+      "@arena/runtime/server",
+      resolve_from_root!("../../js/arena-runtime/dist/server.js"),
+    )],
+  }
+}
+
+/// initialize server extension with given (address, port)
+pub(crate) fn init(option: (String, u16)) -> Extension {
+  Extension::builder("arena/runtime/server")
     .ops(vec![
       op_http_listen::decl(),
       op_http_accept::decl(),
@@ -43,20 +55,11 @@ pub fn init(address: &str, port: u16) -> Extension {
     ])
     .state(move |state| {
       state.put::<HttpServerConfig>(HttpServerConfig {
-        address: address.clone(),
-        port,
+        address: option.0.clone(),
+        port: option.1,
       });
     })
     .build()
-}
-
-pub fn get_modules_for_snapshotting() -> Vec<ExtensionFileSource> {
-  vec![ExtensionFileSource {
-    specifier: "@arena/server".to_owned(),
-    code: ExtensionFileSourceCode::LoadedFromFsDuringSnapshot(
-      "../../js/arena-runtime/dist/server.js".into(),
-    ),
-  }]
 }
 
 #[op]
@@ -193,7 +196,7 @@ async fn op_http_send_response(
     .sender
     .send(response)
     .await
-    .map_err(|e| anyhow!("{:}", e))
+    .map_err(|e| anyhow!("{:?}", e))
 }
 
 /// Filters out the ever-surprising 'shutdown ENOTCONN' errors.

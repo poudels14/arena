@@ -50,3 +50,35 @@ pub fn resolve_write_path(state: &mut OpState, path: &Path) -> Result<PathBuf> {
     None => bail!("No access to filesystem"),
   }
 }
+
+/// This macro returns the absolute path of the file that is
+/// relative to the project
+#[macro_export]
+macro_rules! resolve_from_root {
+  ($a:expr) => {{
+    use std::path::PathBuf;
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+      .join($a)
+      .canonicalize()
+      .unwrap()
+  }};
+}
+
+/// This macro returns the absolute path of the file that is
+/// relative to the current file
+#[macro_export]
+macro_rules! resolve_from_file {
+  // macth like arm for macro
+  ($a:expr) => {{
+    use std::path::PathBuf;
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+      .parent()
+      .unwrap()
+      .join(file!())
+      .parent()
+      .unwrap()
+      .join($a)
+      .canonicalize()
+      .unwrap()
+  }};
+}

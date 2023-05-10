@@ -1,4 +1,5 @@
 import { createFilter } from "@rollup/pluginutils";
+import { Transpiler } from "@arena/runtime/transpiler";
 
 /**
  * This loader strips typescript types when loading. Since we need
@@ -7,7 +8,6 @@ import { createFilter } from "@rollup/pluginutils";
  * types from file when loading
  */
 const loader = (options: { replace: any }) => {
-  const { Transpiler } = Arena.BuildTools;
   const transpiler = new Transpiler({
     replace: options.replace,
   });

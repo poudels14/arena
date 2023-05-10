@@ -1,6 +1,6 @@
 import path from "path";
-import { solidPreset } from "@arena/babel";
-import { build as rollupBuild, plugins } from "@arena/rollup";
+import { presets } from "@arena/runtime/babel";
+import { build as rollupBuild, plugins } from "@arena/runtime/rollup";
 
 type BuildConfig = {
   env?: Record<string, any>;
@@ -78,7 +78,7 @@ const buildServer = async (
         babelHelpers: "bundled",
         presets: [
           [
-            solidPreset,
+            presets.solidjs,
             {
               generate: "ssr",
               hydratable,
@@ -136,7 +136,7 @@ const buildClient = async (
         babelHelpers: "bundled",
         presets: [
           [
-            solidPreset,
+            presets.solidjs,
             {
               generate: "dom",
               hydratable,

@@ -1,5 +1,4 @@
 mod core;
-mod exts;
 
 use crate::core::{IsolatedRuntime, RuntimeConfig};
 use anyhow::Result;

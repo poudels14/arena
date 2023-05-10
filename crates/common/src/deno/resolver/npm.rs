@@ -1,7 +1,7 @@
 use super::fs::FsModuleResolver;
 use super::{fs, ParsedSpecifier};
+use crate::node::Package;
 use anyhow::{anyhow, bail, Result};
-use common::node::Package;
 use deno_core::ModuleResolutionError::{
   ImportPrefixMissing, InvalidPath, InvalidUrl,
 };
@@ -10,7 +10,7 @@ use indexmap::{indexset, IndexSet};
 use once_cell::sync::Lazy;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
-use tracing::{debug, Level};
+use tracing::{debug, error, Level};
 use url::{ParseError, Url};
 
 static ORDERED_EXPORT_CONDITIONS: Lazy<IndexSet<&str>> =
@@ -150,6 +150,7 @@ impl FsModuleResolver {
     referrer: &str,
   ) -> Result<Vec<PathBuf>, ModuleResolutionError> {
     if !referrer.starts_with("file://") {
+      error!("invalid module referrer: expected it to start with 'file://' but is: {:?}", referrer);
       return Err(InvalidUrl(ParseError::RelativeUrlWithoutBase));
     }
 

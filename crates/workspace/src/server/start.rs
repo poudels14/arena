@@ -7,7 +7,8 @@ use crate::server::{
 };
 use crate::{Workspace, WorkspaceConfig};
 use anyhow::{anyhow, bail, Result};
-use common::deno::extensions;
+use common::config::ArenaConfig;
+use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use common::deno::permissions::{FileSystemPermissions, PermissionsContainer};
 use deno_core::{
   op, Extension, ExtensionFileSource, ExtensionFileSourceCode, OpState,
@@ -199,13 +200,37 @@ impl WorkspaceServer {
       allowed_read_paths.push(dir.to_string());
     }
 
+    let mut builtin_modules = vec![
+      BuiltinModule::Fs,
+      BuiltinModule::Env,
+      BuiltinModule::Node,
+      BuiltinModule::Postgres,
+      BuiltinModule::CustomRuntimeModule(
+        "@arena/workspace-server",
+        include_str!("../../../../js/packages/workspace-server/dist/server.js"),
+      ),
+    ];
+
+    if self.dev_mode {
+      builtin_modules.extend(vec![
+        BuiltinModule::Resolver(self.workspace.project_root()),
+        BuiltinModule::Transpiler,
+      ])
+    }
+
     let workspace_config = self.workspace.config.clone();
     let mut runtime = IsolatedRuntime::new(RuntimeConfig {
       // TODO(sagar): disabled this when running deployed workspace
+      project_root: Some(self.workspace.project_root()),
+      config: Some(
+        ArenaConfig::from_path(
+          &self.workspace.project_root().join("arena.config.toml"),
+        )
+        .unwrap_or_default(),
+      ),
       enable_console: true,
+      builtin_extensions: BuiltinExtensions::with_modules(builtin_modules),
       transpile: self.dev_mode,
-      enable_build_tools: self.dev_mode,
-      enable_node_modules: true,
       // TODO(sagar): file permissions is required to server static files
       // move the fileserver to rust so that file permission isn't ncessary
       permissions: PermissionsContainer {
@@ -236,18 +261,7 @@ impl WorkspaceServer {
             ),
           }])
           .build(),
-        extensions::postgres::init(),
       ],
-      side_modules: vec![
-        vec![ExtensionFileSource {
-          specifier: "@arena/workspace-server".to_owned(),
-          code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
-            "../../../../js/packages/workspace-server/dist/server.js"
-          )),
-        }],
-        extensions::postgres::get_modules_for_snapshotting(),
-      ]
-      .concat(),
       heap_limits: self.workspace.heap_limits,
       ..Default::default()
     })?;

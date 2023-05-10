@@ -1,4 +1,4 @@
-const { Transpiler } = Arena.BuildTools;
+import { Transpiler } from "@arena/runtime/transpiler";
 
 console.log("************* Transforming inline code ******************");
 
