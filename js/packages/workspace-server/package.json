@@ -6,7 +6,7 @@
   "main": "index.ts",
   "scripts": {
     "build": "pnpm bundle:server && pnpm bundle:builder",
-    "bundle:server": "pnpm esbuild server=./src/server.ts --external:path --external:process --outdir=dist --format=esm --bundle",
+    "bundle:server": "pnpm esbuild server=./src/server.ts --external:path --external:process --external:@arena/runtime/babel --external:@arena/runtime/transpiler --external:@arena/runtime/server --outdir=dist --format=esm --bundle",
     "bundle:builder": "pnpm esbuild builder=./src/builder/index.ts --external:path --external:process --external:@arena/runtime/babel --external:@arena/runtime/rollup --outdir=dist --format=esm --bundle"
   },
   "author": "Sagar Poudel",

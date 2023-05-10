@@ -1,7 +1,5 @@
 mod events;
-mod ext;
 mod handle;
-mod http;
 mod server;
 mod start;
 

@@ -1,23 +1,6 @@
 import type { Handler } from "@arena/core/server";
-import { ArenaRequest, RESOLVE } from "./request";
+import { serve as serveHttp } from "@arena/runtime/server";
 import { createFileServer } from "./fileserver";
-
-class RequestListener {
-  [Symbol.asyncIterator]() {
-    return this;
-  }
-
-  async next() {
-    try {
-      const req = await Arena.core.opAsync("op_receive_request");
-      return { value: req, done: false };
-    } catch (error) {
-      console.error(error);
-      // TODO(sagar): handle error
-      return { value: undefined, done: true };
-    }
-  }
-}
 
 const serve = async (
   handler: Handler,
@@ -31,15 +14,10 @@ const serve = async (
   console.log("[Arena.Workspace.serve]: Listening to connections...");
 
   const fileServer = options.serveFiles ? createFileServer() : null;
-  const listener = new RequestListener();
-  for await (const req of listener) {
-    if (!req) {
-      break;
-    }
-    let arenaRequest = new ArenaRequest(req.internal, req.rid);
-    arenaRequest[RESOLVE](async () => {
+  await serveHttp({
+    async fetch(req) {
       let event = {
-        request: arenaRequest,
+        request: req,
         env: Arena.env,
       };
 
@@ -50,8 +28,8 @@ const serve = async (
         }
       }
       return await handler.execute(event);
-    });
-  }
+    },
+  });
 };
 
 export { serve };

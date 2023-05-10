@@ -1,6 +1,4 @@
 use super::events::{ServerEvent, ServerEvents, ServerStarted};
-use super::ext::ResponseSender;
-use super::http::HttpRequest;
 use crate::server::{
   ClientRequest, ServerHandle, ServerOptions, ServerRequest,
   WorkspaceServerHandle,
@@ -15,20 +13,10 @@ use deno_core::{
 };
 use jsruntime::{IsolatedRuntime, RuntimeConfig};
 use serde_json::{json, Value};
-use std::cell::RefCell;
 use std::collections::HashSet;
-use std::rc::Rc;
 use std::thread;
-use tokio::sync::mpsc;
-use tokio::task;
 use tracing::{debug, error, info};
 use url::Url;
-
-/// This is a handle that's used to send parsed TCP requests to JS VM
-#[derive(Clone, Debug)]
-pub(crate) struct VmService {
-  pub sender: mpsc::Sender<(HttpRequest, ResponseSender)>,
-}
 
 #[derive(Clone, Debug)]
 pub(crate) struct WorkspaceServer {
@@ -49,9 +37,6 @@ pub(crate) struct WorkspaceServer {
 
   /// Handle for events emitted by the server
   pub(crate) events: ServerEvents,
-
-  /// A service that exchanges messages/requests with VM
-  pub(crate) vm_serice: Option<VmService>,
 }
 
 /// Start a server to serve a workspace. The server is single threaded
@@ -70,7 +55,6 @@ pub async fn serve(
     port: options.port,
     handle: ServerHandle::new(),
     events: ServerEvents::new(),
-    vm_serice: None,
   };
 
   let thread = thread::Builder::new()
@@ -125,16 +109,7 @@ pub async fn serve(
 
 impl WorkspaceServer {
   async fn start_all(&mut self) -> Result<()> {
-    let (tx, rx) = mpsc::channel::<(HttpRequest, ResponseSender)>(100);
-    self.vm_serice = Some(VmService { sender: tx });
-    let js_server = self.start_workspace_js_server(rx);
-
-    // Note(sagar): in a adhoc benchmarking, running tcp server in localset
-    // performed better than without it. probably due to async locking on
-    // message channels
-    let local = task::LocalSet::new();
-    let tcp_server =
-      local.run_until(async { super::http::listen(self.clone()).await });
+    let js_server = self.start_workspace_js_server();
 
     let command_listener = self.listen_to_admin_commands();
 
@@ -147,12 +122,6 @@ impl WorkspaceServer {
       c = command_listener => {
         debug!("admin command listener terminated: {:?}", c);
       },
-      c = tcp_server => {
-        match c {
-          Err(e) => error!("TCP server terminated with error: {:?}", e),
-          _ => debug!("TCP server terminated.")
-        }
-      }
       c = js_server => {
         match c {
           Err(e) => error!("JS runtime terminated with error: {:?}", e),
@@ -190,10 +159,7 @@ impl WorkspaceServer {
     }
   }
 
-  async fn start_workspace_js_server(
-    &self,
-    rx: mpsc::Receiver<(HttpRequest, ResponseSender)>,
-  ) -> Result<()> {
+  async fn start_workspace_js_server(&self) -> Result<()> {
     // TODO(sagar): only give read access to workspace directory
     let mut allowed_read_paths = vec![];
     if let Some(dir) = self.workspace.dir.to_str() {
@@ -205,6 +171,7 @@ impl WorkspaceServer {
       BuiltinModule::Env,
       BuiltinModule::Node,
       BuiltinModule::Postgres,
+      BuiltinModule::HttpServer(&self.address, self.port),
       BuiltinModule::CustomRuntimeModule(
         "@arena/workspace-server",
         include_str!("../../../../js/packages/workspace-server/dist/server.js"),
@@ -241,27 +208,24 @@ impl WorkspaceServer {
         }),
         ..Default::default()
       },
-      extensions: vec![
-        super::ext::init(Rc::new(RefCell::new(rx))),
-        Extension::builder("arena/workspace-server/config")
-          .ops(vec![op_load_workspace_config::decl()])
-          .state(move |state| {
-            state.put::<WorkspaceConfig>(workspace_config.clone());
-          })
-          .js(vec![ExtensionFileSource {
-            specifier: "init".to_owned(),
-            code: ExtensionFileSourceCode::IncludedInBinary(
-              r#"
+      extensions: vec![Extension::builder("arena/workspace-server/config")
+        .ops(vec![op_load_workspace_config::decl()])
+        .state(move |state| {
+          state.put::<WorkspaceConfig>(workspace_config.clone());
+        })
+        .js(vec![ExtensionFileSource {
+          specifier: "init".to_owned(),
+          code: ExtensionFileSourceCode::IncludedInBinary(
+            r#"
               Object.assign(globalThis.Arena, {
                 Workspace: {
                   config: Arena.core.ops.op_load_workspace_config()
                 }
               });
               "#,
-            ),
-          }])
-          .build(),
-      ],
+          ),
+        }])
+        .build()],
       heap_limits: self.workspace.heap_limits,
       ..Default::default()
     })?;
@@ -271,30 +235,36 @@ impl WorkspaceServer {
       .to_str()
       .ok_or(anyhow!("Unable to get workspace entry file"))?;
 
-    runtime
-      .execute_main_module_code(
-        &Url::parse("file:///arena/workspace-server/init")?,
-        &format!(
-          r#"
-            import {{ serve }} from "@arena/workspace-server";
+    let local = tokio::task::LocalSet::new();
+    local
+      .run_until(async move {
+        runtime
+          .execute_main_module_code(
+            &Url::parse("file:///arena/workspace-server/init")?,
+            &format!(
+              r#"
+                import {{ serve }} from "@arena/workspace-server";
 
-            // Note(sagar): need to dynamically load the entry-server.tsx or
-            // whatever the entry file is for the workspace so that it's
-            // transpiled properly
+                // Note(sagar): need to dynamically load the entry-server.tsx or
+                // whatever the entry file is for the workspace so that it's
+                // transpiled properly
 
-            await import("file://{}").then(async ({{ default: m }}) => {{
-              serve(m, {{
-                serveFiles: {}
-              }});
-            }});
-          "#,
-          server_entry, self.dev_mode
-        ),
-      )
-      .await?;
+                await import("file://{}").then(async ({{ default: m }}) => {{
+                  serve(m, {{
+                    serveFiles: {}
+                  }});
+                }});
+              "#,
+              server_entry, self.dev_mode
+            ),
+          )
+          .await?;
 
-    runtime.run_event_loop().await?;
-    Ok(())
+        runtime.run_event_loop().await?;
+
+        Ok(())
+      })
+      .await
   }
 }
 

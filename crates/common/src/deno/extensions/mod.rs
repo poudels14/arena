@@ -18,7 +18,7 @@ use std::path::PathBuf;
 use tracing::debug;
 use url::Url;
 
-pub enum BuiltinModule {
+pub enum BuiltinModule<'a> {
   Fs,
   Env,
   Node,
@@ -28,13 +28,13 @@ pub enum BuiltinModule {
   Rollup,
   Postgres,
   /// (address, port)
-  HttpServer((String, u16)),
+  HttpServer(&'a str, u16),
   /// args: (specifier, code)
   CustomRuntimeModule(&'static str, &'static str),
   Custom(fn() -> BuiltinExtension),
 }
 
-impl BuiltinModule {
+impl<'a> BuiltinModule<'a> {
   pub(crate) fn extension(&self) -> BuiltinExtension {
     match self {
       Self::Fs => self::fs::extension(),
@@ -45,7 +45,9 @@ impl BuiltinModule {
       Self::Babel => self::babel::extension(),
       Self::Rollup => self::rollup::extension(),
       Self::Postgres => self::postgres::extension(),
-      Self::HttpServer(arg) => self::server::extension(arg.clone()),
+      Self::HttpServer(address, port) => {
+        self::server::extension(address.to_string(), port.clone())
+      }
       Self::CustomRuntimeModule(specifier, code) => BuiltinExtension {
         runtime_modules: vec![(specifier, code)],
         ..Default::default()
@@ -161,7 +163,7 @@ impl BuiltinExtensions {
       BuiltinModule::Transpiler,
       BuiltinModule::Babel,
       BuiltinModule::Rollup,
-      BuiltinModule::HttpServer(("".to_owned(), 0)),
+      BuiltinModule::HttpServer("", 0),
     ]
     .iter()
     .map(|m| m.extension())

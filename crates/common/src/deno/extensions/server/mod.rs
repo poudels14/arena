@@ -33,9 +33,9 @@ mod executor;
 mod request;
 mod resources;
 
-pub fn extension(option: (String, u16)) -> BuiltinExtension {
+pub fn extension(address: String, port: u16) -> BuiltinExtension {
   BuiltinExtension {
-    extension: Some(self::init(option)),
+    extension: Some(self::init(address, port)),
     runtime_modules: vec![],
     snapshot_modules: vec![(
       "@arena/runtime/server",
@@ -45,7 +45,7 @@ pub fn extension(option: (String, u16)) -> BuiltinExtension {
 }
 
 /// initialize server extension with given (address, port)
-pub(crate) fn init(option: (String, u16)) -> Extension {
+fn init(address: String, port: u16) -> Extension {
   Extension::builder("arena/runtime/server")
     .ops(vec![
       op_http_listen::decl(),
@@ -55,8 +55,8 @@ pub(crate) fn init(option: (String, u16)) -> Extension {
     ])
     .state(move |state| {
       state.put::<HttpServerConfig>(HttpServerConfig {
-        address: option.0.clone(),
-        port: option.1,
+        address: address.to_owned(),
+        port,
       });
     })
     .build()
