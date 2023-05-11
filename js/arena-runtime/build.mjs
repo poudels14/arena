@@ -93,12 +93,6 @@ program.option("--minify").action(async (options, cmd) => {
     build({
       ...options,
       entryPoints: {
-        server: "./libs/server/index.ts",
-      },
-    }),
-    build({
-      ...options,
-      entryPoints: {
         resolver: "./libs/resolver.ts",
       },
     }),
@@ -106,6 +100,18 @@ program.option("--minify").action(async (options, cmd) => {
       ...options,
       entryPoints: {
         transpiler: "./libs/transpiler.ts",
+      },
+    }),
+    build({
+      ...options,
+      entryPoints: {
+        server: "./libs/server/index.ts",
+      },
+    }),
+    build({
+      ...options,
+      entryPoints: {
+        dqs: "./libs/dqs/index.ts",
       },
     }),
   ]);

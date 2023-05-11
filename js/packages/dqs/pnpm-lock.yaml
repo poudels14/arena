@@ -1,0 +1,22 @@
+lockfileVersion: '6.0'
+
+dependencies:
+  '@arena/appkit':
+    specifier: workspace:^
+    version: link:../appkit
+  '@trpc/server':
+    specifier: ^10.21.0
+    version: 10.25.1
+  zod:
+    specifier: ^3.21.4
+    version: 3.21.4
+
+packages:
+
+  /@trpc/server@10.25.1:
+    resolution: {integrity: sha512-zi08QKVvWPK0EEGpEy7i5PlOK9CBlQb3LqiIdmaIpe27DzFNz6+yZ4qXwsLXTwDcDphELl/BNw+RzzQ2+Ou2vw==}
+    dev: false
+
+  /zod@3.21.4:
+    resolution: {integrity: sha512-m46AKbrzKVzOzs/DZgVnG5H55N1sv1M8qZU3A8RIKbs3mrACDNeIOeilDymVb2HdmP8uwshOCF4uJ8uM9rCqJw==}
+    dev: false

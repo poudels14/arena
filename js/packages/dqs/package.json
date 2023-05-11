@@ -1,0 +1,17 @@
+{
+  "name": "dqs",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.ts",
+  "scripts": {
+    "build": "pnpm esbuild router=./src/router.ts --external:@appkit/* --outdir=dist --format=esm --bundle"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@arena/appkit": "workspace:^",
+    "@trpc/server": "^10.21.0",
+    "zod": "^3.21.4"
+  }
+}

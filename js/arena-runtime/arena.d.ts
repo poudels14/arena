@@ -45,6 +45,14 @@ declare namespace Arena {
     filename: string
   ): Promise<string>;
 
+  /**
+   * Only available when dqs extension is used
+   */
+  function OpAsync(
+    name: "op_dqs_start_workspace_server",
+    workspaceId: string
+  ): Promise<number>;
+
   interface Core {
     ops: {
       op_node_create_hash: (algorithm: string) => number;
