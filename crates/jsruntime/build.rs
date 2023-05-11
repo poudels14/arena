@@ -1,16 +1,12 @@
 #![allow(unused_doc_comments)]
 use common::deno::extensions::BuiltinExtensions;
-use deno_core::anyhow::{bail, Error, Result};
-use deno_core::{
-  anyhow, JsRuntime, ModuleLoader, ModuleSourceFuture, ModuleSpecifier,
-  OpState, ResolutionKind, RuntimeOptions,
-};
+use common::deno::loader::BuiltInModuleLoader;
+use deno_core::anyhow::Result;
+use deno_core::{anyhow, JsRuntime, OpState, RuntimeOptions};
 use deno_core::{ExtensionFileSource, ExtensionFileSourceCode};
-use futures::FutureExt;
 use std::env;
 use std::path::Path;
 use std::path::PathBuf;
-use std::pin::Pin;
 use std::rc::Rc;
 use url::Url;
 
@@ -129,48 +125,4 @@ fn get_basic_runtime() -> JsRuntime {
   });
 
   runtime
-}
-
-struct BuiltInModuleLoader {}
-
-impl ModuleLoader for BuiltInModuleLoader {
-  fn resolve(
-    &self,
-    specifier: &str,
-    _referrer: &str,
-    _kind: ResolutionKind,
-  ) -> Result<ModuleSpecifier, Error> {
-    let specifier = specifier.strip_prefix("node:").unwrap_or(specifier);
-    // Note(sagar): since all modules during build are builtin modules,
-    // add url schema `builtin:///` prefix
-    let specifier = match specifier.starts_with("builtin:///") {
-      true => specifier.to_string(),
-      false => format!("builtin:///{}", specifier),
-    };
-
-    match Url::parse(&specifier) {
-      Ok(url) => Ok(url),
-      _ => {
-        bail!("Failed to resolve specifier: {:?}", specifier);
-      }
-    }
-  }
-
-  fn load(
-    &self,
-    module_specifier: &ModuleSpecifier,
-    maybe_referrer: Option<ModuleSpecifier>,
-    _is_dynamic: bool,
-  ) -> Pin<Box<ModuleSourceFuture>> {
-    let specifier = module_specifier.clone();
-    let referrer = maybe_referrer.clone();
-    async move {
-      bail!(
-        "Module loading not supported: specifier = {:?}, referrer = {:?}",
-        specifier.as_str(),
-        referrer.as_ref().map(|r| r.as_str())
-      );
-    }
-    .boxed_local()
-  }
 }
