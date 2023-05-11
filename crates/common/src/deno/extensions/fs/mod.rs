@@ -1,5 +1,5 @@
 use super::super::utils::fs::{resolve_read_path, resolve_write_path};
-use super::extension::BuiltinExtension;
+use super::BuiltinExtension;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Result;

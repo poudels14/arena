@@ -53,14 +53,23 @@ pub fn resolve_write_path(state: &mut OpState, path: &Path) -> Result<PathBuf> {
 
 /// This macro returns the absolute path of the file that is
 /// relative to the project
+/// A second arg |resolve_from_root| can be passed in build script to rerun
+/// build when the file changes
 #[macro_export]
 macro_rules! resolve_from_root {
   ($a:expr) => {{
     use std::path::PathBuf;
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
       .join($a)
       .canonicalize()
-      .unwrap()
+      .unwrap();
+
+    if concat!(env!("CARGO_PKG_NAME"), "/build.rs") == file!() {
+      let path = path.to_str().unwrap();
+      println!("cargo:rerun-if-changed={}", path);
+      println!("cargo:warning=cargo:rerun-if-changed={}", path);
+    }
+    path
   }};
 }
 
@@ -68,10 +77,9 @@ macro_rules! resolve_from_root {
 /// relative to the current file
 #[macro_export]
 macro_rules! resolve_from_file {
-  // macth like arm for macro
   ($a:expr) => {{
     use std::path::PathBuf;
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
       .parent()
       .unwrap()
       .join(file!())
@@ -79,6 +87,13 @@ macro_rules! resolve_from_file {
       .unwrap()
       .join($a)
       .canonicalize()
-      .unwrap()
+      .unwrap();
+
+    if concat!(env!("CARGO_PKG_NAME"), "/build.rs") == file!() {
+      let path = path.to_str().unwrap();
+      println!("cargo:rerun-if-changed={}", path);
+      println!("cargo:warning=cargo:rerun-if-changed={}", path);
+    }
+    path
   }};
 }

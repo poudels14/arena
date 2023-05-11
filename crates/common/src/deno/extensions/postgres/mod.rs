@@ -3,7 +3,7 @@ mod tls;
 
 pub use self::postgres::execute_query;
 pub use self::postgres::Param;
-use super::extension::BuiltinExtension;
+use super::BuiltinExtension;
 use crate::deno::SecretResource;
 use crate::resolve_from_file;
 use anyhow::anyhow;

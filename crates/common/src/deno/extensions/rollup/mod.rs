@@ -1,4 +1,4 @@
-use super::extension::BuiltinExtension;
+use super::BuiltinExtension;
 use crate::resolve_from_root;
 
 pub fn extension() -> BuiltinExtension {

@@ -1,7 +1,7 @@
 mod crypto;
 mod digest;
 
-use super::extension::BuiltinExtension;
+use super::BuiltinExtension;
 use crate::resolve_from_root;
 use deno_core::Extension;
 use std::path::PathBuf;

@@ -1,6 +1,6 @@
 mod plugins;
 
-use crate::deno::extensions::extension::BuiltinExtension;
+use crate::deno::extensions::BuiltinExtension;
 use crate::deno::resolver;
 use crate::deno::resolver::fs::FsModuleResolver;
 use crate::deno::utils::fs::resolve_read_path;

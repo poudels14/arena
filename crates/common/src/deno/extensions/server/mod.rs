@@ -2,7 +2,7 @@ use self::request::HttpRequest;
 use self::resources::{
   HttpConnection, HttpResponseHandle, HttpServer, HttpServerConfig,
 };
-use super::extension::BuiltinExtension;
+use super::BuiltinExtension;
 use crate::resolve_from_root;
 use anyhow::{anyhow, Result};
 use deno_core::CancelFuture;

@@ -1,6 +1,5 @@
 pub mod babel;
 pub mod env;
-mod extension;
 pub mod fs;
 pub mod node;
 pub mod postgres;
@@ -10,13 +9,24 @@ pub mod server;
 pub mod transpiler;
 pub mod wasi;
 
-use self::extension::BuiltinExtension;
 use anyhow::Result;
 use deno_core::{Extension, ExtensionFileSourceCode, JsRuntime};
 use indexmap::IndexSet;
 use std::path::PathBuf;
 use tracing::debug;
 use url::Url;
+
+#[derive(Default)]
+pub struct BuiltinExtension {
+  pub extension: Option<Extension>,
+  /// tuples of module's (specifier, path_to_source_file)
+  /// these modules are loaded during snapshoting
+  pub snapshot_modules: Vec<(&'static str, PathBuf)>,
+
+  /// tuples of module's (specifier, source_code)
+  /// these modules are loaded during runtime
+  pub runtime_modules: Vec<(&'static str, &'static str)>,
+}
 
 pub enum BuiltinModule<'a> {
   Fs,

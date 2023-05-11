@@ -1,4 +1,4 @@
-use super::extension::BuiltinExtension;
+use super::BuiltinExtension;
 use crate::config::ArenaConfig;
 use anyhow::Result;
 use deno_core::op;
