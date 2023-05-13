@@ -1,68 +1,49 @@
-use crate::events::ServerEvent;
 use crate::runtime::{self, RuntimeConfig};
 use anyhow::{anyhow, Result};
-use common::beam::{self, Handle};
 use deno_core::v8::IsolateHandle;
 use deno_core::Resource;
 use derivative::Derivative;
-use serde_json::Value;
 use std::rc::Rc;
-use std::thread::{self, JoinHandle};
+use std::thread::JoinHandle;
 use tokio::sync::oneshot;
 use url::Url;
 
 #[derive(Derivative)]
 pub struct WorkspaceServerHandle {
-  pub config: RuntimeConfig,
-  pub events: beam::Handle<Value, ServerEvent, Value>,
-  pub thread_handle: JoinHandle<()>,
+  pub thread_handle: JoinHandle<Result<()>>,
   pub isolate_handle: IsolateHandle,
 }
 
-pub(crate) async fn new(
-  config: runtime::RuntimeConfig,
-) -> Result<WorkspaceServerHandle> {
-  let (client, server) = beam::channel::new::<Value, ServerEvent, Value>(10);
-  let (tx, rx) = oneshot::channel();
-  let config_clone = config.clone();
-  let thread_handle = thread::spawn(move || {
-    let rt = tokio::runtime::Builder::new_current_thread()
-      .enable_io()
-      .enable_time()
-      .worker_threads(1)
-      // TODO(sagar): optimize max blocking threads
-      .max_blocking_threads(2)
-      .build()
-      .unwrap();
+pub(crate) fn start(
+  config: RuntimeConfig,
+  handler_sender: oneshot::Sender<IsolateHandle>,
+) -> Result<()> {
+  let rt = tokio::runtime::Builder::new_current_thread()
+    .enable_io()
+    .enable_time()
+    .worker_threads(1)
+    // TODO(sagar): optimize max blocking threads
+    .max_blocking_threads(1)
+    .build()?;
 
-    let local = tokio::task::LocalSet::new();
-    local.block_on(&rt, async {
-      match start_workspace_server(config, server, tx).await {
-        Err(e) => {
-          println!("Error: {:?}", e);
-        }
-        _ => {
-          println!("sleeping...");
-          std::thread::sleep(std::time::Duration::from_secs(2));
-          println!("woke up");
-        }
+  let local = tokio::task::LocalSet::new();
+  local.block_on(&rt, async {
+    match run_workspace_server(config, handler_sender).await {
+      Err(e) => {
+        println!("Error: {:?}", e);
       }
-    })
-  });
-
-  let isolate_handle = rx.await?;
-
-  Ok(WorkspaceServerHandle {
-    config: config_clone,
-    isolate_handle,
-    thread_handle,
-    events: client,
+      _ => {
+        println!("sleeping...");
+        std::thread::sleep(std::time::Duration::from_secs(2));
+        println!("woke up");
+      }
+    }
+    Ok(())
   })
 }
 
-async fn start_workspace_server(
-  config: runtime::RuntimeConfig,
-  events: Handle<ServerEvent, Value, Value>,
+async fn run_workspace_server(
+  config: RuntimeConfig,
   handler_sender: oneshot::Sender<IsolateHandle>,
 ) -> Result<()> {
   let mut runtime = runtime::new(config)?;

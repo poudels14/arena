@@ -2,11 +2,11 @@ use deno_core::ZeroCopyBuf;
 use http::{Method, Request, Response, StatusCode};
 use hyper::body::HttpBody;
 use hyper::Body;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 // TODO(sagar): use fast serialization?
-#[derive(Debug, Serialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct HttpRequest {
   pub url: String,
 
@@ -18,8 +18,6 @@ pub struct HttpRequest {
 }
 
 pub(super) async fn handle_request(
-  _address: String,
-  _port: u16,
   req_sender: mpsc::Sender<(HttpRequest, mpsc::Sender<Response<Body>>)>,
   mut req: Request<Body>,
 ) -> Result<Response<Body>, http::Error> {

@@ -4,8 +4,7 @@
   "description": "Javascript files for core Arena runtime",
   "type": "module",
   "scripts": {
-    "build": "pnpm node build.mjs --minify",
-    "dev": "pnpm node build.mjs"
+    "build": "pnpm node build.mjs"
   },
   "author": "Sagar Poudel",
   "private": true,

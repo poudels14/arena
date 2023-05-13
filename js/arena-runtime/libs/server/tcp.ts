@@ -17,7 +17,9 @@ class Server {
   async next() {
     try {
       const conn_id = await opAsync("op_http_accept");
-      return { value: new TcpStream(conn_id), done: false };
+      if (conn_id !== null) {
+        return { value: new TcpStream(conn_id), done: false };
+      }
     } catch (error) {
       console.error(
         new Error("[runtime error]", {

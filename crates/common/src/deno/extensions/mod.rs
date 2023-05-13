@@ -9,6 +9,7 @@ pub mod server;
 pub mod transpiler;
 pub mod wasi;
 
+use self::server::HttpServerConfig;
 use anyhow::Result;
 use deno_core::{Extension, ExtensionFileSourceCode, JsRuntime};
 use indexmap::IndexSet;
@@ -28,7 +29,7 @@ pub struct BuiltinExtension {
   pub runtime_modules: Vec<(&'static str, &'static str)>,
 }
 
-pub enum BuiltinModule<'a> {
+pub enum BuiltinModule {
   Fs,
   Env,
   Node,
@@ -37,14 +38,13 @@ pub enum BuiltinModule<'a> {
   Babel,
   Rollup,
   Postgres,
-  /// (address, port)
-  HttpServer(&'a str, u16),
+  HttpServer(HttpServerConfig),
   /// args: (specifier, code)
   CustomRuntimeModule(&'static str, &'static str),
   Custom(fn() -> BuiltinExtension),
 }
 
-impl<'a> BuiltinModule<'a> {
+impl BuiltinModule {
   pub(crate) fn extension(&self) -> BuiltinExtension {
     match self {
       Self::Fs => self::fs::extension(),
@@ -55,9 +55,7 @@ impl<'a> BuiltinModule<'a> {
       Self::Babel => self::babel::extension(),
       Self::Rollup => self::rollup::extension(),
       Self::Postgres => self::postgres::extension(),
-      Self::HttpServer(address, port) => {
-        self::server::extension(address.to_string(), port.clone())
-      }
+      Self::HttpServer(config) => self::server::extension(config.clone()),
       Self::CustomRuntimeModule(specifier, code) => BuiltinExtension {
         runtime_modules: vec![(specifier, code)],
         ..Default::default()
@@ -82,7 +80,7 @@ impl BuiltinExtensions {
       BuiltinModule::Transpiler,
       BuiltinModule::Babel,
       BuiltinModule::Rollup,
-      BuiltinModule::HttpServer("", 0),
+      BuiltinModule::HttpServer(HttpServerConfig::Tcp("0.0.0.0".to_owned(), 0)),
     ]
     .iter()
     .map(|m| m.extension())

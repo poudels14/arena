@@ -1,4 +1,6 @@
+use crate::loaders::{self, db};
 use anyhow::Result;
+use common::deno::extensions::server::HttpServerConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use deno_core::{v8, ExtensionFileSource, ExtensionFileSourceCode, Snapshot};
 use deno_core::{Extension, JsRuntime};
@@ -6,8 +8,6 @@ use derivative::Derivative;
 use jsruntime::permissions::PermissionsContainer;
 use std::rc::Rc;
 use tracing::error;
-
-use crate::loaders::{self, db};
 
 pub static WORKSPACE_DQS_SNAPSHOT: &[u8] =
   include_bytes!(concat!(env!("OUT_DIR"), "/WORKSPACE_DQS_SNAPSHOT.bin"));
@@ -17,11 +17,7 @@ pub static WORKSPACE_DQS_SNAPSHOT: &[u8] =
 pub struct RuntimeConfig {
   pub workspace_id: String,
 
-  /// TCP address used to listen for query request
-  pub address: String,
-
-  /// Port used to listen for query request
-  pub port: u16,
+  pub server_config: HttpServerConfig,
 
   /// Name of the HTTP user_agent
   pub user_agent: Option<String>,
@@ -77,8 +73,7 @@ pub fn new(config: RuntimeConfig) -> Result<JsRuntime> {
 
   let mut builtin_extensions =
     BuiltinExtensions::with_modules(vec![BuiltinModule::HttpServer(
-      &config.address,
-      config.port,
+      config.server_config,
     )]);
   extensions.extend(builtin_extensions.deno_extensions());
 

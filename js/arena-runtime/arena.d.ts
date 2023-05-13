@@ -15,7 +15,7 @@ declare namespace Arena {
   /**
    * Listen for new TCP connection
    */
-  function OpAsync(name: "op_http_accept"): Promise<number>;
+  function OpAsync(name: "op_http_accept"): Promise<number | null>;
 
   /**
    * Receive a HTTP request
@@ -23,7 +23,7 @@ declare namespace Arena {
   function OpAsync(
     name: "op_http_start",
     rid: number
-  ): Promise<[rid: number, internal: Request] | undefined>;
+  ): Promise<[rid: number, internal: Request] | null>;
 
   /**
    * Send a response to the HTTP request
@@ -46,12 +46,40 @@ declare namespace Arena {
   ): Promise<string>;
 
   /**
+   * Start TCP server on given address and port
+   *
    * Only available when dqs extension is used
    */
   function OpAsync(
-    name: "op_dqs_start_workspace_server",
-    workspaceId: string
+    name: "op_dqs_start_tcp_workspace_server",
+    workspaceId: string,
+    address: string,
+    port: number
   ): Promise<number>;
+
+  /**
+   * Start mpsc stream server
+   *
+   * Only available when dqs extension is used
+   */
+  function OpAsync(
+    name: "op_dqs_start_stream_workspace_server",
+    workspaceId: string
+  ): Promise<[number, number]>;
+
+  /**
+   * Send request to mpsc stream server and return response
+   */
+  function OpAsync(
+    name: "op_dqs_pipe_request_to_stream",
+    streamId: number,
+    request: {
+      url: string;
+      method: Request["method"];
+      headers: [string, string][];
+      body?: any;
+    }
+  ): Promise<[number, [string, string][], any]>;
 
   interface Core {
     ops: {
@@ -81,7 +109,7 @@ declare namespace Arena {
         rid: number,
         specifier: string,
         referrer: string
-      ) => string | undefined;
+      ) => string | null;
 
       /**
        * Only set if Transpiler module is used
@@ -270,4 +298,16 @@ declare module "@arena/runtime/server" {
   };
 
   export const serve: (config: ServeConfig) => Promise<void>;
+}
+
+declare module "@arena/runtime/dqs" {
+  export class WorkspaceServer {
+    static startTcpServer(
+      workspaceId: string,
+      address: string,
+      port: number
+    ): Promise<WorkspaceServer>;
+
+    static startStreamServer(workspaceId: string): Promise<WorkspaceServer>;
+  }
 }

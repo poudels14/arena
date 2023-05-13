@@ -15,6 +15,7 @@ tokio.workspace = true
 url.workspace = true
 nom.workspace = true
 hyper.workspace = true
+bytes.workspace = true
 http.workspace = true
 diesel.workspace = true
 common = { path = "../common" }

@@ -1,11 +1,11 @@
 use anyhow::Result;
 use common::config::ArenaConfig;
+use common::deno::extensions::server::HttpServerConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use jsruntime::{IsolatedRuntime, RuntimeConfig};
 use tracing_subscriber::prelude::*;
 use tracing_tree::HierarchicalLayer;
 use url::Url;
-mod events;
 mod ext;
 mod loaders;
 mod runtime;
@@ -31,14 +31,16 @@ async fn main() -> Result<()> {
       BuiltinModule::Node,
       BuiltinModule::Transpiler,
       BuiltinModule::Resolver(project_root),
-      BuiltinModule::HttpServer("0.0.0.0", 8002),
+      BuiltinModule::HttpServer(HttpServerConfig::Tcp(
+        "0.0.0.0".to_owned(),
+        8002,
+      )),
+      BuiltinModule::Custom(crate::ext::extension),
       BuiltinModule::CustomRuntimeModule(
         "@arena/runtime/dqs",
         include_str!("../../../js/arena-runtime/dist/dqs.js"),
       ),
     ]),
-    transpile: false,
-    extensions: vec![crate::ext::init()],
     ..Default::default()
   })?;
 
@@ -50,15 +52,20 @@ async fn main() -> Result<()> {
           &Url::parse("file:///main").unwrap(),
           r#"
           console.log('loading server module');
-            import { serve } from "@arena/runtime/server";
-            import { WorkspaceServer } from "builtin:///@arena/runtime/dqs";
-            serve({
-              async fetch(req) {
-                const s = await WorkspaceServer.start('workspace_1');
-                return new Response('workspace server started');
-              }
-            })
-
+          import { serve } from "@arena/runtime/server";
+          import { WorkspaceServer } from "builtin:///@arena/runtime/dqs";
+          serve({
+            async fetch(req) {
+              // const s = await WorkspaceServer.startTcpServer('workspace_1', "0.0.0.0", 8001);
+              const server = await WorkspaceServer.startStreamServer('workspace_1');
+              console.log("server =", server);
+              const res = await server.pipeRequest(new Request("http://0.0.0.0/execSql", {
+                headers: [],
+              }));
+              console.log("PIPED RESPONSE =", res);
+              return new Response('workspace server started');
+            }
+          })
           "#,
         )
         .await

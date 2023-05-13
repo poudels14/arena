@@ -20,7 +20,8 @@ const serve = async (config: ServeConfig) => {
           })
         );
       }
-    } catch (e) {
+    } catch (error) {
+      console.error(error);
       req!.send(
         new Response("Internal Server Error", {
           status: 500,

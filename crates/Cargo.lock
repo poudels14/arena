@@ -1281,6 +1281,7 @@ name = "dqs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bytes",
  "common",
  "deno_console",
  "deno_core",
