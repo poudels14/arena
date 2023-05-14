@@ -195,12 +195,7 @@ impl WorkspaceServer {
     let mut runtime = IsolatedRuntime::new(RuntimeConfig {
       // TODO(sagar): disabled this when running deployed workspace
       project_root: Some(self.workspace.project_root()),
-      config: Some(
-        ArenaConfig::from_path(
-          &self.workspace.project_root().join("arena.config.toml"),
-        )
-        .unwrap_or_default(),
-      ),
+      config: ArenaConfig::find_in_path_hierachy(),
       enable_console: true,
       builtin_extensions: BuiltinExtensions::with_modules(builtin_modules),
       transpile: self.dev_mode,

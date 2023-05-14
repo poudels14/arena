@@ -41,6 +41,12 @@ impl ArenaConfig {
       .map_err(|e| anyhow!("{}", e))
   }
 
+  pub fn find_in_path_hierachy() -> Option<ArenaConfig> {
+    Self::find_project_root()
+      .and_then(|p| Self::from_path(&p.join("arena.config.toml")))
+      .ok()
+  }
+
   /// Find a directory with "arena.config.toml" in the directory
   /// hierarchy
   /// Defaults to env::current_dir() if config file not found

@@ -41,8 +41,8 @@ impl Command {
     }
 
     let mut runtime = IsolatedRuntime::new(RuntimeConfig {
-      project_root: Some(project_root),
-      config: Some(ArenaConfig::default()),
+      project_root: Some(project_root.clone()),
+      config: ArenaConfig::find_in_path_hierachy(),
       enable_console: true,
       transpile: !self.disable_transpile,
       builtin_extensions: BuiltinExtensions::with_modules(builtin_modules),
