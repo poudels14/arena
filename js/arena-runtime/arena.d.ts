@@ -51,7 +51,7 @@ declare namespace Arena {
    * Only available when dqs extension is used
    */
   function OpAsync(
-    name: "op_dqs_start_tcp_workspace_server",
+    name: "op_dqs_start_tcp_server",
     workspaceId: string,
     address: string,
     port: number
@@ -63,7 +63,7 @@ declare namespace Arena {
    * Only available when dqs extension is used
    */
   function OpAsync(
-    name: "op_dqs_start_stream_workspace_server",
+    name: "op_dqs_start_stream_server",
     workspaceId: string
   ): Promise<[number, number]>;
 
@@ -301,13 +301,13 @@ declare module "@arena/runtime/server" {
 }
 
 declare module "@arena/runtime/dqs" {
-  export class WorkspaceServer {
+  export class DqsServer {
     static startTcpServer(
       workspaceId: string,
       address: string,
       port: number
-    ): Promise<WorkspaceServer>;
+    ): Promise<DqsServer>;
 
-    static startStreamServer(workspaceId: string): Promise<WorkspaceServer>;
+    static startStreamServer(workspaceId: string): Promise<DqsServer>;
   }
 }

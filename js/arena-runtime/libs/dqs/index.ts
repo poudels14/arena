@@ -1,4 +1,4 @@
-class WorkspaceServer {
+class DqsServer {
   #handleId: number;
   /**
    * Only set for stream type server
@@ -15,20 +15,20 @@ class WorkspaceServer {
     port: number
   ) {
     const handleId = await Arena.core.opAsync(
-      "op_dqs_start_tcp_workspace_server",
+      "op_dqs_start_tcp_server",
       workspaceId,
       address,
       port
     );
-    return new WorkspaceServer(handleId, undefined);
+    return new DqsServer(handleId, undefined);
   }
 
   static async startStreamServer(workspaceId: string) {
     const [handleId, streamId] = await Arena.core.opAsync(
-      "op_dqs_start_stream_workspace_server",
+      "op_dqs_start_stream_server",
       workspaceId
     );
-    return new WorkspaceServer(handleId, streamId);
+    return new DqsServer(handleId, streamId);
   }
 
   async pipeRequest(request: Request) {
@@ -45,9 +45,9 @@ class WorkspaceServer {
       );
       return response;
     } else {
-      throw new Error("Can only pipe request to stream type WorkspaceServer");
+      throw new Error("Can only pipe request to stream type DqsServer");
     }
   }
 }
 
-export { WorkspaceServer };
+export { DqsServer };

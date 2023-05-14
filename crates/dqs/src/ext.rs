@@ -1,6 +1,6 @@
 use crate::runtime::RuntimeConfig;
 use crate::server;
-use crate::server::WorkspaceServerHandle;
+use crate::server::DqsServerHandle;
 use anyhow::bail;
 use anyhow::Result;
 use common::deno::extensions::server::HttpRequest;
@@ -37,15 +37,15 @@ pub fn extension() -> BuiltinExtension {
 pub(crate) fn init() -> Extension {
   Extension::builder("@arena/dqs")
     .ops(vec![
-      op_dqs_start_tcp_workspace_server::decl(),
-      op_dqs_start_stream_workspace_server::decl(),
+      op_dqs_start_tcp_server::decl(),
+      op_dqs_start_stream_server::decl(),
       op_dqs_pipe_request_to_stream::decl(),
     ])
     .build()
 }
 
 #[op]
-async fn op_dqs_start_tcp_workspace_server(
+async fn op_dqs_start_tcp_server(
   state: Rc<RefCell<OpState>>,
   workspace_id: String,
   address: String,
@@ -64,19 +64,15 @@ async fn op_dqs_start_tcp_workspace_server(
   });
 
   let isolate_handle = rx.await?;
-  let resource_id =
-    state
-      .borrow_mut()
-      .resource_table
-      .add(WorkspaceServerHandle {
-        isolate_handle,
-        thread_handle,
-      });
+  let resource_id = state.borrow_mut().resource_table.add(DqsServerHandle {
+    isolate_handle,
+    thread_handle,
+  });
   Ok(resource_id)
 }
 
 #[op]
-async fn op_dqs_start_stream_workspace_server(
+async fn op_dqs_start_stream_server(
   state: Rc<RefCell<OpState>>,
   workspace_id: String,
 ) -> Result<(ResourceId, ResourceId)> {
@@ -96,14 +92,10 @@ async fn op_dqs_start_stream_workspace_server(
   });
 
   let isolate_handle = rx.await?;
-  let handle_id =
-    state
-      .borrow_mut()
-      .resource_table
-      .add(WorkspaceServerHandle {
-        isolate_handle,
-        thread_handle,
-      });
+  let handle_id = state.borrow_mut().resource_table.add(DqsServerHandle {
+    isolate_handle,
+    thread_handle,
+  });
 
   let sender_id = state
     .borrow_mut()

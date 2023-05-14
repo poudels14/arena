@@ -53,16 +53,23 @@ async fn main() -> Result<()> {
           r#"
           console.log('loading server module');
           import { serve } from "@arena/runtime/server";
-          import { WorkspaceServer } from "builtin:///@arena/runtime/dqs";
+          import { DqsServer } from "builtin:///@arena/runtime/dqs";
+          const servers = new Map();
           serve({
             async fetch(req) {
-              // const s = await WorkspaceServer.startTcpServer('workspace_1', "0.0.0.0", 8001);
-              const server = await WorkspaceServer.startStreamServer('workspace_1');
-              console.log("server =", server);
+              const workspaceId = 'workspace_1';
+              let server = servers.get(workspaceId);
+              // const s = await DqsServer.startTcpServer(workspaceId, "0.0.0.0", 8001);
+              if (!server) {
+                console.log("starting server for workspace =", workspaceId);
+                server = await DqsServer.startStreamServer(workspaceId);
+                servers.set(workspaceId, server);
+              }
               const res = await server.pipeRequest(new Request("http://0.0.0.0/execSql", {
                 headers: [],
               }));
               console.log("PIPED RESPONSE =", res);
+              console.log("BODY =", String.fromCharCode.apply(null, res[2]));
               return new Response('workspace server started');
             }
           })

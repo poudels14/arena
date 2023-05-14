@@ -9,7 +9,7 @@ use tokio::sync::oneshot;
 use url::Url;
 
 #[derive(Derivative)]
-pub struct WorkspaceServerHandle {
+pub struct DqsServerHandle {
   pub thread_handle: JoinHandle<Result<()>>,
   pub isolate_handle: IsolateHandle,
 }
@@ -28,7 +28,7 @@ pub(crate) fn start(
 
   let local = tokio::task::LocalSet::new();
   local.block_on(&rt, async {
-    match run_workspace_server(config, handler_sender).await {
+    match run_dqs_server(config, handler_sender).await {
       Err(e) => {
         println!("Error: {:?}", e);
       }
@@ -42,7 +42,7 @@ pub(crate) fn start(
   })
 }
 
-async fn run_workspace_server(
+async fn run_dqs_server(
   config: RuntimeConfig,
   handler_sender: oneshot::Sender<IsolateHandle>,
 ) -> Result<()> {
@@ -77,7 +77,7 @@ async fn run_workspace_server(
   Ok(())
 }
 
-impl Resource for WorkspaceServerHandle {
+impl Resource for DqsServerHandle {
   fn close(self: Rc<Self>) {
     drop(self);
   }
