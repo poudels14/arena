@@ -24,6 +24,7 @@ tar.workspace = true
 json-patch.workspace = true
 jsruntime = { path = "../jsruntime" }
 common = { path = "../common" }
+dqs = { path = "../dqs" }
 
 [build-dependencies]
 glob.workspace = true

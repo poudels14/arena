@@ -29,6 +29,7 @@ pub struct BuiltinExtension {
   pub runtime_modules: Vec<(&'static str, &'static str)>,
 }
 
+#[derive(Clone)]
 pub enum BuiltinModule {
   Fs,
   Env,

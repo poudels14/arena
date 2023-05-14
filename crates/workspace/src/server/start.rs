@@ -6,6 +6,7 @@ use crate::server::{
 use crate::{Workspace, WorkspaceConfig};
 use anyhow::{anyhow, bail, Result};
 use common::config::ArenaConfig;
+use common::deno::extensions::server::HttpServerConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use common::deno::permissions::{FileSystemPermissions, PermissionsContainer};
 use deno_core::{
@@ -166,16 +167,21 @@ impl WorkspaceServer {
       allowed_read_paths.push(dir.to_string());
     }
 
+    let dqs_extension = BuiltinModule::Custom(dqs::extension);
     let mut builtin_modules = vec![
       BuiltinModule::Fs,
       BuiltinModule::Env,
       BuiltinModule::Node,
       BuiltinModule::Postgres,
-      BuiltinModule::HttpServer(&self.address, self.port),
+      BuiltinModule::HttpServer(HttpServerConfig::Tcp(
+        self.address.clone(),
+        self.port,
+      )),
       BuiltinModule::CustomRuntimeModule(
         "@arena/workspace-server",
         include_str!("../../../../js/packages/workspace-server/dist/server.js"),
       ),
+      dqs_extension.clone(),
     ];
 
     if self.dev_mode {
@@ -229,6 +235,9 @@ impl WorkspaceServer {
       heap_limits: self.workspace.heap_limits,
       ..Default::default()
     })?;
+
+    BuiltinExtensions::with_modules(vec![dqs_extension])
+      .load_snapshot_modules(&mut runtime.runtime.borrow_mut())?;
 
     let server_entry = self.workspace.server_entry();
     let server_entry = server_entry
