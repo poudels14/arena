@@ -46,6 +46,7 @@ program.option("--minify").action(async (options, cmd) => {
 
     build({
       ...options,
+      minify: true,
       entryPoints: {
         "wasmer-wasi": "./libs/wasi/wasmer.ts",
       },
@@ -53,6 +54,7 @@ program.option("--minify").action(async (options, cmd) => {
     }),
     build({
       ...options,
+      minify: true,
       entryPoints: {
         babel: "./libs/babel/index.ts",
       },
@@ -65,6 +67,7 @@ program.option("--minify").action(async (options, cmd) => {
     }),
     build({
       ...options,
+      minify: true,
       entryPoints: {
         rollup: "./libs/rollup/index.ts",
       },
