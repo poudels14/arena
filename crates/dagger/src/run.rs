@@ -24,6 +24,7 @@ pub struct Command {
 impl Command {
   #[tracing::instrument(skip_all)]
   pub async fn execute(&self) -> Result<()> {
+    let project_root = ArenaConfig::find_project_root()?;
     let mut builtin_modules = vec![
       BuiltinModule::Fs,
       BuiltinModule::Node,
@@ -33,14 +34,14 @@ impl Command {
     if self.enable_build_tools {
       builtin_modules.extend(vec![
         BuiltinModule::Transpiler,
-        BuiltinModule::Resolver(ArenaConfig::find_project_root()?),
+        BuiltinModule::Resolver(project_root.clone()),
         BuiltinModule::Babel,
         BuiltinModule::Rollup,
       ])
     }
 
     let mut runtime = IsolatedRuntime::new(RuntimeConfig {
-      project_root: Some(ArenaConfig::find_project_root()?),
+      project_root: Some(project_root),
       config: Some(ArenaConfig::default()),
       enable_console: true,
       transpile: !self.disable_transpile,
@@ -65,7 +66,6 @@ impl Command {
     let main_module =
       resolve_url_or_path(&self.file, &std::env::current_dir()?)?;
     runtime.execute_main_module(&main_module).await?;
-
     runtime.run_event_loop().await
   }
 }

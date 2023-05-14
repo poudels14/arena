@@ -43,7 +43,7 @@ swc_ecma_ast.workspace = true
 swc_atoms.workspace = true
 
 [build-dependencies]
-common = { path = "../common" }
+common = { path = "../common", features = ["fs-rerun-if-changed"] }
 futures.workspace = true
 url.workspace = true
 deno_core.workspace = true

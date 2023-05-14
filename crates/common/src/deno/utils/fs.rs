@@ -64,10 +64,10 @@ macro_rules! resolve_from_root {
       .canonicalize()
       .unwrap();
 
-    if concat!(env!("CARGO_PKG_NAME"), "/build.rs") == file!() {
+    #[cfg(feature = "fs-rerun-if-changed")]
+    {
       let path = path.to_str().unwrap();
       println!("cargo:rerun-if-changed={}", path);
-      println!("cargo:warning=cargo:rerun-if-changed={}", path);
     }
     path
   }};
@@ -89,10 +89,10 @@ macro_rules! resolve_from_file {
       .canonicalize()
       .unwrap();
 
-    if concat!(env!("CARGO_PKG_NAME"), "/build.rs") == file!() {
+    #[cfg(feature = "fs-rerun-if-changed")]
+    {
       let path = path.to_str().unwrap();
       println!("cargo:rerun-if-changed={}", path);
-      println!("cargo:warning=cargo:rerun-if-changed={}", path);
     }
     path
   }};
