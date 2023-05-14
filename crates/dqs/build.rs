@@ -1,3 +1,4 @@
+use common::deno::extensions::server::HttpServerConfig;
 use common::deno::extensions::{
   BuiltinExtension, BuiltinExtensions, BuiltinModule,
 };
@@ -50,15 +51,19 @@ pub fn main() {
 fn generate_prod_snapshot(path: &Path) {
   let mut runtime = get_basic_runtime();
 
-  BuiltinExtensions::with_modules(vec![BuiltinModule::Custom(|| {
-    BuiltinExtension {
+  BuiltinExtensions::with_modules(vec![
+    // Note(sagar): load this here so that ESM modules are snapshotted
+    // Even if TCP server is used here, we can use stream server during
+    // runtime if needed
+    BuiltinModule::HttpServer(HttpServerConfig::Tcp("0.0.0.0".to_owned(), 0)),
+    BuiltinModule::Custom(|| BuiltinExtension {
       snapshot_modules: vec![(
         "@arena/dqs/router",
         resolve_from_root!("../../js/packages/dqs/dist/router.js"),
       )],
       ..Default::default()
-    }
-  })])
+    }),
+  ])
   .load_snapshot_modules(&mut runtime)
   .unwrap();
 

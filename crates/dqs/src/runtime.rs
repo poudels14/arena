@@ -88,7 +88,6 @@ pub fn new(config: RuntimeConfig) -> Result<JsRuntime> {
     ..Default::default()
   });
 
-  builtin_extensions.load_snapshot_modules(&mut runtime)?;
   builtin_extensions.load_runtime_modules(&mut runtime)?;
 
   // Note(sagar): if the heap limits are set, terminate the runtime manually
