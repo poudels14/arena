@@ -1,3 +1,4 @@
+pub mod beam;
 pub mod config;
 pub mod deno;
 pub mod node;

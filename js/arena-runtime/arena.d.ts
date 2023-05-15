@@ -68,6 +68,24 @@ declare namespace Arena {
   ): Promise<[number, number]>;
 
   /**
+   * Returns a list of resource ids of all active server's handle
+   */
+  function OpAsync(name: "op_dqs_list_servers"): Promise<number[]>;
+
+  /**
+   * Ping the DQS server to see if the server thread is running
+   */
+  function OpAsync(name: "op_dqs_ping"): Promise<"PONG">;
+
+  /**
+   * Terminate the server corresponding to the given handle id
+   */
+  function OpAsync(
+    name: "op_dqs_terminate_server",
+    handle_id: number
+  ): Promise<void>;
+
+  /**
    * Send request to mpsc stream server and return response
    */
   function OpAsync(

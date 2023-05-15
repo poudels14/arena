@@ -6,7 +6,7 @@ use jsruntime::{IsolatedRuntime, RuntimeConfig};
 use tracing_subscriber::prelude::*;
 use tracing_tree::HierarchicalLayer;
 use url::Url;
-mod ext;
+mod extension;
 mod loaders;
 mod runtime;
 mod server;
@@ -35,7 +35,7 @@ async fn main() -> Result<()> {
         "0.0.0.0".to_owned(),
         8002,
       )),
-      BuiltinModule::Custom(crate::ext::extension),
+      BuiltinModule::Custom(crate::extension::extension),
       BuiltinModule::CustomRuntimeModule(
         "@arena/runtime/dqs",
         include_str!("../../../js/arena-runtime/dist/dqs.js"),
@@ -57,18 +57,26 @@ async fn main() -> Result<()> {
           const servers = new Map();
           serve({
             async fetch(req) {
+              const url = new URL(req.url);
+              if (url.pathname.startsWith("/terminate/")) {
+                await Arena.core.opAsync(
+                  'op_dqs_terminate_server',
+                  parseInt(url.pathname.substr("/terminate/".length)));
+                return "OK";
+              }
+
               const workspaceId = 'workspace_1';
               let server = servers.get(workspaceId);
-              // const s = await DqsServer.startTcpServer(workspaceId, "0.0.0.0", 8001);
               if (!server) {
                 console.log("starting server for workspace =", workspaceId);
                 server = await DqsServer.startStreamServer(workspaceId);
                 servers.set(workspaceId, server);
               }
-              const res = await server.pipeRequest(new Request("http://0.0.0.0/execSql", {
-                headers: [],
-              }));
-              console.log("PIPED RESPONSE =", res);
+              const res = await server.pipeRequest(new Request(
+                "http://0.0.0.0/execSql", {
+                  headers: [],
+                }
+              ));
               console.log("BODY =", String.fromCharCode.apply(null, res[2]));
               return new Response('workspace server started');
             }
