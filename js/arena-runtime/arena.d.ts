@@ -91,12 +91,12 @@ declare namespace Arena {
   function OpAsync(
     name: "op_dqs_pipe_request_to_stream",
     streamId: number,
-    request: {
-      url: string;
-      method: Request["method"];
-      headers: [string, string][];
-      body?: any;
-    }
+    request: [
+      url: string,
+      method: Request["method"],
+      headers: [string, string][],
+      body?: any
+    ]
   ): Promise<[number, [string, string][], any]>;
 
   interface Core {
@@ -338,7 +338,12 @@ declare module "@arena/runtime/dqs" {
     // returns whether the DQS server is alive
     isAlive(): boolean;
 
-    pipeRequest(request: Request): Promise<
+    pipeRequest(request: {
+      url: string;
+      method?: Request["method"],
+      headers?: [string, string][];
+      body?: any;
+    }): Promise<
       [
         // status code
         number,

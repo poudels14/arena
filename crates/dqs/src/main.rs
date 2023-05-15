@@ -72,13 +72,16 @@ async fn main() -> Result<()> {
                 server = await DqsServer.startStreamServer(workspaceId);
                 servers.set(workspaceId, server);
               }
-              const res = await server.pipeRequest(new Request(
-                "http://0.0.0.0/execSql", {
-                  headers: [],
-                }
-              ));
+
+              const res = await server.pipeRequest({
+                url: "http://0.0.0.0/execSql",
+                method: "POST",
+                headers: [[ "content-type", "application/json" ]],
+                body: await req.text()
+              });
               console.log("BODY =", String.fromCharCode.apply(null, res[2]));
-              return new Response('workspace server started');
+              // return new Response('workspace server started');
+              return new Response(String.fromCharCode.apply(null, res[2]))
             }
           })
           "#,

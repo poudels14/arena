@@ -14,6 +14,7 @@ use deno_core::Extension;
 use deno_core::OpState;
 use deno_core::Resource;
 use deno_core::ResourceId;
+use deno_core::StringOrBuffer;
 use deno_core::ZeroCopyBuf;
 use hyper::body::HttpBody;
 use serde_json::Value;
@@ -153,7 +154,16 @@ async fn op_dqs_terminate_server(
 async fn op_dqs_pipe_request_to_stream(
   state: Rc<RefCell<OpState>>,
   sender_id: ResourceId,
-  request: HttpRequest,
+  req: (
+    // url
+    String,
+    // method
+    String,
+    // headers
+    Vec<(String, String)>,
+    // body
+    Option<StringOrBuffer>,
+  ),
 ) -> Result<(
   u16,                   /* status */
   Vec<(String, String)>, /* headers */
@@ -165,7 +175,18 @@ async fn op_dqs_pipe_request_to_stream(
     .get::<RequestStreamSender>(sender_id)?;
 
   let (tx, mut rx) = mpsc::channel(2);
-  sender.sender.send((request, tx)).await?;
+  sender
+    .sender
+    .send((
+      HttpRequest {
+        url: req.0,
+        method: req.1,
+        headers: req.2,
+        body: req.3.map(|b| ZeroCopyBuf::ToV8(Some((*b.to_vec()).into()))),
+      },
+      tx,
+    ))
+    .await?;
 
   match rx.recv().await {
     Some(mut response) => Ok((
