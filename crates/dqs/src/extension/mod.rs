@@ -137,6 +137,7 @@ async fn op_dqs_terminate_server(
   let mut state = state.borrow_mut();
   if state.resource_table.has(handle_id) {
     let handle = state.resource_table.take::<DqsServerHandle>(handle_id)?;
+    drop(state);
     handle.shutdown().await
   } else {
     bail!("DQS server not found")
@@ -211,10 +212,10 @@ async fn start_dqs_server(
         };
 
         tokio::task::spawn_local(async move {
-          let mut servers = state.borrow().borrow::<DqsServers>().clone();
           loop {
             match receiver.recv().await {
               Some(ServerEvents::Terminated) => {
+                let mut servers = state.borrow().borrow::<DqsServers>().clone();
                 servers.remove_instance(handle_id).unwrap();
                 return;
               }
