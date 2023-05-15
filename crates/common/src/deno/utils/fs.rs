@@ -53,19 +53,29 @@ pub fn resolve_write_path(state: &mut OpState, path: &Path) -> Result<PathBuf> {
 
 /// This macro returns the absolute path of the file that is
 /// relative to the project
-/// A second arg |resolve_from_root| can be passed in build script to rerun
-/// build when the file changes
+/// |true| should be passed as second arg in build scripts to rerun
+/// build when the file changes BUT it's not needed when using the
+/// macro inside |common| module
 #[macro_export]
 macro_rules! resolve_from_root {
   ($a:expr) => {{
+    #[cfg(feature = "fs_rerun_if_changed")]
+    {
+      resolve_from_root!($a, true)
+    }
+    #[cfg(not(feature = "fs_rerun_if_changed"))]
+    {
+      resolve_from_root!($a, false)
+    }
+  }};
+  ($a:expr, $b: literal) => {{
     use std::path::PathBuf;
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
       .join($a)
       .canonicalize()
       .unwrap();
 
-    #[cfg(feature = "fs-rerun-if-changed")]
-    {
+    if $b {
       let path = path.to_str().unwrap();
       println!("cargo:rerun-if-changed={}", path);
     }
@@ -75,9 +85,22 @@ macro_rules! resolve_from_root {
 
 /// This macro returns the absolute path of the file that is
 /// relative to the current file
+/// |true| should be passed as second arg in build scripts to rerun
+/// build when the file changes BUT it's not needed when using the
+/// macro inside |common| module
 #[macro_export]
 macro_rules! resolve_from_file {
   ($a:expr) => {{
+    #[cfg(feature = "fs-rerun-if-changed")]
+    {
+      resolve_from_file!($a, true)
+    }
+    #[cfg(not(feature = "fs-rerun-if-changed"))]
+    {
+      resolve_from_file!($a, false)
+    }
+  }};
+  ($a:expr, $b: literal) => {{
     use std::path::PathBuf;
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
       .parent()
@@ -89,8 +112,7 @@ macro_rules! resolve_from_file {
       .canonicalize()
       .unwrap();
 
-    #[cfg(feature = "fs-rerun-if-changed")]
-    {
+    if $b {
       let path = path.to_str().unwrap();
       println!("cargo:rerun-if-changed={}", path);
     }

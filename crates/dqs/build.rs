@@ -59,7 +59,7 @@ fn generate_prod_snapshot(path: &Path) {
     BuiltinModule::Custom(|| BuiltinExtension {
       snapshot_modules: vec![(
         "@arena/dqs/router",
-        resolve_from_root!("../../js/packages/dqs/dist/router.js"),
+        resolve_from_root!("../../js/packages/dqs/dist/router.js", true),
       )],
       ..Default::default()
     }),

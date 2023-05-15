@@ -30,7 +30,7 @@ deno_fetch.workspace = true
 
 
 [build-dependencies]
-common = { path = "../common" }
+common = { path = "../common", features = ["fs_rerun_if_changed"] }
 futures.workspace = true
 url.workspace = true
 deno_core.workspace = true
