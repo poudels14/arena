@@ -67,7 +67,7 @@ async fn main() -> Result<()> {
 
               const workspaceId = 'workspace_1';
               let server = servers.get(workspaceId);
-              if (!server) {
+              if (!server || !server.isAlive()) {
                 console.log("starting server for workspace =", workspaceId);
                 server = await DqsServer.startStreamServer(workspaceId);
                 servers.set(workspaceId, server);

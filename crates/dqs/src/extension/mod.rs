@@ -45,6 +45,7 @@ pub(crate) fn init() -> Extension {
       op_dqs_start_tcp_server::decl(),
       op_dqs_start_stream_server::decl(),
       op_dqs_list_servers::decl(),
+      op_dqs_is_alive::decl(),
       op_dqs_ping::decl(),
       op_dqs_terminate_server::decl(),
       op_dqs_pipe_request_to_stream::decl(),
@@ -117,7 +118,11 @@ async fn op_dqs_list_servers(
 }
 
 #[op]
-/// This can be used to check if the DQS server thread is running
+fn op_dqs_is_alive(state: &mut OpState, handle_id: ResourceId) -> Result<bool> {
+  Ok(state.resource_table.has(handle_id))
+}
+
+#[op]
 async fn op_dqs_ping(
   state: Rc<RefCell<OpState>>,
   handle_id: ResourceId,

@@ -31,6 +31,11 @@ class DqsServer {
     return new DqsServer(handleId, streamId);
   }
 
+  // returns whether the DQS server is alive
+  isAlive() {
+    return Arena.core.ops.op_dqs_is_alive(this.#handleId);
+  }
+
   async pipeRequest(request: Request) {
     if (this.#streamId !== undefined) {
       const response = await Arena.core.opAsync(

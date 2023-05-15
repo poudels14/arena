@@ -75,14 +75,14 @@ declare namespace Arena {
   /**
    * Ping the DQS server to see if the server thread is running
    */
-  function OpAsync(name: "op_dqs_ping"): Promise<"PONG">;
+  function OpAsync(name: "op_dqs_ping", handleId: number): Promise<"PONG">;
 
   /**
    * Terminate the server corresponding to the given handle id
    */
   function OpAsync(
     name: "op_dqs_terminate_server",
-    handle_id: number
+    handleId: number
   ): Promise<void>;
 
   /**
@@ -142,6 +142,13 @@ declare namespace Arena {
         filename: string,
         code: string
       ) => string;
+
+      /**
+       * Check if the DQS server is alive
+       *
+       * Only available if DQS module is used
+       */
+      op_dqs_is_alive: (handleId: number) => boolean;
     };
     opAsync: typeof OpAsync;
   }
@@ -327,5 +334,19 @@ declare module "@arena/runtime/dqs" {
     ): Promise<DqsServer>;
 
     static startStreamServer(workspaceId: string): Promise<DqsServer>;
+
+    // returns whether the DQS server is alive
+    isAlive(): boolean;
+
+    pipeRequest(request: Request): Promise<
+      [
+        // status code
+        number,
+        // headers
+        [string, string][],
+        // body
+        any
+      ]
+    >;
   }
 }
