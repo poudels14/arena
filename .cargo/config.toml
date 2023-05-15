@@ -6,4 +6,5 @@ rustc-wrapper = "sccache"
 rustflags = [
   "-C",
   "link-arg=-fuse-ld=mold",
+  "-L/home/linuxbrew/.linuxbrew/opt/libpq/lib"
 ]
