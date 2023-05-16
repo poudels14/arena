@@ -4,14 +4,17 @@
   "description": "",
   "main": "index.ts",
   "scripts": {
-    "build": "pnpm esbuild router=./src/router.ts --external:@appkit/* --outdir=dist --format=esm --bundle"
+    "build": "pnpm node build.mjs"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@arena/appkit": "workspace:^",
+    "@arena/core": "workspace:^",
     "@trpc/server": "^10.21.0",
+    "commander": "^10.0.0",
+    "esbuild": "^0.17.10",
     "zod": "^3.21.4"
   }
 }

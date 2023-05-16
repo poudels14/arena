@@ -1,4 +1,5 @@
-use crate::loaders::{self, db};
+use crate::db;
+use crate::moduleloader::AppkitModuleLoader;
 use anyhow::Result;
 use common::deno::extensions::server::HttpServerConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
@@ -71,16 +72,16 @@ pub fn new(config: RuntimeConfig) -> Result<JsRuntime> {
       }]).build()
   ];
 
-  let mut builtin_extensions =
-    BuiltinExtensions::with_modules(vec![BuiltinModule::HttpServer(
-      config.server_config,
-    )]);
+  let mut builtin_extensions = BuiltinExtensions::with_modules(vec![
+    BuiltinModule::Postgres,
+    BuiltinModule::HttpServer(config.server_config),
+  ]);
   extensions.extend(builtin_extensions.deno_extensions());
 
   let mut runtime = JsRuntime::new(deno_core::RuntimeOptions {
     startup_snapshot: Some(Snapshot::Static(WORKSPACE_DQS_SNAPSHOT)),
     create_params,
-    module_loader: Some(Rc::new(loaders::AppkitModuleLoader {
+    module_loader: Some(Rc::new(AppkitModuleLoader {
       workspace_id: config.workspace_id.clone(),
       pool: db::create_connection_pool(),
     })),

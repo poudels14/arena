@@ -1,8 +1,6 @@
 use self::handle::DqsServerHandle;
 use self::stream::RequestStreamSender;
-use crate::runtime::RuntimeConfig;
-use crate::server;
-use crate::server::ServerEvents;
+use crate::server::{self, RuntimeConfig, ServerEvents};
 use anyhow::bail;
 use anyhow::Result;
 use common::deno::extensions::server::HttpRequest;

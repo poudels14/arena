@@ -1,15 +1,14 @@
 {
   "name": "@arena/core",
   "version": "0.1.0",
-  "description": "",
+  "description": "A lightweight full-stack framework to build low-code applications",
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
   "files": [
     "server.ts",
     "client.ts",
     "solid/**/*",
-    "server/**/*"
+    "server/**/*",
+    "dqs/**/*"
   ],
   "scripts": {
     "test": "vitest",
@@ -31,6 +30,10 @@
     "./solid/server": {
       "import": "./solid/server.tsx",
       "default": "./solid/server.tsx"
+    },
+    "./dqs/": {
+      "import": "./dqs/",
+      "default": "./dqs/"
     }
   },
   "keywords": [],

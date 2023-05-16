@@ -1,4 +1,4 @@
-use crate::runtime::{self, RuntimeConfig};
+use super::runtime::{self, RuntimeConfig};
 use anyhow::{anyhow, Result};
 use common::beam;
 use deno_core::v8::IsolateHandle;

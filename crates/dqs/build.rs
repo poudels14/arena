@@ -55,12 +55,16 @@ fn generate_prod_snapshot(path: &Path) {
     // Note(sagar): load this here so that ESM modules are snapshotted
     // Even if TCP server is used here, we can use stream server during
     // runtime if needed
+    BuiltinModule::Postgres,
     BuiltinModule::HttpServer(HttpServerConfig::Tcp("0.0.0.0".to_owned(), 0)),
     BuiltinModule::Custom(|| BuiltinExtension {
-      snapshot_modules: vec![(
-        "@arena/dqs/router",
-        resolve_from_root!("../../js/packages/dqs/dist/router.js", true),
-      )],
+      snapshot_modules: vec![
+        (
+          "@arena/dqs/router",
+          resolve_from_root!("../../js/packages/dqs/dist/router.js", true),
+        ),
+        dqs_lib!("postgres"),
+      ],
       ..Default::default()
     }),
   ])
@@ -117,4 +121,17 @@ fn get_basic_runtime() -> JsRuntime {
   });
 
   runtime
+}
+
+#[macro_export]
+macro_rules! dqs_lib {
+  ($a:literal) => {{
+    (
+      concat!("@arena/core/dqs/", $a),
+      resolve_from_root!(
+        concat!("../../js/packages/dqs/dist/dqs/", $a, ".js"),
+        true
+      ),
+    )
+  }};
 }

@@ -6,10 +6,13 @@ use jsruntime::{IsolatedRuntime, RuntimeConfig};
 use tracing_subscriber::prelude::*;
 use tracing_tree::HierarchicalLayer;
 use url::Url;
+mod db;
 mod extension;
 mod loaders;
-mod runtime;
+mod moduleloader;
 mod server;
+mod specifier;
+mod types;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -53,7 +56,7 @@ async fn main() -> Result<()> {
           r#"
           console.log('loading server module');
           import { serve } from "@arena/runtime/server";
-          import { DqsServer } from "builtin:///@arena/runtime/dqs";
+          import { DqsServer } from "@arena/runtime/dqs";
           const servers = new Map();
           serve({
             async fetch(req) {
@@ -74,14 +77,21 @@ async fn main() -> Result<()> {
               }
 
               const res = await server.pipeRequest({
-                url: "http://0.0.0.0/execSql",
+                url: "http://0.0.0.0/execWidgetQuery",
                 method: "POST",
                 headers: [[ "content-type", "application/json" ]],
-                body: await req.text()
+                body: await req.json()
               });
-              console.log("BODY =", String.fromCharCode.apply(null, res[2]));
+
+              const body = JSON.parse(String.fromCharCode.apply(null, res[2]));
+              if (body.error) {
+                try {
+                  body.error.message = JSON.parse(body.error.message);
+                } catch (e) {}
+              }
+              console.log("BODY =", JSON.stringify(body));
               // return new Response('workspace server started');
-              return new Response(String.fromCharCode.apply(null, res[2]))
+              return new Response(JSON.stringify(body, null, 2));
             }
           })
           "#,
