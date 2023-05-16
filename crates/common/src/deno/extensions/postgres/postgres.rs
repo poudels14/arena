@@ -31,6 +31,13 @@ use uuid::Uuid;
 static INIT_CERTS: Once = Once::new();
 static mut CERTS: Option<rustls::ClientConfig> = None;
 
+#[derive(Default, Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QueryOptions {
+  /// Whether to update column names to camel case
+  pub camel_case: bool,
+}
+
 pub async fn create_connection(
   db_url: &str,
 ) -> Result<(Client, Connection<Socket, RustlsStream<Socket>>)> {
@@ -48,6 +55,7 @@ pub async fn execute_query(
   client: &Client,
   query: &str,
   params: &Vec<Param>,
+  options: &QueryOptions,
 ) -> Result<Vec<Map<String, Value>>, Error> {
   // TODO(sagar): don't need this once JS prints the error properly
   let res: Vec<Row> = match client.query_raw(query, params).await {
@@ -70,8 +78,13 @@ pub async fn execute_query(
       r.columns()
         .iter()
         .map(|c| {
+          let name = if options.camel_case {
+            c.name().to_lower_camel_case()
+          } else {
+            c.name().to_string()
+          };
           let value = get_json_value(c, r)?;
-          Ok((String::from(c.name()).to_lower_camel_case(), value))
+          Ok((name, value))
         })
         .collect()
     })

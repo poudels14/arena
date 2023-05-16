@@ -3,6 +3,7 @@ mod tls;
 
 pub use self::postgres::execute_query;
 pub use self::postgres::Param;
+use self::postgres::QueryOptions;
 use super::BuiltinExtension;
 use crate::deno::SecretResource;
 use crate::resolve_from_file;
@@ -44,7 +45,7 @@ fn init() -> Extension {
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ConnectionOptions {
+pub struct ConnectionConfig {
   /**
    * The resource id of the connection string secret
    */
@@ -54,6 +55,8 @@ pub struct ConnectionOptions {
    * Raw connection string
    */
   connection_string: Option<String>,
+
+  options: Option<QueryOptions>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -64,6 +67,7 @@ pub struct QueryResponse {
 #[derive(Clone, Debug)]
 pub struct PostgresConnectionResource {
   pub client: Rc<Client>,
+  options: Option<QueryOptions>,
   pub handle: Rc<JoinHandle<()>>,
 }
 
@@ -78,9 +82,9 @@ impl Resource for PostgresConnectionResource {
 #[op]
 pub async fn op_postgres_create_connection(
   state: Rc<RefCell<OpState>>,
-  options: ConnectionOptions,
+  config: ConnectionConfig,
 ) -> Result<ResourceId> {
-  let connection_string = match options.connection_string_id {
+  let connection_string = match config.connection_string_id {
     Some(rid) => {
       let secret = state
         .borrow_mut()
@@ -94,7 +98,7 @@ pub async fn op_postgres_create_connection(
     }
     None => {
       // fallback to connection string
-      options
+      config
         .connection_string
         .ok_or(anyhow!("Connection credentials not set"))
     }
@@ -115,6 +119,7 @@ pub async fn op_postgres_create_connection(
       .resource_table
       .add(PostgresConnectionResource {
         client: Rc::new(client),
+        options: config.options,
         handle: Rc::new(handle),
       });
 
@@ -143,13 +148,23 @@ pub async fn op_postgres_execute_query(
   rid: ResourceId,
   query: String,
   params: Vec<postgres::Param>,
+  options: Option<QueryOptions>,
 ) -> Result<QueryResponse> {
   let resource = state
     .borrow_mut()
     .resource_table
     .get::<PostgresConnectionResource>(rid)?;
 
-  let rows = postgres::execute_query(&resource.client, &query, &params).await;
+  let defaut_options = QueryOptions::default();
+  let rows = postgres::execute_query(
+    &resource.client,
+    &query,
+    &params,
+    options
+      .as_ref()
+      .unwrap_or(resource.options.as_ref().unwrap_or(&defaut_options)),
+  )
+  .await;
 
   Ok(QueryResponse { rows: rows? })
 }

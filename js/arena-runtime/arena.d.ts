@@ -340,7 +340,7 @@ declare module "@arena/runtime/dqs" {
 
     pipeRequest(request: {
       url: string;
-      method?: Request["method"],
+      method?: Request["method"];
       headers?: [string, string][];
       body?: any;
     }): Promise<
