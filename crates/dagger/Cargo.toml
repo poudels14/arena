@@ -22,4 +22,3 @@ colored = "2.0.0"
 jsruntime = { path = "../jsruntime" }
 common = { path = "../common" }
 arena_workspace = { path = "../workspace" }
-arena_server = { path = "../server" }

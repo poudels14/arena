@@ -1,6 +1,6 @@
 [workspace]
 
-members = ["common", "jsruntime", "server", "workspace", "dqs", "dagger"]
+members = ["common", "jsruntime", "workspace", "dqs", "dagger"]
 resolver = "2"
 
 [workspace.dependencies]

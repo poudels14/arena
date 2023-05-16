@@ -180,25 +180,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "arena_server"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "arena_workspace",
- "axum",
- "chrono",
- "common",
- "deno_core",
- "indexmap",
- "jsruntime",
- "log",
- "serde",
- "serde_json",
- "tokio",
- "url",
-]
-
-[[package]]
 name = "arena_workspace"
 version = "0.1.0"
 dependencies = [
@@ -910,7 +891,6 @@ name = "dagger"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "arena_server",
  "arena_workspace",
  "chrono",
  "clap 4.2.4",

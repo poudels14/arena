@@ -1,7 +1,6 @@
 mod exec;
 mod format;
 mod run;
-mod server;
 mod workspace;
 
 use anyhow::bail;
@@ -29,10 +28,6 @@ enum Commands {
 
   /// Execute inline JS; dagger exec "console.log('test')"
   Exec(exec::Command),
-
-  /// Arena server commands
-  #[command(subcommand)]
-  Server(server::Command),
 
   /// Arena workspace commands
   #[command(subcommand)]
@@ -67,7 +62,6 @@ async fn main() -> Result<()> {
     match args.command {
       Commands::Run(cmd) => cmd.execute().await?,
       Commands::Exec(cmd) => cmd.execute().await?,
-      Commands::Server(cmd) => cmd.execute().await?,
       Commands::Workspace(cmd) => cmd.execute().await?,
       Commands::Format(cmd) => cmd.execute().await?,
     };
