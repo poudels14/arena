@@ -17,14 +17,17 @@ pub(crate) fn from_config<'a>(
 
       export default async function() {
         return await connect({
-          connectionString: env.DATABASE_URL3,
+          connectionString: env['{{db}}'],
         }).execute(
           `{{query}}`,
           // TODO(sagar): parameterize the query
           []);
       }
       "#,
-      &json!({ "query": config.query }),
+      &json!({
+        "db": config.db,
+        "query": config.query
+      }),
     )
     .map_err(|e| anyhow!("{:?}", e))
 }
