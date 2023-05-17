@@ -20,21 +20,28 @@ const r = trpcRouter({
         appId: z.string(),
         widgetId: z.string(),
         field: z.string(),
+        props: z.record(z.any()).optional(),
       })
     )
-    .mutation(async ({ input: { workspaceId, appId, widgetId, field } }) => {
-      try {
-        return await import(
-          `~/apps/${appId}/widgets/${widgetId}/${field}`
-        ).then(async (m) => {
-          const result = await Promise.all([m.default({})]);
-          return result[0];
-        });
-      } catch (e) {
-        console.error(e);
-        throw e;
+    .mutation(
+      async ({ input: { workspaceId, appId, widgetId, field, props } }) => {
+        try {
+          return await import(
+            `~/apps/${appId}/widgets/${widgetId}/${field}`
+          ).then(async (m) => {
+            const result = await Promise.all([
+              m.default({
+                props: props || {},
+              }),
+            ]);
+            return result[0];
+          });
+        } catch (e) {
+          console.error(e);
+          throw e;
+        }
       }
-    }),
+    ),
 });
 
 type RouterConfig = {

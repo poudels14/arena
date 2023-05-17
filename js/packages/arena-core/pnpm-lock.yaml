@@ -4,6 +4,9 @@ dependencies:
   '@arena/runtime':
     specifier: workspace:^0.1.0
     version: link:../../arena-runtime
+  '@arena/slonik':
+    specifier: workspace:^
+    version: link:../slonik
   '@maverick-js/signals':
     specifier: ^5.9.1
     version: 5.9.1

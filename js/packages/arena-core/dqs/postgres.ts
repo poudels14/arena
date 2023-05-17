@@ -27,6 +27,9 @@ class Client {
     // Note(sagar): this is applicable to @arena cloud pg module
     if (this.client.isConnected && !this.client.isConnected()) {
       await this.client.connect();
+    } else {
+      // needed for npm `pg` module
+      await this.client.connect();
     }
     return await this.client.query(query, parameters, options);
   }

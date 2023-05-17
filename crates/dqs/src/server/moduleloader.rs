@@ -98,8 +98,7 @@ impl ModuleLoader for AppkitModuleLoader {
           loader.load_env_variable_module(&app_id, &widget_id).await?
         }
         ParsedSpecifier::WidgetQuery(src) => {
-          let query = loader.load_widget_query_module(&src).await?;
-          query
+          loader.load_widget_query_module(&src).await?
         }
         _ => bail!("Unsupported module"),
       };

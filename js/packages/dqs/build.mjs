@@ -30,6 +30,7 @@ program.option("--minify").action(async (options, cmd) => {
       ...options,
       entryPoints: {
         postgres: "src/core/postgres.ts",
+        slonik: "src/core/slonik.ts",
       },
       outdir: "dist/dqs",
       alias: {

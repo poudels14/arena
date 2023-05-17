@@ -36,6 +36,6 @@ pub enum SourceConfig {
 pub struct SqlSourceConfig {
   pub source: String,
   pub db: String,
-  pub args: Vec<(String, String)>,
+  pub args: Vec<String>,
   pub query: String,
 }

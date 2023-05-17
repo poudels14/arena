@@ -63,6 +63,7 @@ fn generate_prod_snapshot(path: &Path) {
           "@arena/dqs/router",
           resolve_from_root!("../../js/packages/dqs/dist/router.js", true),
         ),
+        dqs_lib!("slonik"),
         dqs_lib!("postgres"),
       ],
       ..Default::default()
