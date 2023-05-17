@@ -39,10 +39,10 @@ pub async fn new(config: RuntimeConfig) -> Result<JsRuntime> {
     deno_webidl::init(),
     deno_console::init(),
     deno_url::init_ops(),
-    // deno_web::init_ops::<PermissionsContainer>(
-    //   deno_web::BlobStore::default(),
-    //   Default::default(),
-    // ),
+    deno_web::init_ops::<PermissionsContainer>(
+      deno_web::BlobStore::default(),
+      Default::default(),
+    ),
     // deno_fetch::init_ops::<PermissionsContainer>(
     //   deno_fetch::Options {
     //     user_agent: format!("arena/dqs/{}", &config.workspace_id).to_owned(),
@@ -116,6 +116,7 @@ fn build_extension(state: RuntimeState) -> Extension {
       ])
       .state(move |op_state| {
         op_state.put::<RuntimeState>(state.clone());
+        op_state.put::<PermissionsContainer>(PermissionsContainer::default());
       })
       .build()
 }
