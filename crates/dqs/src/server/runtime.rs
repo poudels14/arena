@@ -114,8 +114,8 @@ fn build_extension(state: RuntimeState) -> Extension {
           ),
         }
       ])
-      .state(|op_state| {
-        op_state.put::<RuntimeState>(state);
+      .state(move |op_state| {
+        op_state.put::<RuntimeState>(state.clone());
       })
       .build()
 }
