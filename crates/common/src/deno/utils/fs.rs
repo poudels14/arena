@@ -91,11 +91,11 @@ macro_rules! resolve_from_root {
 #[macro_export]
 macro_rules! resolve_from_file {
   ($a:expr) => {{
-    #[cfg(feature = "fs-rerun-if-changed")]
+    #[cfg(feature = "fs_rerun_if_changed")]
     {
       resolve_from_file!($a, true)
     }
-    #[cfg(not(feature = "fs-rerun-if-changed"))]
+    #[cfg(not(feature = "fs_rerun_if_changed"))]
     {
       resolve_from_file!($a, false)
     }
