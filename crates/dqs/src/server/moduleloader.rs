@@ -1,3 +1,4 @@
+use super::state::RuntimeState;
 use crate::db::widget::{self, widgets};
 use crate::loaders;
 use crate::specifier::ParsedSpecifier;
@@ -12,8 +13,8 @@ use deno_core::{
 use deno_core::{ModuleSource, ModuleType, OpState};
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
-use diesel::result::Error::NotFound;
 use diesel::PgConnection;
+use serde_json::{json, Value};
 use std::cell::RefCell;
 use std::future::Future;
 use std::pin::Pin;
@@ -25,10 +26,14 @@ use url::Url;
 pub struct AppkitModuleLoader {
   pub workspace_id: String,
   pub pool: Pool<ConnectionManager<PgConnection>>,
+  pub state: RuntimeState,
 }
 
 impl ModuleLoader for AppkitModuleLoader {
-  #[tracing::instrument(skip(self, _kind))]
+  #[tracing::instrument(
+    name = "AppkitModuleLoader::resolve",
+    skip(self, _kind)
+  )]
   fn resolve(
     &self,
     specifier: &str,
@@ -61,6 +66,11 @@ impl ModuleLoader for AppkitModuleLoader {
       false if specifier.starts_with("~") => {
         format!("workspace:///{}", specifier)
       }
+      // relative specifiers are used to load env variables, etc
+      // for example |import env from "./env"| to load env
+      false if specifier.starts_with("./") => {
+        format!("{}/{}", referrer, specifier)
+      }
       _ => {
         info!("Unsupported module specifier: {:?}", specifier);
         bail!("Unsupported module specifier: {:?}", specifier)
@@ -71,7 +81,7 @@ impl ModuleLoader for AppkitModuleLoader {
       .map_err(|_| anyhow!("Failed to resolve specifier: {:?}", specifier))
   }
 
-  #[tracing::instrument(skip(self))]
+  #[tracing::instrument(name = "AppkitModuleLoader::load", skip(self))]
   fn load(
     &self,
     module_specifier: &ModuleSpecifier,
@@ -79,26 +89,19 @@ impl ModuleLoader for AppkitModuleLoader {
     _is_dynamic: bool,
   ) -> Pin<Box<ModuleSourceFuture>> {
     let specifier = module_specifier.clone().to_string();
-    let referrer = maybe_referrer
-      .clone()
-      .map(|r| r.to_string())
-      .unwrap_or(".".to_owned());
 
-    let mut this = self.clone();
+    let mut loader = self.clone();
     async move {
       let parsed_specifier = ParsedSpecifier::from(&specifier)?;
       let code = match parsed_specifier {
-        ParsedSpecifier::WidgetQuery(src) => {
-          let query = this.load_widget_query(this.workspace_id.clone(), &src).await?.ok_or(anyhow!("Invalid request"))?;
-          println!("query = {:#}", query);
-          query
-        },
-        _ => {
-          format!(r#"
-            console.log('this is module:', "{specifier}", ', loaded from:', `{referrer:?}`);
-            export default {{}};
-          "#)
+        ParsedSpecifier::Env { app_id, widget_id } => {
+          loader.load_env_variable_module(&app_id, &widget_id).await?
         }
+        ParsedSpecifier::WidgetQuery(src) => {
+          let query = loader.load_widget_query_module(&src).await?;
+          query
+        }
+        _ => bail!("Unsupported module"),
       };
       Ok(ModuleSource {
         code: code.as_bytes().into(),
@@ -122,13 +125,11 @@ impl ModuleLoader for AppkitModuleLoader {
 }
 
 impl AppkitModuleLoader {
-  pub async fn load_widget_query(
+  async fn load_widget_query_module(
     &mut self,
-    _workspace_id: String,
     specifier: &WidgetQuerySpecifier,
-  ) -> Result<Option<String>> {
+  ) -> Result<String> {
     let connection = &mut self.pool.get()?;
-    // TODO(sagar): cache widget config
     let widget = widgets::table
       .filter(widgets::id.eq(specifier.widget_id.to_string()))
       .first::<widget::Widget>(connection);
@@ -146,14 +147,33 @@ impl AppkitModuleLoader {
             match config {
               SourceConfig::Sql(sql_config) => {
                 loaders::sql::from_config(specifier, sql_config)
-                  .map(|v| Some(v))
               }
             }
           }
         }
       }
-      Err(NotFound) => Ok(None),
       Err(e) => Err(e.into()),
     };
+  }
+
+  async fn load_env_variable_module(
+    &mut self,
+    _app_id: &str,
+    _widget_id: &str,
+  ) -> Result<String> {
+    let variables = self
+      .state
+      .env_variables
+      .iter()
+      .map(|(tmp_id, env)| {
+        json!({
+          "id": tmp_id,
+          "key": env.key,
+          "type": env.ttype,
+          "value": if env.ttype == "secret" { None } else { Some(env.value.clone()) }
+        })
+      })
+      .collect::<Vec<Value>>();
+    loaders::env::from_vec(variables)
   }
 }

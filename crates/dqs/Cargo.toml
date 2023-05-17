@@ -19,6 +19,7 @@ bytes.workspace = true
 http.workspace = true
 diesel.workspace = true
 handlebars.workspace = true
+uuid.workspace = true
 common = { path = "../common" }
 jsruntime = { path = "../jsruntime" }
 

@@ -13,9 +13,11 @@ pub(crate) fn from_config<'a>(
     .render_template(
       r#"
       import { connect } from "@arena/core/dqs/postgres";
-      export default async function({ env }) {
+      import env from "./env";
+
+      export default async function() {
         return await connect({
-          connectionString: "postgresql://postgres:password@0.0.0.0:6000/arena",
+          connectionString: env.DATABASE_URL3,
         }).execute(
           `{{query}}`,
           // TODO(sagar): parameterize the query

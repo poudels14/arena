@@ -6,15 +6,16 @@ use nom::combinator::eof;
 use nom::error;
 use nom::sequence::tuple;
 use nom::IResult;
+use tracing::instrument;
 
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum ParsedSpecifier {
-  Env,
-  WorkspaceMiddleware,
-  AppMiddleware,
+  Env { app_id: String, widget_id: String },
+  // WorkspaceMiddleware,
+  // AppMiddleware,
   WidgetQuery(WidgetQuerySpecifier),
-  SavedQuery(String),
+  // SavedQuery(String),
   Unknown,
 }
 
@@ -23,6 +24,7 @@ fn take_until_slash(input: &str) -> IResult<&str, &str> {
 }
 
 impl ParsedSpecifier {
+  #[instrument(name = "ParsedSpecifier::from")]
   pub fn from(specifier: &str) -> Result<Self> {
     Self::_parse(specifier)
       .map(|r| r.1)
@@ -46,20 +48,31 @@ impl ParsedSpecifier {
     app_id: &'a str,
     input: &'a str,
   ) -> IResult<&'a str, Self> {
-    let (input, (_, widget_id, _, field_name)) = tuple((
+    let (input, (_, widget_id, _, field_name, maybe_env)) = tuple((
       tag("/widgets/"),
       take_until_slash,
       tag("/"),
       take_until_slash,
+      alt((tag("/env"), eof)),
     ))(input)?;
 
-    Ok((
-      input,
-      ParsedSpecifier::WidgetQuery(WidgetQuerySpecifier {
-        app_id: app_id.to_string(),
-        widget_id: widget_id.to_owned(),
-        field_name: field_name.to_owned(),
-      }),
-    ))
+    match maybe_env {
+      "" => Ok((
+        input,
+        ParsedSpecifier::WidgetQuery(WidgetQuerySpecifier {
+          app_id: app_id.to_string(),
+          widget_id: widget_id.to_owned(),
+          field_name: field_name.to_owned(),
+        }),
+      )),
+      "/env" => Ok((
+        input,
+        ParsedSpecifier::Env {
+          app_id: app_id.to_string(),
+          widget_id: widget_id.to_string(),
+        },
+      )),
+      _ => Ok((input, ParsedSpecifier::Unknown)),
+    }
   }
 }

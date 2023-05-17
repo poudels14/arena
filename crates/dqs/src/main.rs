@@ -9,7 +9,6 @@ use url::Url;
 mod db;
 mod extension;
 mod loaders;
-mod moduleloader;
 mod server;
 mod specifier;
 mod types;
@@ -31,9 +30,6 @@ async fn main() -> Result<()> {
     config: Some(ArenaConfig::default()),
     enable_console: true,
     builtin_extensions: BuiltinExtensions::with_modules(vec![
-      BuiltinModule::Node,
-      BuiltinModule::Transpiler,
-      BuiltinModule::Resolver(project_root),
       BuiltinModule::HttpServer(HttpServerConfig::Tcp(
         "0.0.0.0".to_owned(),
         8002,
@@ -54,7 +50,6 @@ async fn main() -> Result<()> {
         .execute_main_module_code(
           &Url::parse("file:///main").unwrap(),
           r#"
-          console.log('loading server module');
           import { serve } from "@arena/runtime/server";
           import { DqsServer } from "@arena/runtime/dqs";
           const servers = new Map();
@@ -71,7 +66,6 @@ async fn main() -> Result<()> {
               const workspaceId = 'workspace_1';
               let server = servers.get(workspaceId);
               if (!server || !server.isAlive()) {
-                console.log("starting server for workspace =", workspaceId);
                 server = await DqsServer.startStreamServer(workspaceId);
                 servers.set(workspaceId, server);
               }
@@ -90,7 +84,6 @@ async fn main() -> Result<()> {
                 } catch (e) {}
               }
               console.log("BODY =", JSON.stringify(body));
-              // return new Response('workspace server started');
               return new Response(JSON.stringify(body, null, 2));
             }
           })

@@ -1,6 +1,5 @@
 pub(crate) mod db;
 pub(crate) mod loaders;
-pub(crate) mod moduleloader;
 pub(crate) mod server;
 pub(crate) mod specifier;
 pub(crate) mod types;

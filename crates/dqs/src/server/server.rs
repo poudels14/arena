@@ -36,7 +36,7 @@ pub(crate) fn start(
 
   let local = tokio::task::LocalSet::new();
   local.block_on(&rt, async {
-    let mut runtime = runtime::new(config)?;
+    let mut runtime = runtime::new(config).await?;
     let (sender, receiver) = beam::channel(10);
     let (terminate_tx, terminate_rx) = oneshot::channel::<()>();
 
