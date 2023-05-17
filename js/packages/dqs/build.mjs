@@ -21,7 +21,7 @@ program.option("--minify").action(async (options, cmd) => {
   await Promise.all([
     build({
       entryPoints: {
-        router: "./src/router.ts",
+        router: "./src/router/index.ts",
       },
       outdir: "dist/",
     }),
