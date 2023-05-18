@@ -7,7 +7,7 @@ export default async function ({
   /**
    * Parameter key/value mapping
    *
-   * For example, if a query is `SELECT * FROM table WHERE id = {{ id }}`,
+   * For example, if a query is `SELECT * FROM table WHERE id = \{\{ id \}\}`,
    * the params that should be passed in would be `{"id": "_some_id_" }`.
    * Params is passed by the frontend
    */
