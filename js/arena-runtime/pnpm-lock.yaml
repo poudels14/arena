@@ -8,7 +8,7 @@ patchedDependencies:
 dependencies:
   '@arena/functions':
     specifier: workspace:^
-    version: link:../packages/dqs
+    version: link:../packages/functions
   '@babel/core':
     specifier: ^7.21.3
     version: 7.21.3
