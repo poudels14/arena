@@ -41,7 +41,7 @@ pub fn extension() -> BuiltinExtension {
 }
 
 pub(crate) fn init() -> Extension {
-  Extension::builder("@arena/dqs")
+  Extension::builder("arena/runtime/dqs")
     .ops(vec![
       op_dqs_start_tcp_server::decl(),
       op_dqs_start_stream_server::decl(),

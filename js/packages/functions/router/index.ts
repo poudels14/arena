@@ -20,18 +20,18 @@ const r = trpcRouter({
         appId: z.string(),
         widgetId: z.string(),
         field: z.string(),
-        props: z.record(z.any()).optional(),
+        params: z.record(z.any()).optional(),
       })
     )
     .mutation(
-      async ({ input: { workspaceId, appId, widgetId, field, props } }) => {
+      async ({ input: { workspaceId, appId, widgetId, field, params } }) => {
         try {
           return await import(
             `~/apps/${appId}/widgets/${widgetId}/${field}`
           ).then(async (m) => {
             const result = await Promise.all([
               m.default({
-                props: props || {},
+                params: params || {},
               }),
             ]);
             return result[0];

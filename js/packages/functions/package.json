@@ -1,7 +1,7 @@
 {
-  "name": "dqs",
+  "name": "@arena/functions",
   "version": "1.0.0",
-  "description": "",
+  "description": "A set of server-functions primitives to build backend easily",
   "main": "index.ts",
   "scripts": {
     "build": "pnpm node build.mjs"
@@ -12,9 +12,11 @@
   "dependencies": {
     "@arena/appkit": "workspace:^",
     "@arena/core": "workspace:^",
+    "@arena/slonik": "workspace:^",
     "@trpc/server": "^10.21.0",
     "commander": "^10.0.0",
     "esbuild": "^0.17.10",
+    "pg": "^8.11.0",
     "zod": "^3.21.4"
   }
 }

@@ -59,12 +59,19 @@ fn generate_prod_snapshot(path: &Path) {
     BuiltinModule::HttpServer(HttpServerConfig::Tcp("0.0.0.0".to_owned(), 0)),
     BuiltinModule::Custom(|| BuiltinExtension {
       snapshot_modules: vec![
+        // Note(sagar): load this under @arena/dqs/router instead of
+        // @arena/functions/router since we dont want user code to be able
+        // to load this module and all @arena/functions/... are accessible
+        // by user code
         (
           "@arena/dqs/router",
-          resolve_from_root!("../../js/packages/dqs/dist/router.js", true),
+          resolve_from_root!(
+            "../../js/arena-runtime/dist/functions/router.js",
+            true
+          ),
         ),
-        dqs_lib!("slonik"),
-        dqs_lib!("postgres"),
+        dqs_function!("sql"),
+        dqs_function!("sql/postgres"),
       ],
       ..Default::default()
     }),
@@ -125,12 +132,12 @@ fn get_basic_runtime() -> JsRuntime {
 }
 
 #[macro_export]
-macro_rules! dqs_lib {
+macro_rules! dqs_function {
   ($a:literal) => {{
     (
-      concat!("@arena/core/dqs/", $a),
+      concat!("@arena/functions/", $a),
       resolve_from_root!(
-        concat!("../../js/packages/dqs/dist/dqs/", $a, ".js"),
+        concat!("../../js/arena-runtime/dist/functions/", $a, ".js"),
         true
       ),
     )

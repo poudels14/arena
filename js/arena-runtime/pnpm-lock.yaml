@@ -6,6 +6,9 @@ patchedDependencies:
     path: patches/rollup-plugin-postcss@4.0.2.patch
 
 dependencies:
+  '@arena/functions':
+    specifier: workspace:^
+    version: link:../packages/dqs
   '@babel/core':
     specifier: ^7.21.3
     version: 7.21.3

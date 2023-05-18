@@ -55,10 +55,10 @@ impl ModuleLoader for AppkitModuleLoader {
 
     let specifier = match is_referrer_main_module {
       // allow all modules to be loaded by main module since it's admin code
-      // true if specifier.starts_with("builtin:///") => specifier.to_owned(),
       true => format!("builtin:///{}", specifier),
-      // allow all dqs modules; those are meant to be used by user modules
-      false if specifier.starts_with("@arena/core/dqs/") => {
+      // allow all dqs functions modules; those are meant to be used by user
+      // code
+      false if specifier.starts_with("@arena/functions/") => {
         format!("builtin:///{}", specifier)
       }
       // modules that start with `~` are workspace modules and loaded

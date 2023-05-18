@@ -1,12 +1,26 @@
 import { program } from "commander";
+import path from "path";
 import * as esbuild from "esbuild";
 
+/**
+ * @typedef {{
+ *  entryPoints: Record<string, string>;
+ *  external?: string[];
+ *  outdir?: string;
+ *  minify?: boolean;
+ *  format?: "esm" | "iife";
+ * }} BuildOptions
+ */
+
+/**
+ * @param {BuildOptions} options
+ */
 const build = async (options) => {
   const { external = [], ...restOptions } = options;
   try {
     await esbuild.build({
       bundle: true,
-      outdir: "dist",
+      outdir: restOptions.outfile ? undefined : "dist",
       format: "esm",
       external: ["node:*", ...external],
       ...restOptions,
@@ -15,6 +29,30 @@ const build = async (options) => {
     console.error(e);
     throw e;
   }
+};
+
+/**
+ * Bundle using given entry code;
+ * options.entryPoints is map of `outfile => code` instead of
+ * `outfile => entryFile`
+ *
+ * @param {BuildOptions} options
+ */
+const stdinBuild = async (options) => {
+  await Promise.all(
+    Object.entries(options.entryPoints).map(async ([outfile, code]) => {
+      await build({
+        ...options,
+        outfile: path.join(options.outdir ?? "", outfile),
+        outdir: undefined,
+        entryPoints: undefined,
+        stdin: {
+          resolveDir: process.cwd(),
+          contents: code,
+        },
+      });
+    })
+  );
 };
 
 program.option("--minify").action(async (options, cmd) => {
@@ -116,6 +154,26 @@ program.option("--minify").action(async (options, cmd) => {
       entryPoints: {
         dqs: "./libs/dqs/index.ts",
       },
+    }),
+    /**
+     * This bundles exports of `@arena/functions/...` so that it can be
+     * embedded in DQS server during build time to avoid file access during
+     * runtime.
+     *
+     * `@arena/functions` could be open-sourced later, so, putting the build
+     * setup here.
+     */
+    stdinBuild({
+      entryPoints: {
+        "router.js": `export * from "@arena/functions/router";`,
+        "sql.js": `export * from "@arena/functions/sql";`,
+        "sql/postgres.js": `export * from "@arena/functions/sql/postgres";`,
+      },
+      outdir: "dist/functions",
+      alias: {
+        pg: "@arena/runtime/postgres",
+      },
+      external: ["@arena/runtime/postgres"],
     }),
   ]);
 });

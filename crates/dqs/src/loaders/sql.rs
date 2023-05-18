@@ -42,7 +42,7 @@ pub(crate) fn from_config<'a>(
       &json!({
         "db": config.db,
         "query": transpiled_query,
-        "propsKeys": format!("{{ {} }}", prop_keys)
+        "paramKeys": format!("{{ {} }}", prop_keys)
       }),
     )
     .map_err(|e| anyhow!("{:?}", e))
