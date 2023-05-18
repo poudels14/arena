@@ -1,4 +1,4 @@
-import { Client } from "@arena/postgres";
+import { Client } from "@arena/runtime/postgres";
 import { createRepo as createAppRepo } from "./app";
 import { createRepo as createWidgetsRepo } from "./widget";
 

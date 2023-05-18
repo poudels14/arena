@@ -11,7 +11,7 @@ SSR = true
 [server.javascript.resolve]
 alias = { "~" = "./src" }
 conditions = ["solid", "server", "deno"]
-external = ["@arena/postgres", "crypto"]
+external = ["@arena/runtime/postgres", "@arena/runtime/dqs", "crypto"]
 dedupe = [
   "solid-js",
   "solid-js/web",
