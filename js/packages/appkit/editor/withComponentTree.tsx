@@ -60,7 +60,7 @@ const withComponentTree: Plugin<
     Object.assign(context, {
       getComponentTree,
       useChildren(parentId: string) {
-        return plugins.state.withComponentTree.childrenMap[parentId]();
+        return plugins.state.withComponentTree.childrenMap[parentId]() || [];
       },
     });
   };

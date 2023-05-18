@@ -5,7 +5,7 @@ import { ComponentTreeContext, useEditorContext } from "./index";
 import { Widget } from "./index";
 
 type SlotProps = {
-  parentId: string;
+  parentId: string | null;
 
   /**
    * Whether the slot should contain a single widget of multiple widgets

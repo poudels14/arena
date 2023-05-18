@@ -11,12 +11,12 @@ import {
   withWidgetDataLoaders,
   withComponentTree,
   ComponentTreeContext,
+  Slot,
 } from "@arena/appkit/editor";
 import Heading1, { metadata as heading1 } from "@arena/widgets/core/Heading1";
 import Heading2, { metadata as heading2 } from "@arena/widgets/core/Heading2";
 import Heading3, { metadata as heading3 } from "@arena/widgets/core/Heading3";
 import Table, { metadata as tableMetadata } from "@arena/widgets/table";
-import Layout, { metadata as layoutMetadata } from "@arena/widgets/core/Layout";
 import GridLayout, {
   metadata as gridLayoutMetadata,
 } from "@arena/widgets/core/GridLayout";
@@ -25,6 +25,7 @@ import { ComponentTree } from "./ComponentTree";
 import { Toolbar } from "./toolbar";
 import { AppContextProvider } from "@arena/appkit";
 import { DragDropProvider, DragEndEvent, DragOverlay } from "@arena/solid-dnd";
+import { Match, Switch } from "solid-js";
 
 type EditorProps = EditorStateConfig & {};
 
@@ -52,10 +53,6 @@ const Editor = (props: EditorProps) => {
         [heading3.id]: {
           Component: Heading3,
           metadata: heading3,
-        },
-        [layoutMetadata.id]: {
-          Component: Layout,
-          metadata: layoutMetadata,
         },
         [gridLayoutMetadata.id]: {
           Component: GridLayout,
@@ -108,7 +105,14 @@ const AppEditor = () => {
           <div class="h-full">
             <Canvas>
               <div class="p-2">
-                <Widget widgetId={useChildren(null)[0]} />
+                <Switch>
+                  <Match when={useChildren(null).length > 0}>
+                    <Widget widgetId={useChildren(null)[0]} />
+                  </Match>
+                  <Match when={true}>
+                    <Slot parentId={null} />
+                  </Match>
+                </Switch>
               </div>
             </Canvas>
           </div>
