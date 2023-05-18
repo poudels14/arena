@@ -1,13 +1,18 @@
 import { PageEvent } from "@arena/core/server/event";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { createContext } from "./context";
-import { router as trpcRouter } from "./trpc";
+import { procedure, router as trpcRouter } from "./trpc";
 import { appsRouter } from "./routes/apps";
 import { widgetsRouter } from "./routes/widgets";
+import { queryRouter } from "./routes/query";
 
 const r = trpcRouter({
   apps: appsRouter,
   widgets: widgetsRouter,
+  dataQuery: queryRouter,
+  _healthy: procedure.query(() => {
+    return "OK!";
+  }),
 });
 
 type RouterOptions = {
@@ -24,7 +29,7 @@ const router = (options: RouterOptions) => {
     }
 
     return await fetchRequestHandler({
-      endpoint: options.prefix || "/",
+      endpoint: options.prefix || "",
       req: event.request,
       router: r,
       createContext,
