@@ -5,9 +5,10 @@ pub use self::postgres::execute_query;
 pub use self::postgres::Param;
 use self::postgres::QueryOptions;
 use super::BuiltinExtension;
-use crate::deno::SecretResource;
+use crate::deno::resources::env_variable::EnvironmentVariable;
 use crate::resolve_from_file;
 use anyhow::anyhow;
+use anyhow::bail;
 use anyhow::Result;
 use deno_core::op;
 use deno_core::serde::{Deserialize, Serialize};
@@ -46,15 +47,7 @@ fn init() -> Extension {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConnectionConfig {
-  /**
-   * The resource id of the connection string secret
-   */
-  connection_string_id: Option<ResourceId>,
-
-  /**
-   * Raw connection string
-   */
-  connection_string: Option<String>,
+  connection_string: Option<EnvironmentVariable>,
 
   options: Option<QueryOptions>,
 }
@@ -84,25 +77,14 @@ pub async fn op_postgres_create_connection(
   state: Rc<RefCell<OpState>>,
   config: ConnectionConfig,
 ) -> Result<ResourceId> {
-  let connection_string = match config.connection_string_id {
-    Some(rid) => {
-      let secret = state
-        .borrow_mut()
-        .resource_table
-        .get::<SecretResource>(rid)?;
-      secret
-        .value
-        .as_str()
-        .map(|s| s.to_string())
-        .ok_or(anyhow!("Failed to get connection string from secret store"))
-    }
-    None => {
-      // fallback to connection string
-      config
-        .connection_string
-        .ok_or(anyhow!("Connection credentials not set"))
-    }
+  let connection_string = match config.connection_string {
+    Some(v) => v.get_value(&state.borrow()),
+    None => bail!("connectionString is missing from config"),
   }?;
+
+  let connection_string = connection_string
+    .as_str()
+    .ok_or(anyhow!("connectionString should be string"))?;
 
   let (client, connection) =
     postgres::create_connection(&connection_string).await?;

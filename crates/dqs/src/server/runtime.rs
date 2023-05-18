@@ -3,6 +3,7 @@ use super::state::RuntimeState;
 use anyhow::Result;
 use common::deno::extensions::server::HttpServerConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
+use common::deno::resources::env_variable::EnvironmentVariableStore;
 use deno_core::{
   v8, Extension, ExtensionFileSource, ExtensionFileSourceCode, JsRuntime,
   Snapshot,
@@ -119,6 +120,7 @@ fn build_extension(state: RuntimeState) -> Extension {
       ])
       .state(move |op_state| {
         op_state.put::<RuntimeState>(state.clone());
+        op_state.put::<EnvironmentVariableStore>(state.env_variables.clone());
         op_state.put::<PermissionsContainer>(PermissionsContainer::default());
       })
       .build()

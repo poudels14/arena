@@ -146,7 +146,7 @@ impl AppkitModuleLoader {
             match config {
               SourceConfig::Sql(sql_config) => {
                 loaders::sql::from_config(specifier, sql_config)
-              },
+              }
               SourceConfig::JavaScript(js_config) => {
                 loaders::javascript::from_config(specifier, js_config)
               }
@@ -166,13 +166,14 @@ impl AppkitModuleLoader {
     let variables = self
       .state
       .env_variables
+      .0
       .iter()
       .map(|(tmp_id, env)| {
         json!({
           "id": tmp_id,
           "key": env.key,
-          "type": env.ttype,
-          "value": if env.ttype == "secret" { None } else { Some(env.value.clone()) }
+          "isSecret": env.is_secret,
+          "value": if env.is_secret { None } else { Some(env.value.clone()) }
         })
       })
       .collect::<Vec<Value>>();

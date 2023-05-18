@@ -7,11 +7,13 @@ pub(crate) fn from_vec<'a>(variables: Vec<Value>) -> Result<String> {
     class EnvironmentSecret {{
       constructor(id) {{
         this.id = id;
+        this.__type__ = "secret";
+        Object.freeze(this);
       }}
     }}
 
     const variables = Object.fromEntries({}.map(v => {{
-      return [v.key, v.type == "secret" ? new EnvironmentSecret(v.id) : v.value]
+      return [v.key, v.isSecret ? new EnvironmentSecret(v.id) : v.value]
     }}));
 
     export default variables;
