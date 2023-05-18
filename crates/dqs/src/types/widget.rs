@@ -30,12 +30,21 @@ pub enum DataConfig {
 pub enum SourceConfig {
   #[serde(alias = "sql")]
   Sql(SqlSourceConfig),
+  #[serde(alias = "javascript")]
+  JavaScript(JavascriptSourceConfig),
 }
 
 #[derive(Debug, Deserialize)]
 pub struct SqlSourceConfig {
   pub source: String,
   pub db: String,
+  pub args: Vec<String>,
+  pub query: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct JavascriptSourceConfig {
+  pub source: String,
   pub args: Vec<String>,
   pub query: String,
 }

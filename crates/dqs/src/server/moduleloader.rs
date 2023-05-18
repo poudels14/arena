@@ -146,6 +146,9 @@ impl AppkitModuleLoader {
             match config {
               SourceConfig::Sql(sql_config) => {
                 loaders::sql::from_config(specifier, sql_config)
+              },
+              SourceConfig::JavaScript(js_config) => {
+                loaders::javascript::from_config(specifier, js_config)
               }
             }
           }
