@@ -115,7 +115,12 @@ fn op_fs_readdir_sync(
 
 #[op(fast)]
 fn op_fs_file_exists_sync(state: &mut OpState, path: String) -> Result<bool> {
-  Ok(resolve_read_path(state, &Path::new(&path))?.exists())
+  Ok(
+    resolve_read_path(state, &Path::new(&path))
+      .ok()
+      .map(|f| f.exists())
+      .is_some(),
+  )
 }
 
 #[op(fast)]
