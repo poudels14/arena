@@ -1,6 +1,6 @@
 use anyhow::{anyhow, bail, Result};
 use deno_core::error::AnyError;
-use deno_core::OpState;
+use deno_core::{normalize_path, OpState};
 use derivative::Derivative;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -25,7 +25,9 @@ pub struct FileSystemPermissions {
   /// that are allowed for read/writes
   #[derivative(Default(value = "std::env::current_dir().unwrap()"))]
   pub root: PathBuf,
+  // Note(sp): read paths are relative to the root
   pub allowed_read_paths: HashSet<String>,
+  // Note(sp): read paths are relative to the root
   pub allowed_write_paths: HashSet<String>,
 }
 
@@ -100,14 +102,13 @@ impl PermissionsContainer {
       Some(perms) => {
         // TODO(sagar): cache the paths
         // TODO(sagar): write tests
-        if perms.allowed_read_paths.iter().any(|p| {
-          perms
-            .root
-            .join(p)
-            .canonicalize()
-            .and_then(|p| Ok(path.starts_with(p)))
-            .unwrap_or(false)
-        }) {
+        let root = perms.root.canonicalize()?;
+        let path = path.canonicalize()?;
+        if perms
+          .allowed_read_paths
+          .iter()
+          .any(|p| path.starts_with(normalize_path(root.join(p))))
+        {
           return Ok(());
         }
       }
@@ -126,14 +127,13 @@ impl PermissionsContainer {
       Some(perms) => {
         // TODO(sagar): cache the paths
         // TODO(sagar): write tests
-        if perms.allowed_write_paths.iter().any(|p| {
-          perms
-            .root
-            .join(p)
-            .canonicalize()
-            .and_then(|p| Ok(path.starts_with(p)))
-            .unwrap_or(false)
-        }) {
+        let root = perms.root.canonicalize()?;
+        let path = path.canonicalize()?;
+        if perms
+          .allowed_write_paths
+          .iter()
+          .any(|p| path.starts_with(normalize_path(root.join(p))))
+        {
           return Ok(());
         }
       }
