@@ -11,7 +11,7 @@ use url::Url;
 #[derive(Debug)]
 pub enum ServerEvents {
   Started(IsolateHandle, beam::Sender<Command, Value>),
-  Terminated,
+  Terminated(Result<String>),
 }
 
 #[derive(Debug, Clone)]
@@ -35,7 +35,7 @@ pub(crate) fn start(
     .build()?;
 
   let local = tokio::task::LocalSet::new();
-  local.block_on(&rt, async {
+  let r = local.block_on(&rt, async {
     let mut runtime = runtime::new(config).await?;
     let (sender, receiver) = beam::channel(10);
     let (terminate_tx, terminate_rx) = oneshot::channel::<()>();
@@ -57,9 +57,28 @@ pub(crate) fn start(
       _runtime_res = run_dqs_server(runtime) => {}
     }
     info!("DQS server stopped");
-    events_tx.send(ServerEvents::Terminated).await?;
+    events_tx
+      .send(ServerEvents::Terminated(Ok("Graceful shutdown".to_owned())))
+      .await?;
     Ok(())
-  })
+  });
+
+  match r {
+    Ok(()) => Ok(()),
+    Err(e) => {
+      // Note(sp): if the runtime was terminated because of error,
+      // need to send server terminated signal
+      local.block_on(&rt, async {
+        events_tx
+          .send(ServerEvents::Terminated(Err(anyhow!(
+            "Error running DQS server"
+          ))))
+          .await
+          .unwrap();
+      });
+      Err(e)
+    }
+  }
 }
 
 async fn run_dqs_server(mut runtime: JsRuntime) -> Result<()> {

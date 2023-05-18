@@ -1,6 +1,5 @@
 use super::moduleloader::AppkitModuleLoader;
 use super::state::RuntimeState;
-use crate::db;
 use anyhow::Result;
 use common::deno::extensions::server::HttpServerConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
@@ -8,6 +7,8 @@ use deno_core::{
   v8, Extension, ExtensionFileSource, ExtensionFileSourceCode, JsRuntime,
   Snapshot,
 };
+use diesel::r2d2::{ConnectionManager, Pool};
+use diesel::PgConnection;
 use jsruntime::permissions::PermissionsContainer;
 use std::rc::Rc;
 use tracing::error;
@@ -18,6 +19,8 @@ pub static WORKSPACE_DQS_SNAPSHOT: &[u8] =
 #[derive(Default, Clone)]
 pub struct RuntimeConfig {
   pub workspace_id: String,
+
+  pub db_pool: Option<Pool<ConnectionManager<PgConnection>>>,
 
   pub server_config: HttpServerConfig,
 
@@ -31,7 +34,7 @@ pub struct RuntimeConfig {
 }
 
 pub async fn new(config: RuntimeConfig) -> Result<JsRuntime> {
-  let db_pool = db::create_connection_pool();
+  let db_pool = config.db_pool.unwrap();
   let state =
     RuntimeState::init(config.workspace_id.clone(), db_pool.clone()).await?;
 

@@ -51,7 +51,7 @@ async fn main() -> Result<()> {
           &Url::parse("file:///main").unwrap(),
           r#"
           import { serve } from "@arena/runtime/server";
-          import { DqsServer } from "@arena/runtime/dqs";
+          import { DqsCluster } from "@arena/runtime/dqs";
           const servers = new Map();
           serve({
             async fetch(req) {
@@ -66,7 +66,7 @@ async fn main() -> Result<()> {
               const workspaceId = 'workspace_1';
               let server = servers.get(workspaceId);
               if (!server || !server.isAlive()) {
-                server = await DqsServer.startStreamServer(workspaceId);
+                server = await DqsCluster.startStreamServer(workspaceId);
                 servers.set(workspaceId, server);
               }
 

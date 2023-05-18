@@ -327,14 +327,6 @@ declare module "@arena/runtime/server" {
 
 declare module "@arena/runtime/dqs" {
   export class DqsServer {
-    static startTcpServer(
-      workspaceId: string,
-      address: string,
-      port: number
-    ): Promise<DqsServer>;
-
-    static startStreamServer(workspaceId: string): Promise<DqsServer>;
-
     // returns whether the DQS server is alive
     isAlive(): boolean;
 
@@ -353,5 +345,15 @@ declare module "@arena/runtime/dqs" {
         any
       ]
     >;
+  }
+
+  export class DqsCluster {
+    static startTcpServer(
+      workspaceId: string,
+      address: string,
+      port: number
+    ): Promise<DqsServer>;
+
+    static startStreamServer(workspaceId: string): Promise<DqsServer>;
   }
 }

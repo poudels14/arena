@@ -1,7 +1,9 @@
 use self::handle::DqsServerHandle;
 use self::stream::RequestStreamSender;
 use crate::server::{self, RuntimeConfig, ServerEvents};
+use anyhow::anyhow;
 use anyhow::bail;
+use anyhow::Context;
 use anyhow::Result;
 use common::deno::extensions::server::HttpRequest;
 use common::deno::extensions::server::HttpServerConfig;
@@ -22,10 +24,10 @@ use std::thread;
 use std::thread::JoinHandle;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
+mod cluster;
 mod handle;
-mod servers;
 mod stream;
-use servers::DqsServers;
+use cluster::DqsCluster;
 
 pub fn extension() -> BuiltinExtension {
   BuiltinExtension {
@@ -50,8 +52,8 @@ pub(crate) fn init() -> Extension {
       op_dqs_pipe_request_to_stream::decl(),
     ])
     .state(|state| {
-      let servers = DqsServers::new();
-      state.put::<DqsServers>(servers);
+      let cluster = DqsCluster::new();
+      state.put::<DqsCluster>(cluster);
     })
     .build()
 }
@@ -63,11 +65,15 @@ async fn op_dqs_start_tcp_server(
   address: String,
   port: u16,
 ) -> Result<ResourceId> {
+  let mut cluster = state.borrow().borrow::<DqsCluster>().clone();
+  let db_pool = cluster.get_db_pool()?;
+
   let (tx, rx) = oneshot::channel();
   let thread_handle = thread::spawn(move || {
     server::start(
       RuntimeConfig {
         workspace_id,
+        db_pool: db_pool.into(),
         server_config: HttpServerConfig::Tcp(address.to_string(), port),
         ..Default::default()
       },
@@ -83,12 +89,16 @@ async fn op_dqs_start_stream_server(
   state: Rc<RefCell<OpState>>,
   workspace_id: String,
 ) -> Result<(ResourceId, ResourceId)> {
+  let mut cluster = state.borrow().borrow::<DqsCluster>().clone();
+
   let (tx, rx) = oneshot::channel();
   let (stream_tx, stream_rx) = mpsc::channel(5);
+  let db_pool = cluster.get_db_pool()?;
   let thread_handle = thread::spawn(move || {
     server::start(
       RuntimeConfig {
         workspace_id,
+        db_pool: db_pool.into(),
         server_config: HttpServerConfig::Stream(Rc::new(RefCell::new(
           stream_rx,
         ))),
@@ -98,7 +108,10 @@ async fn op_dqs_start_stream_server(
     )
   });
 
-  let handle_id = start_dqs_server(state.clone(), thread_handle, rx).await?;
+  let handle_id = start_dqs_server(state.clone(), thread_handle, rx)
+    .await
+    .map_err(|_| anyhow!("Failed to spin up query runtime"))?;
+
   let sender_id = state
     .borrow_mut()
     .resource_table
@@ -111,9 +124,9 @@ async fn op_dqs_start_stream_server(
 async fn op_dqs_list_servers(
   state: Rc<RefCell<OpState>>,
 ) -> Result<Vec<ResourceId>> {
-  let servers = state.borrow().borrow::<DqsServers>().clone();
-  let servers = servers.borrow();
-  Ok(servers.instances.iter().map(|v| v.clone()).collect())
+  let cluster = state.borrow().borrow::<DqsCluster>().clone();
+  let cluster = cluster.borrow();
+  Ok(cluster.instances.iter().map(|v| v.clone()).collect())
 }
 
 #[op]
@@ -218,39 +231,55 @@ async fn start_dqs_server(
   thread_handle: JoinHandle<Result<()>>,
   rx: oneshot::Receiver<mpsc::Receiver<ServerEvents>>,
 ) -> Result<ResourceId> {
-  let mut receiver = rx.await?;
+  let (handle_sender, handle_receiver) = oneshot::channel();
+  let mut handle_sender = Some(handle_sender);
+  let mut thread_handle = Some(thread_handle);
+  tokio::task::spawn_local(async move {
+    let mut receiver = rx
+      .await
+      .context("Error listening to DQS server events")
+      .unwrap();
 
-  if let Some(event) = receiver.recv().await {
-    match event {
-      ServerEvents::Started(isolate_handle, commands) => {
-        let handle_id = {
-          let mut servers = state.borrow().borrow::<DqsServers>().clone();
-          servers.add_instance(
-            &mut state.borrow_mut(),
-            DqsServerHandle {
-              isolate_handle,
-              thread_handle,
-              commands,
-            },
-          )?
-        };
-
-        tokio::task::spawn_local(async move {
-          loop {
-            match receiver.recv().await {
-              Some(ServerEvents::Terminated) => {
-                let mut servers = state.borrow().borrow::<DqsServers>().clone();
-                servers.remove_instance(handle_id).unwrap();
-                return;
-              }
-              _ => {}
-            }
-          }
-        });
-        return Ok(handle_id);
+    let mut handle_id = None;
+    let x = loop {
+      match receiver.recv().await {
+        Some(ServerEvents::Started(isolate_handle, commands))
+          if handle_id == None =>
+        {
+          let mut cluster = state.borrow().borrow::<DqsCluster>().clone();
+          let hid = cluster
+            .add_instance(
+              &mut state.borrow_mut(),
+              DqsServerHandle {
+                isolate_handle,
+                thread_handle: thread_handle.take().unwrap(),
+                commands,
+              },
+            )
+            .unwrap();
+          handle_sender
+            .take()
+            .map(|tx| tx.send(Ok(hid)).unwrap())
+            .unwrap();
+          handle_id = Some(hid);
+        }
+        Some(ServerEvents::Terminated(result)) => {
+          let mut cluster = state.borrow().borrow::<DqsCluster>().clone();
+          break handle_id
+            .map(|id| cluster.remove_instance(id).unwrap())
+            .ok_or(anyhow!("Failed to clean up server instance"))
+            .and_then(|_| result);
+        }
+        _ => {
+          break Err(anyhow!("Server events stream closed"));
+        }
       }
-      _ => {}
-    }
-  }
-  bail!("error starting new DQS server")
+    };
+    handle_sender
+      .take()
+      .and_then(|tx| tx.send(Err(x.unwrap_err())).ok())
+      .unwrap();
+  });
+
+  handle_receiver.await?
 }

@@ -4,31 +4,9 @@ class DqsServer {
    * Only set for stream type server
    */
   #streamId: number | undefined;
-  private constructor(handleId: number, streamId: number | undefined) {
+  protected constructor(handleId: number, streamId: number | undefined) {
     this.#handleId = handleId;
     this.#streamId = streamId;
-  }
-
-  static async startTcpServer(
-    workspaceId: string,
-    address: string,
-    port: number
-  ) {
-    const handleId = await Arena.core.opAsync(
-      "op_dqs_start_tcp_server",
-      workspaceId,
-      address,
-      port
-    );
-    return new DqsServer(handleId, undefined);
-  }
-
-  static async startStreamServer(workspaceId: string) {
-    const [handleId, streamId] = await Arena.core.opAsync(
-      "op_dqs_start_stream_server",
-      workspaceId
-    );
-    return new DqsServer(handleId, streamId);
   }
 
   /**
@@ -68,4 +46,28 @@ class DqsServer {
   }
 }
 
-export { DqsServer };
+class DqsCluster extends DqsServer {
+  static async startTcpServer(
+    workspaceId: string,
+    address: string,
+    port: number
+  ) {
+    const handleId = await Arena.core.opAsync(
+      "op_dqs_start_tcp_server",
+      workspaceId,
+      address,
+      port
+    );
+    return new DqsServer(handleId, undefined);
+  }
+
+  static async startStreamServer(workspaceId: string) {
+    const [handleId, streamId] = await Arena.core.opAsync(
+      "op_dqs_start_stream_server",
+      workspaceId
+    );
+    return new DqsServer(handleId, streamId);
+  }
+}
+
+export { DqsServer, DqsCluster };
