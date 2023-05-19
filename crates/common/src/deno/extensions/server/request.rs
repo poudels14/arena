@@ -1,7 +1,7 @@
 use super::errors;
 use super::resonse::HttpResponse;
 use deno_core::ZeroCopyBuf;
-use http::{Method, Request, Response};
+use http::{Method, Request};
 use hyper::body::HttpBody;
 use hyper::Body;
 use serde::Serialize;
@@ -74,12 +74,10 @@ pub(super) async fn handle_request(
     body,
   };
 
-  req_sender.send((request, tx)).await.unwrap();
-  if let Some(res) = rx.recv().await {
-    return Response::builder()
-      .body(res.boxed_unsync())
-      .map_err(Into::into);
-  }
+  req_sender
+    .send((request, tx))
+    .await
+    .map_err(|_| errors::Error::ResponseBuilder)?;
 
-  errors::not_found()
+  rx.recv().await.ok_or(errors::Error::ResponseBuilder)
 }
