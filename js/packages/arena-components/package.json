@@ -8,7 +8,12 @@
   "license": "UNLICENSED",
   "dependencies": {
     "@arena/solid-store": "workspace:^0.1.0",
+    "@codemirror/commands": "^6.2.4",
+    "@codemirror/lang-javascript": "^6.1.8",
+    "@codemirror/lang-sql": "^6.5.0",
+    "@codemirror/state": "^6.2.0",
     "@kobalte/core": "^0.6.2",
+    "codemirror": "^6.0.1",
     "klona": "^2.0.6",
     "solid-js": "^1.7.2"
   },
