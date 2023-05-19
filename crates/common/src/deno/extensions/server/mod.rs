@@ -3,16 +3,20 @@ use self::resources::{HttpConnection, HttpResponseHandle};
 use super::BuiltinExtension;
 use crate::resolve_from_root;
 use anyhow::{anyhow, Result};
+use bytes::Bytes;
 use deno_core::{
   op, ByteString, Extension, OpState, ResourceId, StringOrBuffer,
 };
 use http::header::HeaderName;
 use http::{HeaderValue, Response};
+use hyper::body::HttpBody;
 use hyper::Body;
 use std::cell::RefCell;
 use std::rc::Rc;
+pub(crate) mod errors;
 mod executor;
-mod request;
+pub mod request;
+pub mod resonse;
 mod resources;
 mod stream;
 mod tcp;
@@ -38,7 +42,11 @@ fn init(config: HttpServerConfig) -> Extension {
         stream::op_http_accept::decl(),
         stream::op_http_listen::decl(),
       ],
-      HttpServerConfig::Tcp(_, _) => {
+      HttpServerConfig::Tcp {
+        address: _,
+        port: _,
+        serve_dir: _,
+      } => {
         vec![tcp::op_http_accept::decl(), tcp::op_http_listen::decl()]
       }
       _ => unimplemented!(),
@@ -93,12 +101,16 @@ async fn op_http_send_response(
     );
   }
 
-  let response = response_builder.body(Body::from(
-    <StringOrBuffer as Into<bytes::Bytes>>::into(
-      data.unwrap_or(StringOrBuffer::String("".to_owned())),
-    )
-    .slice(0..),
-  ))?;
+  let response = response_builder.body(
+    Body::from(Bytes::from(
+      data
+        .unwrap_or(StringOrBuffer::String("".to_owned()))
+        .to_vec(),
+    ))
+    .map_err(Into::into)
+    .boxed_unsync(),
+  )?;
+
   handle
     .sender
     .send(response)

@@ -56,7 +56,11 @@ fn generate_prod_snapshot(path: &Path) {
     // Even if TCP server is used here, we can use stream server during
     // runtime if needed
     BuiltinModule::Postgres,
-    BuiltinModule::HttpServer(HttpServerConfig::Tcp("0.0.0.0".to_owned(), 0)),
+    BuiltinModule::HttpServer(HttpServerConfig::Tcp {
+      address: "0.0.0.0".to_owned(),
+      port: 0,
+      serve_dir: None,
+    }),
     BuiltinModule::Custom(|| BuiltinExtension {
       snapshot_modules: vec![
         // Note(sagar): load this under @arena/dqs/router instead of

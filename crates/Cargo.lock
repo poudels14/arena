@@ -631,6 +631,7 @@ dependencies = [
  "heck",
  "hex",
  "http",
+ "http-body",
  "hyper",
  "indexmap",
  "md-5",

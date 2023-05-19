@@ -1,14 +1,13 @@
+use common::deno::extensions::server::resonse::HttpResponse;
 use common::deno::extensions::server::HttpRequest;
 use deno_core::Resource;
-use http::Response;
-use hyper::Body;
 use std::borrow::Cow;
 use std::rc::Rc;
 use tokio::sync::mpsc;
 
 #[derive(Clone)]
 pub struct RequestStreamSender {
-  pub(crate) sender: mpsc::Sender<(HttpRequest, mpsc::Sender<Response<Body>>)>,
+  pub(crate) sender: mpsc::Sender<(HttpRequest, mpsc::Sender<HttpResponse>)>,
 }
 
 impl Resource for RequestStreamSender {

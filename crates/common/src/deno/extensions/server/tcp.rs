@@ -1,4 +1,6 @@
 pub use self::request::HttpRequest;
+use super::request::HandleOptions;
+use super::resonse::HttpResponse;
 use super::resources::{HttpConnection, HttpServerConfig, TcpServer};
 use super::{executor, request};
 use anyhow::Result;
@@ -7,8 +9,8 @@ use deno_core::{op, CancelHandle, OpState, ResourceId};
 use futures::future::{pending, select, Either};
 use futures::never::Never;
 use futures::FutureExt;
-use http::{Method, Response};
-use hyper::{server::conn::Http, Body};
+use http::Method;
+use hyper::server::conn::Http;
 use std::cell::RefCell;
 use std::error::Error;
 use std::net::Ipv4Addr;
@@ -28,19 +30,23 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 pub(crate) async fn op_http_listen(state: Rc<RefCell<OpState>>) -> Result<()> {
   let config = state.borrow().borrow::<HttpServerConfig>().clone();
 
-  let listener = match config {
-    HttpServerConfig::Tcp(address, port) => {
+  match config {
+    HttpServerConfig::Tcp {
+      address,
+      port,
+      serve_dir,
+    } => {
       let addr: SocketAddr = (Ipv4Addr::from_str(&address)?, port).into();
-      TcpListener::bind(addr).await?
+      let listener = TcpListener::bind(addr).await?;
+
+      state.borrow_mut().put::<TcpServer>(TcpServer {
+        listener: Rc::new(RefCell::new(listener)),
+        serve_dir,
+      });
+      Ok(())
     }
     _ => unreachable!(),
-  };
-
-  state.borrow_mut().put::<TcpServer>(TcpServer {
-    listener: Rc::new(RefCell::new(listener)),
-  });
-
-  Ok(())
+  }
 }
 
 #[op]
@@ -53,17 +59,22 @@ pub(crate) async fn op_http_accept(
   };
 
   let (tcp_stream, _) = server.listener.borrow_mut().accept().await?;
-  let (tx, rx) =
-    mpsc::channel::<(HttpRequest, mpsc::Sender<Response<Body>>)>(10);
+  let (tx, rx) = mpsc::channel::<(HttpRequest, mpsc::Sender<HttpResponse>)>(10);
 
   let cors = CorsLayer::new()
     .allow_methods([Method::GET])
     .allow_origin(AllowOrigin::list(vec![]));
 
+  let handle_options = HandleOptions {
+    serve_dir: server.serve_dir,
+  };
+
   let service = ServiceBuilder::new()
     .layer(CompressionLayer::new())
     .layer(cors)
-    .service_fn(move |req| request::handle_request(tx.clone(), req));
+    .service_fn(move |req| {
+      request::handle_request(tx.clone(), handle_options.clone(), req)
+    });
 
   let conn_fut = Http::new()
     .with_executor(executor::LocalExecutor)

@@ -81,7 +81,11 @@ impl BuiltinExtensions {
       BuiltinModule::Transpiler,
       BuiltinModule::Babel,
       BuiltinModule::Rollup,
-      BuiltinModule::HttpServer(HttpServerConfig::Tcp("0.0.0.0".to_owned(), 0)),
+      BuiltinModule::HttpServer(HttpServerConfig::Tcp {
+        address: "0.0.0.0".to_owned(),
+        port: 0,
+        serve_dir: None,
+      }),
     ]
     .iter()
     .map(|m| m.extension())

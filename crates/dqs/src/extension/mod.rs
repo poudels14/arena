@@ -74,7 +74,11 @@ async fn op_dqs_start_tcp_server(
       RuntimeConfig {
         workspace_id,
         db_pool: db_pool.into(),
-        server_config: HttpServerConfig::Tcp(address.to_string(), port),
+        server_config: HttpServerConfig::Tcp {
+          address: address.to_string(),
+          port,
+          serve_dir: None,
+        },
         ..Default::default()
       },
       tx,

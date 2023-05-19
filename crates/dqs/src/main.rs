@@ -30,10 +30,11 @@ async fn main() -> Result<()> {
     config: Some(ArenaConfig::default()),
     enable_console: true,
     builtin_extensions: BuiltinExtensions::with_modules(vec![
-      BuiltinModule::HttpServer(HttpServerConfig::Tcp(
-        "0.0.0.0".to_owned(),
-        8002,
-      )),
+      BuiltinModule::HttpServer(HttpServerConfig::Tcp {
+        address: "0.0.0.0".to_owned(),
+        port: 8002,
+        serve_dir: None,
+      }),
       BuiltinModule::Custom(crate::extension::extension),
       BuiltinModule::CustomRuntimeModule(
         "@arena/runtime/dqs",

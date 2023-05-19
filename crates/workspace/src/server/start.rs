@@ -161,22 +161,21 @@ impl WorkspaceServer {
   }
 
   async fn start_workspace_js_server(&self) -> Result<()> {
-    // TODO(sagar): only give read access to workspace directory
-    let mut allowed_read_paths = vec![];
-    if let Some(dir) = self.workspace.dir.to_str() {
-      allowed_read_paths.push(dir.to_string());
-    }
-
     let dqs_extension = BuiltinModule::Custom(dqs::extension);
     let mut builtin_modules = vec![
       BuiltinModule::Fs,
       BuiltinModule::Env,
       BuiltinModule::Node,
       BuiltinModule::Postgres,
-      BuiltinModule::HttpServer(HttpServerConfig::Tcp(
-        self.address.clone(),
-        self.port,
-      )),
+      BuiltinModule::HttpServer(HttpServerConfig::Tcp {
+        address: self.address.clone(),
+        port: self.port,
+        serve_dir: if self.dev_mode {
+          None
+        } else {
+          Some(self.workspace.dir.clone())
+        },
+      }),
       BuiltinModule::CustomRuntimeModule(
         "@arena/workspace-server",
         include_str!("../../../../js/packages/workspace-server/dist/server.js"),
@@ -204,7 +203,8 @@ impl WorkspaceServer {
       permissions: PermissionsContainer {
         fs: Some(FileSystemPermissions {
           root: self.workspace.dir.clone(),
-          allowed_read_paths: HashSet::from_iter(allowed_read_paths),
+          // Note(sp): only give read access to workspace directory
+          allowed_read_paths: HashSet::from_iter(vec![".".to_owned()]),
           ..Default::default()
         }),
         ..Default::default()
