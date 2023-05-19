@@ -41,17 +41,18 @@ impl From<http::Error> for Error {
 macro_rules! into_response {
   ($status: expr, $body: literal) => {
     Response::builder()
-      .status(StatusCode::NOT_FOUND)
-      .body(Body::from($body).map_err(Into::into).boxed_unsync())
-      .map_err(|_| Error::ResponseBuilder)
+      .status($status)
+      .body(Body::from($body).map_err(|_| unreachable!()).boxed_unsync())
+      .unwrap()
   };
 }
 
 #[allow(dead_code)]
-pub fn internal_server_error() -> Result<HttpResponse, Error> {
+pub fn internal_server_error() -> HttpResponse {
   into_response!(StatusCode::INTERNAL_SERVER_ERROR, "Internal server error")
 }
 
-pub fn not_found() -> Result<HttpResponse, Error> {
+#[allow(dead_code)]
+pub fn not_found() -> HttpResponse {
   into_response!(StatusCode::NOT_FOUND, "Not found")
 }

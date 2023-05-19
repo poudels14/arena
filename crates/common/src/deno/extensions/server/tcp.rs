@@ -1,4 +1,5 @@
 pub use self::request::HttpRequest;
+use super::errors;
 use super::request::HandleOptions;
 use super::resonse::HttpResponse;
 use super::resources::{HttpConnection, HttpServerConfig, TcpServer};
@@ -72,6 +73,11 @@ pub(crate) async fn op_http_accept(
   let service = ServiceBuilder::new()
     .layer(CompressionLayer::new())
     .layer(cors)
+    .map_result(|e: Result<HttpResponse, errors::Error>| {
+      <Result<HttpResponse, errors::Error>>::Ok(
+        e.unwrap_or(errors::internal_server_error()),
+      )
+    })
     .service_fn(move |req| {
       request::handle_request(tx.clone(), handle_options.clone(), req)
     });
