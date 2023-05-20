@@ -17,7 +17,7 @@ static ORDERED_EXPORT_CONDITIONS: Lazy<IndexSet<&str>> =
   Lazy::new(|| indexset!["import"]);
 
 impl FsModuleResolver {
-  #[tracing::instrument(skip_all)]
+  #[tracing::instrument(skip_all, level = "trace")]
   pub(crate) fn resolve_npm_module(
     &self,
     specifier: &str,
@@ -182,7 +182,7 @@ impl FsModuleResolver {
     Ok(directories)
   }
 
-  #[tracing::instrument(skip(self, package))]
+  #[tracing::instrument(skip(self, package), level = "trace")]
   fn get_package_json_export(
     &self,
     package: &Package,

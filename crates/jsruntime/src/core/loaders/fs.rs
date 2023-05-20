@@ -76,7 +76,7 @@ impl FsModuleLoader {
 // TODO(sagar): for some reason, this is being called more than once even
 // for a single import, fix it?
 impl ModuleLoader for FsModuleLoader {
-  #[tracing::instrument(skip(self, _kind))]
+  #[tracing::instrument(skip(self, _kind), level = "debug")]
   fn resolve(
     &self,
     specifier: &str,

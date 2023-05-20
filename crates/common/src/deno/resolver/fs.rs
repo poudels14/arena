@@ -46,7 +46,7 @@ impl FsModuleResolver {
     }
   }
 
-  #[instrument(skip(self))]
+  #[instrument(skip(self), level = "trace")]
   pub fn resolve(
     &self,
     specifier: &str,
@@ -157,7 +157,7 @@ impl FsModuleResolver {
   }
 }
 
-#[tracing::instrument]
+#[tracing::instrument(level = "trace")]
 pub fn load_as_file(file: &PathBuf) -> Result<PathBuf> {
   if file.is_file() {
     return Ok(file.clone());

@@ -24,7 +24,7 @@ fn take_until_slash(input: &str) -> IResult<&str, &str> {
 }
 
 impl ParsedSpecifier {
-  #[instrument(name = "ParsedSpecifier::from")]
+  #[instrument(name = "ParsedSpecifier::from", level = "trace")]
   pub fn from(specifier: &str) -> Result<Self> {
     Self::_parse(specifier)
       .map(|r| r.1)

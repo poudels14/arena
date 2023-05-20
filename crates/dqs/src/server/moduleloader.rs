@@ -32,7 +32,8 @@ pub struct AppkitModuleLoader {
 impl ModuleLoader for AppkitModuleLoader {
   #[tracing::instrument(
     name = "AppkitModuleLoader::resolve",
-    skip(self, _kind)
+    skip(self, _kind),
+    level = "trace"
   )]
   fn resolve(
     &self,
@@ -81,7 +82,11 @@ impl ModuleLoader for AppkitModuleLoader {
       .map_err(|_| anyhow!("Failed to resolve specifier: {:?}", specifier))
   }
 
-  #[tracing::instrument(name = "AppkitModuleLoader::load", skip(self))]
+  #[tracing::instrument(
+    name = "AppkitModuleLoader::load",
+    skip(self),
+    level = "trace"
+  )]
   fn load(
     &self,
     module_specifier: &ModuleSpecifier,
