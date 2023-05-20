@@ -1,7 +1,7 @@
 pub use self::request::HttpRequest;
 use super::errors;
 use super::request::HandleOptions;
-use super::resonse::HttpResponse;
+use super::resonse::{HttpResponse, HttpResponseMetata};
 use super::resources::{HttpConnection, HttpServerConfig, TcpServer};
 use super::{executor, request};
 use anyhow::Result;
@@ -20,12 +20,14 @@ use std::pin::pin;
 use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 use tokio::task::spawn_local;
 use tower::ServiceBuilder;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::{AllowOrigin, CorsLayer};
+use tracing::info;
 
 #[op]
 pub(crate) async fn op_http_listen(state: Rc<RefCell<OpState>>) -> Result<()> {
@@ -73,11 +75,33 @@ pub(crate) async fn op_http_accept(
   let service = ServiceBuilder::new()
     .layer(CompressionLayer::new())
     .layer(cors)
-    .map_result(|e: Result<HttpResponse, errors::Error>| {
-      <Result<HttpResponse, errors::Error>>::Ok(
-        e.unwrap_or(errors::internal_server_error()),
-      )
-    })
+    .map_result(
+      |res: Result<(HttpResponse, HttpResponseMetata), errors::Error>| {
+        <Result<HttpResponse, errors::Error>>::Ok(
+          res
+            .map(|res| {
+              info!(
+                "{} {:?} {} {}",
+                res.1.method,
+                res.1.path,
+                res.0.status().as_u16(),
+                format!(
+                  "{}ms",
+                  Instant::now()
+                    .duration_since(res.1.req_received_at)
+                    .as_millis()
+                )
+              );
+              res.0
+            })
+            .map_err(|err| {
+              tracing::error_span!("request", error = err.to_string());
+              err
+            })
+            .unwrap_or(errors::internal_server_error()),
+        )
+      },
+    )
     .service_fn(move |req| {
       request::handle_request(tx.clone(), handle_options.clone(), req)
     });

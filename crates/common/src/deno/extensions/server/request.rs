@@ -1,11 +1,12 @@
 use super::errors;
-use super::resonse::HttpResponse;
+use super::resonse::{HttpResponse, HttpResponseMetata};
 use deno_core::ZeroCopyBuf;
 use http::{Method, Request};
 use hyper::body::HttpBody;
 use hyper::Body;
 use serde::Serialize;
 use std::path::PathBuf;
+use std::time::Instant;
 use tokio::sync::mpsc;
 use tower::ServiceExt;
 use tower_http::services::ServeDir;
@@ -32,7 +33,12 @@ pub(super) async fn handle_request(
   req_sender: mpsc::Sender<(HttpRequest, mpsc::Sender<HttpResponse>)>,
   options: HandleOptions,
   mut req: Request<Body>,
-) -> Result<HttpResponse, errors::Error> {
+) -> Result<(HttpResponse, HttpResponseMetata), errors::Error> {
+  let metadata = HttpResponseMetata {
+    method: req.method().as_str().to_string(),
+    path: req.uri().path().to_string(),
+    req_received_at: Instant::now(),
+  };
   let (tx, mut rx) = mpsc::channel::<HttpResponse>(10);
 
   let body = {
@@ -51,9 +57,10 @@ pub(super) async fn handle_request(
   match options.serve_dir {
     Some(base_dir) if req.uri().path().starts_with("/static") => {
       let res = ServeDir::new(base_dir).oneshot(req).await;
-      return Ok(
+      return Ok((
         res.map(|r| r.map(|body| body.map_err(Into::into).boxed_unsync()))?,
-      );
+        metadata,
+      ));
     }
     _ => {}
   }
@@ -79,5 +86,8 @@ pub(super) async fn handle_request(
     .await
     .map_err(|_| errors::Error::ResponseBuilder)?;
 
-  rx.recv().await.ok_or(errors::Error::ResponseBuilder)
+  rx.recv()
+    .await
+    .map(|r| (r, metadata))
+    .ok_or(errors::Error::ResponseBuilder)
 }
