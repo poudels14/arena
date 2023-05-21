@@ -1,5 +1,5 @@
 import { StoreSetter } from "@arena/solid-store";
-import { DataSources } from "./data";
+import { DataSource } from "./data";
 
 type withDefaultConfig<Source extends Record<"type" | "config", unknown>> = {
   type: Source["type"];
@@ -17,10 +17,10 @@ export namespace Template {
     title: string;
     description?: string;
     dataSource:
-      | withDefaultConfig<DataSources.Transient<T>>
-      | withDefaultConfig<DataSources.UserInput<T>>
-      | withDefaultConfig<DataSources.Template<T>>
-      | withDefaultConfig<DataSources.Dynamic<T>>;
+      | withDefaultConfig<DataSource.Transient<T>>
+      | withDefaultConfig<DataSource.UserInput<T>>
+      | withDefaultConfig<DataSource.Template<T>>
+      | withDefaultConfig<DataSource.Dynamic<T>>;
   };
 
   export type DataConfig<T extends Record<string, unknown>> = dataConfigType<

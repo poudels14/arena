@@ -1,6 +1,6 @@
 import { Accessor, createMemo } from "solid-js";
 import { Plugin } from "./types";
-import { DataSource, DataSources } from "../widget/types/data";
+import { DataSource } from "../widget/types/data";
 
 type WidgetDataContext = {
   useWidgetData: <T>(
@@ -24,8 +24,15 @@ function useWidgetData<T>(
         switch (cfg.source) {
           case "inline":
             return useInlineDataSource(cfg);
+          case "client/js":
+            return useClientJsDataSource(cfg);
+          case "server/js":
+          case "server/sql":
+            return useServerFunctionDataSource(cfg);
           default:
-            throw new Error("Data source not supported: " + cfg.source);
+            throw new Error(
+              "Data source not supported: " + JSON.stringify(cfg)
+            );
         }
       }
       default:
@@ -47,8 +54,20 @@ const withWidgetDataLoaders: Plugin<{}, {}, {}> = (config) => (editor) => {
   });
 };
 
-function useInlineDataSource<T>(config: DataSources.InlineSourceConfig<T>) {
+function useInlineDataSource<T>(config: DataSource.InlineSourceConfig<T>) {
   return config.value;
+}
+
+function useClientJsDataSource(config: DataSource.ClientJsConfig) {
+  // TODO(sagar): load widget data
+  return [];
+}
+
+function useServerFunctionDataSource(
+  config: DataSource.ServerSqlConfig | DataSource.ServerJsConfig
+) {
+  // TODO(sagar): load widget data
+  return [];
 }
 
 export { withWidgetDataLoaders };

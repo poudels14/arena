@@ -49,27 +49,24 @@ export const dataTypeSchema = z.enum(["NUMBER", "TEXT", "LONGTEXT", "JSON"]);
 
 export const previewSourceConfigSchema = z.object({
   source: z.literal("preview"),
-  /**
-   * default: TEXT
-   * TODO(sagar): is type necessary?
-   */
-  type: dataTypeSchema.optional(),
   value: z.any(),
 });
 
 export const inlineSourceConfigSchema = z.object({
   source: z.literal("inline"),
   /**
-   * default: TEXT
-   * TODO(sagar): is type necessary?
+   * Value should be any valid JS object that can be serialized
    */
-  type: dataTypeSchema.optional(),
   value: z.any(),
 });
 
-export const javascriptQuerySourceConfigSchema = z.object({
-  source: z.literal("query"),
-  queryType: z.literal("javascript"),
+export const clientJsSourceConfigSchema = z.object({
+  source: z.literal("client/js"),
+  query: z.string(),
+});
+
+export const serverJsSourceConfigSchema = z.object({
+  source: z.literal("server/js"),
   // TODO(sagar): save args as Object in db instead of {key, value} array
   /**
    * Query arguments
@@ -78,9 +75,8 @@ export const javascriptQuerySourceConfigSchema = z.object({
   query: z.string(),
 });
 
-export const sqlQuerySourceConfigSchema = z.object({
-  source: z.literal("query"),
-  queryType: z.literal("sql"),
+export const serverSqlSourceConfigSchema = z.object({
+  source: z.literal("server/sql"),
   /**
    * Database env var id
    */
@@ -106,18 +102,18 @@ export const userInputSourceSchema = z.object({
 export const templateSourceSchema = z.object({
   type: z.literal("template"),
   config: z.union([
-    inlineSourceConfigSchema,
-    javascriptQuerySourceConfigSchema,
-    sqlQuerySourceConfigSchema,
+    clientJsSourceConfigSchema,
+    serverJsSourceConfigSchema,
+    serverSqlSourceConfigSchema,
   ]),
 });
 
 export const dynamicSourceSchema = z.object({
   type: z.literal("dynamic"),
   config: z.union([
-    inlineSourceConfigSchema,
-    javascriptQuerySourceConfigSchema,
-    sqlQuerySourceConfigSchema,
+    clientJsSourceConfigSchema,
+    serverJsSourceConfigSchema,
+    serverSqlSourceConfigSchema,
   ]),
 });
 
@@ -133,7 +129,7 @@ export type DynamicDataSourceType = z.infer<typeof dynamicDataSourceTypeSchema>;
 export type DataQueryTypes = z.infer<typeof dataQueryTypesSchema>;
 export type DataType = z.infer<typeof dataTypeSchema>;
 
-export namespace DataSources {
+export namespace DataSource {
   type withValue<Shape, T> = Omit<Shape, "value"> & { value: T };
 
   export type Transient<T> = withValue<
@@ -154,6 +150,7 @@ export namespace DataSources {
     z.infer<typeof inlineSourceConfigSchema>,
     T
   >;
+  export type ClientJsConfig = z.infer<typeof clientJsSourceConfigSchema>;
   export type ParentSourceConfig<T> = {
     /**
      * The field maps data from parent to the widget's data
@@ -165,28 +162,28 @@ export namespace DataSources {
     field?: string;
   };
 
-  export type JavascriptQuerySourceConfig = z.infer<
-    typeof javascriptQuerySourceConfigSchema
-  >;
-  export type SqlQuerySourceConfig = z.infer<typeof sqlQuerySourceConfigSchema>;
+  export type ServerJsConfig = z.infer<typeof serverJsSourceConfigSchema>;
+  export type ServerSqlConfig = z.infer<typeof serverSqlSourceConfigSchema>;
   export type Template<T> = {
     type: "template";
     config:
       | InlineSourceConfig<T>
-      | JavascriptQuerySourceConfig
-      | SqlQuerySourceConfig;
+      | ClientJsConfig
+      | ServerJsConfig
+      | ServerSqlConfig;
   };
   export type Dynamic<T> = {
     type: "dynamic";
     config:
       | InlineSourceConfig<T>
-      | JavascriptQuerySourceConfig
-      | SqlQuerySourceConfig;
+      | ClientJsConfig
+      | ServerJsConfig
+      | ServerSqlConfig;
   };
 }
 
 export type DataSource<T> =
-  | DataSources.Transient<T>
-  | DataSources.UserInput<T>
-  | DataSources.Template<T>
-  | DataSources.Dynamic<T>;
+  | DataSource.Transient<T>
+  | DataSource.UserInput<T>
+  | DataSource.Template<T>
+  | DataSource.Dynamic<T>;

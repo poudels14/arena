@@ -26,17 +26,16 @@ pub enum DataConfig {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(tag = "queryType")]
+#[serde(tag = "source")]
 pub enum SourceConfig {
-  #[serde(alias = "sql")]
+  #[serde(alias = "server/sql")]
   Sql(SqlSourceConfig),
-  #[serde(alias = "javascript")]
+  #[serde(alias = "server/js")]
   JavaScript(JavascriptSourceConfig),
 }
 
 #[derive(Debug, Deserialize)]
 pub struct SqlSourceConfig {
-  pub source: String,
   pub db: String,
   pub args: Vec<String>,
   pub query: String,
@@ -44,7 +43,6 @@ pub struct SqlSourceConfig {
 
 #[derive(Debug, Deserialize)]
 pub struct JavascriptSourceConfig {
-  pub source: String,
   pub args: Vec<String>,
   pub query: String,
 }

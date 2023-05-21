@@ -42,4 +42,5 @@ export const widgetSchema = z.object({
 
 export type WidgetConfig = z.infer<typeof widgetConfigSchema>;
 export type Widget = z.infer<typeof widgetSchema>;
-export type { DataSources } from "./data";
+export type { DataSource } from "./data";
+export type { Template } from "./template";
