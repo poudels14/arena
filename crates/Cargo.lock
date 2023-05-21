@@ -1955,6 +1955,7 @@ dependencies = [
  "serde",
  "serde_json",
  "smallvec",
+ "swc_ecma_visit",
  "tokio",
  "tracing",
  "url",

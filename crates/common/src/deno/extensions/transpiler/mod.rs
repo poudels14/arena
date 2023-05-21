@@ -1,5 +1,6 @@
-mod plugins;
+pub mod plugins;
 
+use super::resolver::BuildConfig;
 use crate::deno::extensions::BuiltinExtension;
 use crate::deno::resolver;
 use crate::deno::resolver::fs::FsModuleResolver;
@@ -24,10 +25,9 @@ use std::cell::RefCell;
 use std::path::Path;
 use std::path::PathBuf;
 use std::rc::Rc;
+use swc_common::chain;
 use swc_common::pass::Optional;
 use swc_ecma_visit::FoldWith;
-
-use super::resolver::BuildConfig;
 
 pub fn extension() -> BuiltinExtension {
   BuiltinExtension {
@@ -181,9 +181,12 @@ fn transpile_code(
     },
     |p| {
       let config = &transpiler.as_ref().config;
-      p.fold_with(&mut Optional::new(
-        plugins::resolver::init(transpiler.clone(), filename_str),
-        config.resolve_import,
+      p.fold_with(&mut chain!(
+        Optional::new(
+          plugins::resolver::init(transpiler.clone(), filename_str),
+          config.resolve_import,
+        ),
+        plugins::commonjs::to_esm(),
       ))
     },
   )?;

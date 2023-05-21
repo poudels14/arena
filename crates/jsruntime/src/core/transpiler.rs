@@ -1,10 +1,12 @@
 use crate::IsolatedRuntime;
 use anyhow::Result;
+use common::deno::extensions::transpiler::plugins;
 use deno_ast::{EmitOptions, MediaType, ParseParams, SourceTextInfo};
 use serde_json::Value;
 use std::cell::RefCell;
 use std::path::Path;
 use std::rc::Rc;
+use swc_ecma_visit::FoldWith;
 
 pub fn transpile(
   runtime: Rc<RefCell<IsolatedRuntime>>,
@@ -14,14 +16,17 @@ pub fn transpile(
 ) -> Result<String> {
   // TODO(sagar): strip out all dynamic transpiling for vms running deployed apps
 
-  let parsed = deno_ast::parse_module(ParseParams {
-    specifier: module_path.to_str().unwrap().to_owned(),
-    text_info: SourceTextInfo::from_string(code.to_owned()),
-    media_type: media_type.to_owned(),
-    capture_tokens: false,
-    scope_analysis: false,
-    maybe_syntax: None,
-  })?;
+  let parsed = deno_ast::parse_module_with_post_process(
+    ParseParams {
+      specifier: module_path.to_str().unwrap().to_owned(),
+      text_info: SourceTextInfo::from_string(code.to_owned()),
+      media_type: media_type.to_owned(),
+      capture_tokens: false,
+      scope_analysis: false,
+      maybe_syntax: None,
+    },
+    |p| p.fold_with(&mut plugins::commonjs::to_esm()),
+  )?;
 
   let parsed_code = parsed
     .transpile(&EmitOptions {
