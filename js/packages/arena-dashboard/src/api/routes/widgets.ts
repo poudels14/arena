@@ -11,7 +11,7 @@ const addWidgetSchema = dbWidgetSchema.omit({
 });
 
 const widgetsRouter = trpcRouter({
-  addWidget: procedure
+  add: procedure
     .input(addWidgetSchema)
     .mutation(async ({ ctx, input }): Promise<Widget> => {
       const app = await ctx.repo.apps.fetchById(input.appId);
@@ -34,17 +34,19 @@ const widgetsRouter = trpcRouter({
         },
       });
     }),
-  updateWidget: procedure
+  update: procedure
     .input(
       zod.object({
         name: z.string().optional(),
         description: z.string().optional(),
         widgetId: z.string().optional(),
+        config: z.any(),
       })
     )
     .mutation(async ({ input }) => {
-      // TODO: update widget
+      throw new Error("Not implemented");
     }),
+  delete: procedure.input(z.any()).query(async () => {}),
 });
 
 export { widgetsRouter };

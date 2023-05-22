@@ -40,6 +40,9 @@ dependencies:
   '@trpc/server':
     specifier: ^10.21.0
     version: 10.21.0
+  debounce:
+    specifier: ^1.2.1
+    version: 1.2.1
   lodash-es:
     specifier: ^4.17.21
     version: 4.17.21
@@ -103,6 +106,10 @@ packages:
 
   /csstype@3.1.1:
     resolution: {integrity: sha512-DJR/VvkAvSZW9bTouZue2sSxDwdTN92uHjqeKVm+0dAqdfNykRzQ95tay8aXMBAAPpUiq4Qcug2L7neoRh2Egw==}
+    dev: false
+
+  /debounce@1.2.1:
+    resolution: {integrity: sha512-XRRe6Glud4rd/ZGQfiV1ruXSfbvfJedlV9Y6zOlP+2K04vBYiJEte6stfFkCP03aMnY5tsipamumUjL14fofug==}
     dev: false
 
   /lodash-es@4.17.21:

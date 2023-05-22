@@ -6,6 +6,8 @@ import {
   Switch,
   Match,
   createMemo,
+  createComputed,
+  createEffect,
 } from "solid-js";
 import DragHandle from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/drag-handle-horizontal";
 import MinimizeIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/minimize";
@@ -13,7 +15,7 @@ import MaximizeIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/
 import { InlineIcon } from "@arena/components";
 import { Templates } from "./Templates";
 import { Data } from "./Data";
-import { useAppContext } from "@arena/appkit";
+import { useEditorContext } from "@arena/appkit/editor";
 
 type ToolbarTab =
   /**
@@ -38,6 +40,11 @@ type ToolbarState = {
   collapsed: boolean;
   tab: {
     active: ToolbarTab;
+    /**
+     * Whether any widget is active; this is used to toggle widget
+     * config tabs
+     */
+    isWidgetActive: boolean;
   };
 };
 
@@ -51,12 +58,21 @@ const Toolbar = () => {
     collapsed: false,
     tab: {
       active: "templates",
+      isWidgetActive: false,
     },
   });
 
-  const { getSelectedWidgets } = useAppContext();
-  const disableWidgetConfigTabs = createMemo(() => {
-    return getSelectedWidgets().length != 1;
+  const { getSelectedWidgets } = useEditorContext();
+
+  createComputed(() => {
+    const selectedWidgets = getSelectedWidgets();
+    setState("tab", (prev) => {
+      const isWidgetActive = selectedWidgets.length == 1;
+      return {
+        active: isWidgetActive ? "data" : prev.active,
+        isWidgetActive,
+      };
+    });
   });
 
   return (
@@ -79,7 +95,7 @@ const Toolbar = () => {
             </div>
           </Match>
           <Match when={true}>
-            <div class="toolbar flex flex-col w-[840px] h-52 rounded-md bg-slate-700 pointer-events-auto">
+            <div class="toolbar flex flex-col w-[840px] h-64 rounded-md bg-slate-700 pointer-events-auto">
               <div class="relative py-0.5 flex justify-center text-white overflow-hidden">
                 <InlineIcon size="14px" class="cursor-pointer">
                   <path d={DragHandle[0]} />
@@ -99,7 +115,7 @@ const Toolbar = () => {
               </div>
               <ToolbarTabs
                 active={state.tab.active()}
-                disableWidgetConfigTabs={disableWidgetConfigTabs()}
+                disableWidgetConfigTabs={!state.tab.isWidgetActive()}
               />
             </div>
           </Match>
@@ -121,14 +137,14 @@ const Tab = (props: TabsProps) => {
   const { setState } = useContext(ToolbarContext)!;
   return (
     <div
-      class="px-4 rounded "
+      class="px-4 py-0.5 my-auto rounded"
       classList={{
         ...(props.classList || {}),
         "cursor-pointer": !props.disabled,
-        "text-white bg-slate-500": props.active === props.id,
+        "text-white bg-slate-600": props.active === props.id,
         "text-gray-500 cursor-not-allowed": props.disabled,
       }}
-      onMouseDown={() => !props.disabled && setState("tab", "active", props.id)}
+      onClick={() => !props.disabled && setState("tab", "active", props.id)}
     >
       {props.children}
     </div>
@@ -140,7 +156,7 @@ const ToolbarTabs = (props: {
   disableWidgetConfigTabs: boolean;
 }) => {
   return (
-    <div class="px-4 py-1 h-8 flex flex-row space-x-2 text-gray-400 select-none">
+    <div class="px-4 py-1 flex flex-row space-x-2 text-sm text-gray-400 select-none">
       <Tab
         id="chat"
         active={props.active}

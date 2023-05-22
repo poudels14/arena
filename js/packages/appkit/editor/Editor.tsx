@@ -15,9 +15,19 @@ import type {
 import { EditorStateContext } from "./state/withEditorState";
 import { createBaseEditor } from "./baseEditor";
 
-type EditorContext<T> = InternalEditor<any, T>["context"] &
-  Pick<EditorStateContext, "useWidgetById" | "addWidget"> &
-  T;
+type EditorContext<T> = InternalEditor<
+  any,
+  T &
+    Pick<
+      EditorStateContext,
+      | "useWidgetById"
+      | "addWidget"
+      | "registerWidgetNode"
+      | "useWidgetNode"
+      | "setSelectedWidget"
+      | "getSelectedWidgets"
+    >
+>["context"];
 
 const EditorContext = createContext<EditorContext<any>>();
 function useEditorContext<T>() {
@@ -144,3 +154,4 @@ function createEditorWithPlugins<Config, PluginState, Context>(
 }
 
 export { createEditorWithPlugins, useEditorContext };
+export type { EditorContext };

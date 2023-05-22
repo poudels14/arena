@@ -1,7 +1,6 @@
-import { onCleanup, untrack, JSX, children, createMemo } from "solid-js";
-import { useAppContext } from "../App";
+import { onCleanup, JSX, children, createMemo } from "solid-js";
 import type { Widget, WidgetConfig } from "./types";
-import { useEditorContext, WidgetDataContext } from "../editor";
+import { EditorContext, useEditorContext, WidgetDataContext } from "../editor";
 import { Store } from "@arena/solid-store";
 
 type ActiveWidget = {
@@ -16,19 +15,22 @@ type ActiveWidget = {
   node?: any | null;
 };
 
-const setWidgetRef = (id: string, node: HTMLElement) => {
-  const { getSelectedWidgets, setSelectedWidgets } = useAppContext();
-
+const setWidgetRef = (
+  id: string,
+  node: HTMLElement,
+  ctx: EditorContext<any>
+) => {
   const onClick = (e: MouseEvent) => {
-    const widgets = e.ctrlKey ? untrack(() => [...getSelectedWidgets()]) : [];
-    widgets.push({ id, node });
-    setSelectedWidgets(widgets);
+    e.stopPropagation();
+    ctx.setSelectedWidget(id, !e.ctrlKey);
   };
 
-  node.addEventListener("pointerdown", onClick, {
-    capture: true,
+  node.addEventListener("pointerdown", onClick);
+  ctx.registerWidgetNode(id, node);
+  onCleanup(() => {
+    ctx.registerWidgetNode(id, null);
+    node.removeEventListener("pointerdown", onClick);
   });
-  onCleanup(() => node.removeEventListener("pointerdown", onClick));
 };
 
 type WidgetProps = {
@@ -45,8 +47,7 @@ type WidgetProps = {
  * using {@link createWidget}
  */
 const Widget = (props: WidgetProps) => {
-  // TODO(sagar): move this to editor
-  const { useWidgetData } = useEditorContext<WidgetDataContext>();
+  const ctx = useEditorContext<WidgetDataContext>();
 
   /**
    * Note(sagar): return proxy here so that Templates don't have to use
@@ -57,7 +58,7 @@ const Widget = (props: WidgetProps) => {
     {
       get(target: any, fieldName: string) {
         if (!target[fieldName]) {
-          target[fieldName] = useWidgetData(
+          target[fieldName] = ctx.useWidgetData(
             props.id,
             fieldName,
             props.config.data[fieldName]
@@ -83,7 +84,7 @@ const Widget = (props: WidgetProps) => {
     attributes: {
       id: props.id,
       ref(node: HTMLElement) {
-        setWidgetRef(props.id, node);
+        setWidgetRef(props.id, node, ctx);
       },
       get classList() {
         return classList();
@@ -92,8 +93,6 @@ const Widget = (props: WidgetProps) => {
   };
 
   const template = children(() => props.children(widget));
-
-  // TODO(sagar): render inside Widget provider
   // TODO(sagar): make suspense work for this widget
   return <>{template}</>;
 };

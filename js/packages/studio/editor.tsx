@@ -17,13 +17,13 @@ import Heading1, { metadata as heading1 } from "@arena/widgets/core/Heading1";
 import Heading2, { metadata as heading2 } from "@arena/widgets/core/Heading2";
 import Heading3, { metadata as heading3 } from "@arena/widgets/core/Heading3";
 import Table, { metadata as tableMetadata } from "@arena/widgets/table";
+import Chart, { metadata as chartMetadata } from "@arena/widgets/Chart";
 import GridLayout, {
   metadata as gridLayoutMetadata,
 } from "@arena/widgets/core/GridLayout";
 import { Canvas } from "./canvas";
 import { ComponentTree } from "./ComponentTree";
 import { Toolbar } from "./toolbar";
-import { AppContextProvider } from "@arena/appkit";
 import { DragDropProvider, DragEndEvent, DragOverlay } from "@arena/solid-dnd";
 import { Match, Switch } from "solid-js";
 
@@ -33,9 +33,6 @@ const Editor = (props: EditorProps) => {
   const AppEditorProvider = createEditorWithPlugins(
     withEditorState({
       appId: props.appId,
-      fetchApp: props.fetchApp,
-      addWidget: props.addWidget,
-      updateWidget: props.updateWidget,
     }),
     withComponentTree(),
     withResizer({}),
@@ -62,17 +59,19 @@ const Editor = (props: EditorProps) => {
           Component: Table,
           metadata: tableMetadata,
         },
+        [chartMetadata.id]: {
+          Component: Chart,
+          metadata: chartMetadata,
+        },
       },
     }),
     withWidgetDataLoaders({})
   );
 
   return (
-    <AppContextProvider>
-      <AppEditorProvider>
-        <AppEditor />
-      </AppEditorProvider>
-    </AppContextProvider>
+    <AppEditorProvider>
+      <AppEditor />
+    </AppEditorProvider>
   );
 };
 

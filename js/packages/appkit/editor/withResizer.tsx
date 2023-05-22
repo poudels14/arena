@@ -1,6 +1,5 @@
-import { createSignal, onCleanup, createEffect, For } from "solid-js";
+import { createSignal, onCleanup, createEffect, For, Show } from "solid-js";
 import { createPopper } from "@popperjs/core";
-import { useAppContext } from "../App";
 import { Plugin } from "./types";
 import { InlineIcon } from "@arena/components";
 import DragHandle from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/drag-handle-horizontal";
@@ -120,12 +119,18 @@ const Resizer = (props: { widgetId: string; node: HTMLElement }) => {
 };
 
 const ResizerContainer = () => {
-  const { getSelectedWidgets } = useAppContext();
+  const { getSelectedWidgets, useWidgetNode } = useEditorContext();
   return (
     <div class="resizer-container relative">
       <For each={getSelectedWidgets()}>
-        {(widget) => {
-          return <Resizer widgetId={widget.id!} node={widget.node!} />;
+        {(widgetId) => {
+          const node = useWidgetNode(widgetId)!;
+          return (
+            <Show when={node}>
+              <Resizer widgetId={widgetId} node={node} />
+            </Show>
+          );
+          return;
         }}
       </For>
     </div>

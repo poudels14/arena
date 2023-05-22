@@ -1,9 +1,10 @@
-import { createResource, batch, createComputed } from "solid-js";
+import { createResource, batch, createComputed, Accessor } from "solid-js";
 import { Store } from "@arena/solid-store";
 import { uniqueId } from "@arena/uikit";
 import { App } from "../../App";
 import { Plugin } from "../types";
 import { Widget, Template } from "../../widget";
+import { useApiContext } from "../../ApiContext";
 
 type EditorStateContext = {
   useWidgetById: (id: string) => Store<Widget>;
@@ -12,26 +13,35 @@ type EditorStateContext = {
     templateId: string,
     templateMetadata: Template.Metadata<any>
   ) => Promise<Widget>;
+
+  /**
+   * Keeps track of widgetId -> html node
+   * If a widget node is removed, this should be called with node = null
+   */
+  registerWidgetNode: (widgetId: string, node: HTMLElement | null) => void;
+  /**
+   * Returns the HTML node of a rendered widget
+   */
+  useWidgetNode: (widgetId: string) => HTMLElement | null;
+  /**
+   * Highlight a widget with the given id; if replace = true, sets the selected
+   * widget to just the given widget id, else adds to existing list of selected
+   * widgets.
+   *
+   * replace = true by default
+   */
+  setSelectedWidget: (widgetId: string, replace?: boolean) => void;
+  getSelectedWidgets: Accessor<string[]>;
 };
 
 type EditorState = {
   ready: boolean;
+  selectedWidgets: string[];
+  widgetNodes: Record<string, HTMLElement | null>;
 };
 
 type EditorStateConfig = {
   appId: string;
-  fetchApp: (appId: string) => Promise<App>;
-  addWidget: (widget: {
-    id: string;
-    appId: string;
-    name: string;
-    slug: string;
-    description?: string;
-    parentId: string | null;
-    templateId: string;
-    config: Widget["config"];
-  }) => Promise<Widget>;
-  updateWidget: (widget: any) => Promise<Widget>;
 };
 
 const withEditorState: Plugin<
@@ -41,14 +51,19 @@ const withEditorState: Plugin<
 > =
   (config) =>
   ({ core, plugins, context }) => {
+    const api = useApiContext();
     const [getApp] = createResource(
       () => config.appId,
       async (appId) => {
-        return await config.fetchApp(appId);
+        return await api.routes.fetchApp(appId);
       }
     );
 
-    plugins.setState("withEditorState", { ready: false });
+    plugins.setState("withEditorState", {
+      ready: false,
+      selectedWidgets: [],
+      widgetNodes: {},
+    });
 
     createComputed(() => {
       const app = getApp() as App;
@@ -98,7 +113,7 @@ const withEditorState: Plugin<
         },
       };
 
-      const w = await config.addWidget(newWidget);
+      const w = await api.routes.addWidget(newWidget);
       core.setState("app", "widgets", (widgets) => {
         return [...widgets, w];
       });
@@ -110,6 +125,20 @@ const withEditorState: Plugin<
         return core.state.widgetsById[id];
       },
       addWidget,
+      registerWidgetNode(widgetId, node) {
+        plugins.setState("withEditorState", "widgetNodes", widgetId, node);
+      },
+      useWidgetNode(widgetId) {
+        return plugins.state.withEditorState.widgetNodes()[widgetId];
+      },
+      setSelectedWidget(widgetId, replace = true) {
+        plugins.setState("withEditorState", "selectedWidgets", (widgets) => {
+          return replace ? [widgetId] : [...widgets, widgetId];
+        });
+      },
+      getSelectedWidgets() {
+        return plugins.state.withEditorState.selectedWidgets();
+      },
     } as EditorStateContext);
 
     return {

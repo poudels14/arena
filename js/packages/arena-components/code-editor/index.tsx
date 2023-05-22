@@ -4,6 +4,7 @@ import { indentWithTab } from "@codemirror/commands";
 import { EditorState } from "@codemirror/state";
 import { javascript } from "@codemirror/lang-javascript";
 import { sql } from "@codemirror/lang-sql";
+import { createEffect } from "solid-js";
 
 type CodeMirrorOptions = {
   lang: "javascript" | "sql";
@@ -24,7 +25,6 @@ const attachEditor = (parent: Element, options: CodeMirrorOptions) => {
     keymap.of([indentWithTab]),
     CMEditorView.updateListener.of((cm) => {
       if (cm.docChanged) {
-        console.log(cm.state.doc.toString());
         options.onChange?.(cm.state.doc.toString());
       }
     }),
@@ -65,18 +65,16 @@ const attachEditor = (parent: Element, options: CodeMirrorOptions) => {
   return editor as EditorView;
 };
 
-const CodeEditor = () => {
-  return (
-    <div
-      class="code-editor"
-      ref={(ele) =>
-        attachEditor(ele, {
-          lang: "javascript",
-          value: "yooo",
-        })
-      }
-    ></div>
-  );
+const CodeEditor = (props: CodeMirrorOptions) => {
+  let ref: any;
+  createEffect((editor: any) => {
+    // create a new editor and destroy previous if props change
+    editor && editor.destroy();
+    // this is needed to subscribe to props change
+    void Object.values(props);
+    return attachEditor(ref, props);
+  });
+  return <div class="code-editor" ref={ref}></div>;
 };
 
 export { attachEditor, CodeEditor };

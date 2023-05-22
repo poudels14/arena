@@ -1,4 +1,5 @@
 export { createEditorWithPlugins, useEditorContext } from "./Editor";
+export type { EditorContext } from "./Editor";
 export { withResizer } from "./withResizer";
 export { withEditorState } from "./state/withEditorState";
 export type { EditorStateConfig } from "./state/withEditorState";

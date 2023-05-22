@@ -3,12 +3,12 @@ import { InlineIcon } from "@arena/components";
 // TODO(sagar): figure out a way to use exports from `@blueprintjs/icons` without
 // crashing the browser; browser crashes because it tries to load all exported icons
 import ListDetailView from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/list-detail-view";
-import { ComponentTreeNode } from "@arena/appkit/editor";
-import { useAppContext } from "@arena/appkit";
+import { ComponentTreeNode, useEditorContext } from "@arena/appkit/editor";
 
 const NodeComponent = (props: {
   node: ComponentTreeNode;
   selectedWidgetIds: string[];
+  selectWiget: (id: string) => void;
 }) => {
   const isSelected = () => props.selectedWidgetIds.includes(props.node.id!);
   return (
@@ -20,6 +20,7 @@ const NodeComponent = (props: {
             "bg-slate-400 text-gray-800": isSelected(),
             "bg-slate-700 text-white": !isSelected(),
           }}
+          onClick={() => props.node.id && props.selectWiget(props.node.id)}
         >
           <InlineIcon size="10px" class="inline-block pt-[2px]">
             <path d={ListDetailView[0]} />
@@ -36,6 +37,7 @@ const NodeComponent = (props: {
               <NodeComponent
                 node={node}
                 selectedWidgetIds={props.selectedWidgetIds}
+                selectWiget={props.selectWiget}
               />
             );
           }}
@@ -46,14 +48,15 @@ const NodeComponent = (props: {
 };
 
 const ComponentTree = (props: { node: ComponentTreeNode | null }) => {
-  const { getSelectedWidgets } = useAppContext();
+  const { getSelectedWidgets, setSelectedWidget } = useEditorContext();
   return (
     <div class="component-tree">
       <Show when={props.node}>
         {/* Note(sagar): this rerenders the entire tree every time tree is changed */}
         <NodeComponent
           node={props.node!}
-          selectedWidgetIds={getSelectedWidgets().map((w) => w.id!)}
+          selectedWidgetIds={getSelectedWidgets().map((id) => id!)}
+          selectWiget={setSelectedWidget}
         />
       </Show>
     </div>

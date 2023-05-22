@@ -13,9 +13,9 @@ const r = trpcRouter({
     .input(
       z.object({
         // the trigger is QUERY if the data query exec was triggered by GET
-        // else ACTION
-        // trigger type ACTION is expected to mutate data in remote data source
-        trigger: z.enum(["QUERY", "ACTION"]),
+        // else MUTATION
+        // trigger type MUTATION is expected to mutate data in remote data source
+        trigger: z.enum(["QUERY", "MUTATION"]),
         workspaceId: z.string(),
         appId: z.string(),
         widgetId: z.string(),

@@ -34,7 +34,7 @@ const Apps = () => {
     <Show when={apps()}>
       <Title>Apps</Title>
       <div class="">
-        <div class="mt-40 px-16">
+        <div class="flex mt-40 px-16 space-x-4">
           <For each={apps()} fallback="No apps">
             {(app) => {
               return <App {...app} />;
