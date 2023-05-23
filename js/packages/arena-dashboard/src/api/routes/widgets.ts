@@ -1,9 +1,10 @@
-import { omit } from "lodash-es";
+import { omit, merge } from "lodash-es";
 import zod, { z } from "zod";
 import { Widget } from "@arena/appkit/widget";
 import { notFound } from "../utils/errors";
 import { procedure, router as trpcRouter } from "../trpc";
 import { dbWidgetSchema } from "../repos/widget";
+import { dynamicSourceSchema } from "@arena/appkit/widget/types/data";
 
 const addWidgetSchema = dbWidgetSchema.omit({
   createdBy: true,
@@ -16,7 +17,7 @@ const widgetsRouter = trpcRouter({
     .mutation(async ({ ctx, input }): Promise<Widget> => {
       const app = await ctx.repo.apps.fetchById(input.appId);
       if (!app) {
-        return notFound("App not found");
+        return notFound();
       }
 
       const widget = {
@@ -37,14 +38,27 @@ const widgetsRouter = trpcRouter({
   update: procedure
     .input(
       zod.object({
+        id: z.string(),
         name: z.string().optional(),
         description: z.string().optional(),
-        widgetId: z.string().optional(),
-        config: z.any(),
+        slug: z.string().optional(),
+        // Note(sagar): rely on zod to ensure only dynamic data source is
+        // updated and data source type can't be changed
+        config: z.object({
+          data: z.record(dynamicSourceSchema),
+          class: z.string().optional(),
+        }),
       })
     )
-    .mutation(async ({ input }) => {
-      throw new Error("Not implemented");
+    .mutation(async ({ ctx, input }) => {
+      const widget = await ctx.repo.widgets.fetchById(input.id);
+      if (!widget) {
+        notFound();
+      }
+
+      const updatedWidget = merge(widget, input);
+      await ctx.repo.widgets.update(updatedWidget);
+      return updatedWidget;
     }),
   delete: procedure.input(z.any()).query(async () => {}),
 });

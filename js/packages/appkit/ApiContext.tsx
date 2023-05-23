@@ -14,7 +14,9 @@ type ApiRoutes = {
     templateId: string;
     config: Widget["config"];
   }) => Promise<Widget>;
-  updateWidget: (widget: any) => Promise<Widget>;
+  updateWidget: (
+    widget: { id: string } & Partial<Omit<Widget, "id" | "template">>
+  ) => Promise<Widget>;
   queryWidgetData: () => Promise<any>;
 };
 

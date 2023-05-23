@@ -1,6 +1,7 @@
 import { createResource, batch, createComputed, Accessor } from "solid-js";
-import { Store } from "@arena/solid-store";
+import { Store, StoreSetter } from "@arena/solid-store";
 import { uniqueId } from "@arena/uikit";
+import cleanSet from "clean-set";
 import { App } from "../../App";
 import { Plugin } from "../types";
 import { Widget, Template } from "../../widget";
@@ -13,6 +14,10 @@ type EditorStateContext = {
     templateId: string,
     templateMetadata: Template.Metadata<any>
   ) => Promise<Widget>;
+  /**
+   * This is a promise
+   */
+  updateWidget: StoreSetter<Record<string, Omit<Widget, "id" | "template">>>;
 
   /**
    * Keeps track of widgetId -> html node
@@ -120,11 +125,27 @@ const withEditorState: Plugin<
       return w;
     };
 
+    const updateWidget: EditorStateContext["updateWidget"] = async (
+      ...path: any
+    ) => {
+      const widgetId = path.shift();
+      const value = path.pop();
+      core.setState("widgetsById", widgetId, (prev) => {
+        return cleanSet(prev, path, value);
+      });
+      const w = await api.routes.updateWidget({
+        id: widgetId,
+        ...cleanSet({}, path, value),
+      });
+      // TODO(sp): revert changed if API call failed
+    };
+
     Object.assign(context, {
       useWidgetById(id: string) {
         return core.state.widgetsById[id];
       },
       addWidget,
+      updateWidget,
       registerWidgetNode(widgetId, node) {
         plugins.setState("withEditorState", "widgetNodes", widgetId, node);
       },

@@ -3,6 +3,7 @@ import { For, Match, Show, Switch, createMemo, createSignal } from "solid-js";
 import type { DataSource } from "@arena/appkit/widget";
 import { createStore } from "@arena/solid-store";
 import { CodeEditor } from "@arena/components";
+// @ts-ignore
 import debounce from "debounce";
 
 const Data = () => {
@@ -14,9 +15,10 @@ const Data = () => {
     selectedField: null,
   });
 
-  const fieldConfigs = createMemo(() => {
+  const fieldMetadata = createMemo(() => {
     const activeWidgets = getSelectedWidgets();
-    const widget = useWidgetById(activeWidgets[0])();
+    const widgetId = activeWidgets[0];
+    const widget = useWidgetById(widgetId)();
     const template = useTemplate(widget.template.id);
 
     return Object.entries(widget.config.data)
@@ -24,24 +26,24 @@ const Data = () => {
       .map(([fieldName, fieldConfig]) => {
         const templateConfig = template.metadata.data[fieldName];
         return {
-          widgetId: widget.id,
-          name: fieldName,
+          widgetId,
+          fieldName,
           title: templateConfig?.title || "Unrecognized field",
-          dataSource: fieldConfig.config as DataSource.Dynamic<any>["config"],
+          fieldConfig: fieldConfig as DataSource.Dynamic<any>,
         };
       });
   });
 
-  const selectedFieldConfig = createMemo(() => {
+  const selectedFieldMetadata = createMemo(() => {
     const field = state.selectedField();
-    const configs = fieldConfigs();
-    return configs.find((c) => c.name == field) || configs[0];
+    const metadata = fieldMetadata();
+    return metadata.find((c) => c.fieldName == field) || metadata[0];
   });
 
   return (
     <div class="flex flex-row px-2 h-full space-x-2 text-white">
       <Switch>
-        <Match when={fieldConfigs().length == 0}>
+        <Match when={fieldMetadata().length == 0}>
           <div class="flex flex-col w-full text-center justify-center text-slate-500">
             There's no configurable data for this widget
           </div>
@@ -50,7 +52,7 @@ const Data = () => {
           <div class="w-40 space-y-1">
             <div class="text-xs">Data Fields</div>
             <div>
-              <For each={fieldConfigs()}>
+              <For each={fieldMetadata()}>
                 {(field) => {
                   return (
                     <Field
@@ -64,8 +66,8 @@ const Data = () => {
               </For>
             </div>
           </div>
-          <Show when={selectedFieldConfig()}>
-            <FieldEditor config={selectedFieldConfig()!} />
+          <Show when={selectedFieldMetadata()}>
+            <FieldEditor metadata={selectedFieldMetadata()!} />
           </Show>
         </Match>
       </Switch>
@@ -73,36 +75,38 @@ const Data = () => {
   );
 };
 
-type FieldConfig = {
+type FieldMetadata = {
   widgetId: string;
-  name: string;
+  fieldName: string;
   title: string;
-  dataSource: DataSource.Dynamic<any>["config"];
+  fieldConfig: DataSource.Dynamic<any>;
 };
 
 const Field = (
-  props: FieldConfig & { setSelectedField: (name: string) => void }
+  props: FieldMetadata & { setSelectedField: (name: string) => void }
 ) => {
   return (
     <div
       class="px-2 py-1 text-xs cursor-pointer rounded bg-slate-600 hover:bg-slate-500"
-      onClick={() => props.setSelectedField(props.name)}
+      onClick={() => props.setSelectedField(props.fieldName)}
     >
       {props.title}
     </div>
   );
 };
 
-const FieldEditor = (props: { config: FieldConfig }) => {
-  const [value, setValue] = createSignal(props.config.dataSource.source);
+const FieldEditor = (props: { metadata: FieldMetadata }) => {
+  const [value, setValue] = createSignal(
+    props.metadata.fieldConfig.config.source
+  );
   return (
-    <Show when={props.config}>
+    <Show when={props.metadata}>
       <div class="flex-1 px-2 py-4 space-y-2 overflow-y-auto no-scrollbar">
         <div class="flex flex-row space-x-2">
           <div>Data Source</div>
           <select
             class="px-2 text-sm text-black rounded-sm outline-none appearance-none after:content-['*'] after:(w-4,h-2,bg-gray-400,clip-path-[polygon(100%-0%,0-0%,50%-100%)])"
-            value={props.config.dataSource.source}
+            value={props.metadata.fieldConfig.config.source}
             onChange={(e) => setValue(e.target.value as any)}
           >
             <For
@@ -118,26 +122,37 @@ const FieldEditor = (props: { config: FieldConfig }) => {
           </select>
         </div>
         <div>
-          <DataSourceEditor config={props.config.dataSource} />
+          <DataSourceEditor metadata={props.metadata} />
         </div>
       </div>
     </Show>
   );
 };
 
-const DataSourceEditor = (props: {
-  config: DataSource.Dynamic<any>["config"];
-}) => {
+const DataSourceEditor = (props: { metadata: FieldMetadata }) => {
+  const { updateWidget } = useEditorContext();
   const editorProps = createMemo(() => {
-    const config = props.config as any;
+    const { config } = props.metadata.fieldConfig;
     return {
-      code: config.query ?? JSON.stringify(config.value, null, 2),
+      code:
+        config.source == "inline"
+          ? JSON.stringify(config.value, null, 2)
+          : config.value,
       lang: config.source == "server/sql" ? "sql" : "javascript",
     } as { lang: "sql"; code: string };
   });
 
   const onChange = debounce((value: string) => {
-    console.log("VALUE =", value);
+    const { widgetId, fieldName, fieldConfig } = props.metadata;
+    if (editorProps().code == value) {
+      // early return if value didnt change
+      return;
+    }
+    const config = fieldConfig.config;
+    updateWidget(widgetId, "config", "data", fieldName, "config", {
+      ...config,
+      value: config.source == "inline" ? JSON.parse(value) : value,
+    });
   }, 300);
 
   return (
