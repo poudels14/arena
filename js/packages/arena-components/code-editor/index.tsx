@@ -4,7 +4,7 @@ import { indentWithTab } from "@codemirror/commands";
 import { EditorState } from "@codemirror/state";
 import { javascript } from "@codemirror/lang-javascript";
 import { sql } from "@codemirror/lang-sql";
-import { createEffect } from "solid-js";
+import { createEffect, createMemo, untrack } from "solid-js";
 
 type CodeMirrorOptions = {
   lang: "javascript" | "sql";
@@ -47,7 +47,7 @@ const attachEditor = (parent: Element, options: CodeMirrorOptions) => {
     parent,
   });
 
-  Object.assign(editor, {
+  return Object.assign(editor, {
     getValue() {
       return editor.state.doc.toString();
     },
@@ -60,19 +60,25 @@ const attachEditor = (parent: Element, options: CodeMirrorOptions) => {
         },
       });
     },
-  });
-
-  return editor as EditorView;
+  }) as EditorView;
 };
 
 const CodeEditor = (props: CodeMirrorOptions) => {
   let ref: any;
-  createEffect((editor: any) => {
-    // create a new editor and destroy previous if props change
-    editor && editor.destroy();
-    // this is needed to subscribe to props change
-    void Object.values(props);
-    return attachEditor(ref, props);
+
+  const lang = createMemo(() => props.lang);
+  const value = createMemo(() => props.value);
+
+  createEffect((prev?: EditorView) => {
+    // Note(sagar): create new editor instance if lang changed, else just update the value
+    void lang();
+    prev && prev.destroy();
+    const editor = untrack(() => attachEditor(ref, props));
+    createEffect(() => {
+      const v = value();
+      editor && v != editor.getValue() && editor.setValue(v);
+    });
+    return editor;
   });
   return <div class="code-editor" ref={ref}></div>;
 };
