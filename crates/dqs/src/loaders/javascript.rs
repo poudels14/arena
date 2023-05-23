@@ -28,7 +28,7 @@ pub(crate) fn from_config<'a>(
     .render(
       "JS_QUERY_MODULE",
       &json!({
-        "jsQuery": config.query
+        "jsQuery": config.value
       }),
     )
     .map_err(|e| anyhow!("{:?}", e))

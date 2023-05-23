@@ -38,11 +38,11 @@ pub enum SourceConfig {
 pub struct SqlSourceConfig {
   pub db: String,
   pub args: Vec<String>,
-  pub query: String,
+  pub value: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct JavascriptSourceConfig {
   pub args: Vec<String>,
-  pub query: String,
+  pub value: String,
 }

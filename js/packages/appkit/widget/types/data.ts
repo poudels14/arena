@@ -62,7 +62,10 @@ export const inlineSourceConfigSchema = z.object({
 
 export const clientJsSourceConfigSchema = z.object({
   source: z.literal("client/js"),
-  query: z.string(),
+  /**
+   * Note(sagar): using the field name value here to keep it consistent
+   */
+  value: z.string(),
 });
 
 export const serverJsSourceConfigSchema = z.object({
@@ -72,7 +75,7 @@ export const serverJsSourceConfigSchema = z.object({
    * Query arguments
    */
   args: z.object({ key: z.string(), value: z.string() }).array(),
-  query: z.string(),
+  value: z.string(),
 });
 
 export const serverSqlSourceConfigSchema = z.object({
@@ -86,7 +89,7 @@ export const serverSqlSourceConfigSchema = z.object({
    * Query arguments
    */
   args: z.object({ key: z.string(), value: z.string() }).array(),
-  query: z.string(),
+  value: z.string(),
 });
 
 export const transientSourceSchema = z.object({
@@ -111,6 +114,7 @@ export const templateSourceSchema = z.object({
 export const dynamicSourceSchema = z.object({
   type: z.literal("dynamic"),
   config: z.union([
+    inlineSourceConfigSchema,
     clientJsSourceConfigSchema,
     serverJsSourceConfigSchema,
     serverSqlSourceConfigSchema,

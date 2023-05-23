@@ -27,7 +27,7 @@ pub(crate) fn from_config<'a>(
   _specifier: &WidgetQuerySpecifier,
   config: &SqlSourceConfig,
 ) -> Result<String> {
-  let transpiled_query = self::transpile_query(&config.query)?;
+  let transpiled_query = self::transpile_query(&config.value)?;
   let prop_keys = config
     .args
     .iter()
