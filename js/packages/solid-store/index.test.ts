@@ -185,7 +185,7 @@ describe("Store", () => {
         const cleanupFn = vitest.fn();
         createEffect(() => {
           // Note: only listen to store.data
-          void store.data();
+          void store.data.message();
           onCleanup(() => cleanupFn());
         });
 
