@@ -9,13 +9,13 @@
 
 * {
   ::-webkit-scrollbar {
-    width: 7px;
+    width: 5px;
   }
   ::-webkit-scrollbar-track {
-    background: rgb(203, 213, 225);
+    background: rgb(220, 220, 220);
   }
   ::-webkit-scrollbar-thumb {
-    background: rgb(148, 163, 184);
+    background: rgb(200, 200, 200);
   }
   ::-webkit-scrollbar-thumb:hover {
     background: #555;
