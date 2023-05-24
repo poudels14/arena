@@ -11,27 +11,14 @@ import {
   withComponentTree,
   ComponentTreeContext,
 } from "./editor";
-import Heading1, {
-  metadata as heading1,
-} from "@arena/widgets/builtin/Heading1";
-import Heading2, {
-  metadata as heading2,
-} from "@arena/widgets/builtin/Heading2";
-import Heading3, {
-  metadata as heading3,
-} from "@arena/widgets/builtin/Heading3";
-import Table, { metadata as tableMetadata } from "@arena/widgets/builtin/table";
-import Chart, { metadata as chartMetadata } from "@arena/widgets/builtin/Chart";
-import GridLayout, {
-  metadata as gridLayoutMetadata,
-} from "@arena/widgets/builtin/GridLayout";
 import { Canvas } from "./canvas";
 import { ComponentTree } from "./ComponentTree";
 import { Toolbar } from "./toolbar";
 import { DragDropProvider, DragEndEvent, DragOverlay } from "@arena/solid-dnd";
-import { Match, Switch } from "solid-js";
+import { Match, Switch, createMemo } from "solid-js";
 import { Widget } from "./Widget";
 import { Slot } from "./Slot";
+import { TEMPLATES } from "./templates";
 
 type EditorProps = EditorStateConfig & {};
 
@@ -43,33 +30,7 @@ const Editor = (props: EditorProps) => {
     withComponentTree(),
     withResizer({}),
     withTemplateStore({
-      templates: {
-        // TODO(sagar): make these lazy load
-        [heading1.id]: {
-          Component: Heading1,
-          metadata: heading1,
-        },
-        [heading2.id]: {
-          Component: Heading2,
-          metadata: heading2,
-        },
-        [heading3.id]: {
-          Component: Heading3,
-          metadata: heading3,
-        },
-        [gridLayoutMetadata.id]: {
-          Component: GridLayout,
-          metadata: gridLayoutMetadata,
-        },
-        [tableMetadata.id]: {
-          Component: Table,
-          metadata: tableMetadata,
-        },
-        [chartMetadata.id]: {
-          Component: Chart,
-          metadata: chartMetadata,
-        },
-      },
+      templates: TEMPLATES,
     }),
     withWidgetDataLoaders({})
   );
@@ -85,15 +46,12 @@ const AppEditor = () => {
   const { state, addWidget, useTemplate, getComponentTree, useChildren } =
     useEditorContext<TemplateStoreContext & ComponentTreeContext>();
 
+  const getChildren = createMemo(() => useChildren(null));
   const onDragEnd = async (e: DragEndEvent) => {
     const templateId = e.draggable.data.templateId;
-    const template = useTemplate(templateId);
     if (e.droppable) {
-      await addWidget(
-        e.droppable!.data.parentId,
-        templateId,
-        template.metadata
-      );
+      const { parentId, position } = e.droppable!.data;
+      await addWidget({ parentId, templateId, position });
     }
   };
 
@@ -111,8 +69,8 @@ const AppEditor = () => {
             <Canvas>
               <div class="p-2">
                 <Switch>
-                  <Match when={useChildren(null).length > 0}>
-                    <Widget widgetId={useChildren(null)[0]} />
+                  <Match when={getChildren().length > 0}>
+                    <Widget widgetId={getChildren()[0]} />
                   </Match>
                   <Match when={true}>
                     <Slot parentId={null} />

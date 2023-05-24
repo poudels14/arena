@@ -77,6 +77,8 @@ export namespace Template {
          * Default: single
          */
         type?: "single" | "multiple";
+
+        children?: JSX.Element;
       }) => JSX.Element;
     };
   };

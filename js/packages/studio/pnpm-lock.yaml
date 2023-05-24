@@ -28,6 +28,9 @@ dependencies:
   clean-set:
     specifier: ^1.1.2
     version: 1.1.2
+  debounce:
+    specifier: ^1.2.1
+    version: 1.2.1
   klona:
     specifier: ^2.0.6
     version: 2.0.6
@@ -107,6 +110,10 @@ packages:
 
   /csstype@3.1.1:
     resolution: {integrity: sha512-DJR/VvkAvSZW9bTouZue2sSxDwdTN92uHjqeKVm+0dAqdfNykRzQ95tay8aXMBAAPpUiq4Qcug2L7neoRh2Egw==}
+    dev: false
+
+  /debounce@1.2.1:
+    resolution: {integrity: sha512-XRRe6Glud4rd/ZGQfiV1ruXSfbvfJedlV9Y6zOlP+2K04vBYiJEte6stfFkCP03aMnY5tsipamumUjL14fofug==}
     dev: false
 
   /dot-case@3.0.4:

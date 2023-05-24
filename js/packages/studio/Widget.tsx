@@ -108,7 +108,16 @@ const WidgetRenderer = (props: WidgetProps) => {
 
 // TODO(sagar): this is more of a editable widget than DynamicWidget,
 // so, rename it to a better name
-const Widget = (props: { widgetId: string }) => {
+
+/**
+ *
+ * @param previousWidgetId is the id of the widget that's rendered before this
+ * widget in a Slot. it is used to determine the order of widgets
+ */
+const Widget = (props: {
+  widgetId: string;
+  previousWidgetId?: string | null;
+}) => {
   const { useTemplate, useWidgetById } =
     useEditorContext<TemplateStoreContext>();
   const widget = useWidgetById(props.widgetId);

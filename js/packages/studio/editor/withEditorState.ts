@@ -4,16 +4,26 @@ import { uniqueId } from "@arena/uikit";
 import cleanSet from "clean-set";
 import { App } from "../types/app";
 import { Plugin } from "./plugins/types";
-import { Widget, Template } from "@arena/widgets/schema";
+import { Widget } from "@arena/widgets/schema";
 import { useApiContext } from "../ApiContext";
 
 type EditorStateContext = {
   useWidgetById: (id: string) => Store<Widget>;
-  addWidget: (
-    parentId: string,
-    templateId: string,
-    templateMetadata: Template.Metadata<any>
-  ) => Promise<Widget>;
+  addWidget: (props: {
+    templateId: string;
+    parentId: string;
+    position: {
+      /**
+       * Id of the widget to place the new widget after
+       */
+      after: string | null;
+      /**
+       * Id of the widget that existsin the location of this widget
+       * This is used to properly re-order the widgets
+       */
+      before: string | null;
+    };
+  }) => Promise<Widget>;
   /**
    * This is a promise
    */
@@ -90,39 +100,34 @@ const withEditorState: Plugin<
       }
     });
 
-    const addWidget: EditorStateContext["addWidget"] = async (
-      parentId,
+    const addWidget: EditorStateContext["addWidget"] = async ({
       templateId,
-      templateMetadata
-    ) => {
-      const defaultDataConfig = Object.fromEntries(
-        Object.entries(templateMetadata.data).map(([field, { dataSource }]) => {
-          const { type, default: config } = dataSource;
-          return [field, { type, config }];
-        })
-      ) as Widget["config"]["data"];
-
+      parentId,
+      position,
+    }) => {
       const newWidget = {
         id: uniqueId(),
-        name: templateMetadata.name,
-        // TODO(sagar): generate slug
-        slug: "",
-        description: templateMetadata.description || "",
-        parentId,
         appId: config.appId,
         templateId,
-        config: {
-          // TODO(sagar): set widget's config in server
-          data: defaultDataConfig,
-          class: templateMetadata.class,
-        },
+        parentId,
+        position,
       };
 
-      const w = await api.routes.addWidget(newWidget);
+      const dbWidget = await api.routes.addWidget(newWidget);
       core.setState("app", "widgets", (widgets) => {
-        return [...widgets, w];
+        widgets = widgets.map((w) => {
+          if (w.id == position.before) {
+            return cleanSet(
+              w,
+              ["config", "layout", "position", "after"],
+              dbWidget.id
+            );
+          }
+          return w;
+        });
+        return [...widgets, dbWidget];
       });
-      return w;
+      return dbWidget;
     };
 
     const updateWidget: EditorStateContext["updateWidget"] = async (
@@ -130,9 +135,15 @@ const withEditorState: Plugin<
     ) => {
       const widgetId = path.shift();
       const value = path.pop();
-      core.setState("widgetsById", widgetId, (prev) => {
-        return cleanSet(prev, path, value);
+      core.setState("app", "widgets", (widgets) => {
+        return widgets.map((w) => {
+          if (w.id == widgetId) {
+            return cleanSet(w, path, value);
+          }
+          return w;
+        });
       });
+
       const w = await api.routes.updateWidget({
         id: widgetId,
         ...cleanSet({}, path, value),

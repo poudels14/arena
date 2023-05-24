@@ -6,3 +6,10 @@ export const notFound = (message?: string) => {
     message: message ?? "Not found",
   });
 };
+
+export const badRequest = (message?: string) => {
+  throw new TRPCError({
+    code: "BAD_REQUEST",
+    message: message ?? "400 Bad request",
+  });
+};

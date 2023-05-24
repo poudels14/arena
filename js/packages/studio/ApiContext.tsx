@@ -7,12 +7,13 @@ type ApiRoutes = {
   addWidget: (widget: {
     id: string;
     appId: string;
-    name: string;
-    slug: string;
     description?: string;
-    parentId: string | null;
+    parentId: string;
     templateId: string;
-    config: Widget["config"];
+    position: {
+      after: string | null;
+      before: string | null;
+    };
   }) => Promise<Widget>;
   updateWidget: (
     widget: { id: string } & Partial<Omit<Widget, "id" | "template">>
