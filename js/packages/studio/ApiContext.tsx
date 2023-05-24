@@ -1,6 +1,7 @@
 import { createContext, splitProps, useContext } from "solid-js";
 import { App } from "./types/app";
 import { Widget } from "@arena/widgets/schema";
+import { MutationResponse } from "./types";
 
 type ApiRoutes = {
   fetchApp: (appId: string) => Promise<App>;
@@ -14,10 +15,10 @@ type ApiRoutes = {
       after: string | null;
       before: string | null;
     };
-  }) => Promise<Widget>;
+  }) => Promise<MutationResponse>;
   updateWidget: (
     widget: { id: string } & Partial<Omit<Widget, "id" | "template">>
-  ) => Promise<Widget>;
+  ) => Promise<MutationResponse>;
   queryWidgetData: () => Promise<any>;
 };
 

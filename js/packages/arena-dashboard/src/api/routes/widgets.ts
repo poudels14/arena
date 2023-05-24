@@ -3,14 +3,10 @@ import zod, { z } from "zod";
 import { Widget } from "@arena/widgets";
 import { badRequest, notFound } from "../utils/errors";
 import { procedure, router as trpcRouter } from "../trpc";
-import { dbWidgetSchema } from "../repos/widget";
 import { dynamicSourceSchema } from "@arena/widgets/schema";
 import { TEMPLATES } from "@arena/studio/templates";
-
-const addWidgetSchema = dbWidgetSchema.omit({
-  createdBy: true,
-  archivedAt: true,
-});
+import { MutationResponse } from "@arena/studio";
+import { DbWidget } from "../repos/widget";
 
 const widgetsRouter = trpcRouter({
   add: procedure
@@ -34,7 +30,7 @@ const widgetsRouter = trpcRouter({
         }),
       })
     )
-    .mutation(async ({ ctx, input }): Promise<Widget> => {
+    .mutation(async ({ ctx, input }): Promise<MutationResponse> => {
       const { appId, parentId, templateId, position } = input;
       const app = await ctx.repo.apps.fetchById(appId);
       if (!app) {
@@ -91,28 +87,29 @@ const widgetsRouter = trpcRouter({
       };
 
       await ctx.repo.widgets.insert(widget);
+      let updatedWidgetAfter = null;
       // update the widget after this widget's position
       if (widgetAfter) {
-        await ctx.repo.widgets.update(
-          merge(widgetAfter, {
-            config: {
-              layout: {
-                position: {
-                  after: widget.id,
-                },
+        updatedWidgetAfter = merge(widgetAfter, {
+          config: {
+            layout: {
+              position: {
+                after: widget.id,
               },
             },
-          })
-        );
+          },
+        });
+        await ctx.repo.widgets.update(updatedWidgetAfter);
       }
 
-      return Object.assign(omit(widget, "templateId"), {
-        template: {
-          id: widget.templateId,
-          name: "",
-          url: "",
+      return {
+        widgets: {
+          created: [await setTemplateInfo(widget)],
+          updated: updatedWidgetAfter
+            ? [await setTemplateInfo(updatedWidgetAfter)]
+            : [],
         },
-      });
+      };
     }),
   update: procedure
     .input(
@@ -135,7 +132,7 @@ const widgetsRouter = trpcRouter({
           .optional(),
       })
     )
-    .mutation(async ({ ctx, input }) => {
+    .mutation<MutationResponse>(async ({ ctx, input }) => {
       const widget = await ctx.repo.widgets.fetchById(input.id);
       if (!widget) {
         notFound();
@@ -143,9 +140,24 @@ const widgetsRouter = trpcRouter({
 
       const updatedWidget = merge(widget, input);
       await ctx.repo.widgets.update(updatedWidget);
-      return updatedWidget;
+
+      return {
+        widgets: {
+          updated: [await setTemplateInfo(updatedWidget)],
+        },
+      };
     }),
   delete: procedure.input(z.any()).query(async () => {}),
 });
+
+const setTemplateInfo = async (widget: DbWidget): Promise<Widget> => {
+  return merge(omit(widget, "templateId"), {
+    template: {
+      id: widget.templateId,
+      name: "",
+      url: "",
+    },
+  });
+};
 
 export { widgetsRouter };

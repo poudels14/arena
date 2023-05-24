@@ -6,6 +6,8 @@ import { App } from "../types/app";
 import { Plugin } from "./plugins/types";
 import { Widget } from "@arena/widgets/schema";
 import { useApiContext } from "../ApiContext";
+import { MutationResponse } from "../types";
+import { AnyInternalEditor } from "./plugins/types";
 
 type EditorStateContext = {
   useWidgetById: (id: string) => Store<Widget>;
@@ -113,21 +115,9 @@ const withEditorState: Plugin<
         position,
       };
 
-      const dbWidget = await api.routes.addWidget(newWidget);
-      core.setState("app", "widgets", (widgets) => {
-        widgets = widgets.map((w) => {
-          if (w.id == position.before) {
-            return cleanSet(
-              w,
-              ["config", "layout", "position", "after"],
-              dbWidget.id
-            );
-          }
-          return w;
-        });
-        return [...widgets, dbWidget];
-      });
-      return dbWidget;
+      const updates = await api.routes.addWidget(newWidget);
+      updateState(core, updates);
+      return updates?.widgets?.created?.[0]!;
     };
 
     const updateWidget: EditorStateContext["updateWidget"] = async (
@@ -144,11 +134,12 @@ const withEditorState: Plugin<
         });
       });
 
-      const w = await api.routes.updateWidget({
+      const updates = await api.routes.updateWidget({
         id: widgetId,
         ...cleanSet({}, path, value),
       });
       // TODO(sp): revert changed if API call failed
+      updateState(core, updates);
     };
 
     Object.assign(context, {
@@ -179,6 +170,21 @@ const withEditorState: Plugin<
       },
     };
   };
+
+const updateState = (
+  core: AnyInternalEditor["core"],
+  updates: MutationResponse
+) => {
+  const { created: createdWidgets = [], updated: updatedWidgets = [] } =
+    updates.widgets || {};
+  core.setState("app", "widgets", (widgets) => {
+    widgets = widgets.map((w) => {
+      return updatedWidgets.find((u) => u.id == w.id) ?? w;
+    });
+    createdWidgets.forEach((w) => widgets.push(w));
+    return widgets;
+  });
+};
 
 export { withEditorState };
 export type { EditorStateConfig, EditorStateContext };
