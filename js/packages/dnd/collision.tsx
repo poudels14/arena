@@ -20,16 +20,19 @@ const findClosestDroppable = (
   }
   let minDist = options.distance;
   let closestDroppable: Droppable | null = null;
+  const { x: sensorX, y: sensorY } = sensor.current;
   droppables.forEach((d) => {
-    const rect = d.node.getBoundingClientRect();
+    const { x, y, width, height } = d.node.getBoundingClientRect();
+    // Note(sagar): if the pointer is in between X coords or Y coords of the
+    // droppable, make that axis 0 when calculating the distance
+    const px0 = sensorX > x && sensorX < x + width ? sensorX : null;
+    const py0 = sensorY > y && sensorY < y + height ? sensorY : null;
     const centerDist = distanceBetweenPoints(
-      [rect.x + rect.width / 2, rect.y + rect.height / 2],
-      [sensor.current.x, sensor.current.y]
+      [px0 ?? x + width / 2, py0 ?? y + height / 2],
+      [sensorX, sensorY]
     );
-    const topLeftDist = distanceBetweenPoints(
-      [rect.x, rect.y],
-      [sensor.current.x, sensor.current.y]
-    );
+
+    const topLeftDist = distanceBetweenPoints([x, y], [sensorX, sensorY]);
     const dist = Math.min(centerDist, topLeftDist);
     if (dist < minDist) {
       minDist = dist;
