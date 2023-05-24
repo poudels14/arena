@@ -91,3 +91,29 @@ pub(super) async fn handle_request(
     .map(|r| (r, metadata))
     .ok_or(errors::Error::ResponseBuilder)
 }
+
+impl From<&str> for HttpRequest {
+  fn from(body: &str) -> Self {
+    HttpRequest {
+      method: "GET".to_owned(),
+      url: "http://0.0.0.0/".to_owned(),
+      headers: vec![],
+      body: Some(ZeroCopyBuf::ToV8(Some(
+        body.to_owned().as_bytes().to_vec().into(),
+      ))),
+    }
+  }
+}
+
+impl From<(Method, &str)> for HttpRequest {
+  fn from((method, body): (Method, &str)) -> Self {
+    HttpRequest {
+      method: method.as_str().to_owned(),
+      url: "http://0.0.0.0/".to_owned(),
+      headers: vec![],
+      body: Some(ZeroCopyBuf::ToV8(Some(
+        body.to_owned().as_bytes().to_vec().into(),
+      ))),
+    }
+  }
+}

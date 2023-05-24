@@ -2,6 +2,8 @@ use super::super::transpiler;
 use crate::{IsolatedRuntime, RuntimeConfig};
 use anyhow::{anyhow, bail, Error};
 use common::config::ArenaConfig;
+use common::deno::extensions::server::resonse::HttpResponse;
+use common::deno::extensions::server::{HttpRequest, HttpServerConfig};
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use common::deno::resolver::fs::FsModuleResolver;
 use deno_ast::MediaType;
@@ -14,10 +16,13 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::rc::Rc;
+use std::thread;
+use tokio::sync::mpsc;
+use url::Url;
 
 pub(crate) struct FsModuleLoader {
   transpile: bool,
-  runtime: Option<Rc<RefCell<IsolatedRuntime>>>,
+  transpiler_stream: mpsc::Sender<(HttpRequest, mpsc::Sender<HttpResponse>)>,
   resolver: FsModuleResolver,
 }
 
@@ -30,44 +35,77 @@ pub struct ModuleLoaderOption {
 
 impl FsModuleLoader {
   pub fn new(option: ModuleLoaderOption) -> Self {
-    let runtime = match option.transpile {
-      true => Some(Rc::new(RefCell::new(
-        IsolatedRuntime::new(RuntimeConfig {
-          project_root: Some(option.resolver.project_root.clone()),
-          config: Some(ArenaConfig::default()),
-          enable_console: true,
-          builtin_extensions: BuiltinExtensions::with_modules(vec![
-            BuiltinModule::Fs,
-            BuiltinModule::Env,
-            BuiltinModule::Resolver(option.resolver.project_root.clone()),
-            BuiltinModule::Transpiler,
-            BuiltinModule::CustomRuntimeModule(
-              "arena/core/fs/loader",
-              r#"
-              // Note(sagar): load these into global variables so that transpiler
-              // can use it inside a function
-              import { babel, plugins, presets } from "@arena/runtime/babel";
-              Arena.BuildTools = {
-                babel, babelPlugins: plugins, babelPresets: presets
-              };
-            "#,
-            ),
-          ]),
-          // Note(sagar): since rollup is loaded as side-module when build
-          // tools is enabled and rollup needs node modules,
-          // need to enable module loader
-          disable_module_loader: false,
-          transpile: false,
-          ..Default::default()
-        })
-        .unwrap(),
-      ))),
-      false => None,
-    };
+    let (stream_tx, stream_rx) = mpsc::channel(2);
+    let project_root = option.resolver.project_root.clone();
+
+    if option.transpile {
+      thread::spawn(move || {
+        let rt = tokio::runtime::Builder::new_current_thread()
+          .enable_all()
+          .worker_threads(1)
+          .max_blocking_threads(1)
+          .build()
+          .unwrap();
+
+        let local = tokio::task::LocalSet::new();
+        let _r = local.block_on(&rt, async {
+          let mut runtime = IsolatedRuntime::new(RuntimeConfig {
+            project_root: Some(project_root.clone()),
+            config: Some(ArenaConfig::default()),
+            enable_console: true,
+            builtin_extensions: BuiltinExtensions::with_modules(vec![
+              BuiltinModule::HttpServer(HttpServerConfig::Stream(Rc::new(
+                RefCell::new(stream_rx),
+              ))),
+            ]),
+            // Note(sagar): since rollup is loaded as side-module when build
+            // tools is enabled and rollup needs node modules,
+            // need to enable module loader
+            disable_module_loader: false,
+            transpile: false,
+            ..Default::default()
+          }).unwrap();
+
+          let local = tokio::task::LocalSet::new();
+          local
+            .run_until(async move {
+            runtime
+              .execute_main_module_code(
+                &Url::parse("file:///main").unwrap(),
+                r#"
+                import { babel, plugins, presets } from "@arena/runtime/babel";
+                import { serve } from "@arena/runtime/server";
+                serve({
+                  async fetch(req) {
+                    const code = await req.text();
+                    const { code: transpiledCode } = babel.transform(code, {
+                      presets: [
+                        // Note(sagar): since the code transpiled here is only used in
+                        // server side, it should be transpiled for "ssr"
+                        [presets.solidjs, {
+                          "generate": "ssr",
+                          "hydratable": false,
+                        }]
+                      ],
+                    });
+                    return new Response(transpiledCode);
+                  }
+                })
+                "#,
+              )
+              .await
+              .unwrap();
+
+              runtime.run_event_loop().await.unwrap();
+            }).await;
+        });
+      });
+    }
+
     Self {
       transpile: option.transpile,
       resolver: option.resolver,
-      runtime,
+      transpiler_stream: stream_tx,
     }
   }
 }
@@ -95,7 +133,7 @@ impl ModuleLoader for FsModuleLoader {
     let module_specifier = module_specifier.clone();
 
     let transpile = self.transpile;
-    let runtime = self.runtime.clone();
+    let transpiler_stream = self.transpiler_stream.clone();
     async move {
       let path = module_specifier.to_file_path().map_err(|_| {
         anyhow!(
@@ -134,7 +172,7 @@ impl ModuleLoader for FsModuleLoader {
           // so that even cjs modules are transformed to es6
           match transpile {
             true => transpiler::transpile(
-              runtime.unwrap(),
+              transpiler_stream,
               &path,
               &media_type,
               &code,

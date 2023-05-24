@@ -76,11 +76,11 @@ impl FsModuleResolver {
           let resolved = self
             .load_npm_package(&dir_path, &parsed_specifier, &maybe_package)
             .or_else(|e| {
-              debug!("error loading npm package export: {:?}", e);
+              debug!("error loading npm package export: {}", e);
               fs::load_as_file(&dir_path.join(specifier))
             })
             .or_else(|e| {
-              debug!("error loading as file: {:?}", e);
+              debug!("error loading as file: {}", e);
               fs::load_as_directory(&dir_path.join(specifier), &maybe_package)
             })
             .and_then(|p| self.convert_to_url(p));

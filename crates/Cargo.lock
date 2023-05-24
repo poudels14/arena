@@ -1952,6 +1952,8 @@ dependencies = [
  "deno_webidl",
  "derivative",
  "futures",
+ "http",
+ "http-body",
  "serde",
  "serde_json",
  "smallvec",

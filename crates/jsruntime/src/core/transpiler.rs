@@ -1,15 +1,16 @@
-use crate::IsolatedRuntime;
-use anyhow::Result;
+use anyhow::{anyhow, bail, Result};
+use common::deno::extensions::server::resonse::HttpResponse;
+use common::deno::extensions::server::HttpRequest;
 use common::deno::extensions::transpiler::plugins;
 use deno_ast::{EmitOptions, MediaType, ParseParams, SourceTextInfo};
-use serde_json::Value;
-use std::cell::RefCell;
+use http::Method;
+use http_body::Body;
 use std::path::Path;
-use std::rc::Rc;
 use swc_ecma_visit::FoldWith;
+use tokio::sync::mpsc;
 
 pub fn transpile(
-  runtime: Rc<RefCell<IsolatedRuntime>>,
+  transpiler_stream: mpsc::Sender<(HttpRequest, mpsc::Sender<HttpResponse>)>,
   module_path: &Path,
   media_type: &MediaType,
   code: &str,
@@ -38,7 +39,7 @@ pub fn transpile(
 
   let code = match module_path.extension() {
     Some(ext) if ext == "tsx" || ext == "jsx" => {
-      transpile_jsx(runtime, &parsed_code)?
+      transpile_jsx(transpiler_stream, &parsed_code)?
     }
     _ => parsed_code.to_owned(),
   };
@@ -47,46 +48,23 @@ pub fn transpile(
 }
 
 fn transpile_jsx<'a>(
-  runtime: Rc<RefCell<IsolatedRuntime>>,
+  transpiler_stream: mpsc::Sender<(HttpRequest, mpsc::Sender<HttpResponse>)>,
   code: &str,
 ) -> Result<String> {
-  execute_js(
-    runtime,
-    r#"
-      ((code) => {
-        const { babel, babelPlugins, babelPresets } = Arena.BuildTools;
-        const { code : transpiledCode } = babel.transform(code, {
-          presets: [
-            // Note(sagar): since the code transpiled here is only used in
-            // server side, it should be transpiled for "ssr"
-            [babelPresets.solidjs, {
-              "generate": "ssr",
-              "hydratable": String(Arena.env.ARENA_SSR) === "true"
-            }]
-          ],
-          plugins: [
-            [babelPlugins.transformCommonJs, { "exportsOnly": true }]
-          ]
-        });
-        return transpiledCode;
-      })
-    "#,
-    code,
-  )
-}
+  let transpiled_code: Result<String> = futures::executor::block_on(async {
+    let (tx, mut rx) = mpsc::channel(1);
+    transpiler_stream
+      .send(((Method::POST, code).into(), tx))
+      .await?;
+    if let Some(mut response) = rx.recv().await {
+      return Ok(
+        std::str::from_utf8(&response.body_mut().data().await.unwrap()?)
+          .map_err(|e| anyhow!("{}", e))?
+          .to_owned(),
+      );
+    }
+    bail!("Failed to transpile code using babel");
+  });
 
-fn execute_js(
-  runtime: Rc<RefCell<IsolatedRuntime>>,
-  code: &str,
-  arg: &str,
-) -> Result<String> {
-  let mut runtime = runtime.borrow_mut();
-
-  let function = runtime.init_js_function(code, None)?;
-  let code = function
-    .execute(vec![Value::String(arg.to_owned())])?
-    .unwrap()
-    .get_value()?;
-
-  Ok(code.as_str().unwrap().to_owned())
+  return transpiled_code;
 }

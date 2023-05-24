@@ -13,6 +13,8 @@ url.workspace = true
 smallvec.workspace = true
 derivative.workspace = true
 tracing.workspace = true
+http-body.workspace = true
+http.workspace = true
 common = { path = "../common" }
 
 deno_core.workspace = true
