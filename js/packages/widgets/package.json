@@ -1,0 +1,22 @@
+{
+  "name": "@arena/widgets",
+  "version": "0.1.0",
+  "description": "Arena widget template design and builtin widgets",
+  "main": "index.ts",
+  "scripts": {},
+  "keywords": [],
+  "author": "Sagar Poudel",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@arena/components": "workspace:^0.1.0",
+    "@arena/solid-store": "workspace:^0.1.0",
+    "@arena/uikit": "workspace:^0.1.0",
+    "@blueprintjs/icons": "^4.14.3",
+    "solid-js": "^1.7.2",
+    "uplot": "^1.6.24",
+    "zod": "^3.21.4"
+  },
+  "devDependencies": {
+    "typescript": "^4.9.5"
+  }
+}

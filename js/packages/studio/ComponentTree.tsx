@@ -3,7 +3,7 @@ import { InlineIcon } from "@arena/components";
 // TODO(sagar): figure out a way to use exports from `@blueprintjs/icons` without
 // crashing the browser; browser crashes because it tries to load all exported icons
 import ListDetailView from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/list-detail-view";
-import { ComponentTreeNode, useEditorContext } from "@arena/appkit/editor";
+import { ComponentTreeNode, useEditorContext } from "./editor";
 
 const NodeComponent = (props: {
   node: ComponentTreeNode;

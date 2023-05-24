@@ -8,14 +8,15 @@
   "author": "Sagar Poudel",
   "license": "UNLICENSED",
   "dependencies": {
-    "@arena/appkit": "workspace:^",
     "@arena/components": "workspace:^0.1.0",
     "@arena/solid-dnd": "workspace:^",
     "@arena/solid-store": "workspace:^0.1.0",
     "@arena/uikit": "workspace:^0.1.0",
     "@arena/widgets": "workspace:^",
     "@blueprintjs/icons": "^4.14.3",
+    "@popperjs/core": "^2.11.7",
     "@solidjs/meta": "^0.28.4",
+    "clean-set": "^1.1.2",
     "klona": "^2.0.6",
     "solid-js": "^1.7.2"
   }

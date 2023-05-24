@@ -1,6 +1,6 @@
 import { pick } from "lodash-es";
 import zod, { z } from "zod";
-import { App } from "@arena/appkit";
+import { App } from "@arena/studio";
 import { procedure, router as trpcRouter } from "../trpc";
 import { notFound } from "../utils/errors";
 

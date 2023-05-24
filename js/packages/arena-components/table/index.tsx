@@ -76,6 +76,7 @@ function createTableWithPlugins<Config, PluginState, Methods>(
 function createBaseTable<S, M, R>(config: BaseConfig<R>) {
   config = klona(config);
   const [state, setState] = createStore<TableState<any>>({
+    rows: [],
     _core: {
       config,
       data: [...config.data],

@@ -4,36 +4,29 @@ dependencies:
   '@arena/components':
     specifier: workspace:^0.1.0
     version: link:../arena-components
-  '@arena/solid-dnd':
-    specifier: workspace:^
-    version: link:../dnd
   '@arena/solid-store':
     specifier: workspace:^0.1.0
     version: link:../solid-store
   '@arena/uikit':
     specifier: workspace:^0.1.0
     version: link:../uikit
-  '@arena/widgets':
-    specifier: workspace:^
-    version: link:../widgets
   '@blueprintjs/icons':
     specifier: ^4.14.3
     version: 4.14.3
-  '@popperjs/core':
-    specifier: ^2.11.7
-    version: 2.11.7
-  '@solidjs/meta':
-    specifier: ^0.28.4
-    version: 0.28.4(solid-js@1.7.2)
-  clean-set:
-    specifier: ^1.1.2
-    version: 1.1.2
-  klona:
-    specifier: ^2.0.6
-    version: 2.0.6
   solid-js:
     specifier: ^1.7.2
     version: 1.7.2
+  uplot:
+    specifier: ^1.6.24
+    version: 1.6.24
+  zod:
+    specifier: ^3.21.4
+    version: 3.21.4
+
+devDependencies:
+  typescript:
+    specifier: ^4.9.5
+    version: 4.9.5
 
 packages:
 
@@ -43,18 +36,6 @@ packages:
       change-case: 4.1.2
       classnames: 2.3.2
       tslib: 2.3.1
-    dev: false
-
-  /@popperjs/core@2.11.7:
-    resolution: {integrity: sha512-Cr4OjIkipTtcXKjAsm8agyleBuDHvxzeBoa1v543lbv1YaIwQjESsVcmjiWiPEbC1FIeHOG/Op9kdCmAmiS3Kw==}
-    dev: false
-
-  /@solidjs/meta@0.28.4(solid-js@1.7.2):
-    resolution: {integrity: sha512-1USElsQuGVcJnmZ6CxPfUVmKvCsVdBQoGrUyMxLtFw36Ytt90dPs/qLyXLvPR/ZPD16/qauWqg6APEkbrDOLcA==}
-    peerDependencies:
-      solid-js: '>=1.4.0'
-    dependencies:
-      solid-js: 1.7.2
     dev: false
 
   /camel-case@4.1.2:
@@ -93,10 +74,6 @@ packages:
     resolution: {integrity: sha512-CSbhY4cFEJRe6/GQzIk5qXZ4Jeg5pcsP7b5peFSDpffpe1cqjASH/n9UTjBwOp6XpMSTwQ8Za2K5V02ueA7Tmw==}
     dev: false
 
-  /clean-set@1.1.2:
-    resolution: {integrity: sha512-cA8uCj0qSoG9e0kevyOWXwPaELRPVg5Pxp6WskLMwerx257Zfnh8Nl0JBH59d7wQzij2CK7qEfJQK3RjuKKIug==}
-    dev: false
-
   /constant-case@3.0.4:
     resolution: {integrity: sha512-I2hSBi7Vvs7BEuJDr5dDHfzb/Ruj3FyvFyh7KLilAjNQw3Be+xgqUBA2W6scVEcL0hL1dwPRtIqEPVUCKkSsyQ==}
     dependencies:
@@ -121,11 +98,6 @@ packages:
     dependencies:
       capital-case: 1.0.4
       tslib: 2.3.1
-    dev: false
-
-  /klona@2.0.6:
-    resolution: {integrity: sha512-dhG34DXATL5hSxJbIexCft8FChFXtmskoZYnoPWjXQuebWYCNkVeV3KkGegCK9CP1oswI/vQibS2GY7Em/sJJA==}
-    engines: {node: '>= 8'}
     dev: false
 
   /lower-case@2.0.2:
@@ -193,6 +165,16 @@ packages:
     resolution: {integrity: sha512-77EbyPPpMz+FRFRuAFlWMtmgUWGe9UOG2Z25NqCwiIjRhOf5iKGuzSe5P2w1laq+FkRy4p+PCuVkJSGkzTEKVw==}
     dev: false
 
+  /typescript@4.9.5:
+    resolution: {integrity: sha512-1FXk9E2Hm+QzZQ7z+McJiHL4NW1F2EzMu9Nq9i3zAaGqibafqYwCVU6WyWAuyQRRzOlxou8xZSyXLEN8oKj24g==}
+    engines: {node: '>=4.2.0'}
+    hasBin: true
+    dev: true
+
+  /uplot@1.6.24:
+    resolution: {integrity: sha512-WpH2BsrFrqxkMu+4XBvc0eCDsRBhzoq9crttYeSI0bfxpzR5YoSVzZXOKFVWcVC7sp/aDXrdDPbDZGCtck2PVg==}
+    dev: false
+
   /upper-case-first@2.0.2:
     resolution: {integrity: sha512-514ppYHBaKwfJRK/pNC6c/OxfGa0obSnAl106u97Ed0I625Nin96KAjttZF6ZL3e1XLtphxnqrOi9iWgm+u+bg==}
     dependencies:
@@ -203,4 +185,8 @@ packages:
     resolution: {integrity: sha512-KgdgDGJt2TpuwBUIjgG6lzw2GWFRCW9Qkfkiv0DxqHHLYJHmtmdUIKcZd8rHgFSjopVTlw6ggzCm1b8MFQwikg==}
     dependencies:
       tslib: 2.3.1
+    dev: false
+
+  /zod@3.21.4:
+    resolution: {integrity: sha512-m46AKbrzKVzOzs/DZgVnG5H55N1sv1M8qZU3A8RIKbs3mrACDNeIOeilDymVb2HdmP8uwshOCF4uJ8uM9rCqJw==}
     dev: false

@@ -1,9 +1,6 @@
 lockfileVersion: '6.0'
 
 dependencies:
-  '@arena/appkit':
-    specifier: workspace:^
-    version: link:../appkit
   '@arena/components':
     specifier: workspace:^0.1.0
     version: link:../arena-components
@@ -28,6 +25,9 @@ dependencies:
   '@arena/uikit':
     specifier: workspace:^0.1.0
     version: link:../uikit
+  '@arena/widgets':
+    specifier: workspace:^
+    version: link:../widgets
   '@solidjs/meta':
     specifier: ^0.28.4
     version: 0.28.4(solid-js@1.7.2)

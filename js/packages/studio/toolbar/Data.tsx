@@ -1,6 +1,6 @@
-import { useEditorContext, TemplateStoreContext } from "@arena/appkit/editor";
+import { useEditorContext, TemplateStoreContext } from "../editor";
 import { For, Match, Show, Switch, createMemo, createSignal } from "solid-js";
-import type { DataSource } from "@arena/appkit/widget";
+import type { DataSource } from "@arena/widgets";
 import { createStore } from "@arena/solid-store";
 import { CodeEditor } from "@arena/components";
 // @ts-ignore

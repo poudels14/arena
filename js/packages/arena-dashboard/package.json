@@ -2,7 +2,6 @@
   "name": "arena-dashboard",
   "version": "0.0.1",
   "dependencies": {
-    "@arena/appkit": "workspace:^",
     "@arena/components": "workspace:^0.1.0",
     "@arena/core": "^0.1.0",
     "@arena/runtime": "workspace:^",
@@ -11,6 +10,7 @@
     "@arena/solid-store": "workspace:^0.1.0",
     "@arena/studio": "workspace:^",
     "@arena/uikit": "workspace:^0.1.0",
+    "@arena/widgets": "workspace:^",
     "@solidjs/meta": "^0.28.4",
     "@solidjs/router": "^0.8.2",
     "@trpc/client": "^10.21.0",

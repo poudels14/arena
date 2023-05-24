@@ -15,7 +15,7 @@ import MaximizeIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/
 import { InlineIcon } from "@arena/components";
 import { Templates } from "./Templates";
 import { Data } from "./Data";
-import { useEditorContext } from "@arena/appkit/editor";
+import { useEditorContext } from "../editor";
 
 type ToolbarTab =
   /**

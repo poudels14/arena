@@ -1,6 +1,6 @@
 import { sql } from "@arena/slonik";
 import { z } from "zod";
-import { widgetConfigSchema } from "@arena/appkit/widget/types";
+import { widgetConfigSchema } from "@arena/widgets/schema";
 import { Context } from "./context";
 
 const dbWidgetSchema = z.object({

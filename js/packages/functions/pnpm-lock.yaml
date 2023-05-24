@@ -1,9 +1,6 @@
 lockfileVersion: '6.0'
 
 dependencies:
-  '@arena/appkit':
-    specifier: workspace:^
-    version: link:../appkit
   '@arena/core':
     specifier: workspace:^
     version: link:../arena-core

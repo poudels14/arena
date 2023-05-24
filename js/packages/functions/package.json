@@ -10,7 +10,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@arena/appkit": "workspace:^",
     "@arena/core": "workspace:^",
     "@arena/slonik": "workspace:^",
     "@trpc/server": "^10.21.0",

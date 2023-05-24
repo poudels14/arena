@@ -1,10 +1,10 @@
 import { omit, merge } from "lodash-es";
 import zod, { z } from "zod";
-import { Widget } from "@arena/appkit/widget";
+import { Widget } from "@arena/widgets";
 import { notFound } from "../utils/errors";
 import { procedure, router as trpcRouter } from "../trpc";
 import { dbWidgetSchema } from "../repos/widget";
-import { dynamicSourceSchema } from "@arena/appkit/widget/types/data";
+import { dynamicSourceSchema } from "@arena/widgets/schema";
 
 const addWidgetSchema = dbWidgetSchema.omit({
   createdBy: true,
@@ -44,10 +44,16 @@ const widgetsRouter = trpcRouter({
         slug: z.string().optional(),
         // Note(sagar): rely on zod to ensure only dynamic data source is
         // updated and data source type can't be changed
-        config: z.object({
-          data: z.record(dynamicSourceSchema),
-          class: z.string().optional(),
-        }),
+        config: z
+          .object({
+            data: z.record(
+              z.object({
+                config: dynamicSourceSchema.shape.config,
+              })
+            ),
+            class: z.string().optional(),
+          })
+          .optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {

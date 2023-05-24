@@ -7,6 +7,7 @@ entry = "./entry-server.tsx"
 [server.env]
 MODE = "development"
 SSR = true
+ARENA_SSR = false
 
 [server.javascript.resolve]
 alias = { "~" = "./src" }
@@ -20,7 +21,6 @@ dedupe = [
   "@arena/solid-store",
   "@arena/solid-dnd",
   "@arena/uikit",
-  "@arena/appkit",
   "@arena/components",
 ]
 
@@ -44,6 +44,5 @@ dedupe = [
   "@arena/solid-store",
   "@arena/solid-dnd",
   "@arena/uikit",
-  "@arena/appkit",
   "@arena/components",
 ]

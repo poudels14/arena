@@ -1,5 +1,4 @@
-import { ApiContextProvider, ApiRoutes } from "@arena/appkit";
-import { Editor } from "@arena/studio";
+import { Editor, ApiContextProvider, ApiRoutes } from "@arena/studio";
 import { useDashboardContext } from "~/context";
 
 const App = (props: { id: string }) => {

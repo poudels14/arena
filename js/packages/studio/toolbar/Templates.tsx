@@ -1,5 +1,5 @@
-import { Template } from "@arena/appkit/widget";
-import { useEditorContext, TemplateStoreContext } from "@arena/appkit/editor";
+import { Template } from "@arena/widgets";
+import { useEditorContext, TemplateStoreContext } from "../editor";
 import { For, createMemo } from "solid-js";
 import { createDraggable } from "@arena/solid-dnd";
 
