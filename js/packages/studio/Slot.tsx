@@ -18,26 +18,17 @@ const Slot: Slot = (props) => {
         <Match when={children().length > 0}>
           <Droppable
             parentId={props.parentId}
-            position={{
-              after: null,
-              before: children()[0] || null,
-            }}
+            afterWidget={null}
             activeDraggable={activeDraggable()}
           />
           <For each={children()}>
-            {(child, index) => {
+            {(child) => {
               return (
                 <>
                   <Widget widgetId={child} />
                   <Droppable
                     parentId={props.parentId}
-                    position={{
-                      after: child,
-                      before:
-                        index() + 1 < children().length
-                          ? children()[index() + 1]
-                          : null,
-                    }}
+                    afterWidget={child}
                     activeDraggable={activeDraggable()}
                   />
                 </>
@@ -55,14 +46,14 @@ const Slot: Slot = (props) => {
 
 const Droppable = (props: {
   parentId: string | null;
-  position: { after: string | null; before: string | null };
+  afterWidget: string | null;
   activeDraggable: Draggable | null;
 }) => {
   const droppable = createDroppable(
-    `slot-${props.parentId}-${props.position.after}`,
+    `slot-${props.parentId}-${props.afterWidget}`,
     {
       parentId: props.parentId,
-      position: props.position,
+      afterWidget: props.afterWidget,
     }
   );
   return (
@@ -80,10 +71,7 @@ const Placeholder = (props: {
 }) => {
   const droppable = createDroppable(`slot-${props.parentId}-null`, {
     parentId: props.parentId,
-    position: {
-      after: null,
-      before: null,
-    },
+    afterWidget: null,
   });
 
   return (

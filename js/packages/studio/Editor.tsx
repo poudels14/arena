@@ -50,8 +50,18 @@ const AppEditor = () => {
   const onDragEnd = async (e: DragEndEvent) => {
     const templateId = e.draggable.data.templateId;
     if (e.droppable) {
-      const { parentId, position } = e.droppable!.data;
-      await addWidget({ parentId, templateId, position });
+      const { parentId, afterWidget } = e.droppable!.data;
+      const children = useChildren(parentId);
+      const afterIndex = children.findIndex((c) => c == afterWidget);
+      await addWidget({
+        parentId,
+        templateId,
+        position: {
+          after: afterWidget,
+          before:
+            afterIndex + 1 < children.length ? children[afterIndex + 1] : null,
+        },
+      });
     }
   };
 
