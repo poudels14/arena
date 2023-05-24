@@ -9,8 +9,8 @@ import {
 import { createStore, Store, StoreSetter } from "@arena/solid-store";
 import { Draggable } from "./draggable";
 import { Droppable } from "./droppable";
-import { findDroppableWithClosestCenter } from "./collisions/closest-center";
-import { Collision, Sensor } from "./types";
+import { findClosestDroppable } from "./collision";
+import { Collision, CollisionOptions, Sensor } from "./types";
 import { Overlay } from "./overlay";
 
 type State = {
@@ -46,6 +46,9 @@ type DragEndEvent = {
 type DragEndHandler = (e: DragEndEvent) => void;
 
 type DragAndDropProviderProps = {
+  options?: {
+    collision?: CollisionOptions;
+  };
   onDragMove?: DragEventHandler;
   onDragEnd?: DragEndHandler;
   children: JSX.Element;
@@ -122,6 +125,7 @@ const DragDropProvider = (props: DragAndDropProviderProps) => {
     onCleanup(() => overlay.node.style.removeProperty("transform"));
   });
 
+  const collisionOptions = props.options?.collision;
   // detect collisions
   createEffect(() => {
     const sensor = state.active.sensor();
@@ -130,7 +134,9 @@ const DragDropProvider = (props: DragAndDropProviderProps) => {
       return;
     }
     const droppables = state.droppables();
-    const collision = findDroppableWithClosestCenter(sensor, droppables);
+    const collision = findClosestDroppable(sensor, droppables, {
+      distance: collisionOptions?.distance || 500,
+    });
     setState("active", "collision", collision);
   });
 

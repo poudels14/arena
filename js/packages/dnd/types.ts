@@ -20,3 +20,13 @@ export type Collision = {
   distance: number;
   droppable: Droppable;
 };
+
+export type CollisionOptions = {
+  /**
+   * The maximum distance between draggable and droppable them
+   * to be considered collided
+   *
+   * default: 500px
+   */
+  distance?: number;
+};

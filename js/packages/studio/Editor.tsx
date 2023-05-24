@@ -56,7 +56,14 @@ const AppEditor = () => {
   };
 
   return (
-    <DragDropProvider onDragEnd={onDragEnd}>
+    <DragDropProvider
+      onDragEnd={onDragEnd}
+      options={{
+        collision: {
+          distance: 80,
+        },
+      }}
+    >
       <div class="relative min-w-[900px] h-screen">
         <Title>{state.app.name()}</Title>
         <div class="absolute top-8 left-6 z-[10000]">
