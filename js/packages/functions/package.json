@@ -11,7 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "@arena/core": "workspace:^",
-    "@arena/slonik": "workspace:^",
+    "@arena/db": "workspace:^",
     "@trpc/server": "^10.21.0",
     "commander": "^10.0.0",
     "esbuild": "^0.17.10",

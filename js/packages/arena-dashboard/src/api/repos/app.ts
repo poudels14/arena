@@ -1,4 +1,4 @@
-import { sql } from "@arena/slonik";
+import { sql } from "@arena/db/pg";
 import { Context } from "./context";
 
 type App = {

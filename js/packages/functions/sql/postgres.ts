@@ -58,7 +58,9 @@ const executeQuery = async ({
   // TODO(sagar): end connection after query if pool isn't used
   return await connect({
     connectionString,
-  }).execute(query.sql, query.values);
+  }).execute(query.sql, query.params);
 };
 
+export { sql } from "@arena/db/pg";
 export { connect, executeQuery };
+export type { SqlDataQueryConfig };

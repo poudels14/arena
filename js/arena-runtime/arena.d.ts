@@ -308,9 +308,8 @@ declare module "@arena/runtime/postgres" {
 
     query<T>(sql: string, parameters?: any[]): Promise<{ rows: T[] }>;
     query<T>(query: {
-      type: "SLONIK_TOKEN_SQL";
       sql: string;
-      values: readonly any[];
+      params: readonly any[];
     }): Promise<{ rows: T[] }>;
   };
 

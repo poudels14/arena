@@ -7,8 +7,6 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "node",
-    "jsxImportSource": "solid-js",
-    "jsx": "preserve",
     "experimentalDecorators": true
   }
 }

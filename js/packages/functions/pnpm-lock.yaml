@@ -4,9 +4,9 @@ dependencies:
   '@arena/core':
     specifier: workspace:^
     version: link:../arena-core
-  '@arena/slonik':
+  '@arena/db':
     specifier: workspace:^
-    version: link:../slonik
+    version: link:../db
   '@trpc/server':
     specifier: ^10.21.0
     version: 10.25.1

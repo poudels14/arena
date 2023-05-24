@@ -20,9 +20,8 @@ type SqlDataQueryConfig = {
     /**
      * Query parameters
      */
-    values: any[];
+    params: any[];
   };
 };
 
-export { sql } from "@arena/slonik";
 export type { SqlDataQueryConfig };

@@ -42,7 +42,6 @@
   "license": "UNLICENSED",
   "dependencies": {
     "@arena/runtime": "workspace:^0.1.0",
-    "@arena/slonik": "workspace:^",
     "@maverick-js/signals": "^5.9.1",
     "@reactively/core": "^0.0.6",
     "@reactively/decorate": "^0.0.2",

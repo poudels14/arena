@@ -166,7 +166,6 @@ program.option("--minify").action(async (options, cmd) => {
     stdinBuild({
       entryPoints: {
         "router.js": `export * from "@arena/functions/router";`,
-        "sql.js": `export * from "@arena/functions/sql";`,
         "sql/postgres.js": `export * from "@arena/functions/sql/postgres";`,
       },
       outdir: "dist/functions",

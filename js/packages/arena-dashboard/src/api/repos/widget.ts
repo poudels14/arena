@@ -1,4 +1,4 @@
-import { sql } from "@arena/slonik";
+import { sql } from "@arena/db/pg";
 import { z } from "zod";
 import { widgetConfigSchema } from "@arena/widgets/schema";
 import { Context } from "./context";
