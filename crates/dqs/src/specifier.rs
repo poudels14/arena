@@ -25,7 +25,7 @@ pub enum ParsedSpecifier {
   Unknown,
 }
 
-fn take_until_slash(input: &str) -> IResult<&str, &str> {
+fn take_until_slash_or_eof(input: &str) -> IResult<&str, &str> {
   alt((take_till(|b| b == '/'), eof::<&str, error::Error<&str>>))(input)
 }
 
@@ -44,7 +44,7 @@ impl ParsedSpecifier {
 
   fn parse_app_modules(input: &str) -> IResult<&str, Self> {
     let (input, (_, app_id)) =
-      tuple((tag("~/apps/"), take_until_slash))(input)?;
+      tuple((tag("~/apps/"), take_until_slash_or_eof))(input)?;
 
     let specifier = Self::parse_widget_query_source(app_id, input)?;
     Ok(specifier)
@@ -56,10 +56,10 @@ impl ParsedSpecifier {
   ) -> IResult<&'a str, Self> {
     let (input, (_, widget_id, _, field_name, maybe_env)) = tuple((
       tag("/widgets/"),
-      take_until_slash,
+      take_until_slash_or_eof,
       tag("/"),
-      take_until_slash,
-      alt((tag("/env"), eof)),
+      alt((take_till(|b| b == '?' || b == '/'), eof)),
+      alt((tag("/env"), eof, take_till(|b| b == '?'))),
     ))(input)?;
 
     match maybe_env {

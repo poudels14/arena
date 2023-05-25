@@ -69,7 +69,11 @@ impl ModuleLoader for AppkitModuleLoader {
       // relative specifiers are used to load env variables, etc
       // for example |import env from "./env"| to load env
       false if specifier.starts_with("./") => {
-        format!("{}/{}", referrer, specifier)
+        return Url::parse(referrer)
+          .and_then(|r| r.join(&format!("{}/{}", r.path(), specifier)))
+          .map_err(|_| {
+            anyhow!("Failed to resolve specifier: {:?}", specifier)
+          });
       }
       _ => {
         info!("Unsupported module specifier: {:?}", specifier);
@@ -92,9 +96,8 @@ impl ModuleLoader for AppkitModuleLoader {
     maybe_referrer: Option<ModuleSpecifier>,
     _is_dynamic: bool,
   ) -> Pin<Box<ModuleSourceFuture>> {
-    let specifier = module_specifier.clone().to_string();
-
     let mut loader = self.clone();
+    let specifier = module_specifier.to_string();
     async move {
       let parsed_specifier = ParsedSpecifier::from(&specifier)?;
       let code = match parsed_specifier {
@@ -102,12 +105,11 @@ impl ModuleLoader for AppkitModuleLoader {
           match maybe_referrer {
             Some(referrer) => {
               let referrer = referrer.as_str();
-
               // make sure the referrer that's requesting the env variables is
               // same app and widget or the main module which has the privilege
               if referrer == "builtin:///@arena/dqs/router" {
               } else {
-                let parsed_referrer = ParsedSpecifier::from(referrer)?;
+                let parsed_referrer = ParsedSpecifier::from(&referrer)?;
                 match parsed_referrer {
                   ParsedSpecifier::WidgetQuery(src) => {
                     if src.app_id != app_id || src.widget_id != widget_id {
