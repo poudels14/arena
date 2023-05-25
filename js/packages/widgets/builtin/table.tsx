@@ -14,23 +14,21 @@ const metadata: Template.Metadata<{ rows: any[] }> = {
   data: {
     rows: {
       title: "Rows",
-      dataSource: {
-        type: "dynamic",
-        default: {
-          source: "inline",
-          value: [
-            {
-              id: 1,
-              name: "John Doe",
-              age: 49,
-            },
-            {
-              id: 2,
-              name: "Mary Jane",
-              age: 28,
-            },
-          ],
-        },
+      source: "dynamic",
+      default: {
+        loader: "@client/json",
+        value: [
+          {
+            id: 1,
+            name: "John Doe",
+            age: 49,
+          },
+          {
+            id: 2,
+            name: "Mary Jane",
+            age: 28,
+          },
+        ],
       },
     },
   },

@@ -24,101 +24,74 @@ export const dataSourceTypeSchema = z.enum([
   "dynamic",
 ]);
 
-export const dynamicDataSourceTypeSchema = z.enum([
-  /**
-   * Preview data provided by Widget Template
-   */
-  "preview",
-  /**
-   * Inline data provided by the user
-   */
-  "inline",
-  /**
-   * Data from parent widget
-   */
-  "parent",
-  /**
-   * Data returned by running a query in the serverss
-   */
-  "query",
-]);
-
-export const dataQueryTypesSchema = z.enum(["javascript", "sql"]);
-
-export const dataTypeSchema = z.enum(["NUMBER", "TEXT", "LONGTEXT", "JSON"]);
-
-export const previewSourceConfigSchema = z.object({
-  source: z.literal("preview"),
-  value: z.any(),
-});
-
-export const inlineSourceConfigSchema = z.object({
-  source: z.literal("inline"),
-  /**
-   * Value should be any valid JS object that can be serialized
-   */
-  value: z.any(),
-});
-
-export const clientJsSourceConfigSchema = z.object({
-  source: z.literal("client/js"),
-  /**
-   * Note(sagar): using the field name value here to keep it consistent
-   */
-  value: z.string(),
-});
-
-export const serverJsSourceConfigSchema = z.object({
-  source: z.literal("server/js"),
-  // TODO(sagar): save args as Object in db instead of {key, value} array
-  /**
-   * Query arguments
-   */
-  args: z.object({ key: z.string(), value: z.string() }).array(),
-  value: z.string(),
-});
-
-export const serverSqlSourceConfigSchema = z.object({
-  source: z.literal("server/sql"),
-  /**
-   * Database env var id
-   */
-  db: z.string(),
-  // TODO(sagar): save args as Object in db instead of {key, value} array
-  /**
-   * Query arguments
-   */
-  args: z.object({ key: z.string(), value: z.string() }).array(),
-  value: z.string(),
-});
+export const contentTypeSchema = z
+  .enum(["data", "asset/icon", "asset/image"])
+  .default("data");
 
 export const transientSourceSchema = z.object({
-  type: z.literal("transient"),
+  source: z.literal("transient"),
   config: z.object({ value: z.any() }),
 });
 
 export const userInputSourceSchema = z.object({
-  type: z.literal("userinput"),
+  source: z.literal("userinput"),
   config: z.object({ value: z.any() }),
 });
 
+export const dataLoaderConfigSchema = z.union([
+  z.object({
+    loader: z.literal("@client/json"),
+    value: z.any(),
+  }),
+  z.object({
+    loader: z.literal("@client/js"),
+    value: z.any(),
+  }),
+  z.object({
+    loader: z.literal("@arena/sql/postgres"),
+    /**
+     * Id of the postgres database resource
+     */
+    resource: z.string(),
+    value: z.any(),
+
+    /**
+     * Metadata stored and used by the loader
+     */
+    metatada: z.any().optional(),
+  }),
+  z.object({
+    loader: z.literal("@arena/server-function"),
+    value: z.any(),
+
+    /**
+     * Metadata stored and used by the loader
+     */
+    metatada: z.any().optional(),
+  }),
+  // TODO(sp): TBD
+  z.object({
+    loader: z.literal("@arena/assets/icon"),
+    /**
+     * Id of the postgres database resource
+     */
+    resource: z.string(),
+    /**
+     * this is just to make TS happy
+     */
+    value: z.null(),
+  }),
+]);
+
 export const templateSourceSchema = z.object({
-  type: z.literal("template"),
-  config: z.union([
-    clientJsSourceConfigSchema,
-    serverJsSourceConfigSchema,
-    serverSqlSourceConfigSchema,
-  ]),
+  source: z.literal("template"),
+  config: dataLoaderConfigSchema,
 });
 
 export const dynamicSourceSchema = z.object({
-  type: z.literal("dynamic"),
-  config: z.union([
-    inlineSourceConfigSchema,
-    clientJsSourceConfigSchema,
-    serverJsSourceConfigSchema,
-    serverSqlSourceConfigSchema,
-  ]),
+  source: z.literal("dynamic"),
+  contentType: contentTypeSchema.optional(),
+  config: dataLoaderConfigSchema,
 });
 
 export const dataSourceSchema = z.union([
@@ -131,13 +104,8 @@ export const dataSourceSchema = z.union([
 export type DataSource<T> =
   | DataSource.Transient<T>
   | DataSource.UserInput<T>
-  | DataSource.Template<T>
-  | DataSource.Dynamic<T>;
-
-export type DataSourceType = z.infer<typeof dataSourceTypeSchema>;
-export type DynamicDataSourceType = z.infer<typeof dynamicDataSourceTypeSchema>;
-export type DataQueryTypes = z.infer<typeof dataQueryTypesSchema>;
-export type DataType = z.infer<typeof dataTypeSchema>;
+  | DataSource.Template
+  | DataSource.Dynamic;
 
 export namespace DataSource {
   type withValue<Shape, T> = Omit<Shape, "value"> & { value: T };
@@ -152,15 +120,6 @@ export namespace DataSource {
     T
   >;
 
-  export type PreviewSourceConfig<T> = withValue<
-    z.infer<typeof previewSourceConfigSchema>,
-    T
-  >;
-  export type InlineSourceConfig<T> = withValue<
-    z.infer<typeof inlineSourceConfigSchema>,
-    T
-  >;
-  export type ClientJsConfig = z.infer<typeof clientJsSourceConfigSchema>;
   export type ParentSourceConfig<T> = {
     /**
      * The field maps data from parent to the widget's data
@@ -172,22 +131,6 @@ export namespace DataSource {
     field?: string;
   };
 
-  export type ServerJsConfig = z.infer<typeof serverJsSourceConfigSchema>;
-  export type ServerSqlConfig = z.infer<typeof serverSqlSourceConfigSchema>;
-  export type Template<T> = {
-    type: "template";
-    config:
-      | InlineSourceConfig<T>
-      | ClientJsConfig
-      | ServerJsConfig
-      | ServerSqlConfig;
-  };
-  export type Dynamic<T> = {
-    type: "dynamic";
-    config:
-      | InlineSourceConfig<T>
-      | ClientJsConfig
-      | ServerJsConfig
-      | ServerSqlConfig;
-  };
+  export type Template = z.infer<typeof templateSourceSchema>;
+  export type Dynamic = z.infer<typeof dynamicSourceSchema>;
 }

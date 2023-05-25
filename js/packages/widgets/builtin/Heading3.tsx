@@ -7,12 +7,10 @@ const metadata: Template.Metadata<{ text: string }> = {
   data: {
     text: {
       title: "Text",
-      dataSource: {
-        type: "dynamic",
-        default: {
-          source: "inline",
-          value: "Heading 3",
-        },
+      source: "dynamic",
+      default: {
+        loader: "@client/json",
+        value: "Heading 3",
       },
     },
   },

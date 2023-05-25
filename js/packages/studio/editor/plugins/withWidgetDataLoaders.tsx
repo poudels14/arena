@@ -17,17 +17,17 @@ function useWidgetData<T>(
 ) {
   const fieldData = createMemo(() => {
     const config = configAccessor();
-    switch (config.type) {
+    switch (config.source) {
       case "template":
       case "dynamic": {
         const cfg = config.config;
-        switch (cfg.source) {
-          case "inline":
+        switch (cfg.loader) {
+          case "@client/json":
             return useInlineDataSource(cfg);
-          case "client/js":
+          case "@client/js":
             return useClientJsDataSource(cfg);
-          case "server/js":
-          case "server/sql":
+          case "@arena/sql/postgres":
+          case "@arena/server-function":
             return useServerFunctionDataSource(cfg);
           default:
             throw new Error(
@@ -36,7 +36,7 @@ function useWidgetData<T>(
         }
       }
       default:
-        throw new Error("Data source not supported: " + config.type);
+        throw new Error("Data source not supported: " + config.source);
     }
   });
 
@@ -54,18 +54,16 @@ const withWidgetDataLoaders: Plugin<{}, {}, {}> = (config) => (editor) => {
   });
 };
 
-function useInlineDataSource<T>(config: DataSource.InlineSourceConfig<T>) {
+function useInlineDataSource<T>(config: DataSource<T>["config"]) {
   return config.value;
 }
 
-function useClientJsDataSource(config: DataSource.ClientJsConfig) {
+function useClientJsDataSource(config: DataSource<any>["config"]) {
   // TODO(sagar): load widget data
-  return [];
+  throw new Error("not implemented");
 }
 
-function useServerFunctionDataSource(
-  config: DataSource.ServerSqlConfig | DataSource.ServerJsConfig
-) {
+function useServerFunctionDataSource(config: DataSource<any>["config"]) {
   // TODO(sagar): load widget data
   return [];
 }

@@ -1,5 +1,5 @@
 import { useEditorContext, TemplateStoreContext } from "../editor";
-import { For, Match, Show, Switch, createMemo, createSignal } from "solid-js";
+import { For, Match, Show, Switch, createMemo } from "solid-js";
 import type { DataSource } from "@arena/widgets";
 import { createStore } from "@arena/solid-store";
 import { CodeEditor } from "@arena/components";
@@ -22,14 +22,14 @@ const Data = () => {
     const template = useTemplate(widget.template.id);
 
     return Object.entries(widget.config.data)
-      .filter(([_, config]) => "dynamic" == config.type)
+      .filter(([_, config]) => "dynamic" == config.source)
       .map(([fieldName, fieldConfig]) => {
         const templateConfig = template.metadata.data[fieldName];
         return {
           widgetId,
           fieldName,
           title: templateConfig?.title || "Unrecognized field",
-          fieldConfig: fieldConfig as DataSource.Dynamic<any>,
+          fieldConfig: fieldConfig as DataSource.Dynamic,
         };
       });
   });
@@ -79,7 +79,7 @@ type FieldMetadata = {
   widgetId: string;
   fieldName: string;
   title: string;
-  fieldConfig: DataSource.Dynamic<any>;
+  fieldConfig: DataSource.Dynamic;
 };
 
 const Field = (
@@ -96,9 +96,15 @@ const Field = (
 };
 
 const FieldEditor = (props: { metadata: FieldMetadata }) => {
-  const [value, setValue] = createSignal(
-    props.metadata.fieldConfig.config.source
-  );
+  const { updateWidget } = useEditorContext();
+  const setDataSource = (source: FieldMetadata["fieldConfig"]["source"]) => {
+    const { widgetId, fieldName } = props.metadata;
+    updateWidget(widgetId, "config", "data", fieldName, "config", {
+      loader: "@arena/sql/postgres",
+      // TODO(sagar)
+      resource: "",
+    });
+  };
   return (
     <Show when={props.metadata}>
       <div class="flex-1 px-2 py-4 space-y-2 overflow-y-auto no-scrollbar">
@@ -106,15 +112,15 @@ const FieldEditor = (props: { metadata: FieldMetadata }) => {
           <div>Data Source</div>
           <select
             class="px-2 text-sm text-black rounded-sm outline-none appearance-none after:content-['*'] after:(w-4,h-2,bg-gray-400,clip-path-[polygon(100%-0%,0-0%,50%-100%)])"
-            value={props.metadata.fieldConfig.config.source}
-            onChange={(e) => setValue(e.target.value as any)}
+            value={props.metadata.fieldConfig.source}
+            onChange={(e) => setDataSource(e.target.value as any)}
           >
             <For
               each={[
-                ["inline", "Inline Data"],
-                ["client/js", "Client Javascript"],
-                ["server/sql", "SQL Query"],
-                ["server/js", "Javascript Server Function"],
+                ["@client/json", "Inline Data"],
+                ["@client/js", "Client Javascript"],
+                ["@arena/sql/postgres", "Postgres"],
+                ["@arena/loaders/js", "Custom Server Function"],
               ]}
             >
               {(source) => <option value={source[0]}>{source[1]}</option>}
@@ -135,10 +141,10 @@ const DataSourceEditor = (props: { metadata: FieldMetadata }) => {
     const { config } = props.metadata.fieldConfig;
     return {
       code:
-        config.source == "inline"
+        config.loader == "@client/json"
           ? JSON.stringify(config.value, null, 2)
           : config.value,
-      lang: config.source == "server/sql" ? "sql" : "javascript",
+      lang: config.loader == "@arena/server-function" ? "javascript" : "sql",
     } as { lang: "sql"; code: string };
   });
 
@@ -151,7 +157,7 @@ const DataSourceEditor = (props: { metadata: FieldMetadata }) => {
     const config = fieldConfig.config;
     updateWidget(widgetId, "config", "data", fieldName, "config", {
       ...config,
-      value: config.source == "inline" ? JSON.parse(value) : value,
+      value: config.loader == "@client/json" ? JSON.parse(value) : value,
     });
   }, 300);
 

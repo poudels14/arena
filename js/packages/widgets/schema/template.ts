@@ -20,32 +20,28 @@ export const templateSchema = z.object({
   url: z.string(),
 });
 
-type withDefaultConfig<Source extends Record<"type" | "config", unknown>> = {
-  type: Source["type"];
-  default: Source["config"];
-  config?: Source["config"];
-};
-
 export namespace Template {
-  type dataConfigType<
+  type DataConfigWithValueType<
     T extends Record<string, unknown>,
     Field extends keyof T
   > = Record<Field, DataFieldConfig<T[Field]>>;
 
+  type AsDefault<T extends DataSource<unknown>> = Omit<T, "config"> & {
+    default: T["config"];
+  };
+
   export type DataFieldConfig<T> = {
     title: string;
     description?: string;
-    dataSource:
-      | withDefaultConfig<DataSource.Transient<T>>
-      | withDefaultConfig<DataSource.UserInput<T>>
-      | withDefaultConfig<DataSource.Template<T>>
-      | withDefaultConfig<DataSource.Dynamic<T>>;
-  };
+  } & (
+    | AsDefault<DataSource.Transient<T>>
+    | AsDefault<DataSource.UserInput<T>>
+    | AsDefault<DataSource.Dynamic>
+    | AsDefault<DataSource.Template>
+  );
 
-  export type DataConfig<T extends Record<string, unknown>> = dataConfigType<
-    T,
-    keyof T
-  >;
+  export type DataConfig<T extends Record<string, unknown>> =
+    DataConfigWithValueType<T, keyof T>;
 
   export type Metadata<Data extends Record<string, unknown>> = {
     id: string;

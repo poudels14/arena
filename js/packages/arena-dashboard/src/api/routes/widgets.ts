@@ -39,10 +39,11 @@ const widgetsRouter = trpcRouter({
 
       const templateMetadata = TEMPLATES[templateId].metadata;
       const defaultDataConfig = Object.fromEntries(
-        Object.entries(templateMetadata.data).map(([field, { dataSource }]) => {
-          const { type, default: config } = dataSource;
-          return [field, { type, config }];
-        })
+        Object.entries(templateMetadata.data).map(
+          ([field, { title, source, default: config }]) => {
+            return [field, { source, config }];
+          }
+        )
       ) as Widget["config"]["data"];
 
       /**
