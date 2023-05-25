@@ -1,20 +1,13 @@
 use serde::Deserialize;
 use std::collections::HashMap;
 
-#[derive(Debug)]
-pub struct WidgetQuerySpecifier {
-  pub app_id: String,
-  pub widget_id: String,
-  pub field_name: String,
-}
-
 #[derive(Debug, Deserialize)]
 pub struct WidgetConfig {
   pub data: HashMap<String, DataConfig>,
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(tag = "type")]
+#[serde(tag = "source")]
 pub enum DataConfig {
   #[serde(alias = "dynamic")]
   Dynamic {
@@ -26,19 +19,28 @@ pub enum DataConfig {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(tag = "source")]
+#[serde(tag = "loader")]
 pub enum SourceConfig {
-  #[serde(alias = "server/sql")]
-  Sql(SqlSourceConfig),
-  #[serde(alias = "server/js")]
+  #[serde(alias = "@arena/sql/postgres")]
+  Postgres(PostgresSourceConfig),
+  #[serde(alias = "@arena/server-function")]
   JavaScript(JavascriptSourceConfig),
 }
 
-#[derive(Debug, Deserialize)]
-pub struct SqlSourceConfig {
+#[derive(Debug, Deserialize, Default)]
+pub struct PostgresSourceConfig {
+  /**
+   * Resource id of the database
+   */
   pub db: String,
-  pub args: Vec<String>,
   pub value: String,
+  #[serde(default = "SqlMetadata::default")]
+  pub metadata: SqlMetadata,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct SqlMetadata {
+  pub args: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]

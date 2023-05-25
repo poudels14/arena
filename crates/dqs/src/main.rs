@@ -6,12 +6,12 @@ use jsruntime::{IsolatedRuntime, RuntimeConfig};
 use tracing_subscriber::prelude::*;
 use tracing_tree::HierarchicalLayer;
 use url::Url;
+mod config;
 mod db;
 mod extension;
 mod loaders;
 mod server;
 mod specifier;
-mod types;
 
 #[tokio::main]
 async fn main() -> Result<()> {

@@ -26,12 +26,16 @@ const r = trpcRouter({
     .mutation(
       async ({ input: { workspaceId, appId, widgetId, field, params } }) => {
         try {
+          const env = await import(
+            `~/apps/${appId}/widgets/${widgetId}/${field}/env`
+          );
           return await import(
             `~/apps/${appId}/widgets/${widgetId}/${field}`
           ).then(async (m) => {
             const result = await Promise.all([
               m.default({
                 params: params || {},
+                env,
               }),
             ]);
             return result[0];

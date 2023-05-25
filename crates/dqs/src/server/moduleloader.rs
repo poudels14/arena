@@ -1,10 +1,8 @@
 use super::state::RuntimeState;
+use crate::config::{DataConfig, SourceConfig, WidgetConfig};
 use crate::db::widget::{self, widgets};
 use crate::loaders;
-use crate::specifier::ParsedSpecifier;
-use crate::types::widget::{
-  DataConfig, SourceConfig, WidgetConfig, WidgetQuerySpecifier,
-};
+use crate::specifier::{ParsedSpecifier, WidgetQuerySpecifier};
 use anyhow::{anyhow, bail, Error, Result};
 use deno_core::{
   futures::FutureExt, ModuleLoader, ModuleSourceFuture, ModuleSpecifier,
@@ -14,6 +12,7 @@ use deno_core::{ModuleSource, ModuleType, OpState};
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
+use loaders::ResourceLoader;
 use serde_json::{json, Value};
 use std::cell::RefCell;
 use std::future::Future;
@@ -42,7 +41,7 @@ impl ModuleLoader for AppkitModuleLoader {
     _kind: ResolutionKind,
   ) -> Result<ModuleSpecifier, Error> {
     let is_referrer_main_module =
-      referrer == "." || referrer == "file:///@arena/workspace/main";
+      referrer == "." || referrer == "file:///@arena/dqs/server";
 
     // Note(sagar): block all valid Urls as module specifier
     // so that privilege/admin modules can't be loaded from user modules
@@ -100,6 +99,27 @@ impl ModuleLoader for AppkitModuleLoader {
       let parsed_specifier = ParsedSpecifier::from(&specifier)?;
       let code = match parsed_specifier {
         ParsedSpecifier::Env { app_id, widget_id } => {
+          match maybe_referrer {
+            Some(referrer) => {
+              let referrer = referrer.as_str();
+
+              // make sure the referrer that's requesting the env variables is
+              // same app and widget or the main module which has the privilege
+              if referrer == "builtin:///@arena/dqs/router" {
+              } else {
+                let parsed_referrer = ParsedSpecifier::from(referrer)?;
+                match parsed_referrer {
+                  ParsedSpecifier::WidgetQuery(src) => {
+                    if src.app_id != app_id || src.widget_id != widget_id {
+                      bail!("Environment variable access denied")
+                    }
+                  }
+                  _ => unreachable!(),
+                }
+              }
+            }
+            _ => bail!("Environment variable access denied"),
+          }
           loader.load_env_variable_module(&app_id, &widget_id).await?
         }
         ParsedSpecifier::WidgetQuery(src) => {
@@ -149,12 +169,8 @@ impl AppkitModuleLoader {
         match &data_config {
           DataConfig::Dynamic { config } | DataConfig::Template { config } => {
             match config {
-              SourceConfig::Sql(sql_config) => {
-                loaders::sql::from_config(specifier, sql_config)
-              }
-              SourceConfig::JavaScript(js_config) => {
-                loaders::javascript::from_config(specifier, js_config)
-              }
+              SourceConfig::Postgres(sql_config) => sql_config.to_dqs_module(),
+              SourceConfig::JavaScript(js_config) => js_config.to_dqs_module(),
             }
           }
         }
@@ -175,13 +191,14 @@ impl AppkitModuleLoader {
       .iter()
       .map(|(tmp_id, env)| {
         json!({
-          "id": tmp_id,
+          "id": env.id,
+          "secretId": tmp_id,
           "key": env.key,
           "isSecret": env.is_secret,
           "value": if env.is_secret { None } else { Some(env.value.clone()) }
         })
       })
       .collect::<Vec<Value>>();
-    loaders::env::from_vec(variables)
+    loaders::env::to_esm_module(variables)
   }
 }

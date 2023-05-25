@@ -41,6 +41,7 @@ impl RuntimeState {
           (
             Uuid::new_v4().to_string(),
             EnvVar {
+              id: v.id.clone(),
               key: v.key.clone(),
               value: v.value.clone(),
               is_secret: v.ttype == "secret",

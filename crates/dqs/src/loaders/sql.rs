@@ -1,4 +1,5 @@
-use crate::types::widget::{SqlSourceConfig, WidgetQuerySpecifier};
+use super::ResourceLoader;
+use crate::config::PostgresSourceConfig;
 use anyhow::{anyhow, bail, Result};
 use handlebars::{no_escape, Handlebars};
 use nom::branch::alt;
@@ -17,35 +18,35 @@ static TEMPLATE: Lazy<Result<Handlebars>> = Lazy::new(|| {
   reg.register_escape_fn(no_escape);
   reg.register_template_string(
     "SQL_QUERY_MODULE",
-    include_str!("./sql-template.js"),
+    include_str!("./postgres-query-template.js"),
   )?;
 
   Ok(reg)
 });
 
-pub(crate) fn from_config<'a>(
-  _specifier: &WidgetQuerySpecifier,
-  config: &SqlSourceConfig,
-) -> Result<String> {
-  let transpiled_query = self::transpile_query(&config.value)?;
-  let prop_keys = config
-    .args
-    .iter()
-    .rev()
-    .fold("".to_owned(), |agg, v| format!("{} = null, {}", v, agg));
+impl ResourceLoader for PostgresSourceConfig {
+  fn to_dqs_module(&self) -> Result<String> {
+    let transpiled_query = self::transpile_query(&self.value)?;
+    let prop_keys = self
+      .metadata
+      .args
+      .iter()
+      .rev()
+      .fold("".to_owned(), |agg, v| format!("{} = null, {}", v, agg));
 
-  TEMPLATE
-    .as_ref()
-    .expect("failed to load query template")
-    .render(
-      "SQL_QUERY_MODULE",
-      &json!({
-        "db": config.db,
-        "query": transpiled_query,
-        "paramKeys": format!("{{ {} }}", prop_keys)
-      }),
-    )
-    .map_err(|e| anyhow!("{:?}", e))
+    TEMPLATE
+      .as_ref()
+      .expect("failed to load query template")
+      .render(
+        "SQL_QUERY_MODULE",
+        &json!({
+          "db": self.db,
+          "query": transpiled_query,
+          "paramKeys": format!("{{ {} }}", prop_keys)
+        }),
+      )
+      .map_err(|e| anyhow!("{:?}", e))
+  }
 }
 
 // this converts query from handle bar format to the format that can be used

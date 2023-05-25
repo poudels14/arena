@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde_json::{json, Value};
 
-pub(crate) fn from_vec<'a>(variables: Vec<Value>) -> Result<String> {
+pub(crate) fn to_esm_module<'a>(variables: Vec<Value>) -> Result<String> {
   Ok(format!(
     r#"
     class EnvironmentSecret {{
@@ -12,8 +12,12 @@ pub(crate) fn from_vec<'a>(variables: Vec<Value>) -> Result<String> {
       }}
     }}
 
-    const variables = Object.fromEntries({}.map(v => {{
-      return [v.key, v.isSecret ? new EnvironmentSecret(v.id) : v.value]
+    const variables = Object.fromEntries({}.flatMap(v => {{
+      const value = v.isSecret ? new EnvironmentSecret(v.secretId) : v.value;
+      return [
+        [v.key, value],
+        [v.id, value]
+      ];
     }}));
 
     export default variables;

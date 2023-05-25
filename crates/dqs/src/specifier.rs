@@ -1,4 +1,3 @@
-use crate::types::widget::WidgetQuerySpecifier;
 use anyhow::{anyhow, Result};
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_till};
@@ -7,6 +6,13 @@ use nom::error;
 use nom::sequence::tuple;
 use nom::IResult;
 use tracing::instrument;
+
+#[derive(Debug)]
+pub struct WidgetQuerySpecifier {
+  pub app_id: String,
+  pub widget_id: String,
+  pub field_name: String,
+}
 
 #[allow(dead_code)]
 #[derive(Debug)]

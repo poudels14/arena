@@ -61,6 +61,6 @@ const executeQuery = async ({
   }).execute(query.sql, query.params);
 };
 
-export { sql } from "@arena/db/pg";
-export { connect, executeQuery };
+export default executeQuery;
+export { connect };
 export type { SqlDataQueryConfig };

@@ -84,7 +84,7 @@ pub(crate) fn start(
 async fn run_dqs_server(mut runtime: JsRuntime) -> Result<()> {
   let mod_id = runtime
     .load_main_module(
-      &Url::parse("file:///@arena/workspace/main")?,
+      &Url::parse("file:///@arena/dqs/server")?,
       Some(include_str!("./server.js").to_owned()),
     )
     .await?;

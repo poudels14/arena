@@ -38,13 +38,18 @@ impl EnvironmentVariable {
 
 #[derive(Clone, Debug)]
 pub struct EnvVar {
+  /// same as db row id
+  pub id: String,
   pub key: String,
   pub value: Value,
   pub is_secret: bool,
 }
 
 #[derive(Clone, Debug)]
-pub struct EnvironmentVariableStore(pub Rc<HashMap<String, EnvVar>>);
+pub struct EnvironmentVariableStore(
+  /// Map of temporary secret id to environemnt variable
+  pub Rc<HashMap<String, EnvVar>>,
+);
 
 impl Resource for EnvironmentVariableStore {
   fn close(self: Rc<Self>) {}

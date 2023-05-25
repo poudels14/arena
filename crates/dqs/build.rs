@@ -74,7 +74,6 @@ fn generate_prod_snapshot(path: &Path) {
             true
           ),
         ),
-        dqs_function!("sql"),
         dqs_function!("sql/postgres"),
       ],
       ..Default::default()

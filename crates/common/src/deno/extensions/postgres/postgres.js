@@ -34,22 +34,22 @@ class Client {
     return ops.op_postgres_is_connected(this.rid);
   }
 
-  async query(query, values, options) {
+  async query(query, params, options) {
     /**
      * Note(sagar): if teh result of solink sql`` is passed as {@link sql},
      * destructure query and parameters
      */
     let sql = query;
-    if (typeof query === "object" && query?.type === "SLONIK_TOKEN_SQL") {
+    if (typeof query === "object") {
       sql = query.sql;
-      values = query.values;
+      params = query.params;
     }
 
     return await opAsync(
       "op_postgres_execute_query",
       this.rid,
       sql,
-      values || [],
+      params || [],
       options || {
         camelCase: true,
       }
