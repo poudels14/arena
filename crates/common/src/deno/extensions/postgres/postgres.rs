@@ -93,53 +93,58 @@ pub async fn execute_query(
   return rows;
 }
 
+macro_rules! serialize_to_sql {
+    ($self:ident, $ty:ident, $cast: ident, $v: ident, $ser: expr) => {{
+      match $self.0.$cast() {
+        Some($v) => {
+          $ser
+          Ok(IsNull::No)
+        }
+        None => Err(
+          format!("[expected type: {}, actual value: {}]", $ty, $self.0).into(),
+        ),
+      }
+    }};
+}
+
+macro_rules! convert_to_json_value {
+  ($row: ident, $col: ident, $t:ty, $map: expr) => {{
+    Ok(
+      $row
+        .get::<&str, Option<$t>>($col.name())
+        .map_or_else(|| Value::Null, $map),
+    )
+  }};
+}
+
 // TODO(sagar): implement FromSql trait instead of doing this
 fn get_json_value(column: &Column, row: &Row) -> Result<Value, Error> {
   match column.type_() {
-    &Type::BOOL => Ok(
-      row
-        .get::<&str, Option<bool>>(column.name())
-        .map_or_else(|| Value::Null, |v| Value::from(v)),
-    ),
-    &Type::INT4 => Ok(
-      row
-        .get::<&str, Option<i32>>(column.name())
-        .map_or_else(|| Value::Null, |v| Value::from(v)),
-    ),
-    &Type::INT8 => Ok(
-      row
-        .get::<&str, Option<i64>>(column.name())
-        .map_or_else(|| Value::Null, |v| Value::from(v)),
-    ),
-    &Type::TEXT | &Type::VARCHAR => Ok(
-      row
-        .get::<&str, Option<&str>>(column.name())
-        .map_or_else(|| Value::Null, |v| Value::from(v)),
-    ),
-    &Type::UUID => {
-      Ok(row.get::<&str, Option<Uuid>>(column.name()).map_or_else(
-        || Value::Null,
-        |v| Value::from(v.to_hyphenated().to_string()),
-      ))
+    &Type::BOOL => {
+      convert_to_json_value!(row, column, bool, |v| Value::from(v))
     }
+    &Type::INT4 => convert_to_json_value!(row, column, i32, |v| Value::from(v)),
+    &Type::INT8 => convert_to_json_value!(row, column, i64, |v| Value::from(v)),
+    &Type::TEXT | &Type::VARCHAR => {
+      convert_to_json_value!(row, column, &str, |v| Value::from(v))
+    }
+    &Type::UUID => convert_to_json_value!(row, column, Uuid, |v| Value::from(
+      v.to_hyphenated().to_string()
+    )),
 
-    &Type::JSONB | &Type::JSON_ARRAY => Ok(
-      row
-        .get::<&str, Option<Value>>(column.name())
-        .map_or_else(|| Value::Null, |v| Value::from(v)),
-    ),
-    &Type::TIMESTAMPTZ => Ok(
-      row
-        .get::<&str, Option<chrono::DateTime<chrono::offset::Utc>>>(
-          column.name(),
-        )
-        .map_or_else(|| Value::Null, |v| Value::from(v.to_string())),
-    ),
-    &Type::TIMESTAMP => Ok(
-      row
-        .get::<&str, Option<chrono::NaiveDateTime>>(column.name())
-        .map_or_else(|| Value::Null, |v| Value::from(v.to_string())),
-    ),
+    &Type::JSONB | &Type::JSON_ARRAY => {
+      convert_to_json_value!(row, column, Value, |v| v)
+    }
+    &Type::TIMESTAMPTZ => {
+      convert_to_json_value!(row, column, chrono::DateTime<chrono::Utc>, |v| {
+        Value::from(v.to_rfc3339())
+      })
+    }
+    &Type::TIMESTAMP => {
+      convert_to_json_value!(row, column, chrono::NaiveDateTime, |v| {
+        Value::from(v.to_string())
+      })
+    }
     t => Err(anyhow!("UnsupportedDataTypeError: {}", t)),
   }
 }
@@ -202,74 +207,34 @@ impl ToSql for Param {
     }
 
     match *ty {
-      Type::BOOL => match self.0.as_bool() {
-        Some(v) => {
-          out.put_i8(if v { 1 } else { 0 });
-          Ok(IsNull::No)
-        }
-        None => Err(
-          format!("[expected type: {}, actual value: {}]", ty, self.0).into(),
-        ),
-      },
-      Type::INT4 => match self.0.as_i64() {
-        Some(v) => {
-          out.put_i32(v.try_into().unwrap());
-          Ok(IsNull::No)
-        }
-        None => Err(
-          format!("[expected type: {}, actual value: {}]", ty, self.0).into(),
-        ),
-      },
-      Type::INT8 => match self.0.as_i64() {
-        Some(v) => {
-          out.put_i64(v);
-          Ok(IsNull::No)
-        }
-        None => Err(
-          format!("[expected type: {}, actual value: {}]", ty, self.0).into(),
-        ),
-      },
+      Type::BOOL => serialize_to_sql!(self, ty, as_bool, v, {
+        out.put_i8(if v { 1 } else { 0 });
+      }),
+      Type::INT4 => serialize_to_sql!(self, ty, as_i64, v, {
+        out.put_i32(v.try_into().unwrap());
+      }),
+      Type::INT8 => serialize_to_sql!(self, ty, as_i64, v, {
+        out.put_i64(v);
+      }),
       Type::VARCHAR
       | Type::TEXT
       | Type::BPCHAR
       | Type::NAME
-      | Type::UNKNOWN => match self.0.as_str() {
-        Some(v) => {
-          out.write_str(v).unwrap();
-          Ok(IsNull::No)
-        }
-        None => Err(
-          format!("[expected type: {}, actual value: {}]", ty, self.0).into(),
-        ),
-      },
-      Type::TIMESTAMPTZ | Type::TIMESTAMP => match self.0.as_str() {
-        Some(v) => {
+      | Type::UNKNOWN => serialize_to_sql!(self, ty, as_str, v, {
+        out.write_str(v).unwrap();
+      }),
+      Type::TIMESTAMPTZ | Type::TIMESTAMP => {
+        serialize_to_sql!(self, ty, as_str, v, {
           let date = chrono::DateTime::parse_from_rfc3339(v)?;
           date.to_sql(ty, out)?;
-          Ok(IsNull::No)
-        }
-        None => Err(
-          format!("[expected type: {}, actual value: {}]", ty, self.0).into(),
-        ),
-      },
-      Type::JSONB => match self.0.as_object() {
-        Some(v) => {
-          json!(v).to_sql(ty, out)?;
-          Ok(IsNull::No)
-        }
-        None => Err(
-          format!("[expected type: {}, actual value: {}]", ty, self.0).into(),
-        ),
-      },
-      Type::JSON_ARRAY => match self.0.as_array() {
-        Some(v) => {
-          json!(v).to_sql(ty, out)?;
-          Ok(IsNull::No)
-        }
-        None => Err(
-          format!("[expected type: {}, actual value: {}]", ty, self.0).into(),
-        ),
-      },
+        })
+      }
+      Type::JSONB => serialize_to_sql!(self, ty, as_object, v, {
+        json!(v).to_sql(ty, out)?;
+      }),
+      Type::JSON_ARRAY => serialize_to_sql!(self, ty, as_array, v, {
+        json!(v).to_sql(ty, out)?;
+      }),
       _ => Err(format!("to_sql: unsupported type - [ {} ]", ty).into()),
     }
   }
