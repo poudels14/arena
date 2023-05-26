@@ -37,4 +37,5 @@ export const widgetSchema = z.object({
   parentId: z.string().nullable(),
   template: templateSchema,
   config: widgetConfigSchema,
+  updatedAt: z.string(),
 });

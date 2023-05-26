@@ -39,7 +39,7 @@ type EditorStateContext = {
   /**
    * Returns the HTML node of a rendered widget
    */
-  useWidgetNode: (widgetId: string) => HTMLElement | null;
+  useWidgetNode: (widgetId: string) => Accessor<HTMLElement | null>;
   /**
    * Highlight a widget with the given id; if replace = true, sets the selected
    * widget to just the given widget id, else adds to existing list of selected
@@ -125,15 +125,6 @@ const withEditorState: Plugin<
     ) => {
       const widgetId = path.shift();
       const value = path.pop();
-      core.setState("app", "widgets", (widgets) => {
-        return widgets.map((w) => {
-          if (w.id == widgetId) {
-            return cleanSet(w, path, value);
-          }
-          return w;
-        });
-      });
-
       const updates = await api.routes.updateWidget({
         id: widgetId,
         ...cleanSet({}, path, value),
@@ -152,7 +143,7 @@ const withEditorState: Plugin<
         plugins.setState("withEditorState", "widgetNodes", widgetId, node);
       },
       useWidgetNode(widgetId) {
-        return plugins.state.withEditorState.widgetNodes()[widgetId];
+        return plugins.state.withEditorState.widgetNodes[widgetId];
       },
       setSelectedWidget(widgetId, replace = true) {
         plugins.setState("withEditorState", "selectedWidgets", (widgets) => {

@@ -19,7 +19,13 @@ type ApiRoutes = {
   updateWidget: (
     widget: { id: string } & Partial<Omit<Widget, "id" | "template">>
   ) => Promise<MutationResponse>;
-  queryWidgetData: () => Promise<any>;
+  queryWidgetData: (req: {
+    appId: string;
+    widgetId: string;
+    field: string;
+    updatedAt: string;
+    params: any;
+  }) => Promise<any>;
 };
 
 const ApiContext = createContext<{ routes: ApiRoutes }>();

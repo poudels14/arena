@@ -2,63 +2,82 @@ import { z } from "zod";
 import { pick } from "lodash-es";
 import { DqsServer, DqsCluster } from "@arena/runtime/dqs";
 import { procedure, router as trpcRouter } from "../trpc";
+import { notFound } from "../utils/errors";
+import { TRPCError } from "@trpc/server";
 
 const dqsCluster = new Map<string, DqsServer>();
 const queryRouter = trpcRouter({
   fetch: procedure
     .input(
       z.object({
-        workspaceId: z.string(),
         appId: z.string(),
         widgetId: z.string(),
         field: z.string(),
+        // the last updated time of the widget so that to reload
+        // data query if needed
+        updatedAt: z.string(),
         params: z.record(z.any()),
       })
     )
     .query(async ({ ctx, input }): Promise<any> => {
-      const res = await pipeRequestToDqs("QUERY", input);
-      // TODO(sagar): find a way to send response without converting to JSON
-      return JSON.parse(String.fromCharCode.apply(null, res[2]));
+      return await pipeRequestToDqs("QUERY", { ctx, input });
     }),
   mutate: procedure
     .input(
       z.object({
-        workspaceId: z.string(),
         appId: z.string(),
         widgetId: z.string(),
         field: z.string(),
+        // the last updated time of the widget so that to reload
+        // data query if needed
+        updatedAt: z.string(),
         params: z.record(z.any()),
       })
     )
     .query(async ({ ctx, input }): Promise<any> => {
-      const res = await pipeRequestToDqs("MUTATION", input);
-      // TODO(sagar): find a way to send response without converting to JSON
-      return JSON.parse(String.fromCharCode.apply(null, res[2]));
+      return await pipeRequestToDqs("MUTATION", { ctx, input });
     }),
 });
 
-type Input = (typeof queryRouter.fetch._def)["_input_in"];
+type Route = typeof queryRouter.fetch._def;
 const pipeRequestToDqs = async (
   trigger: "QUERY" | "MUTATION",
-  input: Input
+  { input, ctx }: { ctx: Route["_ctx_out"]; input: Route["_input_out"] }
 ) => {
-  const { workspaceId } = input;
+  const app = await ctx.repo.apps.fetchById(input.appId);
+  if (!app) {
+    return notFound();
+  }
+  const { workspaceId } = app;
   let server = dqsCluster.get(workspaceId);
   if (!server || !server.isAlive()) {
-    console.log("starting server for workspace =", workspaceId);
     server = await DqsCluster.startStreamServer(workspaceId);
     dqsCluster.set(workspaceId, server);
   }
 
-  return await server.pipeRequest({
+  const response = await server.pipeRequest({
     url: "http://0.0.0.0/execWidgetQuery",
     method: "POST",
     headers: [["content-type", "application/json"]],
     body: {
       trigger,
-      ...pick(input, "workspaceId", "appId", "widgetId", "field", "params"),
+      workspaceId,
+      ...pick(input, "appId", "widgetId", "field", "params", "updatedAt"),
     },
   });
+
+  // TODO(sagar): find a way to send response without converting to JSON
+  const { result, error } = JSON.parse(
+    String.fromCharCode.apply(null, response[2])
+  );
+  if (result?.data) {
+    return result.data;
+  } else {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: error.message,
+    });
+  }
 };
 
 export { queryRouter };

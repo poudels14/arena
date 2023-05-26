@@ -1,4 +1,15 @@
-import { onCleanup, JSX, children, createMemo, Suspense } from "solid-js";
+import {
+  onCleanup,
+  JSX,
+  children,
+  createMemo,
+  createSignal,
+  createComputed,
+  untrack,
+  ErrorBoundary,
+  ResourceReturn,
+  createEffect,
+} from "solid-js";
 import type { Widget, WidgetConfig } from "@arena/widgets/schema";
 import {
   EditorContext,
@@ -42,9 +53,15 @@ const setWidgetRef = (
 type WidgetProps = {
   id: string;
   name?: string;
-  // TODO(sagar): remove class since config already has classList?
-  class?: string;
   config: Store<WidgetConfig>;
+
+  /**
+   * Data loader resource for each field
+   *
+   * It's setup outside ErrorBoundary so that we can refetch data and reset
+   * error state later
+   */
+  dataLoaders: [string, ResourceReturn<any>][];
   children: (widget: { attributes: Record<string, any> }) => JSX.Element;
 };
 
@@ -55,31 +72,33 @@ type WidgetProps = {
 const WidgetRenderer = (props: WidgetProps) => {
   const ctx = useEditorContext<WidgetDataContext>();
 
+  const [isDataReady, setIsDataReady] = createSignal(false);
+  createComputed(() => {
+    const loading = props.dataLoaders.reduce((loading, loader) => {
+      const w = loader[1][0];
+      return loading || w.loading;
+    }, false);
+
+    untrack(() => {
+      !isDataReady() && setIsDataReady(!loading);
+    });
+  });
+
   /**
    * Note(sagar): return proxy here so that Templates don't have to use
    * signals to access `data.{field}`
    */
-  const data = new Proxy(
-    {},
-    {
-      get(target: any, fieldName: string) {
-        if (!target[fieldName]) {
-          target[fieldName] = ctx.useWidgetData(
-            props.id,
-            fieldName,
-            props.config.data[fieldName]
-          );
-        }
-        return target[fieldName]();
-      },
-    }
-  );
+  const data = new Proxy(Object.fromEntries(props.dataLoaders), {
+    get(target: any, fieldName: string) {
+      const [data] = target[fieldName];
+      return data();
+    },
+  });
 
   const classList = createMemo(() => {
     const c = props.config.class!()!;
     return {
       "ar-widget": true,
-      [props.class!]: Boolean(props.class),
       [c]: Boolean(c),
     };
   });
@@ -101,9 +120,13 @@ const WidgetRenderer = (props: WidgetProps) => {
     },
   };
 
-  const template = children(() => props.children(widget));
-  // TODO(sagar): make suspense work for this widget
-  return <>{template}</>;
+  const template = children(() => {
+    if (!isDataReady()) {
+      return null;
+    }
+    return props.children(widget);
+  });
+  return <>{template()}</>;
 };
 
 // TODO(sagar): this is more of a editable widget than DynamicWidget,
@@ -118,19 +141,53 @@ const Widget = (props: {
   widgetId: string;
   previousWidgetId?: string | null;
 }) => {
-  const { useTemplate, useWidgetById } =
-    useEditorContext<TemplateStoreContext>();
+  const ctx = useEditorContext<TemplateStoreContext & WidgetDataContext>();
+  const { useTemplate, useWidgetById } = ctx;
   const widget = useWidgetById(props.widgetId);
   const { Component } = useTemplate(widget.template.id());
+
+  const dataLoaders = Object.keys(widget.config.data()).map((fieldName) => {
+    return [fieldName, ctx.useWidgetData(props.widgetId, fieldName)] as [
+      string,
+      ReturnType<typeof ctx.useWidgetData>
+    ];
+  });
+
+  const dataLoadingError = createMemo(() => {
+    return dataLoaders.reduce((loading, loader) => {
+      const w = loader[1][0];
+      return loading || w.error;
+    }, false);
+  });
+
   return (
-    <Suspense fallback={"Loading widget data..."}>
+    <ErrorBoundary
+      fallback={(error, reset) => {
+        createEffect(() => {
+          if (!dataLoadingError()) {
+            reset();
+          }
+        });
+        return (
+          <div
+            class="px-10 py-4 text-red-600 space-y-2"
+            ref={(node: HTMLElement) => {
+              setWidgetRef(props.widgetId, node, ctx);
+            }}
+          >
+            <div>Error loading data</div>
+            <div>{error.toString()}</div>
+          </div>
+        );
+      }}
+    >
       <WidgetRenderer
         id={props.widgetId}
         config={widget.config}
+        dataLoaders={dataLoaders}
         children={Component}
-        class="px-40"
       />
-    </Suspense>
+    </ErrorBoundary>
   );
 };
 

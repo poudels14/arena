@@ -50,15 +50,24 @@ export const dataLoaderConfigSchema = z.union([
   z.object({
     loader: z.literal("@arena/sql/postgres"),
     /**
-     * Id of the postgres database resource
+     * Id of the postgres database
      */
-    resource: z.string(),
+    db: z.string(),
     value: z.any(),
 
     /**
      * Metadata stored and used by the loader
      */
-    metatada: z.any().optional(),
+    metatada: z
+      .object({
+        /**
+         * List of the names of JS objects accessed by the SQL query tempalte
+         * For example, in `SELECT * FROM apps where id = {{ id }};`,
+         * `args = ["id"]`
+         */
+        args: z.string().array(),
+      })
+      .optional(),
   }),
   z.object({
     loader: z.literal("@arena/server-function"),

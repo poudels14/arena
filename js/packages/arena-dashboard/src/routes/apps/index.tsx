@@ -3,12 +3,7 @@ import { Title } from "@arena/core/solid";
 import { A } from "@solidjs/router";
 import { useDashboardContext } from "~/context";
 
-const App = (props: {
-  id: string;
-  name: string;
-  description: string;
-  access: string[];
-}) => {
+const App = (props: { id: string; name: string; description?: string }) => {
   return (
     <A
       href={"/apps/" + props.id}
@@ -27,7 +22,7 @@ const Apps = () => {
   const { client } = useDashboardContext();
 
   const [apps] = createResource(() => {
-    return client.apps.listApps.query();
+    return client.apps.list.query();
   });
 
   return (

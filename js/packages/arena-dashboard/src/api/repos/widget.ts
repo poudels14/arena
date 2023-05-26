@@ -2,6 +2,7 @@ import { sql } from "@arena/db/pg";
 import { z } from "zod";
 import { widgetConfigSchema } from "@arena/widgets/schema";
 import { Context } from "./context";
+import { merge } from "lodash-es";
 
 const dbWidgetSchema = z.object({
   id: z.string(),
@@ -13,6 +14,7 @@ const dbWidgetSchema = z.object({
   templateId: z.string(),
   config: widgetConfigSchema,
   createdBy: z.string(),
+  updatedAt: z.string(),
   archivedAt: z.string().optional(),
 });
 
@@ -32,7 +34,7 @@ const createRepo = (ctx: Context) => {
       );
       return rows;
     },
-    async insert(widget: DbWidget): Promise<void> {
+    async insert(widget: Omit<DbWidget, "updatedAt">): Promise<DbWidget> {
       const {
         id,
         name,
@@ -44,25 +46,31 @@ const createRepo = (ctx: Context) => {
         config,
         createdBy,
       } = widget;
-      await ctx.client.query(
+      const { rows } = await ctx.client.query(
         sql`INSERT INTO widgets
         (id, name, slug, description, app_id, template_id, parent_id, config, created_by)
         VALUES (${id}, ${name}, ${slug}, ${
           description || ""
         }, ${appId}, ${templateId}, ${
           parentId || null
-        }, ${config}, ${createdBy})`
+        }, ${config}, ${createdBy})
+        RETURNING id,created_at,updated_at`
       );
+      const updated = rows[0];
+      return merge(widget, updated) as DbWidget;
     },
-    async update(widget: DbWidget) {
-      const { id, name, slug, description, config, archivedAt } = widget;
-      await ctx.client.query(
+    async update(widget: DbWidget): Promise<typeof widget> {
+      const { name, slug, description, config, archivedAt } = widget;
+      const { rows } = await ctx.client.query(
         sql`UPDATE widgets
-        SET name=${name}, slug=${slug}, description=${description}, config=${config}, archived_at=${
+        SET name=${name}, slug=${slug}, description=${description}, config=${config}, updated_at=NOW(), archived_at=${
           archivedAt || null
         }
-        WHERE id = ${id}`
+        WHERE id = ${widget.id}
+        RETURNING id,created_at,updated_at`
       );
+      const updated = rows[0];
+      return merge(widget, updated);
     },
   };
 };

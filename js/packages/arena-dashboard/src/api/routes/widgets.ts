@@ -7,6 +7,7 @@ import { dynamicSourceSchema } from "@arena/widgets/schema";
 import { TEMPLATES } from "@arena/studio/templates";
 import { MutationResponse } from "@arena/studio";
 import { DbWidget } from "../repos/widget";
+import { sql } from "@arena/db/pg";
 
 const widgetsRouter = trpcRouter({
   add: procedure
@@ -81,26 +82,25 @@ const widgetsRouter = trpcRouter({
         },
       };
 
-      const widget = {
+      const widget = await ctx.repo.widgets.insert({
         ...newWidget,
         // TODO(sagar): update
         createdBy: "sagar",
-      };
-
-      await ctx.repo.widgets.insert(widget);
+      });
       let updatedWidgetAfter = null;
       // update the widget after this widget's position
       if (widgetAfter) {
-        updatedWidgetAfter = merge(widgetAfter, {
-          config: {
-            layout: {
-              position: {
-                after: widget.id,
+        updatedWidgetAfter = await ctx.repo.widgets.update(
+          merge(widgetAfter, {
+            config: {
+              layout: {
+                position: {
+                  after: widget.id,
+                },
               },
             },
-          },
-        });
-        await ctx.repo.widgets.update(updatedWidgetAfter);
+          })
+        );
       }
 
       return {
@@ -139,8 +139,9 @@ const widgetsRouter = trpcRouter({
         notFound();
       }
 
-      const updatedWidget = merge(widget, input);
-      await ctx.repo.widgets.update(updatedWidget);
+      const updatedWidget = await ctx.repo.widgets.update(
+        merge(widget!, input)
+      );
 
       return {
         widgets: {

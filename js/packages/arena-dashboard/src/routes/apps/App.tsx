@@ -18,15 +18,7 @@ const App = (props: { id: string }) => {
       }
       queryWidgetData={
         ((input: any) =>
-          client.dataQuery.fetch.query({
-            appId: props.id,
-            workspaceId: "workspace_1",
-            widgetId: "VXJEWCbrXURzaqdq46YpKp",
-            field: "rows",
-            params: {
-              id: "1",
-            },
-          })) as ApiRoutes["queryWidgetData"]
+          client.dataQuery.fetch.query(input)) as ApiRoutes["queryWidgetData"]
       }
     >
       <Editor appId={props.id} />

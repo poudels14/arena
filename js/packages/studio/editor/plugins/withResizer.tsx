@@ -126,8 +126,8 @@ const ResizerContainer = () => {
         {(widgetId) => {
           const node = useWidgetNode(widgetId)!;
           return (
-            <Show when={node}>
-              <Resizer widgetId={widgetId} node={node} />
+            <Show when={node()}>
+              <Resizer widgetId={widgetId} node={node()!} />
             </Show>
           );
           return;

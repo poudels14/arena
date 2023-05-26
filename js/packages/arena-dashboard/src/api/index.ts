@@ -33,6 +33,9 @@ const router = (options: RouterOptions) => {
       req: event.request,
       router: r,
       createContext,
+      onError(e) {
+        console.error(e.error);
+      },
     });
   };
 };

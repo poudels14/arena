@@ -20,17 +20,22 @@ const r = trpcRouter({
         appId: z.string(),
         widgetId: z.string(),
         field: z.string(),
+        // the last updated time of the widget so that to reload
+        // data query if needed
+        updatedAt: z.string(),
         params: z.record(z.any()).optional(),
       })
     )
     .mutation(
-      async ({ input: { workspaceId, appId, widgetId, field, params } }) => {
+      async ({
+        input: { workspaceId, appId, widgetId, field, updatedAt, params },
+      }) => {
         try {
           const env = await import(
             `~/apps/${appId}/widgets/${widgetId}/${field}/env`
           );
           return await import(
-            `~/apps/${appId}/widgets/${widgetId}/${field}`
+            `~/apps/${appId}/widgets/${widgetId}/${field}?updatedAt=${updatedAt}`
           ).then(async (m) => {
             const result = await Promise.all([
               m.default({
