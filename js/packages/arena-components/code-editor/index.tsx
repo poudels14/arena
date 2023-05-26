@@ -7,7 +7,7 @@ import { sql } from "@codemirror/lang-sql";
 import { createEffect, createMemo, untrack } from "solid-js";
 
 type CodeMirrorOptions = {
-  lang: "javascript" | "sql";
+  lang: "javascript" | "sql" | "text";
   value: string;
   theme?: "lucario";
   onChange?: (v: string) => void;

@@ -141,10 +141,15 @@ const DataSourceEditor = (props: { metadata: FieldMetadata }) => {
     const { config } = props.metadata.fieldConfig;
     return {
       code:
-        config.loader == "@client/json"
+        config.loader == "@client/json" && typeof config.value != "string"
           ? JSON.stringify(config.value, null, 2)
           : config.value,
-      lang: config.loader == "@arena/server-function" ? "javascript" : "sql",
+      lang:
+        config.loader == "@arena/server-function"
+          ? "javascript"
+          : config.loader == "@arena/sql/postgres"
+          ? "sql"
+          : "text",
     } as { lang: "sql"; code: string };
   });
 
@@ -157,7 +162,10 @@ const DataSourceEditor = (props: { metadata: FieldMetadata }) => {
     const config = fieldConfig.config;
     updateWidget(widgetId, "config", "data", fieldName, "config", {
       ...config,
-      value: config.loader == "@client/json" ? JSON.parse(value) : value,
+      value:
+        config.loader == "@client/json" && typeof config.value != "string"
+          ? JSON.parse(value)
+          : value,
     });
   }, 300);
 
