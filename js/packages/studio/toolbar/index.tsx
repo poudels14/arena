@@ -5,9 +5,7 @@ import {
   useContext,
   Switch,
   Match,
-  createMemo,
   createComputed,
-  createEffect,
 } from "solid-js";
 import DragHandle from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/drag-handle-horizontal";
 import MinimizeIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/minimize";
@@ -37,7 +35,6 @@ type ToolbarTab =
   | "templates";
 
 type ToolbarState = {
-  collapsed: boolean;
   tab: {
     active: ToolbarTab;
     /**
@@ -55,14 +52,13 @@ const ToolbarContext = createContext<{
 
 const Toolbar = () => {
   const [state, setState] = createStore<ToolbarState>({
-    collapsed: false,
     tab: {
       active: "templates",
       isWidgetActive: false,
     },
   });
 
-  const { getSelectedWidgets } = useEditorContext();
+  const { getSelectedWidgets, setViewOnly, isViewOnly } = useEditorContext();
 
   createComputed(() => {
     const selectedWidgets = getSelectedWidgets();
@@ -79,17 +75,13 @@ const Toolbar = () => {
     <ToolbarContext.Provider value={{ state, setState }}>
       <div class="toolbar-container fixed bottom-4 w-full flex flex-row justify-center pointer-events-none z-[99999]">
         <Switch>
-          <Match when={state.collapsed()}>
+          <Match when={isViewOnly()}>
             <div
               class="w-52 h-8 p-2 flex rounded-md text-gray-400 bg-slate-700 cursor-pointer pointer-events-auto space-x-2"
-              onClick={() => setState("collapsed", false)}
+              onClick={() => setViewOnly(false)}
             >
-              <div class="flex-1 text-xs text-center">Open toolbar</div>
-              <InlineIcon
-                size="16px"
-                class="py-1 cursor-pointer"
-                onClick={() => setState("collapsed", true)}
-              >
+              <div class="flex-1 text-xs text-center">Open editor</div>
+              <InlineIcon size="16px" class="py-1 cursor-pointer">
                 <path d={MaximizeIcon[0]} />
               </InlineIcon>
             </div>
@@ -104,7 +96,7 @@ const Toolbar = () => {
                   <InlineIcon
                     size="12px"
                     class="p-[1px] cursor-pointer"
-                    onClick={() => setState("collapsed", true)}
+                    onClick={() => setViewOnly(true)}
                   >
                     <path d={MinimizeIcon[0]} />
                   </InlineIcon>

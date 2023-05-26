@@ -20,6 +20,8 @@ type EditorContext<T> = InternalEditor<
   T &
     Pick<
       EditorStateContext,
+      | "isViewOnly"
+      | "setViewOnly"
       | "useWidgetById"
       | "addWidget"
       | "updateWidget"

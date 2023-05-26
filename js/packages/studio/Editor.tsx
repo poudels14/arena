@@ -15,7 +15,7 @@ import { Canvas } from "./Canvas";
 import { ComponentTree } from "./ComponentTree";
 import { Toolbar } from "./toolbar";
 import { DragDropProvider, DragEndEvent, DragOverlay } from "@arena/solid-dnd";
-import { Match, Switch, createMemo } from "solid-js";
+import { Match, Show, Switch, createMemo } from "solid-js";
 import { Widget } from "./Widget";
 import { Slot } from "./Slot";
 import { TEMPLATES } from "./templates";
@@ -43,9 +43,8 @@ const Editor = (props: EditorProps) => {
 };
 
 const AppEditor = () => {
-  const { state, addWidget, getComponentTree, useChildren } = useEditorContext<
-    TemplateStoreContext & ComponentTreeContext
-  >();
+  const { state, isViewOnly, addWidget, getComponentTree, useChildren } =
+    useEditorContext<TemplateStoreContext & ComponentTreeContext>();
 
   const getChildren = createMemo(() => useChildren(null));
   const onDragEnd = async (e: DragEndEvent) => {
@@ -80,7 +79,9 @@ const AppEditor = () => {
         <Header />
       </div> */}
       <div class="fixed top-12 left-6 z-[10000]">
-        <ComponentTree node={getComponentTree()} />
+        <Show when={!isViewOnly()}>
+          <ComponentTree node={getComponentTree()} />
+        </Show>
       </div>
       <div class="absolute px-[2px] w-[calc(100%-4px)] min-w-[900px] h-screen">
         <div class="w-full h-full">

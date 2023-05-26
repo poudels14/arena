@@ -1,4 +1,10 @@
-import { createResource, batch, createComputed, Accessor } from "solid-js";
+import {
+  createResource,
+  batch,
+  createComputed,
+  Accessor,
+  untrack,
+} from "solid-js";
 import { Store, StoreSetter } from "@arena/solid-store";
 import { uniqueId } from "@arena/uikit";
 import cleanSet from "clean-set";
@@ -10,6 +16,8 @@ import { MutationResponse } from "../types";
 import { AnyInternalEditor } from "./plugins/types";
 
 type EditorStateContext = {
+  isViewOnly: Accessor<boolean>;
+  setViewOnly: (viewOnly: boolean) => void;
   useWidgetById: (id: string) => Store<Widget>;
   addWidget: (props: {
     templateId: string;
@@ -53,12 +61,14 @@ type EditorStateContext = {
 
 type EditorState = {
   ready: boolean;
+  viewOnly: boolean;
   selectedWidgets: string[];
   widgetNodes: Record<string, HTMLElement | null>;
 };
 
 type EditorStateConfig = {
   appId: string;
+  viewOnly?: boolean;
 };
 
 const withEditorState: Plugin<
@@ -78,9 +88,13 @@ const withEditorState: Plugin<
 
     plugins.setState("withEditorState", {
       ready: false,
+      viewOnly: config.viewOnly || false,
       selectedWidgets: [],
       widgetNodes: {},
     });
+    const untrackedViewOnly = untrack(
+      () => plugins.state.withEditorState.viewOnly
+    );
 
     createComputed(() => {
       const app = getApp() as App;
@@ -123,6 +137,9 @@ const withEditorState: Plugin<
     const updateWidget: EditorStateContext["updateWidget"] = async (
       ...path: any
     ) => {
+      if (untrackedViewOnly()) {
+        return;
+      }
       const widgetId = path.shift();
       const value = path.pop();
       const updates = await api.routes.updateWidget({
@@ -134,6 +151,12 @@ const withEditorState: Plugin<
     };
 
     Object.assign(context, {
+      isViewOnly() {
+        return plugins.state.withEditorState.viewOnly();
+      },
+      setViewOnly(viewOnly) {
+        plugins.setState("withEditorState", "viewOnly", viewOnly);
+      },
       useWidgetById(id: string) {
         return core.state.widgetsById[id];
       },
@@ -146,6 +169,9 @@ const withEditorState: Plugin<
         return plugins.state.withEditorState.widgetNodes[widgetId];
       },
       setSelectedWidget(widgetId, replace = true) {
+        if (untrackedViewOnly()) {
+          return;
+        }
         plugins.setState("withEditorState", "selectedWidgets", (widgets) => {
           return replace ? [widgetId] : [...widgets, widgetId];
         });
