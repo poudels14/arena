@@ -1,4 +1,4 @@
-import { createMemo, createSignal } from "solid-js";
+import { createSignal } from "solid-js";
 import { useDragDropContext } from "./drag-drop-context";
 
 type Droppable = {
@@ -13,11 +13,7 @@ type Droppable = {
 };
 
 const createDroppable = (id: string, data?: any) => {
-  const { state, setState } = useDragDropContext();
-
-  const isActiveDroppable = createMemo(() => {
-    return state.active.collision.droppable()?.id === id;
-  });
+  const { setState, isActiveDroppable } = useDragDropContext();
   const [getNode, setNode] = createSignal<HTMLElement | null>(null);
 
   const droppable = Object.defineProperties(
@@ -37,7 +33,9 @@ const createDroppable = (id: string, data?: any) => {
         value: data,
       },
       isActiveDroppable: {
-        get: isActiveDroppable,
+        get() {
+          return isActiveDroppable(id);
+        },
       },
     }
   ) as unknown as Droppable;

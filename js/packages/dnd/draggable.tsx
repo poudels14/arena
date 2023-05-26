@@ -14,9 +14,7 @@ type Draggable = {
 };
 
 const createDraggable = (id: string, data?: any) => {
-  const { state, setState } = useDragDropContext();
-
-  const isActiveDraggable = () => state.active.draggable.id() === id;
+  const { setState, isActiveDraggable } = useDragDropContext();
   const [getNode, setNode] = createSignal<HTMLElement | null>(null);
 
   let draggable = Object.defineProperties(
@@ -36,7 +34,9 @@ const createDraggable = (id: string, data?: any) => {
         value: data,
       },
       isActiveDraggable: {
-        get: isActiveDraggable,
+        get() {
+          return isActiveDraggable(id);
+        },
       },
     }
   ) as unknown as Draggable;

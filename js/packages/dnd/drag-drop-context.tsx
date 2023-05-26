@@ -5,6 +5,7 @@ import {
   useContext,
   onCleanup,
   untrack,
+  createSelector,
 } from "solid-js";
 import { createStore, Store, StoreSetter } from "@arena/solid-store";
 import { Draggable } from "./draggable";
@@ -26,6 +27,8 @@ type State = {
 type Context = {
   state: Store<State>;
   setState: StoreSetter<State>;
+  isActiveDraggable: (id: Draggable["id"]) => boolean;
+  isActiveDroppable: (id: Droppable["id"]) => boolean;
 };
 
 const DragDropContext = createContext<Context>();
@@ -64,6 +67,11 @@ const DragDropProvider = (props: DragAndDropProviderProps) => {
     },
     droppables: [],
   });
+
+  const isActiveDraggable = createSelector(state.active.draggable.id);
+  const isActiveDroppable = createSelector(
+    () => state.active.collision.droppable()?.id
+  );
 
   const dragEndHandler = (_: PointerEvent) => {
     const active = untrack(() => state.active());
@@ -141,7 +149,9 @@ const DragDropProvider = (props: DragAndDropProviderProps) => {
   });
 
   return (
-    <DragDropContext.Provider value={{ state, setState }}>
+    <DragDropContext.Provider
+      value={{ state, setState, isActiveDraggable, isActiveDroppable }}
+    >
       {props.children}
     </DragDropContext.Provider>
   );
