@@ -6,16 +6,18 @@ import {
   getListener,
 } from "solid-js";
 import type { SetStoreFunction } from "solid-js/store";
-import {
-  $GET,
-  $LENGTH,
-  $NAME,
-  $NODE,
-  $RAW,
-  $SET,
-  $STORE,
-  $UPDATEDAT,
-} from "./symbols";
+
+const $STORE = Symbol("_solid_store_");
+const $RAW = Symbol("_value_");
+const $NODE = Symbol("_node_");
+const $UPDATEDAT = Symbol("_updated_at_");
+const $GET = Symbol("_get_signal_");
+const $SET = Symbol("_set_signal_");
+// since function is the target of the proxy,
+// name and length can't be changed. so, use symbol
+// for those fields
+const $NAME = Symbol("_name_");
+const $LENGTH = Symbol("_length_");
 
 let updateEpoch = 1;
 
@@ -104,7 +106,7 @@ const proxyHandlers = {
       }));
     }
     return (target[tp] = new Proxy(
-      (target[tp] = createDataNode(value, p)),
+      (target[tp] = createDataNode(value, tp)),
       proxyHandlers
     ));
   },
@@ -116,7 +118,7 @@ const proxyHandlers = {
      * getter
      */
     if (!target[$GET]) {
-      const [get, set] = createSignal(target[$RAW]);
+      const [get, set] = createSignal(updateEpoch);
       target[$GET] = get;
       target[$SET] = set;
       target[$UPDATEDAT] = updateEpoch;
@@ -241,10 +243,10 @@ const updatePath = (root: any, path: any[]) => {
   // to update the children objects. so call compareAndNotify
   let nodeToUpdate;
   let value =
-    typeof valueFn == "function" ? valueFn(nodeValue[internalKey]) : valueFn;
+    typeof valueFn == "function" ? valueFn(nodeValue[field]) : valueFn;
 
   // if value is same as previous, return
-  if (value === nodeValue[internalKey]) {
+  if (value === nodeValue[field]) {
     return;
   }
   updates.forEach((n) => {
@@ -261,7 +263,7 @@ const updatePath = (root: any, path: any[]) => {
       delete nodeValue[field];
       nodeNode && delete nodeNode[internalKey];
     } else {
-      nodeValue[internalKey] = value;
+      nodeValue[field] = value;
     }
   }
 };
@@ -273,36 +275,33 @@ const compareAndNotify = (node: any, value: any) => {
   }
 
   if (typeof value === "object" || typeof prev === "object") {
-    const newKeys = isWrappable(value)
-      ? Object.keys(value || {}).map((k) => toInternalKey(k))
-      : [];
+    const newKeys = isWrappable(value) ? Object.keys(value || {}) : [];
 
     const removedFields = new Set(
-      isWrappable(prev)
-        ? Object.keys(prev || {}).map((k) => toInternalKey(k))
-        : []
+      isWrappable(prev) ? Object.keys(prev || {}) : []
     );
 
-    for (let i = 0; i < newKeys.length; i++) {
-      const k = newKeys[i];
-      const refK = nodeNode[k];
+    for (const k of newKeys) {
+      const intKey = toInternalKey(k);
+      const refK = nodeNode[intKey];
       removedFields.delete(k);
       // TODO: figure out how to "cache" array items properly
-      if (refK && !getFieldGetter(nodeNode, k))
+      if (refK && !getFieldGetter(nodeNode, intKey))
         compareAndNotify(refK, value[k]);
     }
 
     // TODO(sagar): support merging so that fields that are not in
     // the new value arent removed
     [...removedFields].forEach((k) => {
-      let childNode = nodeNode[k];
+      const intKey = toInternalKey(k);
+      let childNode = nodeNode[intKey];
       childNode && compareAndNotify(childNode, undefined);
-      delete nodeNode[k];
+      delete nodeNode[intKey];
     });
   }
 
   nodeNode[$UPDATEDAT] = updateEpoch;
-  nodeNode[$SET]?.(value);
+  nodeNode[$SET]?.(updateEpoch);
   nodeNode[$RAW] = value;
 };
 
