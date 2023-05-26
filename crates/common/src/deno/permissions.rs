@@ -128,7 +128,7 @@ impl PermissionsContainer {
         // TODO(sagar): cache the paths
         // TODO(sagar): write tests
         let root = perms.root.canonicalize()?;
-        let path = path.canonicalize()?;
+        let path = normalize_path(path);
         if perms
           .allowed_write_paths
           .iter()
