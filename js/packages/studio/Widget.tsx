@@ -3,12 +3,10 @@ import {
   JSX,
   children,
   createMemo,
-  createSignal,
-  createComputed,
-  untrack,
   ErrorBoundary,
   ResourceReturn,
   createEffect,
+  Suspense,
 } from "solid-js";
 import type { Widget, WidgetConfig } from "@arena/widgets/schema";
 import {
@@ -72,18 +70,6 @@ type WidgetProps = {
 const WidgetRenderer = (props: WidgetProps) => {
   const ctx = useEditorContext<WidgetDataContext>();
 
-  const [isDataReady, setIsDataReady] = createSignal(false);
-  createComputed(() => {
-    const loading = props.dataLoaders.reduce((loading, loader) => {
-      const w = loader[1][0];
-      return loading || w.loading;
-    }, false);
-
-    untrack(() => {
-      !isDataReady() && setIsDataReady(!loading);
-    });
-  });
-
   /**
    * Note(sagar): return proxy here so that Templates don't have to use
    * signals to access `data.{field}`
@@ -121,9 +107,6 @@ const WidgetRenderer = (props: WidgetProps) => {
   };
 
   const template = children(() => {
-    if (!isDataReady()) {
-      return null;
-    }
     return props.children(widget);
   });
   return <>{template()}</>;
@@ -161,33 +144,35 @@ const Widget = (props: {
   });
 
   return (
-    <ErrorBoundary
-      fallback={(error, reset) => {
-        createEffect(() => {
-          if (!dataLoadingError()) {
-            reset();
-          }
-        });
-        return (
-          <div
-            class="px-10 py-4 text-red-600 space-y-2"
-            ref={(node: HTMLElement) => {
-              setWidgetRef(props.widgetId, node, ctx);
-            }}
-          >
-            <div>Error loading data</div>
-            <div>{error.toString()}</div>
-          </div>
-        );
-      }}
-    >
-      <WidgetRenderer
-        id={props.widgetId}
-        config={widget.config}
-        dataLoaders={dataLoaders}
-        children={Component}
-      />
-    </ErrorBoundary>
+    <Suspense fallback={<></>}>
+      <ErrorBoundary
+        fallback={(error, reset) => {
+          createEffect(() => {
+            if (!dataLoadingError()) {
+              reset();
+            }
+          });
+          return (
+            <div
+              class="px-10 py-4 text-red-600 space-y-2"
+              ref={(node: HTMLElement) => {
+                setWidgetRef(props.widgetId, node, ctx);
+              }}
+            >
+              <div>Error loading data</div>
+              <div>{error.toString()}</div>
+            </div>
+          );
+        }}
+      >
+        <WidgetRenderer
+          id={props.widgetId}
+          config={widget.config}
+          dataLoaders={dataLoaders}
+          children={Component}
+        />
+      </ErrorBoundary>
+    </Suspense>
   );
 };
 
