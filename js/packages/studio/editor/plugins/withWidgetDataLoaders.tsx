@@ -1,4 +1,9 @@
-import { ResourceReturn, createDeferred, createResource } from "solid-js";
+import {
+  ResourceReturn,
+  createReaction,
+  createResource,
+  startTransition,
+} from "solid-js";
 import { InternalEditor, Plugin } from "./types";
 import { DataSource } from "@arena/widgets/schema/data";
 import { useApiContext } from "../../ApiContext";
@@ -55,10 +60,11 @@ function useWidgetData(widgetId: string, field: string) {
    * Note(sagar): manually trigger refetch so that we can control whether to
    * auto-refetch data on config change
    */
-  createDeferred(() => {
-    void widget.config.data[field]();
-    resource[1].refetch();
+  const track = createReaction(() => {
+    startTransition(() => resource[1].refetch());
+    track(widget.config.data[field]);
   });
+  track(widget.config.data[field]);
 
   WIDGET_DATA_SIGNALS.set(accessorId, resource);
 

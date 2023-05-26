@@ -4,7 +4,6 @@ import {
   createComputed,
   Accessor,
   untrack,
-  startTransition,
 } from "solid-js";
 import { Store, StoreSetter } from "@arena/solid-store";
 import { uniqueId } from "@arena/uikit";
@@ -151,9 +150,7 @@ const withEditorState: Plugin<
 
       // update the state in a transition so that if widget data is reloaded,
       // it doesn't trigger the suspense fallback
-      startTransition(() => {
-        updateState(core, updates);
-      });
+      updateState(core, updates);
     };
 
     Object.assign(context, {
