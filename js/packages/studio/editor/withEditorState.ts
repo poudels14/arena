@@ -157,9 +157,6 @@ const withEditorState: Plugin<
         return plugins.state.withEditorState.widgetNodes[widgetId];
       },
       setSelectedWidget(widgetId, replace = true) {
-        if (untrackedViewOnly()) {
-          return;
-        }
         plugins.setState("withEditorState", "selectedWidgets", (widgets) => {
           return replace ? [widgetId] : [...widgets, widgetId];
         });

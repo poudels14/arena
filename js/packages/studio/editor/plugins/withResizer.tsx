@@ -119,21 +119,23 @@ const Resizer = (props: { widgetId: string; node: HTMLElement }) => {
 };
 
 const ResizerContainer = () => {
-  const { getSelectedWidgets, useWidgetNode } = useEditorContext();
+  const { isViewOnly, getSelectedWidgets, useWidgetNode } = useEditorContext();
   return (
-    <div class="resizer-container relative">
-      <For each={getSelectedWidgets()}>
-        {(widgetId) => {
-          const node = useWidgetNode(widgetId)!;
-          return (
-            <Show when={node()}>
-              <Resizer widgetId={widgetId} node={node()!} />
-            </Show>
-          );
-          return;
-        }}
-      </For>
-    </div>
+    <Show when={!isViewOnly()}>
+      <div class="resizer-container relative">
+        <For each={getSelectedWidgets()}>
+          {(widgetId) => {
+            const node = useWidgetNode(widgetId)!;
+            return (
+              <Show when={node()}>
+                <Resizer widgetId={widgetId} node={node()!} />
+              </Show>
+            );
+            return;
+          }}
+        </For>
+      </div>
+    </Show>
   );
 };
 
