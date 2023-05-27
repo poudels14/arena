@@ -1,4 +1,4 @@
-import { pick } from "lodash-es";
+import { merge, pick } from "lodash-es";
 import zod, { z } from "zod";
 import { App } from "@arena/studio";
 import { procedure, router as trpcRouter } from "../trpc";
@@ -19,20 +19,20 @@ const appsRouter = trpcRouter({
         return notFound("App not found");
       }
       const widgets = await ctx.repo.widgets.fetchByAppId(app.id);
-      return Object.assign(
-        {
-          widgets: widgets.map((w) => ({
-            ...w,
+      return merge(pick(app, "id", "name", "description"), {
+        widgets: widgets.reduce((widgetsById, widget) => {
+          widgetsById[widget.id] = {
+            ...widget,
             template: {
-              id: w.templateId,
+              id: widget.templateId,
               // TODO
               name: "",
               url: "",
             },
-          })),
-        },
-        pick(app, "id", "name", "description")
-      );
+          };
+          return widgetsById;
+        }, {} as App["widgets"]),
+      });
     }),
   update: procedure
     .input(

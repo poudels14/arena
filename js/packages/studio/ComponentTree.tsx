@@ -26,7 +26,7 @@ const NodeComponent = (props: {
             <path d={ListDetailView[0]} />
           </InlineIcon>
           <div class="inline-block text-[10px] leading-[10px]">
-            {props.node.title}
+            {props.node.name}
           </div>
         </div>
       </div>

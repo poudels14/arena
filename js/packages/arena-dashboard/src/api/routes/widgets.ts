@@ -1,13 +1,13 @@
 import { omit, merge } from "lodash-es";
 import zod, { z } from "zod";
 import { Widget } from "@arena/widgets";
+import camelCase from "camelcase";
 import { badRequest, notFound } from "../utils/errors";
 import { procedure, router as trpcRouter } from "../trpc";
 import { dynamicSourceSchema } from "@arena/widgets/schema";
 import { TEMPLATES } from "@arena/studio/templates";
 import { MutationResponse } from "@arena/studio";
 import { DbWidget } from "../repos/widget";
-import { sql } from "@arena/db/pg";
 
 const widgetsRouter = trpcRouter({
   add: procedure
@@ -65,8 +65,7 @@ const widgetsRouter = trpcRouter({
       const newWidget = {
         id: input.id,
         name: templateMetadata.name,
-        // TODO(sagar): generate slug
-        slug: "",
+        slug: camelCase(templateMetadata.name, { pascalCase: true }),
         description: templateMetadata.description || "",
         parentId,
         appId: input.appId,

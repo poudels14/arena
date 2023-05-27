@@ -10,7 +10,7 @@ type App = {
   /**
    * List of all the widgets in the app
    */
-  widgets: Widget[];
+  widgets: Record<Widget["id"], Widget>;
 };
 
 export type { App };

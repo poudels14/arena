@@ -15,7 +15,7 @@ import { Canvas } from "./Canvas";
 import { ComponentTree } from "./ComponentTree";
 import { Toolbar } from "./toolbar";
 import { DragDropProvider, DragEndEvent, DragOverlay } from "@arena/solid-dnd";
-import { Match, Show, Switch, createMemo } from "solid-js";
+import { Match, Show, Switch, createEffect, createMemo } from "solid-js";
 import { Widget } from "./Widget";
 import { Slot } from "./Slot";
 import { TEMPLATES } from "./templates";

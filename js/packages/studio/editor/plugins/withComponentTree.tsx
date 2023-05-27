@@ -1,20 +1,22 @@
 import { Accessor, createComputed, createMemo, untrack } from "solid-js";
 import { Plugin } from "./types";
 import { Widget } from "@arena/widgets/schema";
+import { App } from "../../types";
 
 type ComponentTreeNode = {
   /**
    * Widget id
+   *
    * Root node is app, so id is null for that node
    */
   id: string | null;
 
   /**
    * Widget slug
-   * null if the node is app instead of widget
+   *
+   * if the node is app instead of widget, app name is used
    */
-  slug: string | null;
-  title: string;
+  name: string;
   icon?: string;
   children: ComponentTreeNode[];
 };
@@ -47,18 +49,10 @@ const withComponentTree: Plugin<
         return null;
       }
 
-      const childrenIds = {};
-      const children = collectChildren(app.widgets, childrenIds, null);
-      untrack(() => {
-        plugins.setState("withComponentTree", "childrenIds", childrenIds);
-      });
-
-      return {
-        id: null,
-        slug: null,
-        title: app.name,
-        children,
-      };
+      const prevChildrenByParentId = untrack(
+        () => plugins.state.withComponentTree.childrenIds() || {}
+      );
+      return buildComponentTree(app, prevChildrenByParentId, plugins.setState);
     });
 
     createComputed(() => {
@@ -76,42 +70,85 @@ const withComponentTree: Plugin<
     });
   };
 
-const collectChildren = (
-  widgets: Widget[],
-  childrenIds: Record<string, string[]>,
-  parentId: string | null
+const buildComponentTree = (
+  app: App,
+  prevChildrenByParentId: any,
+  setState: any
 ) => {
-  const placeAfterWidget = new Map();
-  const children = new Map();
-  widgets
-    .filter((w) => w.parentId === parentId)
-    .forEach((w) => {
-      const placeAfter = w.config.layout?.position?.after || null;
-      if (placeAfterWidget.get(placeAfter)) {
-        throw new Error(
-          "More than 1 widget in a same position of parent: " + parentId
-        );
-      }
-      placeAfterWidget.set(placeAfter, w.id);
-      children.set(w.id, {
-        id: w.id,
-        slug: w.slug,
-        title: w.name,
-        children: collectChildren(widgets, childrenIds, w.id),
-      });
-    });
+  const allWidgets = Object.values(app.widgets);
+  const fistChildByParentId = new Map<string | null, string>();
+  const siblingAfterWidgetById = new Map();
+  allWidgets.forEach((w) => {
+    const placeAfter = w.config.layout?.position?.after || null;
+    if (siblingAfterWidgetById.get(placeAfter)) {
+      throw new Error(
+        "More than 1 widget in a same position of parent: " + w.parentId
+      );
+    }
+    if (placeAfter == null) {
+      fistChildByParentId.set(w.parentId, w.id);
+    } else {
+      siblingAfterWidgetById.set(placeAfter, w.id);
+    }
+  });
 
-  const sortedChildrenNode = [];
+  const { children } = sortChildrenAndUpdate(
+    setState,
+    app.widgets,
+    prevChildrenByParentId,
+    siblingAfterWidgetById,
+    fistChildByParentId,
+    null!
+  );
+
+  return {
+    id: null,
+    name: app.name,
+    children,
+  };
+};
+
+const sortChildrenAndUpdate = (
+  setState: any,
+  widgets: App["widgets"],
+  prevChildrenByParentIds: Record<string, Widget["id"]>,
+  siblingAfterWidgetById: Map<string, string>,
+  fistChildByParentId: Map<string | null, string>,
+  widgetId: Widget["id"]
+): ComponentTreeNode => {
+  const prevChildrenIds = prevChildrenByParentIds[widgetId] || [];
   const sortedChildrenIds = [];
-  let nextChild = null;
-  while ((nextChild = placeAfterWidget.get(nextChild))) {
-    const nextNode = children.get(nextChild);
-    sortedChildrenNode.push(nextNode);
-    sortedChildrenIds.push(nextNode.id);
+  const firstChild = fistChildByParentId.get(widgetId);
+  if (firstChild) {
+    let i = 0;
+    let childernChanged = false;
+    let currentChild: string | undefined = firstChild;
+    while (currentChild) {
+      sortedChildrenIds.push(currentChild);
+      if (currentChild != prevChildrenIds[i]) {
+        childernChanged = true;
+      }
+      currentChild = siblingAfterWidgetById.get(currentChild);
+      i += 1;
+    }
+    if (childernChanged) {
+      setState("withComponentTree", "childrenIds", widgetId, sortedChildrenIds);
+    }
   }
-
-  childrenIds[parentId!] = sortedChildrenIds;
-  return sortedChildrenNode;
+  return {
+    id: widgetId,
+    name: widgets[widgetId]?.slug || null!,
+    children: sortedChildrenIds.map((childId) =>
+      sortChildrenAndUpdate(
+        setState,
+        widgets,
+        prevChildrenByParentIds,
+        siblingAfterWidgetById,
+        fistChildByParentId,
+        childId
+      )
+    ),
+  };
 };
 
 export { withComponentTree };

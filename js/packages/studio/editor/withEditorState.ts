@@ -60,7 +60,6 @@ type EditorStateContext = {
 };
 
 type EditorState = {
-  ready: boolean;
   viewOnly: boolean;
   selectedWidgets: string[];
   widgetNodes: Record<string, HTMLElement | null>;
@@ -87,7 +86,6 @@ const withEditorState: Plugin<
     );
 
     plugins.setState("withEditorState", {
-      ready: false,
       viewOnly: config.viewOnly || false,
       selectedWidgets: [],
       widgetNodes: {},
@@ -101,19 +99,6 @@ const withEditorState: Plugin<
       batch(() => {
         core.setState("app", app);
       });
-    });
-
-    createComputed(() => {
-      const app = core.state.app();
-      if (app) {
-        const widgetsById = Object.fromEntries(
-          app.widgets.map((widget) => {
-            return [widget.id, widget];
-          })
-        );
-        core.setState("widgetsById", widgetsById);
-        plugins.setState("withEditorState", "ready", true);
-      }
     });
 
     const addWidget: EditorStateContext["addWidget"] = async ({
@@ -161,7 +146,7 @@ const withEditorState: Plugin<
         plugins.setState("withEditorState", "viewOnly", viewOnly);
       },
       useWidgetById(id: string) {
-        return core.state.widgetsById[id];
+        return core.state.app.widgets[id];
       },
       addWidget,
       updateWidget,
@@ -186,7 +171,7 @@ const withEditorState: Plugin<
 
     return {
       isReady() {
-        return plugins.state.withEditorState.ready();
+        return Boolean(core.state.app());
       },
     };
   };
@@ -197,12 +182,10 @@ const updateState = (
 ) => {
   const { created: createdWidgets = [], updated: updatedWidgets = [] } =
     updates.widgets || {};
-  core.setState("app", "widgets", (widgets) => {
-    widgets = widgets.map((w) => {
-      return updatedWidgets.find((u) => u.id == w.id) ?? w;
-    });
-    createdWidgets.forEach((w) => widgets.push(w));
-    return widgets;
+
+  batch(() => {
+    updatedWidgets.forEach((w) => core.setState("app", "widgets", w.id, w));
+    createdWidgets.forEach((w) => core.setState("app", "widgets", w.id, w));
   });
 };
 

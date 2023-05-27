@@ -1,12 +1,10 @@
 import {
   onCleanup,
   JSX,
-  children,
   createMemo,
   ErrorBoundary,
   ResourceReturn,
   createEffect,
-  Suspense,
   createSignal,
   createComputed,
   untrack,
