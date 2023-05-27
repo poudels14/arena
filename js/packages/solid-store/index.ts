@@ -1,9 +1,11 @@
 import {
   Accessor,
   batch,
+  createEffect,
   createMemo,
   createSignal,
   getListener,
+  onCleanup,
 } from "solid-js";
 import type { SetStoreFunction } from "solid-js/store";
 
@@ -317,5 +319,6 @@ export function isWrappable(obj: any) {
   );
 }
 
+export { createSyncedStore } from "./storage";
 export { createStore, batchUpdates, $RAW, $UPDATEDAT };
 export type { Store, StoreSetter };

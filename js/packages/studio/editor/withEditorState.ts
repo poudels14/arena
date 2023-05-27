@@ -5,7 +5,7 @@ import {
   Accessor,
   untrack,
 } from "solid-js";
-import { Store, StoreSetter } from "@arena/solid-store";
+import { Store, StoreSetter, createSyncedStore } from "@arena/solid-store";
 import { uniqueId } from "@arena/uikit";
 import cleanSet from "clean-set";
 import { App } from "../types/app";
@@ -60,7 +60,6 @@ type EditorStateContext = {
 };
 
 type EditorState = {
-  viewOnly: boolean;
   selectedWidgets: string[];
   widgetNodes: Record<string, HTMLElement | null>;
 };
@@ -85,14 +84,22 @@ const withEditorState: Plugin<
       }
     );
 
+    const [syncedStore, setSyncedStored] = createSyncedStore<{
+      viewOnly: boolean;
+    }>(
+      {
+        viewOnly: config.viewOnly || false,
+      },
+      {
+        storeKey: "studio/withEditorState",
+      }
+    );
+
     plugins.setState("withEditorState", {
-      viewOnly: config.viewOnly || false,
       selectedWidgets: [],
       widgetNodes: {},
     });
-    const untrackedViewOnly = untrack(
-      () => plugins.state.withEditorState.viewOnly
-    );
+    const untrackedViewOnly = untrack(() => syncedStore.viewOnly);
 
     createComputed(() => {
       const app = getApp() as App;
@@ -140,10 +147,10 @@ const withEditorState: Plugin<
 
     Object.assign(context, {
       isViewOnly() {
-        return plugins.state.withEditorState.viewOnly();
+        return syncedStore.viewOnly();
       },
       setViewOnly(viewOnly) {
-        plugins.setState("withEditorState", "viewOnly", viewOnly);
+        setSyncedStored("viewOnly", viewOnly);
       },
       useWidgetById(id: string) {
         return core.state.app.widgets[id];
