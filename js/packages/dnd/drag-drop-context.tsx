@@ -14,6 +14,20 @@ import { findClosestDroppable } from "./collision";
 import { Collision, CollisionOptions, Sensor } from "./types";
 import { Overlay } from "./overlay";
 
+type DragEvent = {
+  draggable: Draggable;
+  overlay?: Overlay | null;
+};
+
+type DragEventHandler = (event: DragEvent) => void;
+
+type DragEndEvent = {
+  draggable: Draggable;
+  droppable: Droppable | null;
+};
+
+type DragEndHandler = (e: DragEndEvent) => void;
+
 type State = {
   active: {
     sensor: Sensor | null;
@@ -29,24 +43,11 @@ type Context = {
   setState: StoreSetter<State>;
   isActiveDraggable: (id: Draggable["id"]) => boolean;
   isActiveDroppable: (id: Droppable["id"]) => boolean;
+  attachDragEndHandler: (handle: DragEndHandler) => void;
 };
 
 const DragDropContext = createContext<Context>();
 const useDragDropContext = () => useContext(DragDropContext)!;
-
-type DragEvent = {
-  draggable: Draggable;
-  overlay?: Overlay | null;
-};
-
-type DragEventHandler = (event: DragEvent) => void;
-
-type DragEndEvent = {
-  draggable: Draggable;
-  droppable: Droppable | null;
-};
-
-type DragEndHandler = (e: DragEndEvent) => void;
 
 type DragAndDropProviderProps = {
   options?: {
@@ -73,6 +74,11 @@ const DragDropProvider = (props: DragAndDropProviderProps) => {
     () => state.active.collision.droppable()?.id
   );
 
+  let dragEndHandlers: DragEndHandler[] = [];
+  const attachDragEndHandler = (handler: DragEndHandler) => {
+    dragEndHandlers.push(handler);
+  };
+
   const dragEndHandler = (_: PointerEvent) => {
     const active = untrack(() => state.active());
     // Note(sagar): since drag end handler is attached to the document,
@@ -80,10 +86,16 @@ const DragDropProvider = (props: DragAndDropProviderProps) => {
     if (!active.draggable) {
       return;
     }
-    props.onDragEnd?.({
+
+    const dragEndEvent = {
       draggable: active.draggable!,
       droppable: active.collision?.droppable || null,
-    });
+    };
+    props.onDragEnd?.(dragEndEvent);
+    for (const dragEndHandler of dragEndHandlers) {
+      dragEndHandler(dragEndEvent);
+    }
+
     setState("active", "sensor", null);
     setState("active", "draggable", null);
   };
@@ -150,7 +162,13 @@ const DragDropProvider = (props: DragAndDropProviderProps) => {
 
   return (
     <DragDropContext.Provider
-      value={{ state, setState, isActiveDraggable, isActiveDroppable }}
+      value={{
+        state,
+        setState,
+        isActiveDraggable,
+        isActiveDroppable,
+        attachDragEndHandler,
+      }}
     >
       {props.children}
     </DragDropContext.Provider>

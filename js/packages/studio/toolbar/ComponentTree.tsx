@@ -3,7 +3,7 @@ import { InlineIcon } from "@arena/components";
 // TODO(sagar): figure out a way to use exports from `@blueprintjs/icons` without
 // crashing the browser; browser crashes because it tries to load all exported icons
 import ListDetailView from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/list-detail-view";
-import { ComponentTreeNode, useEditorContext } from "./editor";
+import { ComponentTreeNode, useEditorContext } from "../editor";
 
 const NodeComponent = (props: {
   node: ComponentTreeNode;
@@ -17,8 +17,8 @@ const NodeComponent = (props: {
         <div
           class="title px-2 py-1 space-x-1 rounded cursor-pointer"
           classList={{
-            "bg-accent-12 text-accent-1 shadow-lg": isSelected(),
-            "bg-accent-12/80 text-accent-2": !isSelected(),
+            "bg-accent-12/90 text-accent-1 shadow-lg": isSelected(),
+            "bg-accent-12/70 text-accent-2": !isSelected(),
           }}
           onClick={() => props.node.id && props.selectWiget(props.node.id)}
         >

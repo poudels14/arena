@@ -14,7 +14,8 @@ import MaximizeIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/
 import { InlineIcon } from "@arena/components";
 import { Templates } from "./Templates";
 import { Data } from "./Data";
-import { useEditorContext } from "../editor";
+import { ComponentTreeContext, useEditorContext } from "../editor";
+import { ComponentTree } from "./ComponentTree";
 
 type ToolbarTab =
   /**
@@ -60,7 +61,8 @@ const Toolbar = () => {
   });
 
   const isActive = createSelector(state.tab.active);
-  const { getSelectedWidgets, setViewOnly, isViewOnly } = useEditorContext();
+  const { getSelectedWidgets, setViewOnly, isViewOnly, getComponentTree } =
+    useEditorContext<ComponentTreeContext>();
 
   createComputed(() => {
     const selectedWidgets = getSelectedWidgets();
@@ -75,11 +77,11 @@ const Toolbar = () => {
 
   return (
     <ToolbarContext.Provider value={{ state, setState }}>
-      <div class="toolbar-container fixed bottom-4 w-full flex flex-row justify-center pointer-events-none z-[99999]">
-        <Switch>
-          <Match when={isViewOnly()}>
+      <Switch>
+        <Match when={isViewOnly()}>
+          <div class="toolbar fixed bottom-0 w-full flex flex-row justify-center z-[99999]">
             <div
-              class="w-52 h-8 p-2 flex rounded-md text-brand-2 bg-brand-12/80 cursor-pointer pointer-events-auto space-x-2"
+              class="relative bottom-4 w-52 h-8 p-2 flex rounded-md text-brand-2 bg-brand-12/80 cursor-pointer pointer-events-auto space-x-2"
               onClick={() => setViewOnly(false)}
             >
               <div class="flex-1 text-xs text-center">Open editor</div>
@@ -87,9 +89,14 @@ const Toolbar = () => {
                 <path d={MaximizeIcon[0]} />
               </InlineIcon>
             </div>
-          </Match>
-          <Match when={true}>
-            <div class="toolbar flex flex-col w-[840px] h-64 rounded-md bg-brand-12/80 backdrop-blur-2xl pointer-events-auto">
+          </div>
+        </Match>
+        <Match when={true}>
+          <div class="toolbar fixed bottom-0 w-full flex flex-row h-64 bg-brand-12/50 backdrop-blur justify-between pointer-events-auto z-[99999]">
+            <div class="p-4 w-64 overflow-auto no-scrollbar">
+              <ComponentTree node={getComponentTree()} />
+            </div>
+            <div class="flex-1 flex flex-col w-[840px] bg-brand-12/80">
               <div class="relative py-0.5 flex justify-center text-white overflow-hidden">
                 <InlineIcon size="14px" class="cursor-pointer">
                   <path d={DragHandle[0]} />
@@ -112,9 +119,10 @@ const Toolbar = () => {
                 disableWidgetConfigTabs={!state.tab.isWidgetActive()}
               />
             </div>
-          </Match>
-        </Switch>
-      </div>
+            <div class="w-64"></div>
+          </div>
+        </Match>
+      </Switch>
     </ToolbarContext.Provider>
   );
 };

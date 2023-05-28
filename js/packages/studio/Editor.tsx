@@ -12,10 +12,14 @@ import {
   ComponentTreeContext,
 } from "./editor";
 import { Canvas } from "./Canvas";
-import { ComponentTree } from "./ComponentTree";
 import { Toolbar } from "./toolbar";
-import { DragDropProvider, DragEndEvent, DragOverlay } from "@arena/solid-dnd";
-import { Match, Show, Switch, createEffect, createMemo } from "solid-js";
+import {
+  DragDropProvider,
+  DragEndEvent,
+  DragOverlay,
+  useDragDropContext,
+} from "@arena/solid-dnd";
+import { Match, Switch, createMemo } from "solid-js";
 import { Widget } from "./Widget";
 import { Slot } from "./Slot";
 import { TEMPLATES } from "./templates";
@@ -36,67 +40,78 @@ const Editor = (props: EditorProps) => {
   );
 
   return (
-    <AppEditorProvider>
-      <AppEditor />
-    </AppEditorProvider>
-  );
-};
-
-const AppEditor = () => {
-  const { state, isViewOnly, addWidget, getComponentTree, useChildren } =
-    useEditorContext<TemplateStoreContext & ComponentTreeContext>();
-
-  const getChildren = createMemo(() => useChildren(null));
-  const onDragEnd = async (e: DragEndEvent) => {
-    const templateId = e.draggable.data.templateId;
-    if (e.droppable) {
-      const { parentId, afterWidget } = e.droppable!.data;
-      const children = useChildren(parentId);
-      const afterIndex = children.findIndex((c) => c == afterWidget);
-      await addWidget({
-        parentId,
-        templateId,
-        position: {
-          after: afterWidget,
-          before:
-            afterIndex + 1 < children.length ? children[afterIndex + 1] : null,
-        },
-      });
-    }
-  };
-
-  return (
     <DragDropProvider
-      onDragEnd={onDragEnd}
       options={{
         collision: {
           distance: 80,
         },
       }}
     >
-      <Title>{state.app.name()}</Title>
-      <div class="fixed top-12 left-6 z-[10000]">
-        <Show when={!isViewOnly()}>
-          <ComponentTree node={getComponentTree()} />
-        </Show>
-      </div>
-      <div class="absolute px-[2px] w-[calc(100%-4px)] min-w-[900px] h-screen">
-        <div class="w-full h-full">
-          <Canvas>
-            <Switch>
-              <Match when={getChildren().length > 0}>
-                <Widget widgetId={getChildren()[0]} />
-              </Match>
-              <Match when={true}>
-                <Slot parentId={null} />
-              </Match>
-            </Switch>
-          </Canvas>
-        </div>
-        <Toolbar />
-      </div>
+      <AppEditorProvider>
+        <AppEditor />
+      </AppEditorProvider>
       <DragOverlay />
     </DragDropProvider>
+  );
+};
+
+const AppEditor = () => {
+  const { state, addWidget, updateWidget, useChildren, isViewOnly } =
+    useEditorContext<TemplateStoreContext & ComponentTreeContext>();
+  const { attachDragEndHandler } = useDragDropContext();
+
+  const getChildren = createMemo(() => useChildren(null));
+  const onDragEnd = async (e: DragEndEvent) => {
+    const { templateId, widgetId } = e.draggable.data || {};
+    if (e.droppable) {
+      const { parentId, afterWidget } = e.droppable!.data;
+      const children = useChildren(parentId);
+      const afterIndex = children.findIndex((c) => c == afterWidget);
+      const before =
+        afterIndex + 1 < children.length ? children[afterIndex + 1] : null;
+      if (templateId) {
+        await addWidget({
+          parentId,
+          templateId,
+          position: {
+            after: afterWidget,
+            before,
+          },
+        });
+        // if widgetId is set, update the widget's position
+      } else if (widgetId) {
+        updateWidget(widgetId, "config", "layout", "position", {
+          after: afterWidget,
+          // @ts-expect-error
+          before,
+        });
+      }
+    }
+  };
+  attachDragEndHandler(onDragEnd);
+
+  return (
+    <>
+      <Title>{state.app.name()}</Title>
+      <div
+        class="w-full h-full min-w-[900px] no-scrollbar"
+        classList={{
+          "pb-64": !isViewOnly(),
+        }}
+      >
+        <Canvas>
+          <Switch>
+            <Match when={getChildren().length > 0}>
+              <Widget widgetId={getChildren()[0]} />
+            </Match>
+            <Match when={true}>
+              <Slot parentId={null} />
+            </Match>
+          </Switch>
+        </Canvas>
+      </div>
+      <Toolbar />
+    </>
   );
 };
 

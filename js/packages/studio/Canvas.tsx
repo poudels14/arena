@@ -19,7 +19,7 @@ const Canvas = (props: { children: any }) => {
   });
 
   return (
-    <div class="arena-editor relative w-full h-full p-1px">
+    <div class="arena-editor relative w-full h-full">
       <GridLines width={40} height={30} scale={state.scale()} />
       <div class="arena-canvas-container relative w-full h-full overflow-x-auto overflow-y-auto">
         <div
