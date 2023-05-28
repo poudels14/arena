@@ -9,7 +9,7 @@
   --resizer-offset-height: 0px;
 
   --resizer-hand-thickness: 5px;
-  --resizer-hand-border-thickness: 1px;
+  --resizer-hand-border-thickness: 2px;
   --resize-corner-size: 6px;
   --resize-corner-offset: -3px; /* --resize-corner-size / 2 */
 
@@ -22,7 +22,7 @@
 
   > * {
     position: absolute;
-    border: 0px solid rgb(79, 70, 229);
+    border: 0px solid rgb(229, 70, 70);
     /* TODO(sagar): use gradient background on surrounding box background: rgba(79, 70, 229, 0.2); */
   }
 

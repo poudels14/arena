@@ -77,11 +77,10 @@ const Placeholder = (props: {
   return (
     <div
       ref={droppable.ref}
-      class="placeholder px-5 py-5 text-center text-gray-600 border-2 border-gray-500 border-dashed"
+      class="placeholder px-5 py-5 text-center text-accent-10 border-2 border-gray-500 border-dashed"
       classList={{
         "bg-white": !droppable.isActiveDroppable,
-        "shadow-inner shadow-slate-400 bg-slate-100":
-          droppable.isActiveDroppable,
+        "shadow-inner shadow-brand-11 bg-brand-2": droppable.isActiveDroppable,
       }}
     >
       {props.children || "Drop widget templates here"}

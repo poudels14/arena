@@ -3,10 +3,10 @@ import { createSignal } from "solid-js";
 const ChatBox = () => {
   const [expanded, setExpanded] = createSignal(false);
   return (
-    <div class="rounded-lg border-4 border-slate-700">
+    <div class="rounded-lg border-4 border-brand-12/80">
       <div
         classList={{
-          "block h-48 text-white rounded-t bg-brand-1": true,
+          "block h-48 text-brand-1 rounded-t bg-brand-1": true,
           hidden: !expanded(),
         }}
       >
@@ -16,7 +16,7 @@ const ChatBox = () => {
         <input
           type="text"
           placeholder="Ask Arena..."
-          class="font-medium px-3 py-2 w-full placeholder:text-gray-5 text-white bg-slate-700 outline-none"
+          class="font-medium px-3 py-2 w-full placeholder:text-brand-9 text-brand-1 bg-brand-12/80 backdrop-blur-2xl outline-none"
           onFocus={() => setExpanded(true)}
           onBlur={() => setExpanded(false)}
         />

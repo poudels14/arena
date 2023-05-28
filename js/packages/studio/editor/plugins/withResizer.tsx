@@ -100,7 +100,7 @@ const Resizer = (props: { widgetId: string; node: HTMLElement }) => {
       // onDragEnd={onDragEnd}
       ref={resizerRef}
     >
-      <div class="absolute -bottom-[100%] mb-px text-white bg-slate-700 rounded">
+      <div class="absolute -bottom-[100%] mb-px text-accent-1 bg-[rgb(229,70,70)] rounded">
         <div class="flex flex-row w-52 h-6 items-center text-xs space-x-2">
           <div class="flex pl-2">
             <InlineIcon class="inline-block cursor-move" size="12px">

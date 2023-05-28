@@ -6,6 +6,7 @@ import {
   Switch,
   Match,
   createComputed,
+  createSelector,
 } from "solid-js";
 import DragHandle from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/drag-handle-horizontal";
 import MinimizeIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/minimize";
@@ -58,6 +59,7 @@ const Toolbar = () => {
     },
   });
 
+  const isActive = createSelector(state.tab.active);
   const { getSelectedWidgets, setViewOnly, isViewOnly } = useEditorContext();
 
   createComputed(() => {
@@ -77,7 +79,7 @@ const Toolbar = () => {
         <Switch>
           <Match when={isViewOnly()}>
             <div
-              class="w-52 h-8 p-2 flex rounded-md text-gray-400 bg-slate-700 cursor-pointer pointer-events-auto space-x-2"
+              class="w-52 h-8 p-2 flex rounded-md text-brand-2 bg-brand-12/80 cursor-pointer pointer-events-auto space-x-2"
               onClick={() => setViewOnly(false)}
             >
               <div class="flex-1 text-xs text-center">Open editor</div>
@@ -87,15 +89,15 @@ const Toolbar = () => {
             </div>
           </Match>
           <Match when={true}>
-            <div class="toolbar flex flex-col w-[840px] h-64 rounded-md bg-slate-700 pointer-events-auto">
+            <div class="toolbar flex flex-col w-[840px] h-64 rounded-md bg-brand-12/80 backdrop-blur-2xl pointer-events-auto">
               <div class="relative py-0.5 flex justify-center text-white overflow-hidden">
                 <InlineIcon size="14px" class="cursor-pointer">
                   <path d={DragHandle[0]} />
                 </InlineIcon>
                 <div class="absolute right-0 px-1">
                   <InlineIcon
-                    size="12px"
-                    class="p-[1px] cursor-pointer"
+                    size="14px"
+                    class="p-[2px] cursor-pointer"
                     onClick={() => setViewOnly(true)}
                   >
                     <path d={MinimizeIcon[0]} />
@@ -103,10 +105,10 @@ const Toolbar = () => {
                 </div>
               </div>
               <div class="flex-1 px-2 overflow-hidden">
-                <TabContent activeTab={state.tab.active()} />
+                <TabContent isActive={isActive} />
               </div>
               <ToolbarTabs
-                active={state.tab.active()}
+                isActive={isActive}
                 disableWidgetConfigTabs={!state.tab.isWidgetActive()}
               />
             </div>
@@ -120,7 +122,7 @@ const Toolbar = () => {
 type TabsProps = {
   id: ToolbarTab;
   children: JSX.Element;
-  active: ToolbarTab;
+  isActive: (id: ToolbarTab) => boolean;
   classList?: Record<string, boolean>;
   disabled?: boolean;
 };
@@ -133,8 +135,8 @@ const Tab = (props: TabsProps) => {
       classList={{
         ...(props.classList || {}),
         "cursor-pointer": !props.disabled,
-        "text-white bg-slate-600": props.active === props.id,
-        "text-gray-500 cursor-not-allowed": props.disabled,
+        "bg-brand-11 text-brand-1": props.isActive(props.id),
+        "text-brand-11 cursor-not-allowed": props.disabled,
       }}
       onClick={() => !props.disabled && setState("tab", "active", props.id)}
     >
@@ -144,14 +146,14 @@ const Tab = (props: TabsProps) => {
 };
 
 const ToolbarTabs = (props: {
-  active: ToolbarTab;
+  isActive: TabsProps["isActive"];
   disableWidgetConfigTabs: boolean;
 }) => {
   return (
-    <div class="px-4 py-1 flex flex-row space-x-2 text-sm text-gray-400 select-none">
+    <div class="px-4 py-1 flex flex-row space-x-2 text-sm text-brand-7 select-none">
       <Tab
         id="chat"
-        active={props.active}
+        isActive={props.isActive}
         classList={{
           "flex-1": true,
         }}
@@ -159,37 +161,37 @@ const ToolbarTabs = (props: {
         <input
           type="text"
           placeholder="Ask Arena..."
-          class="w-full py-1 text-sm placeholder:text-gray-400 bg-transparent text-white rounded-l outline-none"
+          class="w-full py-1 text-sm placeholder:text-brand-5 bg-transparent text-brand-1 rounded-l outline-none"
         />
       </Tab>
       <Tab
         id="data"
-        active={props.active}
+        isActive={props.isActive}
         disabled={props.disableWidgetConfigTabs}
       >
         Data
       </Tab>
       <Tab
         id="style"
-        active={props.active}
+        isActive={props.isActive}
         disabled={props.disableWidgetConfigTabs}
       >
         Style
       </Tab>
-      <Tab id="templates" active={props.active}>
+      <Tab id="templates" isActive={props.isActive}>
         Templates
       </Tab>
     </div>
   );
 };
 
-const TabContent = (props: { activeTab: ToolbarTab }) => {
+const TabContent = (props: { isActive: TabsProps["isActive"] }) => {
   return (
     <Switch>
-      <Match when={props.activeTab == "data"}>
+      <Match when={props.isActive("data")}>
         <Data />
       </Match>
-      <Match when={props.activeTab == "templates"}>
+      <Match when={props.isActive("templates")}>
         <Templates />
       </Match>
     </Switch>

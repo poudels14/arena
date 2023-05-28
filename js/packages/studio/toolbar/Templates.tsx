@@ -16,11 +16,11 @@ const Templates = () => {
 
   return (
     <div class="flex flex-row h-full">
-      <div class="flex flex-col px-2 w-72 h-full space-y-1 text-white border-r border-slate-600">
-        <div class="border-b border-slate-600">
+      <div class="flex flex-col px-2 w-72 h-full space-y-1 text-brand-1 border-r border-brand-11/30">
+        <div class="border-b border-brand-11/40">
           <input
             type="text"
-            class="px-2 w-36 text-xs bg-transparent outline-none border-slate-500"
+            class="px-2 w-36 text-xs bg-transparent outline-none"
             placeholder="Search template"
           />
         </div>
@@ -32,7 +32,7 @@ const Templates = () => {
           </For>
         </div>
       </div>
-      <div class="">TEMPLATE PREVIEW</div>
+      <div class=""></div>
     </div>
   );
 };
@@ -42,10 +42,9 @@ const TemplateCard = (props: { metadata: Template.Metadata<any> }) => {
     templateId: props.metadata.id,
   });
 
-  void draggable;
   return (
     <div
-      class="px-2 py-2 cursor-pointer rounded bg-slate-600 hover:bg-slate-500"
+      class="px-2 py-2 cursor-pointer rounded bg-brand-12/40 hover:bg-brand-12/80"
       ref={draggable.ref}
     >
       {props.metadata.name}

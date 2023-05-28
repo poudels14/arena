@@ -75,9 +75,6 @@ const AppEditor = () => {
       }}
     >
       <Title>{state.app.name()}</Title>
-      {/* <div class="fixed bg-slate-0 bg-gradient-to-b from-slate-600 to-slate-700 opacity-100 z-[10000] text-white w-full h-9 shadow-lg">
-        <Header />
-      </div> */}
       <div class="fixed top-12 left-6 z-[10000]">
         <Show when={!isViewOnly()}>
           <ComponentTree node={getComponentTree()} />

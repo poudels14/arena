@@ -41,10 +41,10 @@ const Data = () => {
   });
 
   return (
-    <div class="flex flex-row px-2 h-full space-x-2 text-white">
+    <div class="flex flex-row px-2 h-full space-x-2 text-brand-1">
       <Switch>
         <Match when={fieldMetadata().length == 0}>
-          <div class="flex flex-col w-full text-center justify-center text-slate-500">
+          <div class="flex flex-col w-full text-center justify-center text-brand-8">
             There's no configurable data for this widget
           </div>
         </Match>
@@ -87,7 +87,7 @@ const Field = (
 ) => {
   return (
     <div
-      class="px-2 py-1 text-xs cursor-pointer rounded bg-slate-600 hover:bg-slate-500"
+      class="px-2 py-1 text-xs cursor-pointer rounded bg-brand-12/70 hover:bg-brand-12/40"
       onClick={() => props.setSelectedField(props.fieldName)}
     >
       {props.title}
@@ -111,8 +111,8 @@ const FieldEditor = (props: { metadata: FieldMetadata }) => {
         <div class="flex flex-row space-x-2">
           <div>Data Source</div>
           <select
-            class="px-2 text-sm text-black rounded-sm outline-none appearance-none after:content-['*'] after:(w-4,h-2,bg-gray-400,clip-path-[polygon(100%-0%,0-0%,50%-100%)])"
-            value={props.metadata.fieldConfig.source}
+            class="px-2 text-sm text-brand-12 rounded-sm outline-none appearance-none"
+            value={props.metadata.fieldConfig.config.loader}
             onChange={(e) => setDataSource(e.target.value as any)}
           >
             <For
@@ -120,7 +120,7 @@ const FieldEditor = (props: { metadata: FieldMetadata }) => {
                 ["@client/json", "Inline Data"],
                 ["@client/js", "Client Javascript"],
                 ["@arena/sql/postgres", "Postgres"],
-                ["@arena/loaders/js", "Custom Server Function"],
+                ["@arena/server-function", "Custom Server Function"],
               ]}
             >
               {(source) => <option value={source[0]}>{source[1]}</option>}
@@ -170,7 +170,7 @@ const DataSourceEditor = (props: { metadata: FieldMetadata }) => {
   }, 300);
 
   return (
-    <div class="w-full py-2 bg-gray-100 text-black">
+    <div class="w-full py-2 bg-brand-1 text-black">
       <CodeEditor
         lang={editorProps().lang}
         value={editorProps().code}

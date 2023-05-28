@@ -17,8 +17,8 @@ const NodeComponent = (props: {
         <div
           class="title px-2 py-1 space-x-1 rounded cursor-pointer"
           classList={{
-            "bg-slate-400 text-gray-800": isSelected(),
-            "bg-slate-700 text-white": !isSelected(),
+            "bg-accent-12 text-accent-1 shadow-lg": isSelected(),
+            "bg-accent-12/80 text-accent-2": !isSelected(),
           }}
           onClick={() => props.node.id && props.selectWiget(props.node.id)}
         >
