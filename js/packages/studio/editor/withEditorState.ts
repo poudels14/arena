@@ -4,6 +4,7 @@ import {
   createComputed,
   Accessor,
   untrack,
+  createSelector,
 } from "solid-js";
 import { Store, StoreSetter, createSyncedStore } from "@arena/solid-store";
 import { uniqueId } from "@arena/uikit";
@@ -57,6 +58,7 @@ type EditorStateContext = {
    */
   setSelectedWidget: (widgetId: string, replace?: boolean) => void;
   getSelectedWidgets: Accessor<string[]>;
+  isWidgetSelected: (id: Widget["id"]) => boolean;
 };
 
 type EditorState = {
@@ -100,6 +102,10 @@ const withEditorState: Plugin<
       widgetNodes: {},
     });
     const untrackedViewOnly = untrack(() => syncedStore.viewOnly);
+    const isWidgetSelected = createSelector(
+      plugins.state.withEditorState.selectedWidgets,
+      (id: string, selected) => !syncedStore.viewOnly() && selected.includes(id)
+    );
 
     createComputed(() => {
       const app = getApp() as App;
@@ -174,6 +180,7 @@ const withEditorState: Plugin<
       getSelectedWidgets() {
         return plugins.state.withEditorState.selectedWidgets();
       },
+      isWidgetSelected,
     } as EditorStateContext);
 
     return {

@@ -7,18 +7,21 @@ import { ComponentTreeNode, useEditorContext } from "../editor";
 
 const NodeComponent = (props: {
   node: ComponentTreeNode;
-  selectedWidgetIds: string[];
+  isWidgetSelected: (id: string) => boolean;
   selectWiget: (id: string) => void;
 }) => {
-  const isSelected = () => props.selectedWidgetIds.includes(props.node.id!);
   return (
     <div class="node space-y-[1px]">
       <div class="flex">
         <div
           class="title px-2 py-1 space-x-1 rounded cursor-pointer"
           classList={{
-            "bg-accent-12/90 text-accent-1 shadow-lg": isSelected(),
-            "bg-accent-12/70 text-accent-2": !isSelected(),
+            "bg-accent-12/90 text-accent-1 shadow-lg": props.isWidgetSelected(
+              props.node.id!
+            ),
+            "bg-accent-12/70 text-accent-2": !props.isWidgetSelected(
+              props.node.id!
+            ),
           }}
           onClick={() => props.node.id && props.selectWiget(props.node.id)}
         >
@@ -36,7 +39,7 @@ const NodeComponent = (props: {
             return (
               <NodeComponent
                 node={node}
-                selectedWidgetIds={props.selectedWidgetIds}
+                isWidgetSelected={props.isWidgetSelected}
                 selectWiget={props.selectWiget}
               />
             );
@@ -48,14 +51,14 @@ const NodeComponent = (props: {
 };
 
 const ComponentTree = (props: { node: ComponentTreeNode | null }) => {
-  const { getSelectedWidgets, setSelectedWidget } = useEditorContext();
+  const { isWidgetSelected, setSelectedWidget } = useEditorContext();
   return (
     <div class="component-tree">
       <Show when={props.node}>
         {/* Note(sagar): this rerenders the entire tree every time tree is changed */}
         <NodeComponent
           node={props.node!}
-          selectedWidgetIds={getSelectedWidgets().map((id) => id!)}
+          isWidgetSelected={isWidgetSelected}
           selectWiget={setSelectedWidget}
         />
       </Show>

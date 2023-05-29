@@ -5,7 +5,6 @@ import {
   createEditorWithPlugins,
   useEditorContext,
   withEditorState,
-  withResizer,
   withTemplateStore,
   withWidgetDataLoaders,
   withComponentTree,
@@ -32,7 +31,6 @@ const Editor = (props: EditorProps) => {
       appId: props.appId,
     }),
     withComponentTree(),
-    withResizer({}),
     withTemplateStore({
       templates: TEMPLATES,
     }),

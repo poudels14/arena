@@ -100,6 +100,9 @@ const WidgetRenderer = (props: WidgetProps) => {
     return {
       "ar-widget": true,
       [c]: Boolean(c),
+      "shadow-[inset_0_0px_2px_2px_rgba(229,70,70)]": ctx.isWidgetSelected(
+        props.id
+      ),
     };
   });
 
