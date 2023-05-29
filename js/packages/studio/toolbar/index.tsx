@@ -7,6 +7,7 @@ import {
   Match,
   createComputed,
   createSelector,
+  Accessor,
 } from "solid-js";
 import DragHandle from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/drag-handle-horizontal";
 import MinimizeIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/minimize";
@@ -39,11 +40,6 @@ type ToolbarTab =
 type ToolbarState = {
   tab: {
     active: ToolbarTab;
-    /**
-     * Whether any widget is active; this is used to toggle widget
-     * config tabs
-     */
-    isWidgetActive: boolean;
   };
 };
 
@@ -56,21 +52,17 @@ const Toolbar = () => {
   const [state, setState] = createStore<ToolbarState>({
     tab: {
       active: "templates",
-      isWidgetActive: false,
     },
   });
 
   const isActive = createSelector(state.tab.active);
   const { getSelectedWidgets, setViewOnly, isViewOnly, getComponentTree } =
     useEditorContext<ComponentTreeContext>();
-
+  const isWidgetHighlighted = () => getSelectedWidgets().length == 1;
   createComputed(() => {
-    const selectedWidgets = getSelectedWidgets();
-    setState("tab", (prev) => {
-      const isWidgetActive = selectedWidgets.length == 1;
+    setState("tab", (_prev) => {
       return {
-        active: isWidgetActive ? "data" : prev.active,
-        isWidgetActive,
+        active: isWidgetHighlighted() ? "data" : "templates",
       };
     });
   });
@@ -112,11 +104,14 @@ const Toolbar = () => {
                 </div>
               </div>
               <div class="flex-1 px-2 overflow-hidden">
-                <TabContent isActive={isActive} />
+                <TabContent
+                  isActive={isActive}
+                  isWidgetHighlighted={isWidgetHighlighted}
+                />
               </div>
               <ToolbarTabs
                 isActive={isActive}
-                disableWidgetConfigTabs={!state.tab.isWidgetActive()}
+                disableWidgetConfigTabs={!isWidgetHighlighted()}
               />
             </div>
             <div class="w-64"></div>
@@ -193,10 +188,13 @@ const ToolbarTabs = (props: {
   );
 };
 
-const TabContent = (props: { isActive: TabsProps["isActive"] }) => {
+const TabContent = (props: {
+  isActive: TabsProps["isActive"];
+  isWidgetHighlighted: Accessor<boolean>;
+}) => {
   return (
     <Switch>
-      <Match when={props.isActive("data")}>
+      <Match when={props.isWidgetHighlighted() && props.isActive("data")}>
         <Data />
       </Match>
       <Match when={props.isActive("templates")}>

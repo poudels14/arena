@@ -27,7 +27,7 @@ type EditorContext<T> = InternalEditor<
       | "updateWidget"
       | "registerWidgetNode"
       | "useWidgetNode"
-      | "setSelectedWidget"
+      | "setSelectedWidgets"
       | "getSelectedWidgets"
       | "isWidgetSelected"
     >

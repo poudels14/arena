@@ -56,7 +56,7 @@ type EditorStateContext = {
    *
    * replace = true by default
    */
-  setSelectedWidget: (widgetId: string, replace?: boolean) => void;
+  setSelectedWidgets: (ids: Widget["id"][], replace?: boolean) => void;
   getSelectedWidgets: Accessor<string[]>;
   isWidgetSelected: (id: Widget["id"]) => boolean;
 };
@@ -169,12 +169,12 @@ const withEditorState: Plugin<
       useWidgetNode(widgetId) {
         return plugins.state.withEditorState.widgetNodes[widgetId];
       },
-      setSelectedWidget(widgetId, replace = true) {
+      setSelectedWidgets(widgetIds, replace = true) {
         if (untrackedViewOnly()) {
           return;
         }
         plugins.setState("withEditorState", "selectedWidgets", (widgets) => {
-          return replace ? [widgetId] : [...widgets, widgetId];
+          return replace ? widgetIds : [...widgets, ...widgetIds];
         });
       },
       getSelectedWidgets() {

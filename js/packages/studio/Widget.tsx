@@ -39,7 +39,7 @@ const setWidgetRef = (
 ) => {
   const onClick = (e: MouseEvent) => {
     e.stopPropagation();
-    ctx.setSelectedWidget(id, !e.ctrlKey);
+    ctx.setSelectedWidgets([id], !e.ctrlKey);
   };
 
   node.addEventListener("pointerdown", onClick);

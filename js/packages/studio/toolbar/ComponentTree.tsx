@@ -8,7 +8,7 @@ import { ComponentTreeNode, useEditorContext } from "../editor";
 const NodeComponent = (props: {
   node: ComponentTreeNode;
   isWidgetSelected: (id: string) => boolean;
-  selectWiget: (id: string) => void;
+  selectWiget: (ids: string[]) => void;
 }) => {
   return (
     <div class="node space-y-[1px]">
@@ -23,7 +23,7 @@ const NodeComponent = (props: {
               props.node.id!
             ),
           }}
-          onClick={() => props.node.id && props.selectWiget(props.node.id)}
+          onClick={() => props.node.id && props.selectWiget([props.node.id])}
         >
           <InlineIcon size="10px" class="inline-block pt-[2px]">
             <path d={ListDetailView[0]} />
@@ -51,7 +51,7 @@ const NodeComponent = (props: {
 };
 
 const ComponentTree = (props: { node: ComponentTreeNode | null }) => {
-  const { isWidgetSelected, setSelectedWidget } = useEditorContext();
+  const { isWidgetSelected, setSelectedWidgets } = useEditorContext();
   return (
     <div class="component-tree">
       <Show when={props.node}>
@@ -59,7 +59,7 @@ const ComponentTree = (props: { node: ComponentTreeNode | null }) => {
         <NodeComponent
           node={props.node!}
           isWidgetSelected={isWidgetSelected}
-          selectWiget={setSelectedWidget}
+          selectWiget={setSelectedWidgets}
         />
       </Show>
     </div>

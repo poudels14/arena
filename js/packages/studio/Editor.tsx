@@ -9,6 +9,7 @@ import {
   withWidgetDataLoaders,
   withComponentTree,
   ComponentTreeContext,
+  withKeyboardShortcuts,
 } from "./editor";
 import { Canvas } from "./Canvas";
 import { Toolbar } from "./toolbar";
@@ -34,7 +35,8 @@ const Editor = (props: EditorProps) => {
     withTemplateStore({
       templates: TEMPLATES,
     }),
-    withWidgetDataLoaders({})
+    withWidgetDataLoaders({}),
+    withKeyboardShortcuts({})
   );
 
   return (
@@ -87,7 +89,6 @@ const AppEditor = () => {
     }
   };
   attachDragEndHandler(onDragEnd);
-
   return (
     <>
       <Title>{state.app.name()}</Title>
