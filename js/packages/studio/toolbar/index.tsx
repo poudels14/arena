@@ -71,7 +71,7 @@ const Toolbar = () => {
     <ToolbarContext.Provider value={{ state, setState }}>
       <Switch>
         <Match when={isViewOnly()}>
-          <div class="toolbar fixed bottom-0 w-full flex flex-row justify-center z-[99999]">
+          <div class="toolbar fixed bottom-0 w-full flex flex-row justify-center pointer-events-none z-[99999]">
             <div
               class="relative bottom-4 w-52 h-8 p-2 flex rounded-md text-brand-2 bg-brand-12/80 cursor-pointer pointer-events-auto space-x-2"
               onClick={() => setViewOnly(false)}
@@ -85,10 +85,10 @@ const Toolbar = () => {
         </Match>
         <Match when={true}>
           <div class="toolbar fixed bottom-0 w-full flex flex-row h-64 bg-brand-12/50 backdrop-blur justify-between pointer-events-auto z-[99999]">
-            <div class="p-4 w-64 overflow-auto no-scrollbar">
+            <div class="p-4 w-64 min-w-[200px] overflow-auto no-scrollbar hidden md:block">
               <ComponentTree node={getComponentTree()} />
             </div>
-            <div class="flex-1 flex flex-col w-[840px] bg-brand-12/80">
+            <div class="flex basis-[840px] flex-col bg-brand-12/80">
               <div class="relative py-0.5 flex justify-center text-white overflow-hidden">
                 <InlineIcon size="14px" class="cursor-pointer">
                   <path d={DragHandle[0]} />
@@ -103,7 +103,7 @@ const Toolbar = () => {
                   </InlineIcon>
                 </div>
               </div>
-              <div class="flex-1 px-2 overflow-hidden">
+              <div class="max-w-[840px] flex-1 px-2 overflow-x-auto no-scrollbar">
                 <TabContent
                   isActive={isActive}
                   isWidgetHighlighted={isWidgetHighlighted}
@@ -114,7 +114,7 @@ const Toolbar = () => {
                 disableWidgetConfigTabs={!isWidgetHighlighted()}
               />
             </div>
-            <div class="w-64"></div>
+            <div class="w-64 hidden md:block"></div>
           </div>
         </Match>
       </Switch>

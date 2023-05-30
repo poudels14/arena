@@ -97,7 +97,7 @@ const AppEditor = () => {
     <>
       <Title>{state.app.name()}</Title>
       <div
-        class="w-full h-full min-w-[900px] no-scrollbar"
+        class="w-full h-full min-w-[768px] no-scrollbar"
         classList={{
           "pb-64": !isViewOnly(),
         }}

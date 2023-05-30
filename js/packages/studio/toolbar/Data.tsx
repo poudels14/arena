@@ -49,7 +49,7 @@ const Data = () => {
           </div>
         </Match>
         <Match when={true}>
-          <div class="w-40 space-y-1">
+          <div class="w-28 space-y-1">
             <div class="text-xs">Data Fields</div>
             <div>
               <For each={fieldMetadata()}>
