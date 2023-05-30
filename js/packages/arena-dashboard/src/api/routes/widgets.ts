@@ -91,7 +91,8 @@ const widgetsRouter = trpcRouter({
               after: layout.position.after,
             },
           },
-          data: defaultDataConfig,
+          // @ts-expect-error
+          data: withDefaultSourceConfig(input.templateId, defaultDataConfig),
           class: templateMetadata.class,
         },
       };
