@@ -102,7 +102,7 @@ const AppEditor = () => {
           "pb-64": !isViewOnly(),
         }}
       >
-        <Canvas>
+        <Canvas showGrid={!isViewOnly()}>
           <Switch>
             <Match when={getRootWidget()}>
               <Widget widgetId={getRootWidget()} />

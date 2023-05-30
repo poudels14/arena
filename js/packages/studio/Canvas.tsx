@@ -1,4 +1,5 @@
 import { createStore } from "@arena/solid-store";
+import { Show } from "solid-js";
 
 const GridLines = (props: { width: number; height: number; scale: number }) => {
   return (
@@ -13,14 +14,16 @@ const GridLines = (props: { width: number; height: number; scale: number }) => {
   );
 };
 
-const Canvas = (props: { children: any }) => {
+const Canvas = (props: { showGrid: boolean; children: any }) => {
   const [state, setState] = createStore({
     scale: 1,
   });
 
   return (
     <div class="arena-editor relative w-full h-full">
-      <GridLines width={40} height={30} scale={state.scale()} />
+      <Show when={props.showGrid}>
+        <GridLines width={40} height={30} scale={state.scale()} />
+      </Show>
       <div class="arena-canvas-container relative w-full h-full overflow-x-auto overflow-y-auto">
         <div
           class="arena-canvas relative"
