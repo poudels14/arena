@@ -13,34 +13,32 @@ const Slot: Slot = (props) => {
   const { useChildren } = useEditorContext<ComponentTreeContext>();
   const children = createMemo(() => useChildren(props.parentId));
   return (
-    <div class="widget-slot">
-      <Switch>
-        <Match when={children().length > 0}>
-          <Droppable
-            parentId={props.parentId}
-            afterWidget={null}
-            activeDraggable={activeDraggable()}
-          />
-          <For each={children()}>
-            {(child) => {
-              return (
-                <>
-                  <Widget widgetId={child} />
-                  <Droppable
-                    parentId={props.parentId}
-                    afterWidget={child}
-                    activeDraggable={activeDraggable()}
-                  />
-                </>
-              );
-            }}
-          </For>
-        </Match>
-        <Match when={true}>
-          <Placeholder parentId={props.parentId}>{props.children}</Placeholder>
-        </Match>
-      </Switch>
-    </div>
+    <Switch>
+      <Match when={children().length > 0}>
+        <Droppable
+          parentId={props.parentId}
+          afterWidget={null}
+          activeDraggable={activeDraggable()}
+        />
+        <For each={children()}>
+          {(child) => {
+            return (
+              <>
+                <Widget widgetId={child} />
+                <Droppable
+                  parentId={props.parentId}
+                  afterWidget={child}
+                  activeDraggable={activeDraggable()}
+                />
+              </>
+            );
+          }}
+        </For>
+      </Match>
+      <Match when={true}>
+        <Placeholder parentId={props.parentId}>{props.children}</Placeholder>
+      </Match>
+    </Switch>
   );
 };
 
@@ -57,7 +55,7 @@ const Droppable = (props: {
     }
   );
   return (
-    <div ref={droppable.ref} class="slot">
+    <div ref={droppable.ref} class="ar-slot">
       <Show when={droppable.isActiveDroppable}>
         <PreviewTemplate draggable={props.activeDraggable!} />
       </Show>
@@ -89,7 +87,7 @@ const Placeholder = (props: {
 };
 
 const PreviewTemplate = (props: { draggable: Draggable }) => {
-  return <div class="h-1 w-full bg-blue-400"></div>;
+  return <div class="ar-preview bg-blue-400"></div>;
 };
 
 export { Slot };

@@ -15,10 +15,15 @@ const metadata: Template.Metadata<{ text: string }> = {
       preview: "Heading 3",
     },
   },
+  class: "bg-white",
 };
 
 const Heading3 = (props: Template.Props<{ text: string }>) => {
-  return <h3 {...props.attributes}>{props.data.text}</h3>;
+  return (
+    <h3 class="text-lg font-medium tracking-tight" {...props.attributes}>
+      {props.data.text}
+    </h3>
+  );
 };
 
 export default Heading3;

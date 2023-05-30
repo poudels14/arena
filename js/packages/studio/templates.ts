@@ -7,11 +7,15 @@ import Heading2, {
 import Heading3, {
   metadata as heading3,
 } from "@arena/widgets/builtin/Heading3";
-import Table, { metadata as tableMetadata } from "@arena/widgets/builtin/table";
-import Chart, { metadata as chartMetadata } from "@arena/widgets/builtin/Chart";
-import GridLayout, {
-  metadata as gridLayoutMetadata,
-} from "@arena/widgets/builtin/GridLayout";
+import Text, { metadata as text } from "@arena/widgets/builtin/Text";
+import Table, { metadata as table } from "@arena/widgets/builtin/table";
+import Chart, { metadata as chart } from "@arena/widgets/builtin/Chart";
+import SplitLayout, {
+  metadata as splitLayout,
+} from "@arena/widgets/builtin/SplitLayout";
+import VerticalLayout, {
+  metadata as verticalLayout,
+} from "@arena/widgets/builtin/VerticalLayout";
 
 const TEMPLATES = {
   // TODO(sagar): make these lazy load
@@ -27,17 +31,25 @@ const TEMPLATES = {
     Component: Heading3,
     metadata: heading3,
   },
-  [gridLayoutMetadata.id]: {
-    Component: GridLayout,
-    metadata: gridLayoutMetadata,
+  [text.id]: {
+    Component: Text,
+    metadata: text,
   },
-  [tableMetadata.id]: {
+  [splitLayout.id]: {
+    Component: SplitLayout,
+    metadata: splitLayout,
+  },
+  [verticalLayout.id]: {
+    Component: VerticalLayout,
+    metadata: verticalLayout,
+  },
+  [table.id]: {
     Component: Table,
-    metadata: tableMetadata,
+    metadata: table,
   },
-  [chartMetadata.id]: {
+  [chart.id]: {
     Component: Chart,
-    metadata: chartMetadata,
+    metadata: chart,
   },
 };
 

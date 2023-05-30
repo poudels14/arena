@@ -1,30 +1,30 @@
 import type { Template } from "..";
 
 const metadata: Template.Metadata<{ text: string }> = {
-  id: "at-h2",
-  name: "Heading 2",
-  description: "Heading 2",
+  id: "at-text",
+  name: "Text",
+  description: "Text",
   data: {
     text: {
       title: "Text",
       source: "dynamic",
       default: {
         loader: "@client/json",
-        value: "Heading 2",
+        value: "Text",
       },
-      preview: "Heading 2",
+      preview: "Text",
     },
   },
   class: "bg-white",
 };
 
-const Heading2 = (props: Template.Props<{ text: string }>) => {
+const Text = (props: Template.Props<{ text: string }>) => {
   return (
-    <h2 class="text-2xl font-medium tracking-tight" {...props.attributes}>
+    <p class="text-accent-12" {...props.attributes}>
       {props.data.text}
-    </h2>
+    </p>
   );
 };
 
-export default Heading2;
+export default Text;
 export { metadata };
