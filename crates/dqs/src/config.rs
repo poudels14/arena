@@ -45,6 +45,5 @@ pub struct SqlMetadata {
 
 #[derive(Debug, Deserialize)]
 pub struct JavascriptSourceConfig {
-  pub args: Vec<String>,
   pub value: String,
 }
