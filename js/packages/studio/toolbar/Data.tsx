@@ -142,17 +142,16 @@ const DataSourceEditor = (props: { metadata: FieldMetadata }) => {
   const { updateWidget } = useEditorContext();
   const editorProps = createMemo(() => {
     const { config } = props.metadata.fieldConfig;
+    const isJavascript =
+      config.loader == "@arena/server-function" ||
+      config.loader == "@client/js";
+    const isSql = config.loader == "@arena/sql/postgres";
     return {
       code:
         config.loader == "@client/json" && typeof config.value != "string"
           ? JSON.stringify(config.value, null, 2)
           : config.value,
-      lang:
-        config.loader == "@arena/server-function" || "@client/js"
-          ? "javascript"
-          : config.loader == "@arena/sql/postgres"
-          ? "sql"
-          : "text",
+      lang: isJavascript ? "javascript" : isSql ? "sql" : "text",
     } as { lang: "sql"; code: string };
   });
 
