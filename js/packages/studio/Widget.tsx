@@ -4,7 +4,6 @@ import {
   createMemo,
   ErrorBoundary,
   ResourceReturn,
-  createEffect,
   createSignal,
   createComputed,
   untrack,
@@ -155,21 +154,26 @@ const Widget = (props: {
     ];
   });
 
-  const dataLoadingError = createMemo(() => {
-    return dataLoaders.reduce((loading, loader) => {
-      const w = loader[1][0];
-      return loading || w.error;
+  const hasDataLoadingError = createMemo(() => {
+    return dataLoaders.reduce((error, loader) => {
+      const data = loader[1][0];
+      // use data.loading here so that when it's changed,
+      // the error state is re-calculated
+      void data.loading;
+      return error || data.error;
     }, false);
   });
 
   return (
     <ErrorBoundary
       fallback={(error, reset) => {
-        createEffect(() => {
-          if (!dataLoadingError()) {
+        createComputed<boolean>((wasError) => {
+          const isError = hasDataLoadingError();
+          if (wasError && !isError) {
             reset();
           }
-        });
+          return isError;
+        }, hasDataLoadingError());
         return (
           <div
             class="px-10 py-4 text-red-600 space-y-2"
