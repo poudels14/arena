@@ -60,7 +60,7 @@ const AppEditor = () => {
     useEditorContext<TemplateStoreContext & ComponentTreeContext>();
   const { attachDragEndHandler } = useDragDropContext();
 
-  const getChildren = createMemo(() => useChildren(null));
+  const getRootWidget = createMemo(() => useChildren(null)[0]);
   const onDragEnd = async (e: DragEndEvent) => {
     const { templateId, widgetId } = e.draggable.data || {};
     if (e.droppable) {
@@ -73,9 +73,13 @@ const AppEditor = () => {
         await addWidget({
           parentId,
           templateId,
-          position: {
-            after: afterWidget,
-            before,
+          config: {
+            layout: {
+              position: {
+                after: afterWidget,
+                before,
+              },
+            },
           },
         });
         // if widgetId is set, update the widget's position
@@ -100,8 +104,8 @@ const AppEditor = () => {
       >
         <Canvas>
           <Switch>
-            <Match when={getChildren().length > 0}>
-              <Widget widgetId={getChildren()[0]} />
+            <Match when={getRootWidget()}>
+              <Widget widgetId={getRootWidget()} />
             </Match>
             <Match when={true}>
               <Slot parentId={null} />

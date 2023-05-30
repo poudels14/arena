@@ -3,6 +3,12 @@ import { App } from "./types/app";
 import { Widget } from "@arena/widgets/schema";
 import { MutationResponse } from "./types";
 
+type Layout = {
+  position: {
+    after: string | null;
+    before: string | null;
+  };
+};
 type ApiRoutes = {
   fetchApp: (appId: string) => Promise<App>;
   addWidget: (widget: {
@@ -11,14 +17,20 @@ type ApiRoutes = {
     description?: string;
     parentId: string;
     templateId: string;
-    position: {
-      after: string | null;
-      before: string | null;
+    config: {
+      layout: Layout;
+      data?: any;
     };
   }) => Promise<MutationResponse>;
   updateWidget: (
     widget: { id: string } & Partial<Omit<Widget, "id" | "template">>
   ) => Promise<MutationResponse>;
+  deleteWidget: (req: {
+    id: Widget["id"];
+    config: {
+      layout: Layout;
+    };
+  }) => Promise<MutationResponse>;
   queryWidgetData: (req: {
     appId: string;
     widgetId: string;

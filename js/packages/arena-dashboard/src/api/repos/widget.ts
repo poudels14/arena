@@ -28,6 +28,12 @@ const createRepo = (ctx: Context) => {
       );
       return rows?.[0];
     },
+    async getChildenWidgetsIds(parentId: string): Promise<DbWidget["id"][]> {
+      const { rows } = await ctx.client.query<Pick<DbWidget, "id">>(
+        sql`SELECT id FROM widgets WHERE archived_at IS NULL AND parent_id = ${parentId}`
+      );
+      return rows.map((r) => r.id);
+    },
     async fetchByAppId(appId: string): Promise<DbWidget[]> {
       const { rows } = await ctx.client.query<DbWidget>(
         sql`SELECT * FROM widgets WHERE archived_at IS NULL AND app_id = ${appId}`
@@ -71,6 +77,11 @@ const createRepo = (ctx: Context) => {
       );
       const updated = rows[0];
       return merge(widget, updated);
+    },
+    async archive(widgetIds: DbWidget["id"][]): Promise<void> {
+      await ctx.client.query(
+        sql`UPDATE widgets SET archived_at = NOW() WHERE id IN ${widgetIds}`
+      );
     },
   };
 };

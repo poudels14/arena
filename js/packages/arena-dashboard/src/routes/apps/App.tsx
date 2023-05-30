@@ -16,6 +16,10 @@ const App = (props: { id: string }) => {
         ((widget: any) =>
           client.widgets.update.mutate(widget)) as ApiRoutes["updateWidget"]
       }
+      deleteWidget={
+        ((widget: any) =>
+          client.widgets.delete.mutate(widget)) as ApiRoutes["deleteWidget"]
+      }
       queryWidgetData={
         ((input: any) =>
           client.dataQuery.fetch.query(input)) as ApiRoutes["queryWidgetData"]

@@ -12,6 +12,7 @@ const metadata: Template.Metadata<{ text: string }> = {
         loader: "@client/json",
         value: "Heading 2",
       },
+      preview: "Heading 2",
     },
   },
 };

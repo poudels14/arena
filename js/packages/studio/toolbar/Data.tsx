@@ -97,12 +97,15 @@ const Field = (
 
 const FieldEditor = (props: { metadata: FieldMetadata }) => {
   const { updateWidget } = useEditorContext();
-  const setDataSource = (source: FieldMetadata["fieldConfig"]["source"]) => {
+  const setDataLoader = (
+    loader: FieldMetadata["fieldConfig"]["config"]["loader"]
+  ) => {
     const { widgetId, fieldName } = props.metadata;
     updateWidget(widgetId, "config", "data", fieldName, "config", {
-      loader: "@arena/sql/postgres",
-      // TODO(sagar)
-      resource: "",
+      // @ts-expect-error
+      loader,
+      // TODO(sagar): set resource if selected
+      // resource: "",
     });
   };
   return (
@@ -113,7 +116,7 @@ const FieldEditor = (props: { metadata: FieldMetadata }) => {
           <select
             class="px-2 text-sm text-brand-12 rounded-sm outline-none appearance-none"
             value={props.metadata.fieldConfig.config.loader}
-            onChange={(e) => setDataSource(e.target.value as any)}
+            onChange={(e) => setDataLoader(e.target.value as any)}
           >
             <For
               each={[
@@ -145,7 +148,7 @@ const DataSourceEditor = (props: { metadata: FieldMetadata }) => {
           ? JSON.stringify(config.value, null, 2)
           : config.value,
       lang:
-        config.loader == "@arena/server-function"
+        config.loader == "@arena/server-function" || "@client/js"
           ? "javascript"
           : config.loader == "@arena/sql/postgres"
           ? "sql"

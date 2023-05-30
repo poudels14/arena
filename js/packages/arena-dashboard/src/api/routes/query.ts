@@ -70,7 +70,7 @@ const pipeRequestToDqs = async (
   const { result, error } = JSON.parse(
     String.fromCharCode.apply(null, response[2])
   );
-  if (result?.data) {
+  if (result) {
     return result.data;
   } else {
     throw new TRPCError({

@@ -80,9 +80,14 @@ const buildComponentTree = (
   const siblingAfterWidgetById = new Map();
   allWidgets.forEach((w) => {
     const placeAfter = w.config.layout?.position?.after || null;
-    if (siblingAfterWidgetById.get(placeAfter)) {
+    const parentsFirstChild = fistChildByParentId.get(w.parentId);
+    if (
+      siblingAfterWidgetById.has(placeAfter) ||
+      (placeAfter == null && parentsFirstChild && parentsFirstChild != w.id)
+    ) {
+      const widgetAfter = siblingAfterWidgetById.get(placeAfter);
       throw new Error(
-        "More than 1 widget in a same position of parent: " + w.parentId
+        `More than 1 widgets [${widgetAfter},${w.id}] in a same position of parent: ${w.parentId}`
       );
     }
     if (placeAfter == null) {
@@ -134,6 +139,11 @@ const sortChildrenAndUpdate = (
     if (childernChanged) {
       setState("withComponentTree", "childrenIds", widgetId, sortedChildrenIds);
     }
+  }
+
+  if (prevChildrenIds.length != sortedChildrenIds.length) {
+    // reset the children ids if the number of children changed
+    setState("withComponentTree", "childrenIds", widgetId, sortedChildrenIds);
   }
   return {
     id: widgetId,

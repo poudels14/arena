@@ -12,12 +12,18 @@ const metadata: Template.Metadata<{ text: string }> = {
         loader: "@client/json",
         value: "Heading 1",
       },
+      preview: "Heading 1",
     },
   },
+  class: "bg-white",
 };
 
 const Heading1 = (props: Template.Props<{ text: string }>) => {
-  return <h1 {...props.attributes}>{props.data.text}</h1>;
+  return (
+    <h1 class="text-4xl font-medium" {...props.attributes}>
+      {props.data.text}
+    </h1>
+  );
 };
 
 export default Heading1;

@@ -61,6 +61,10 @@ function useWidgetData(widgetId: string, field: string) {
    * auto-refetch data on config change
    */
   const track = createReaction(() => {
+    if (!widget()) {
+      WIDGET_DATA_SIGNALS.delete(accessorId);
+      return;
+    }
     startTransition(() => resource[1].refetch());
     track(widget.config.data[field]);
   });

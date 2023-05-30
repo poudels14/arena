@@ -3,21 +3,17 @@ import { dataSourceSchema } from "./data";
 import { templateSchema } from "./template";
 
 export const widgetConfigSchema = z.object({
-  layout: z
-    .object({
-      position: z
-        .object({
-          /**
-           * This is the widgetId of the widget right before this widget
-           *
-           * In a widget collection like grid layout/vertical layout,
-           * this is used to determine the order of the widgets.
-           */
-          after: z.string().optional().nullable(),
-        })
-        .optional(),
-    })
-    .optional(),
+  layout: z.object({
+    position: z.object({
+      /**
+       * This is the widgetId of the widget right before this widget
+       *
+       * In a widget collection like grid layout/vertical layout,
+       * this is used to determine the order of the widgets.
+       */
+      after: z.string().nullable(),
+    }),
+  }),
   data: z.record(dataSourceSchema),
   class: z.string().optional(),
 });

@@ -17,19 +17,19 @@ const metadata: Template.Metadata<{ rows: any[] }> = {
       source: "dynamic",
       default: {
         loader: "@client/json",
-        value: [
-          {
-            id: 1,
-            name: "John Doe",
-            age: 49,
-          },
-          {
-            id: 2,
-            name: "Mary Jane",
-            age: 28,
-          },
-        ],
       },
+      preview: [
+        {
+          id: 1,
+          name: "John Doe",
+          age: 49,
+        },
+        {
+          id: 2,
+          name: "Mary Jane",
+          age: 28,
+        },
+      ],
     },
   },
   class: "bg-white",

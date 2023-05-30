@@ -5,6 +5,7 @@ import {
   Accessor,
   untrack,
   createSelector,
+  createMemo,
 } from "solid-js";
 import { Store, StoreSetter, createSyncedStore } from "@arena/solid-store";
 import { uniqueId } from "@arena/uikit";
@@ -13,6 +14,7 @@ import { App } from "../types/app";
 import { Plugin } from "./plugins/types";
 import { Widget } from "@arena/widgets/schema";
 import { useApiContext } from "../ApiContext";
+import type { ApiRoutes } from "../ApiContext";
 import { MutationResponse } from "../types";
 import { AnyInternalEditor } from "./plugins/types";
 
@@ -20,25 +22,18 @@ type EditorStateContext = {
   isViewOnly: Accessor<boolean>;
   setViewOnly: (viewOnly: boolean) => void;
   useWidgetById: (id: string) => Store<Widget>;
-  addWidget: (props: {
-    templateId: string;
-    parentId: string;
-    position: {
-      /**
-       * Id of the widget to place the new widget after
-       */
-      after: string | null;
-      /**
-       * Id of the widget that existsin the location of this widget
-       * This is used to properly re-order the widgets
-       */
-      before: string | null;
-    };
-  }) => Promise<Widget>;
+  addWidget: (
+    props: Omit<Parameters<ApiRoutes["addWidget"]>[0], "id" | "appId">
+  ) => Promise<Widget>;
   /**
    * This is a promise
    */
   updateWidget: StoreSetter<Record<string, Omit<Widget, "id" | "template">>>;
+
+  /**
+   * Delete the widget corresponding to the given id
+   */
+  deleteWidget: (req: Parameters<ApiRoutes["deleteWidget"]>[0]) => void;
 
   /**
    * Keeps track of widgetId -> html node
@@ -102,8 +97,19 @@ const withEditorState: Plugin<
       widgetNodes: {},
     });
     const untrackedViewOnly = untrack(() => syncedStore.viewOnly);
+
+    const getSelectedWidgets = createMemo(() => {
+      const widgets = core.state.app.widgets();
+      if (!widgets) {
+        return [];
+      }
+      const selectedWidgets = plugins.state.withEditorState.selectedWidgets();
+      const allIds = Object.keys(widgets);
+      return selectedWidgets.filter((w) => allIds.includes(w));
+    });
+
     const isWidgetSelected = createSelector(
-      plugins.state.withEditorState.selectedWidgets,
+      getSelectedWidgets,
       (id: string, selected) => !syncedStore.viewOnly() && selected.includes(id)
     );
 
@@ -117,14 +123,14 @@ const withEditorState: Plugin<
     const addWidget: EditorStateContext["addWidget"] = async ({
       templateId,
       parentId,
-      position,
+      config: widgetConfig,
     }) => {
       const newWidget = {
         id: uniqueId(),
         appId: config.appId,
         templateId,
         parentId,
-        position,
+        config: widgetConfig,
       };
 
       const updates = await api.routes.addWidget(newWidget);
@@ -151,6 +157,11 @@ const withEditorState: Plugin<
       updateState(core, updates);
     };
 
+    const deleteWidget: EditorStateContext["deleteWidget"] = async (req) => {
+      const updates = await api.routes.deleteWidget(req);
+      updateState(core, updates);
+    };
+
     Object.assign(context, {
       isViewOnly() {
         return syncedStore.viewOnly();
@@ -163,6 +174,7 @@ const withEditorState: Plugin<
       },
       addWidget,
       updateWidget,
+      deleteWidget,
       registerWidgetNode(widgetId, node) {
         plugins.setState("withEditorState", "widgetNodes", widgetId, node);
       },
@@ -177,9 +189,7 @@ const withEditorState: Plugin<
           return replace ? widgetIds : [...widgets, ...widgetIds];
         });
       },
-      getSelectedWidgets() {
-        return plugins.state.withEditorState.selectedWidgets();
-      },
+      getSelectedWidgets,
       isWidgetSelected,
     } as EditorStateContext);
 
@@ -194,12 +204,18 @@ const updateState = (
   core: AnyInternalEditor["core"],
   updates: MutationResponse
 ) => {
-  const { created: createdWidgets = [], updated: updatedWidgets = [] } =
-    updates.widgets || {};
+  const {
+    created: createdWidgets = [],
+    updated: updatedWidgets = [],
+    deleted: deletedWidgets = [],
+  } = updates.widgets || {};
 
   batch(() => {
     updatedWidgets.forEach((w) => core.setState("app", "widgets", w.id, w));
     createdWidgets.forEach((w) => core.setState("app", "widgets", w.id, w));
+    deletedWidgets.forEach((w) =>
+      core.setState("app", "widgets", w.id, undefined!)
+    );
   });
 };
 
