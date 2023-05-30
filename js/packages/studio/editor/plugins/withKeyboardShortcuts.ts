@@ -15,9 +15,12 @@ const withKeyboardShortcuts: Plugin<{}, void, void> = (config) => {
       if (e.target != document.body) {
         return;
       }
+      let key = e.code;
+      key = key == " " ? "space" : key;
       const compoundKey = `${e.ctrlKey ? "ctrl+" : ""}${
         e.shiftKey ? "shift+" : ""
-      }${e.key.toLowerCase()}` as keyof typeof SHORTCUTS;
+      }${key.toLowerCase()}` as keyof typeof SHORTCUTS;
+
       SHORTCUTS[compoundKey]?.(context as unknown as CommandContext);
     };
     document.addEventListener("keydown", handleKeydown);
@@ -54,6 +57,9 @@ const SHORTCUTS: Record<string, ShortcutCommand> = {
         },
       });
     }
+  },
+  "ctrl+space": (context) => {
+    context.setViewOnly(!context.isViewOnly());
   },
 };
 
