@@ -1,5 +1,5 @@
 use super::request::HttpRequest;
-use super::resonse::HttpResponse;
+use super::response::HttpResponse;
 use deno_core::Resource;
 use futures::future::{RemoteHandle, Shared};
 use std::borrow::Cow;

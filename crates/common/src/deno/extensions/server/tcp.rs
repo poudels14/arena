@@ -1,8 +1,8 @@
 pub use self::request::HttpRequest;
 use super::errors;
 use super::request::HandleOptions;
-use super::resonse::{HttpResponse, HttpResponseMetata};
 use super::resources::{HttpConnection, HttpServerConfig, TcpServer};
+use super::response::{HttpResponse, HttpResponseMetata};
 use super::{executor, request};
 use anyhow::Result;
 use deno_core::CancelFuture;

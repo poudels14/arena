@@ -1,5 +1,5 @@
 use super::errors;
-use super::resonse::{HttpResponse, HttpResponseMetata};
+use super::response::{HttpResponse, HttpResponseMetata};
 use deno_core::ZeroCopyBuf;
 use http::{Method, Request};
 use hyper::body::HttpBody;

@@ -1,4 +1,4 @@
-use super::resonse::HttpResponse;
+use super::response::HttpResponse;
 use http::{Response, StatusCode};
 use hyper::body::HttpBody;
 use hyper::Body;

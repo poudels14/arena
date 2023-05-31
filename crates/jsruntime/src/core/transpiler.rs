@@ -1,5 +1,5 @@
 use anyhow::{anyhow, bail, Result};
-use common::deno::extensions::server::resonse::HttpResponse;
+use common::deno::extensions::server::response::HttpResponse;
 use common::deno::extensions::server::HttpRequest;
 use common::deno::extensions::transpiler::plugins;
 use deno_ast::{EmitOptions, MediaType, ParseParams, SourceTextInfo};
@@ -10,7 +10,7 @@ use std::sync::Arc;
 use swc_ecma_visit::FoldWith;
 use tokio::sync::mpsc;
 
-pub fn transpile(
+pub async fn transpile(
   transpiler_stream: mpsc::Sender<(HttpRequest, mpsc::Sender<HttpResponse>)>,
   module_path: &Path,
   media_type: &MediaType,
@@ -40,7 +40,7 @@ pub fn transpile(
 
   let code = match module_path.extension() {
     Some(ext) if ext == "tsx" || ext == "jsx" => {
-      transpile_jsx(transpiler_stream, &parsed_code)?
+      transpile_jsx(transpiler_stream, &parsed_code).await?
     }
     _ => parsed_code.to_owned(),
   };
@@ -48,24 +48,20 @@ pub fn transpile(
   Ok(code.into())
 }
 
-fn transpile_jsx<'a>(
+async fn transpile_jsx<'a>(
   transpiler_stream: mpsc::Sender<(HttpRequest, mpsc::Sender<HttpResponse>)>,
   code: &str,
 ) -> Result<String> {
-  let transpiled_code: Result<String> = futures::executor::block_on(async {
-    let (tx, mut rx) = mpsc::channel(2);
-    transpiler_stream
-      .send(((Method::POST, code).into(), tx))
-      .await?;
-    if let Some(mut response) = rx.recv().await {
-      return Ok(
-        std::str::from_utf8(&response.body_mut().data().await.unwrap()?)
-          .map_err(|e| anyhow!("{}", e))?
-          .to_owned(),
-      );
-    }
-    bail!("Failed to transpile code using babel");
-  });
-
-  return transpiled_code;
+  let (tx, mut rx) = mpsc::channel(2);
+  transpiler_stream
+    .send(((Method::POST, code).into(), tx))
+    .await?;
+  if let Some(mut response) = rx.recv().await {
+    return Ok(
+      std::str::from_utf8(&response.body_mut().data().await.unwrap()?)
+        .map_err(|e| anyhow!("{}", e))?
+        .to_owned(),
+    );
+  }
+  bail!("Failed to transpile code using babel");
 }

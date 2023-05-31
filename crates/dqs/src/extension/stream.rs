@@ -1,4 +1,4 @@
-use common::deno::extensions::server::resonse::HttpResponse;
+use common::deno::extensions::server::response::HttpResponse;
 use common::deno::extensions::server::HttpRequest;
 use deno_core::Resource;
 use std::borrow::Cow;

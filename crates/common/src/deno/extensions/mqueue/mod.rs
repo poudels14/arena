@@ -89,7 +89,7 @@ async fn op_mqueue_listen(
 async fn op_mqueue_send_response(
   state: Rc<RefCell<OpState>>,
   rid: u32,
-  resonse: Value,
+  response: Value,
 ) -> Result<()> {
   let handler = state
     .borrow_mut()
@@ -98,7 +98,7 @@ async fn op_mqueue_send_response(
 
   handler
     .sender
-    .send(resonse)
+    .send(response)
     .await
     .map_err(|e| anyhow!("{:}", e))?;
 

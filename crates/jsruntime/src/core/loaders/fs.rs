@@ -2,7 +2,7 @@ use super::super::transpiler;
 use crate::{IsolatedRuntime, RuntimeConfig};
 use anyhow::{anyhow, bail, Error};
 use common::config::ArenaConfig;
-use common::deno::extensions::server::resonse::HttpResponse;
+use common::deno::extensions::server::response::HttpResponse;
 use common::deno::extensions::server::{HttpRequest, HttpServerConfig};
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use common::deno::resolver::fs::FsModuleResolver;
@@ -172,12 +172,15 @@ impl ModuleLoader for FsModuleLoader {
           // Note(sagar): transpile all JS files if transpile is enabled
           // so that even cjs modules are transformed to es6
           match transpile {
-            true => transpiler::transpile(
-              transpiler_stream,
-              &path,
-              &media_type,
-              &code,
-            )?,
+            true => {
+              transpiler::transpile(
+                transpiler_stream,
+                &path,
+                &media_type,
+                &code,
+              )
+              .await?
+            }
             false => code.into(),
           }
         }
