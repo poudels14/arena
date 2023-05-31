@@ -93,13 +93,14 @@ impl ModuleLoader for AppkitModuleLoader {
   fn load(
     &self,
     module_specifier: &ModuleSpecifier,
-    maybe_referrer: Option<ModuleSpecifier>,
+    maybe_referrer: Option<&ModuleSpecifier>,
     _is_dynamic: bool,
   ) -> Pin<Box<ModuleSourceFuture>> {
     let mut loader = self.clone();
-    let specifier = module_specifier.to_string();
+    let specifier = module_specifier.clone();
+    let maybe_referrer = maybe_referrer.cloned();
     async move {
-      let parsed_specifier = ParsedSpecifier::from(&specifier)?;
+      let parsed_specifier = ParsedSpecifier::from(&specifier.to_string())?;
       let code = match parsed_specifier {
         ParsedSpecifier::Env { app_id, widget_id } => {
           match maybe_referrer {
@@ -129,12 +130,11 @@ impl ModuleLoader for AppkitModuleLoader {
         }
         _ => bail!("Unsupported module"),
       };
-      Ok(ModuleSource {
-        code: code.as_bytes().into(),
-        module_type: ModuleType::JavaScript,
-        module_url_found: specifier.clone(),
-        module_url_specified: specifier,
-      })
+      Ok(ModuleSource::new(
+        ModuleType::JavaScript,
+        code.into(),
+        &specifier,
+      ))
     }
     .boxed_local()
   }

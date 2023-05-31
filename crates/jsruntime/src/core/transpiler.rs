@@ -6,6 +6,7 @@ use deno_ast::{EmitOptions, MediaType, ParseParams, SourceTextInfo};
 use http::Method;
 use http_body::Body;
 use std::path::Path;
+use std::sync::Arc;
 use swc_ecma_visit::FoldWith;
 use tokio::sync::mpsc;
 
@@ -14,7 +15,7 @@ pub fn transpile(
   module_path: &Path,
   media_type: &MediaType,
   code: &str,
-) -> Result<String> {
+) -> Result<Arc<str>> {
   // TODO(sagar): strip out all dynamic transpiling for vms running deployed apps
 
   let parsed = deno_ast::parse_module_with_post_process(
@@ -44,7 +45,7 @@ pub fn transpile(
     _ => parsed_code.to_owned(),
   };
 
-  Ok(code)
+  Ok(code.into())
 }
 
 fn transpile_jsx<'a>(
@@ -52,7 +53,7 @@ fn transpile_jsx<'a>(
   code: &str,
 ) -> Result<String> {
   let transpiled_code: Result<String> = futures::executor::block_on(async {
-    let (tx, mut rx) = mpsc::channel(1);
+    let (tx, mut rx) = mpsc::channel(2);
     transpiler_stream
       .send(((Method::POST, code).into(), tx))
       .await?;

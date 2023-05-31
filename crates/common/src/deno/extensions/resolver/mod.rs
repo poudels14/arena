@@ -1,14 +1,13 @@
 use crate::config::ArenaConfig;
 use crate::deno;
 use crate::deno::extensions::BuiltinExtension;
-use crate::deno::resolver;
 use crate::deno::resolver::fs::FsModuleResolver;
+use crate::deno::resolver::Config;
 use crate::resolve_from_root;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Result;
 use deno_core::op;
-use deno_core::Extension;
 use deno_core::OpState;
 use deno_core::Resource;
 use deno_core::ResourceId;
@@ -18,7 +17,7 @@ use std::rc::Rc;
 
 pub fn extension(root: PathBuf) -> BuiltinExtension {
   BuiltinExtension {
-    extension: Some(self::init(root)),
+    extension: Some(self::resolver::init_ops_and_esm(root)),
     runtime_modules: vec![(
       "arena/resolver/setup",
       include_str!("./resolver.js"),
@@ -30,26 +29,28 @@ pub fn extension(root: PathBuf) -> BuiltinExtension {
   }
 }
 
-pub(crate) fn init(root: PathBuf) -> Extension {
-  Extension::builder("arena/buildtools/resolver")
-    .ops(vec![op_resolver_new::decl(), op_resolver_resolve::decl()])
-    .state(move |state| {
-      let resolver = {
-        let config = state.borrow::<ArenaConfig>();
-        config
-          .javascript
-          .as_ref()
-          .and_then(|j| j.resolve.clone())
-          .unwrap_or(Default::default())
-      };
-
-      state.put::<BuildConfig>(BuildConfig {
-        root: root.to_owned(),
-        resolver,
-      });
-    })
-    .build()
-}
+deno_core::extension!(
+  resolver,
+  ops = [op_resolver_new, op_resolver_resolve],
+  options = { root: PathBuf },
+  state = |state, options| {
+    let resolver = {
+      let config = state.borrow::<ArenaConfig>();
+      config
+        .javascript
+        .as_ref()
+        .and_then(|j| j.resolve.clone())
+        .unwrap_or(Default::default())
+    };
+    state.put::<BuildConfig>(BuildConfig {
+      root: options.root.to_owned(),
+      resolver,
+    });
+  },
+  customizer = |ext: &mut deno_core::ExtensionBuilder| {
+    ext.force_op_registration();
+  }
+);
 
 #[derive(Clone)]
 pub struct BuildConfig {
@@ -66,7 +67,7 @@ impl Resource for FsModuleResolver {
 #[op]
 fn op_resolver_new(
   state: &mut OpState,
-  config: Option<resolver::Config>,
+  config: Option<Config>,
 ) -> Result<(ResourceId, String)> {
   let build_config = state.borrow_mut::<BuildConfig>();
   let root = build_config.root.clone();

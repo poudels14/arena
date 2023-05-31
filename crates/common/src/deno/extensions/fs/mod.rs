@@ -4,10 +4,8 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Result;
 use deno_core::op;
-use deno_core::Extension;
 use deno_core::ExtensionFileSource;
 use deno_core::ExtensionFileSourceCode;
-use deno_core::OpDecl;
 use deno_core::OpState;
 use deno_core::StringOrBuffer;
 use serde_json::json;
@@ -21,37 +19,35 @@ use std::time::SystemTime;
 
 pub fn extension() -> BuiltinExtension {
   BuiltinExtension {
-    extension: Some(self::init_js_and_ops()),
+    extension: Some(self::fs::init_ops_and_esm()),
     runtime_modules: vec![],
     snapshot_modules: vec![],
   }
 }
 
-fn init_js_and_ops() -> Extension {
-  Extension::builder("arena/runtime/fs")
-    .ops(self::ops())
-    .js(vec![ExtensionFileSource {
-      specifier: "setup".to_string(),
+deno_core::extension!(
+  fs,
+  ops = [
+    op_fs_cwd_sync,
+    op_fs_lstat_sync,
+    op_fs_realpath_sync,
+    op_fs_readdir_sync,
+    op_fs_file_exists_sync,
+    op_fs_mkdir_sync,
+    op_fs_read_file_sync,
+    op_fs_read_file_async,
+    op_fs_read_file_string_async,
+    op_fs_read_file_as_json_async,
+    op_fs_write_file_sync,
+  ],
+  customizer = |ext: &mut deno_core::ExtensionBuilder| {
+    ext.js(vec![ExtensionFileSource {
+      specifier: "setup",
       code: ExtensionFileSourceCode::IncludedInBinary(include_str!("./fs.js")),
-    }])
-    .build()
-}
-
-fn ops() -> Vec<OpDecl> {
-  vec![
-    op_fs_cwd_sync::decl(),
-    op_fs_lstat_sync::decl(),
-    op_fs_realpath_sync::decl(),
-    op_fs_readdir_sync::decl(),
-    op_fs_file_exists_sync::decl(),
-    op_fs_mkdir_sync::decl(),
-    op_fs_read_file_sync::decl(),
-    op_fs_read_file_async::decl(),
-    op_fs_read_file_string_async::decl(),
-    op_fs_read_file_as_json_async::decl(),
-    op_fs_write_file_sync::decl(),
-  ]
-}
+    }]);
+    ext.force_op_registration();
+  }
+);
 
 #[op(fast)]
 fn op_fs_cwd_sync(state: &mut OpState) -> Result<String> {

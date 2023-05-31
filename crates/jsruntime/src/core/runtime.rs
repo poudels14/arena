@@ -5,7 +5,8 @@ use common::deno::extensions::BuiltinExtensions;
 use common::deno::permissions::PermissionsContainer;
 use common::deno::resolver::fs::FsModuleResolver;
 use deno_core::{
-  v8, ExtensionFileSource, ExtensionFileSourceCode, JsRealm, ModuleLoader,
+  v8, ExtensionFileSource, ExtensionFileSourceCode, FastString, JsRealm,
+  ModuleLoader,
 };
 use deno_core::{Extension, JsRuntime, Snapshot};
 use derivative::Derivative;
@@ -72,26 +73,28 @@ impl IsolatedRuntime {
 
     let arena_config = config.config.clone().unwrap_or_default();
     let mut extensions = vec![
-      deno_webidl::init(),
-      deno_console::init(),
-      deno_url::init_ops(),
-      deno_web::init_ops::<PermissionsContainer>(
+      deno_webidl::deno_webidl::init_ops(),
+      deno_console::deno_console::init_ops(),
+      deno_url::deno_url::init_ops(),
+      deno_web::deno_web::init_ops::<PermissionsContainer>(
         deno_web::BlobStore::default(),
         Default::default(),
       ),
-      deno_fetch::init_ops::<PermissionsContainer>(deno_fetch::Options {
-        user_agent: config
-          .user_agent
-          .as_ref()
-          .unwrap_or(&"arena/runtime".to_owned())
-          .to_string(),
-        root_cert_store: None,
-        proxy: None,
-        request_builder_hook: None,
-        unsafely_ignore_certificate_errors: None,
-        client_cert_chain_and_key: None,
-        file_fetch_handler: Rc::new(deno_fetch::DefaultFileFetchHandler),
-      }),
+      deno_fetch::deno_fetch::init_ops::<PermissionsContainer>(
+        deno_fetch::Options {
+          user_agent: config
+            .user_agent
+            .as_ref()
+            .unwrap_or(&"arena/runtime".to_owned())
+            .to_string(),
+          root_cert_store_provider: None,
+          proxy: None,
+          request_builder_hook: None,
+          unsafely_ignore_certificate_errors: None,
+          client_cert_chain_and_key: None,
+          file_fetch_handler: Rc::new(deno_fetch::DefaultFileFetchHandler),
+        },
+      ),
       Extension::builder("arena/core/permissions")
         .state(move |state| {
           state.put::<PermissionsContainer>(permissions.to_owned());
@@ -198,10 +201,12 @@ impl IsolatedRuntime {
   pub async fn load_and_evaluate_side_module(
     &mut self,
     url: &Url,
-    code: Option<String>,
+    code: String,
   ) -> Result<()> {
     let mut runtime = self.runtime.borrow_mut();
-    let mod_id = runtime.load_side_module(url, code).await?;
+    let mod_id = runtime
+      .load_side_module(url, Some(FastString::Arc(code.into())))
+      .await?;
     let receiver = runtime.mod_evaluate(mod_id);
 
     runtime.run_event_loop(false).await?;
@@ -221,7 +226,9 @@ impl IsolatedRuntime {
     code: &str,
   ) -> Result<()> {
     let mut runtime = self.runtime.borrow_mut();
-    let mod_id = runtime.load_main_module(url, Some(code.to_owned())).await?;
+    let mod_id = runtime
+      .load_main_module(url, Some(code.to_owned().into()))
+      .await?;
     let receiver = runtime.mod_evaluate(mod_id);
 
     runtime.run_event_loop(false).await?;
@@ -236,12 +243,12 @@ impl IsolatedRuntime {
   #[allow(dead_code)]
   pub fn execute_script(
     &mut self,
-    name: &str,
+    name: &'static str,
     code: &str,
   ) -> Result<v8::Global<v8::Value>> {
     let mut runtime = self.runtime.borrow_mut();
     runtime
-      .execute_script(name, code)
+      .execute_script(name, FastString::Owned(code.to_owned().into()))
       .map_err(|e| anyhow!("V8 error: {:?}", e))
   }
 
@@ -259,7 +266,7 @@ impl IsolatedRuntime {
     let mut js_files = Vec::new();
 
     js_files.push(ExtensionFileSource {
-      specifier: "init".to_string(),
+      specifier: "init",
       code: ExtensionFileSourceCode::IncludedInBinary(
         r#"
         Arena.core = Deno.core;
@@ -270,7 +277,7 @@ impl IsolatedRuntime {
 
     if config.enable_console {
       js_files.push(ExtensionFileSource {
-        specifier: "console".to_string(),
+        specifier: "console",
         code: ExtensionFileSourceCode::IncludedInBinary(r#"
           globalThis.console = new globalThis.__bootstrap.Console(Arena.core.print);
         "#),
@@ -278,7 +285,7 @@ impl IsolatedRuntime {
     }
 
     js_files.push(ExtensionFileSource {
-      specifier: "init/finalize".to_string(),
+      specifier: "init/finalize",
       code: ExtensionFileSourceCode::IncludedInBinary(
         r#"
         // Remove bootstrapping data from the global scope

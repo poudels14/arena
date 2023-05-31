@@ -8,14 +8,15 @@ use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use common::deno::resolver::fs::FsModuleResolver;
 use deno_ast::MediaType;
 use deno_core::{
-  ModuleLoader, ModuleSource, ModuleSourceFuture, ModuleSpecifier, ModuleType,
-  ResolutionKind,
+  FastString, ModuleLoader, ModuleSource, ModuleSourceFuture, ModuleSpecifier,
+  ModuleType, ResolutionKind,
 };
 use futures::future::FutureExt;
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::rc::Rc;
+use std::sync::Arc;
 use std::thread;
 use tokio::sync::mpsc;
 use url::Url;
@@ -35,15 +36,15 @@ pub struct ModuleLoaderOption {
 
 impl FsModuleLoader {
   pub fn new(option: ModuleLoaderOption) -> Self {
-    let (stream_tx, stream_rx) = mpsc::channel(2);
+    let (stream_tx, stream_rx) = mpsc::channel(15);
     let project_root = option.resolver.project_root.clone();
 
     if option.transpile {
       thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_current_thread()
           .enable_all()
-          .worker_threads(1)
-          .max_blocking_threads(1)
+          .worker_threads(2)
+          .max_blocking_threads(2)
           .build()
           .unwrap();
 
@@ -75,7 +76,7 @@ impl FsModuleLoader {
                 r#"
                 import { babel, plugins, presets } from "@arena/runtime/babel";
                 import { serve } from "@arena/runtime/server";
-                serve({
+                await serve({
                   async fetch(req) {
                     const code = await req.text();
                     const { code: transpiledCode } = babel.transform(code, {
@@ -90,7 +91,7 @@ impl FsModuleLoader {
                     });
                     return new Response(transpiledCode);
                   }
-                })
+                });
                 "#,
               )
               .await
@@ -127,7 +128,7 @@ impl ModuleLoader for FsModuleLoader {
   fn load(
     &self,
     module_specifier: &ModuleSpecifier,
-    _maybe_referrer: Option<ModuleSpecifier>,
+    _maybe_referrer: Option<&ModuleSpecifier>,
     _is_dynamic: bool,
   ) -> Pin<Box<ModuleSourceFuture>> {
     let module_specifier = module_specifier.clone();
@@ -177,26 +178,23 @@ impl ModuleLoader for FsModuleLoader {
               &media_type,
               &code,
             )?,
-            false => code,
+            false => code.into(),
           }
-          .as_bytes()
-          .into()
         }
       };
 
-      let module = ModuleSource {
-        code,
+      let module = ModuleSource::new(
         module_type,
-        module_url_specified: module_specifier.to_string(),
-        module_url_found: module_specifier.to_string(),
-      };
+        FastString::Arc(code.into()),
+        &module_specifier,
+      );
       Ok(module)
     }
     .boxed_local()
   }
 }
 
-fn load_css(path: &PathBuf) -> Result<Box<[u8]>, Error> {
+fn load_css(path: &PathBuf) -> Result<Arc<str>, Error> {
   let css = std::fs::read_to_string(path.clone())?;
-  Ok(format!(r#"export default `{css}`;"#).as_bytes().into())
+  Ok(format!(r#"export default `{css}`;"#).into())
 }

@@ -18,7 +18,7 @@ import {
   forgivingBase64UrlEncode as encodeToBase64Url,
 } from "ext:deno_web/00_infra.js";
 import { ReadableStream } from "ext:deno_web/06_streams.js";
-import { Console } from "ext:deno_console/02_console.js";
+import { Console } from "ext:deno_console/01_console.js";
 
 const primordials = globalThis.__bootstrap.primordials;
 const {

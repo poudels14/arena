@@ -2,8 +2,8 @@
 use common::deno::extensions::BuiltinExtensions;
 use common::deno::loader::BuiltInModuleLoader;
 use deno_core::anyhow::Result;
+use deno_core::ExtensionFileSource;
 use deno_core::{anyhow, JsRuntime, OpState, RuntimeOptions};
-use deno_core::{ExtensionFileSource, ExtensionFileSourceCode};
 use std::env;
 use std::path::Path;
 use std::path::PathBuf;
@@ -57,42 +57,31 @@ fn generate_prod_snapshot(path: &Path) {
 }
 
 fn get_basic_runtime() -> JsRuntime {
-  let core_extension = deno_core::Extension::builder("core")
-    .esm(vec![
-      ExtensionFileSource {
-        specifier: "setup".to_string(),
-        code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
-          "../../js/arena-runtime/core/0_setup.js"
-        )),
-      },
-      ExtensionFileSource {
-        specifier: "arena/setup".to_string(),
-        code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
-          "../../js/arena-runtime/core/1_arena.js"
-        )),
-      },
-      ExtensionFileSource {
-        specifier: "arena/process".to_string(),
-        code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
-          "../../js/arena-runtime/core/dummy-process.js"
-        )),
-      },
-      ExtensionFileSource {
-        specifier: "http".to_string(),
-        code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
-          "../../js/arena-runtime/core/http.js"
-        )),
-      },
-    ])
-    .js(vec![ExtensionFileSource {
-      specifier: "init".to_string(),
-      code: ExtensionFileSourceCode::IncludedInBinary(
-        r#"
-          Arena.core = Deno.core;
-        "#,
-      ),
-    }])
-    .build();
+  deno_core::extension!(runtime,
+    deps = [
+      deno_webidl,
+      deno_console,
+      deno_url,
+      deno_web,
+      deno_fetch
+    ],
+    esm = [
+      dir "../../js/arena-runtime/core/",
+      "0_setup.js",
+      "1_arena.js",
+      "dummy-process.js",
+      "http.js"
+    ],
+    customizer = |ext: &mut deno_core::ExtensionBuilder| {
+      ext.esm(vec![ExtensionFileSource {
+        specifier: "ext:runtime/main.js",
+        code: deno_core::ExtensionFileSourceCode::IncludedInBinary(
+          include_str!("main.js"),
+        ),
+      }]);
+      ext.esm_entry_point("ext:runtime/main.js");
+    }
+  );
 
   let runtime = JsRuntime::new(RuntimeOptions {
     extensions: vec![
@@ -100,29 +89,29 @@ fn get_basic_runtime() -> JsRuntime {
        * Note(sagar): deno_webidl, deno_url, deno_web need to be included for
        * timer (setTimeout, etc) to work
        */
-      deno_webidl::init_esm(),
-      deno_console::init_esm(),
-      deno_url::init_ops_and_esm(),
-      deno_web::init_ops_and_esm::<Permissions>(
+      deno_webidl::deno_webidl::init_ops_and_esm(),
+      deno_console::deno_console::init_ops_and_esm(),
+      deno_url::deno_url::init_ops_and_esm(),
+      deno_web::deno_web::init_ops_and_esm::<Permissions>(
         deno_web::BlobStore::default(),
         Default::default(),
       ),
-      deno_crypto::init_ops_and_esm(None),
-      deno_fetch::init_ops_and_esm::<Permissions>(deno_fetch::Options {
-        user_agent: "arena/snapshot".to_owned(),
-        root_cert_store: None,
-        proxy: None,
-        request_builder_hook: None,
-        unsafely_ignore_certificate_errors: None,
-        client_cert_chain_and_key: None,
-        file_fetch_handler: Rc::new(deno_fetch::DefaultFileFetchHandler),
-      }),
-      core_extension,
+      deno_fetch::deno_fetch::init_ops_and_esm::<Permissions>(
+        deno_fetch::Options {
+          user_agent: "arena/snapshot".to_owned(),
+          root_cert_store_provider: None,
+          proxy: None,
+          request_builder_hook: None,
+          unsafely_ignore_certificate_errors: None,
+          client_cert_chain_and_key: None,
+          file_fetch_handler: Rc::new(deno_fetch::DefaultFileFetchHandler),
+        },
+      ),
+      runtime::init_ops_and_esm(),
     ],
     will_snapshot: true,
     module_loader: Some(Rc::new(BuiltInModuleLoader {})),
     ..Default::default()
   });
-
   runtime
 }

@@ -14,7 +14,7 @@ pub fn init() -> Extension {
     })
     .ops(vec![op_read_wasmer_wasi_bytes::decl()])
     .js(vec![ExtensionFileSource {
-        specifier: "setup".to_string(),
+        specifier: "setup",
         code: ExtensionFileSourceCode::IncludedInBinary(
           include_str!("../../../../../../js/arena-runtime/dist/wasmer-wasi.js")
         ),

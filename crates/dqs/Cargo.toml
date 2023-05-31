@@ -42,4 +42,3 @@ deno_url.workspace = true
 deno_fetch.workspace = true
 deno_web.workspace = true
 deno_webidl.workspace = true
-deno_crypto.workspace = true

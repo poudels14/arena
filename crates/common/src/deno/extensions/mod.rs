@@ -10,8 +10,8 @@ pub mod transpiler;
 pub mod wasi;
 
 use self::server::HttpServerConfig;
-use anyhow::Result;
-use deno_core::{Extension, ExtensionFileSourceCode, JsRuntime};
+use anyhow::{Context, Result};
+use deno_core::{Extension, JsRuntime, ModuleCode};
 use indexmap::IndexSet;
 use std::path::PathBuf;
 use tracing::debug;
@@ -105,15 +105,14 @@ impl BuiltinExtensions {
     for extension in self.extensions.iter() {
       for module in &extension.snapshot_modules {
         futures::executor::block_on(async {
+          let msg = || format!("Failed to read \"{}\"", module.1.display());
+          let s =
+            std::fs::read_to_string(module.1.clone()).with_context(msg)?;
+
           let mod_id = runtime
             .load_side_module(
               &Url::parse(&format!("builtin:///{}", module.0))?,
-              Some(
-                ExtensionFileSourceCode::LoadedFromFsDuringSnapshot(
-                  module.1.clone(),
-                )
-                .load()?,
-              ),
+              Some(s.into()),
             )
             .await?;
           let receiver = runtime.mod_evaluate(mod_id);
@@ -134,7 +133,7 @@ impl BuiltinExtensions {
           let mod_id = runtime
             .load_side_module(
               &Url::parse(&format!("builtin:///{}", specifier))?,
-              Some(ExtensionFileSourceCode::IncludedInBinary(code).load()?),
+              ModuleCode::from_static(code).into(),
             )
             .await?;
           let receiver = runtime.mod_evaluate(mod_id);

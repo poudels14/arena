@@ -54,6 +54,7 @@ fn init(config: HttpServerConfig) -> Extension {
     .state(move |state| {
       state.put::<HttpServerConfig>(config.clone());
     })
+    .force_op_registration()
     .build()
 }
 

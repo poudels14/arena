@@ -41,6 +41,7 @@ fn init() -> Extension {
       op_postgres_is_connected::decl(),
       op_postgres_execute_query::decl(),
     ])
+    .force_op_registration()
     .build()
 }
 

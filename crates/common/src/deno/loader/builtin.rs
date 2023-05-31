@@ -33,16 +33,16 @@ impl ModuleLoader for BuiltInModuleLoader {
   fn load(
     &self,
     module_specifier: &ModuleSpecifier,
-    maybe_referrer: Option<ModuleSpecifier>,
+    maybe_referrer: Option<&ModuleSpecifier>,
     _is_dynamic: bool,
   ) -> Pin<Box<ModuleSourceFuture>> {
     let specifier = module_specifier.clone();
-    let referrer = maybe_referrer.clone();
+    let referrer = maybe_referrer.as_ref().map(|r| r.to_string());
     async move {
       bail!(
         "Module loading not supported: specifier = {:?}, referrer = {:?}",
         specifier.as_str(),
-        referrer.as_ref().map(|r| r.as_str())
+        referrer
       );
     }
     .boxed_local()

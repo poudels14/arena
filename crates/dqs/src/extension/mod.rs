@@ -55,6 +55,7 @@ pub(crate) fn init() -> Extension {
       let cluster = DqsCluster::new();
       state.put::<DqsCluster>(cluster);
     })
+    .force_op_registration()
     .build()
 }
 

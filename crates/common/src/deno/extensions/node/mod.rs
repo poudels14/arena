@@ -36,6 +36,7 @@ pub fn init_ops() -> Extension {
       crypto::op_node_hash_digest_hex::decl(),
       crypto::op_node_generate_secret::decl(),
     ])
+    .force_op_registration()
     .build()
 }
 

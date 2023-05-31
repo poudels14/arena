@@ -47,6 +47,7 @@ pub fn init() -> Extension {
       op_transpiler_transpile_sync::decl(),
       op_transpiler_transpile_file_async::decl(),
     ])
+    .force_op_registration()
     .build()
 }
 

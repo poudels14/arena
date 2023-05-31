@@ -215,7 +215,7 @@ impl WorkspaceServer {
           state.put::<WorkspaceConfig>(workspace_config.clone());
         })
         .js(vec![ExtensionFileSource {
-          specifier: "init".to_owned(),
+          specifier: "init",
           code: ExtensionFileSourceCode::IncludedInBinary(
             r#"
               Object.assign(globalThis.Arena, {
@@ -226,6 +226,7 @@ impl WorkspaceServer {
               "#,
           ),
         }])
+        .force_op_registration()
         .build()],
       heap_limits: self.workspace.heap_limits,
       ..Default::default()

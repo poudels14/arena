@@ -23,7 +23,6 @@ deno_url.workspace = true
 deno_fetch.workspace = true
 deno_web.workspace = true
 deno_webidl.workspace = true
-deno_crypto.workspace = true
 deno_ast.workspace = true
 swc_ecma_visit.workspace = true
 
@@ -37,7 +36,6 @@ deno_url.workspace = true
 deno_fetch.workspace = true
 deno_web.workspace = true
 deno_webidl.workspace = true
-deno_crypto.workspace = true
 
 [dev-dependencies]
 criterion.workspace = true

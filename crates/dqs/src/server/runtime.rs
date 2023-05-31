@@ -40,10 +40,10 @@ pub async fn new(config: RuntimeConfig) -> Result<JsRuntime> {
     RuntimeState::init(config.workspace_id.clone(), db_pool.clone()).await?;
 
   let mut extensions = vec![
-    deno_webidl::init(),
-    deno_console::init(),
-    deno_url::init_ops(),
-    deno_web::init_ops::<PermissionsContainer>(
+    deno_webidl::deno_webidl::init_ops(),
+    deno_console::deno_console::init_ops(),
+    deno_url::deno_url::init_ops(),
+    deno_web::deno_web::init_ops::<PermissionsContainer>(
       deno_web::BlobStore::default(),
       Default::default(),
     ),
@@ -103,7 +103,7 @@ fn build_extension(state: RuntimeState) -> Extension {
   Extension::builder("workspace/runtime")
       .js(vec![
         ExtensionFileSource {
-          specifier: "init".to_string(),
+          specifier: "init",
           code: ExtensionFileSourceCode::IncludedInBinary(
             r#"
             Deno.core.setMacrotaskCallback(globalThis.__bootstrap.handleTimerMacrotask);
