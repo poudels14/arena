@@ -19,7 +19,7 @@ export default function Textarea(props: TextareaProps) {
       {...attrs}
       value={props.value}
       id="comment"
-      class="p-2 rounded-md border border-accent-6 outline-none focus:ring-inset focus:ring-1 placeholder:text-accent-10"
+      class="p-2 rounded-md border border-accent-6 outline-none focus:ring-inset focus:ring-1 placeholder:text-accent-9"
       classList={{
         [props.class!]: Boolean(props.class),
       }}

@@ -21,13 +21,13 @@ export default (props: DialogProps) => {
       <K.Portal>
         <K.Overlay class="dialog-overlay fixed inset-0 bg-gray-200/80 backdrop-blur-sm" />
         <div
-          class="dialog-positioner fixed inset-0 flex mt-28 justify-center"
+          class="dialog-positioner fixed inset-0 flex mt-16 justify-center"
           classList={{
             [props.positionerClass!]: Boolean(props.positionerClass),
           }}
         >
           <K.Content
-            class="dialog-content max-w-[min(calc(100vw-16px),800px)] h-fit border border-gray-200 rounded-md p-4 pb-8 bg-white shadow-lg"
+            class="dialog-content max-w-[min(calc(100vw-16px),800px)] h-fit border border-gray-200 rounded-md p-2 bg-white shadow-lg"
             classList={{
               [props.contentClass!]: Boolean(props.contentClass),
             }}

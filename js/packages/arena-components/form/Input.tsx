@@ -16,7 +16,7 @@ export default function Input(props: InputProps) {
   return (
     <input
       {...attrs}
-      class="px-2 py-1 rounded text-accent-12 border border-accent-6 outline-none ring-inset focus:ring-1 placeholder:text-accent-10"
+      class="px-2 py-1 rounded border border-accent-6 outline-none ring-inset focus:ring-1 placeholder:text-accent-9"
       classList={{
         [props.class!]: Boolean(props.class),
       }}
