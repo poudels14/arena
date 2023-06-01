@@ -15,6 +15,6 @@
     "@twind/preset-radix-ui": "^1.0.7",
     "@twind/preset-tailwind": "^1.1.4",
     "nanoid": "^4.0.2",
-    "solid-js": "^1.7.2"
+    "solid-js": "^1.7.6"
   }
 }

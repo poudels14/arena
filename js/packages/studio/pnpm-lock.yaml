@@ -24,7 +24,7 @@ dependencies:
     version: 2.11.7
   '@solidjs/meta':
     specifier: ^0.28.4
-    version: 0.28.4(solid-js@1.7.2)
+    version: 0.28.4(solid-js@1.7.6)
   clean-set:
     specifier: ^1.1.2
     version: 1.1.2
@@ -35,8 +35,8 @@ dependencies:
     specifier: ^2.0.6
     version: 2.0.6
   solid-js:
-    specifier: ^1.7.2
-    version: 1.7.2
+    specifier: ^1.7.6
+    version: 1.7.6
 
 packages:
 
@@ -52,12 +52,12 @@ packages:
     resolution: {integrity: sha512-Cr4OjIkipTtcXKjAsm8agyleBuDHvxzeBoa1v543lbv1YaIwQjESsVcmjiWiPEbC1FIeHOG/Op9kdCmAmiS3Kw==}
     dev: false
 
-  /@solidjs/meta@0.28.4(solid-js@1.7.2):
+  /@solidjs/meta@0.28.4(solid-js@1.7.6):
     resolution: {integrity: sha512-1USElsQuGVcJnmZ6CxPfUVmKvCsVdBQoGrUyMxLtFw36Ytt90dPs/qLyXLvPR/ZPD16/qauWqg6APEkbrDOLcA==}
     peerDependencies:
       solid-js: '>=1.4.0'
     dependencies:
-      solid-js: 1.7.2
+      solid-js: 1.7.6
     dev: false
 
   /camel-case@4.1.2:
@@ -189,8 +189,8 @@ packages:
       tslib: 2.3.1
     dev: false
 
-  /solid-js@1.7.2:
-    resolution: {integrity: sha512-01f8GIc+HTTlfDXtK+TFku3AllHyJ3hNsIpxM2qpObRP4VbEGVIP6VbULnThPlpse+J1y/I/1N9QeQ9MNkE8Ow==}
+  /solid-js@1.7.6:
+    resolution: {integrity: sha512-DXVOTjUh/bIAhE0fIqu3ezGLyQaez7v8EOw3uPLIi87DmLjg+hsuCAgKyNIZ+o4jUetOk3ZORccvJmE1yZUk8g==}
     dependencies:
       csstype: 3.1.1
       seroval: 0.5.1

@@ -12,7 +12,7 @@
     "@arena/solid-store": "workspace:^0.1.0",
     "@arena/uikit": "workspace:^0.1.0",
     "@blueprintjs/icons": "^4.14.3",
-    "solid-js": "^1.7.2",
+    "solid-js": "^1.7.6",
     "uplot": "^1.6.24",
     "zod": "^3.21.4"
   },

@@ -23,8 +23,8 @@ dependencies:
     specifier: ^4.0.2
     version: 4.0.2
   solid-js:
-    specifier: ^1.7.2
-    version: 1.7.2
+    specifier: ^1.7.6
+    version: 1.7.6
 
 packages:
 
@@ -99,8 +99,8 @@ packages:
     engines: {node: '>=10'}
     dev: false
 
-  /solid-js@1.7.2:
-    resolution: {integrity: sha512-01f8GIc+HTTlfDXtK+TFku3AllHyJ3hNsIpxM2qpObRP4VbEGVIP6VbULnThPlpse+J1y/I/1N9QeQ9MNkE8Ow==}
+  /solid-js@1.7.6:
+    resolution: {integrity: sha512-DXVOTjUh/bIAhE0fIqu3ezGLyQaez7v8EOw3uPLIi87DmLjg+hsuCAgKyNIZ+o4jUetOk3ZORccvJmE1yZUk8g==}
     dependencies:
       csstype: 3.1.2
       seroval: 0.5.1

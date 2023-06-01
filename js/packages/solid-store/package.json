@@ -10,11 +10,8 @@
   },
   "author": "Sagar Poudel",
   "license": "MIT",
-  "dependencies": {
-    "solid-js": "^1.7.2"
-  },
   "peerDependencies": {
-    "solid-js": "^1.7.2"
+    "solid-js": "^1.7.6"
   },
   "devDependencies": {
     "@vitest/ui": "^0.28.5",
