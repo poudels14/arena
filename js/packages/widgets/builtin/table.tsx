@@ -77,16 +77,16 @@ const Table = (props: Template.Props<{ rows: any[] }>) => {
       class="ar-table w-full h-fit table-auto border border-gray-300"
       {...props.attributes}
     >
-      <thead class="ar-thead border-(b,gray-300)">
+      <thead class="thead border-(b,gray-300)">
         <For each={table.getHeaderGroups()}>
           {(group) => {
             return (
-              <tr class="ar-tr">
+              <tr class="tr">
                 <For each={group.headers}>
                   {(header) => (
                     <ui.Th
                       header={header}
-                      class="ar-th py-2 border-l border-gray-300"
+                      class="th py-2 border-l border-gray-300"
                     >
                       {header.column.def.header}
                     </ui.Th>
@@ -97,15 +97,15 @@ const Table = (props: Template.Props<{ rows: any[] }>) => {
           }}
         </For>
       </thead>
-      <tbody class="ar-tbody">
+      <tbody class="tbody">
         <For each={rows()}>
           {(row, i) => {
             return (
-              <ui.Tr class="ar-tr border-b border-gray-100 last:border-b-gray-300 hover:cursor-pointer hover:bg-green-100">
+              <ui.Tr class="tr border-b border-gray-100 last:border-b-gray-300 hover:cursor-pointer hover:bg-green-100">
                 <For each={row.getVisibleCells()}>
                   {(cell) => {
                     return (
-                      <ui.Td cell={cell} class="ar-td text-center p-1 py-2" />
+                      <ui.Td cell={cell} class="td text-center p-1 py-2" />
                     );
                   }}
                 </For>

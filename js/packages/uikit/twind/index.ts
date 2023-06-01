@@ -39,25 +39,23 @@ const setupTwind = (config: Config = {}) => {
       rules: [
         /**
          * This rule allows styling nested elements in a widget.
-         * If a nested element is allowed to be configured, a class with
-         * prefix `ar-` is added to the element. Then, to set style for
-         * that element, a class to the widget in the following supported
-         * format should be added:
+         * To set style for a nested element, a class to the widget in the
+         * following supported format should be added:
          *
          * art-[{selector}]({utility-class},{separated-by-comma})
          *
          * Example widget:
          *
-         * const Template = () => <div class="ar-table">
-         *  <div class="ar-thead">{...}</div>
-         *  <div class="ar-tbody">{...}</div>
+         * const Template = () => <div class="table">
+         *  <div class="thead">{...}</div>
+         *  <div class="tbody">{...}</div>
          * <div>;
          *
          * To configure top level component, add class:
          *  - art-(text-red-800)
          *
          * To configure child element, add class:
-         *  - art-[>tbody](bg-red-300)
+         *  - art-[>.tbody](bg-red-300)
          *
          *  - Note: when selecting child element, the selector should start with `>`
          *
@@ -85,7 +83,7 @@ const setupTwind = (config: Config = {}) => {
                 if (idx === 0) {
                   return { "&": agg };
                 } else {
-                  return { [`&>.ar-${p}`]: agg };
+                  return { [`&>${p}`]: agg };
                 }
               }, css);
             }

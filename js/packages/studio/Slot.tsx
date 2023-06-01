@@ -55,7 +55,7 @@ const Droppable = (props: {
     }
   );
   return (
-    <div ref={droppable.ref} class="ar-slot">
+    <div ref={droppable.ref} class="slot">
       <Show when={droppable.isActiveDroppable}>
         <PreviewTemplate draggable={props.activeDraggable!} />
       </Show>
@@ -87,7 +87,7 @@ const Placeholder = (props: {
 };
 
 const PreviewTemplate = (props: { draggable: Draggable }) => {
-  return <div class="ar-preview bg-blue-400"></div>;
+  return <div class="preview bg-blue-400"></div>;
 };
 
 export { Slot };

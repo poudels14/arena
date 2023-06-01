@@ -11,7 +11,7 @@ const metadata: Template.Metadata<{}> = {
 const VerticalLayout = (props: Template.Props<{}>) => {
   return (
     <div
-      class="ar-vertical-layout w-full flex flex-col art-[>slot>preview](h-1,w-auto)"
+      class="ar-vertical-layout w-full flex flex-col art-[>.slot>.preview](h-1,w-auto)"
       {...props.attributes}
     >
       <props.Editor.Slot parentId={props.id} />
