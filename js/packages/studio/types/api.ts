@@ -20,6 +20,8 @@ type MutationResponse = {
    * List of widgets affected by the mutation
    */
   widgets?: EntityUpdates<Widget>;
+
+  resources?: EntityUpdates<any>;
 };
 
 export type { EntityUpdates, MutationResponse };

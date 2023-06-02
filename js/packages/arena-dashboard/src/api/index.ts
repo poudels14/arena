@@ -5,10 +5,12 @@ import { procedure, router as trpcRouter } from "./trpc";
 import { appsRouter } from "./routes/apps";
 import { widgetsRouter } from "./routes/widgets";
 import { queryRouter } from "./routes/query";
+import { resourcesRouter } from "./routes/resources";
 
 const r = trpcRouter({
   apps: appsRouter,
   widgets: widgetsRouter,
+  resources: resourcesRouter,
   dataQuery: queryRouter,
   _healthy: procedure.query(() => {
     return "OK!";

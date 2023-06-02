@@ -4,6 +4,7 @@ import type { AppRouter } from "~/api";
 
 const DashboardContext = createContext<{
   client: ReturnType<typeof createTRPCProxyClient<AppRouter>>;
+  workspaceId: string;
 }>();
 
 const useDashboardContext = () => useContext(DashboardContext)!;
@@ -21,7 +22,7 @@ const DashboardContextProvider = (props: any) => {
   });
 
   return (
-    <DashboardContext.Provider value={{ client }}>
+    <DashboardContext.Provider value={{ client, workspaceId: "1" }}>
       {props.children}
     </DashboardContext.Provider>
   );

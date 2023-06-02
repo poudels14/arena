@@ -35,5 +35,17 @@ function select<C extends AnyColumn, T extends Table>(
 export { sql, select };
 export { drizzle } from "./drizzle";
 export * from "drizzle-orm/pg-core";
-export { eq } from "drizzle-orm";
+export {
+  and,
+  or,
+  eq,
+  isNotNull,
+  isNull,
+  like,
+  notLike,
+  ilike,
+  notIlike,
+  inArray,
+  notInArray,
+} from "drizzle-orm";
 export type { InferModel } from "drizzle-orm";
