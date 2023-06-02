@@ -8,6 +8,7 @@ import Heading3, {
   metadata as heading3,
 } from "@arena/widgets/builtin/Heading3";
 import Text, { metadata as text } from "@arena/widgets/builtin/Text";
+import Box, { metadata as box } from "@arena/widgets/builtin/Box";
 import Table, { metadata as table } from "@arena/widgets/builtin/table";
 import Chart, { metadata as chart } from "@arena/widgets/builtin/Chart";
 import SplitLayout, {
@@ -34,6 +35,10 @@ const TEMPLATES = {
   [text.id]: {
     Component: Text,
     metadata: text,
+  },
+  [box.id]: {
+    Component: Box,
+    metadata: box,
   },
   [splitLayout.id]: {
     Component: SplitLayout,

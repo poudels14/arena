@@ -32,7 +32,7 @@ const metadata: Template.Metadata<{ rows: any[] }> = {
       ],
     },
   },
-  class: "bg-white",
+  class: "bg-white art-[>.thead](bg-gray-50)",
 };
 
 const Table = (props: Template.Props<{ rows: any[] }>) => {
@@ -86,7 +86,7 @@ const Table = (props: Template.Props<{ rows: any[] }>) => {
                   {(header) => (
                     <ui.Th
                       header={header}
-                      class="th py-2 border-l border-gray-300"
+                      class="th py-2 font-semibold border-l border-gray-300"
                     >
                       {header.column.def.header}
                     </ui.Th>
