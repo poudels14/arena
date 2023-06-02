@@ -145,11 +145,9 @@ const widgetsRouter = trpcRouter({
 
       merge(widget, rest);
       if (config?.data) {
-        merge(
-          widget.config.data,
+        widget.config.data =
           // @ts-expect-error
-          withDefaultSourceConfig(widget.templateId, config.data)
-        );
+          withDefaultSourceConfig(widget.templateId, config.data);
       }
 
       let widgetAfter;
@@ -166,6 +164,13 @@ const widgetsRouter = trpcRouter({
             })
           );
         }
+      }
+
+      if (config?.class) {
+        widget.config.class = [...new Set(config.class.split(" "))]
+          .map((c) => c.trim())
+          .filter((c) => c.length > 0)
+          .join(" ");
       }
 
       const updatedWidgets = compact([

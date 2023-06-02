@@ -15,6 +15,7 @@ import MaximizeIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/
 import { InlineIcon } from "@arena/components";
 import { Templates } from "./Templates";
 import { Data } from "./Data";
+import { StyleEditor } from "./StyleEditor";
 import { ComponentTreeContext, useEditorContext } from "../editor";
 import { ComponentTree } from "./ComponentTree";
 
@@ -196,6 +197,9 @@ const TabContent = (props: {
     <Switch>
       <Match when={props.isWidgetHighlighted() && props.isActive("data")}>
         <Data />
+      </Match>
+      <Match when={props.isWidgetHighlighted() && props.isActive("style")}>
+        <StyleEditor />
       </Match>
       <Match when={props.isActive("templates")}>
         <Templates />
