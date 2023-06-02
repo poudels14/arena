@@ -6,5 +6,6 @@ CREATE TABLE apps (
   config JSONB,
   owner_id VARCHAR(50),
   created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
   archived_at TIMESTAMPTZ DEFAULT NULL
 );
