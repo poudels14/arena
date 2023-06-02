@@ -93,20 +93,6 @@ pub async fn execute_query(
   return rows;
 }
 
-macro_rules! serialize_to_sql {
-    ($self:ident, $ty:ident, $cast: ident, $v: ident, $ser: expr) => {{
-      match $self.0.$cast() {
-        Some($v) => {
-          $ser
-          Ok(IsNull::No)
-        }
-        None => Err(
-          format!("[expected type: {}, actual value: {}]", $ty, $self.0).into(),
-        ),
-      }
-    }};
-}
-
 macro_rules! convert_to_json_value {
   ($row: ident, $col: ident, $t:ty, $map: expr) => {{
     Ok(
@@ -206,35 +192,55 @@ impl ToSql for Param {
       return Ok(IsNull::Yes);
     }
 
-    match *ty {
-      Type::BOOL => serialize_to_sql!(self, ty, as_bool, v, {
-        out.put_i8(if v { 1 } else { 0 });
-      }),
-      Type::INT4 => serialize_to_sql!(self, ty, as_i64, v, {
-        out.put_i32(v.try_into().unwrap());
-      }),
-      Type::INT8 => serialize_to_sql!(self, ty, as_i64, v, {
-        out.put_i64(v);
-      }),
-      Type::VARCHAR
-      | Type::TEXT
-      | Type::BPCHAR
-      | Type::NAME
-      | Type::UNKNOWN => serialize_to_sql!(self, ty, as_str, v, {
-        out.write_str(v).unwrap();
-      }),
-      Type::TIMESTAMPTZ | Type::TIMESTAMP => {
-        serialize_to_sql!(self, ty, as_str, v, {
-          let date = chrono::DateTime::parse_from_rfc3339(v)?;
-          date.to_sql(ty, out)?;
-        })
+    match &self.0 {
+      Value::Bool(v) => {
+        out.put_i8(if *v { 1 } else { 0 });
+        Ok(IsNull::No)
       }
-      Type::JSONB => serialize_to_sql!(self, ty, as_object, v, {
+      Value::Number(v) => match *ty {
+        Type::INT4 => {
+          out.put_i32(v.as_i64().unwrap().try_into().unwrap());
+          Ok(IsNull::No)
+        }
+        Type::INT8 => {
+          out.put_i64(v.as_i64().unwrap());
+          Ok(IsNull::No)
+        }
+        _ => {
+          Err(anyhow!("to_sql: unsupported number type - [ {} ]", ty).into())
+        }
+      },
+      Value::Object(v) => {
         json!(v).to_sql(ty, out)?;
-      }),
-      Type::JSON_ARRAY => serialize_to_sql!(self, ty, as_array, v, {
+        Ok(IsNull::No)
+      }
+      Value::Array(v) => {
         json!(v).to_sql(ty, out)?;
-      }),
+        Ok(IsNull::No)
+      }
+
+      Value::String(v) => match *ty {
+        Type::TIMESTAMPTZ | Type::TIMESTAMP => {
+          let date = chrono::DateTime::parse_from_rfc3339(&v)?;
+          date.to_sql(ty, out)?;
+          Ok(IsNull::No)
+        }
+        Type::VARCHAR
+        | Type::TEXT
+        | Type::BPCHAR
+        | Type::NAME
+        | Type::UNKNOWN
+        | Type::JSONB
+        | Type::JSON_ARRAY => {
+          // Note(sagar): this is what serde_json does
+          if *ty == Type::JSONB {
+            out.put_u8(1);
+          }
+          out.write_str(&v)?;
+          Ok(IsNull::No)
+        }
+        _ => Err(format!("to_sql: unsupported type - [ {} ]", ty).into()),
+      },
       _ => Err(format!("to_sql: unsupported type - [ {} ]", ty).into()),
     }
   }
