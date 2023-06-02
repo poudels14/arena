@@ -17,17 +17,17 @@ const Tabs = () => {
   return (
     <div class="select-none">
       <div class="text-sm text-brand-12">
-        <Tab title="Home" href="/" />
+        {/* <Tab title="Home" href="/" /> */}
         <Tab title="Apps" href="/apps" />
-        <Tab title="Queries" href="/queries" />
+        {/* <Tab title="Queries" href="/queries" /> */}
         <Tab title="Resources" href="/resources" />
-        <Tab title="Scheduled jobs" href="/jobs" />
+        {/* <Tab title="Scheduled jobs" href="/jobs" /> */}
       </div>
 
-      <div class="mt-10">
+      {/* <div class="mt-10">
         <div class="mb-2 font-medium">Favorites</div>
         <Tab title="App 1" href="/apps/app1" />
-      </div>
+      </div> */}
     </div>
   );
 };
