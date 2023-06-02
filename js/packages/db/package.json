@@ -7,6 +7,6 @@
   "author": "Sagar Poudel",
   "license": "UNLICENSED",
   "dependencies": {
-    "drizzle-orm": "^0.26.0"
+    "drizzle-orm": "^0.26.4"
   }
 }

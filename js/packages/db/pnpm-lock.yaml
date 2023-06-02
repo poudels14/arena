@@ -2,18 +2,19 @@ lockfileVersion: '6.0'
 
 dependencies:
   drizzle-orm:
-    specifier: ^0.26.0
-    version: 0.26.0
+    specifier: ^0.26.4
+    version: 0.26.4
 
 packages:
 
-  /drizzle-orm@0.26.0:
-    resolution: {integrity: sha512-ztjhHehcuG5+lpGYxfT/L5I+yd/Z0dOf0fV3cS2ywBU01wkpxjwl4EJZVT7kVzjYfM8kwMGDghAPRPBCK0vULA==}
+  /drizzle-orm@0.26.4:
+    resolution: {integrity: sha512-1MWMZfyBghI0GfGRhKGrIPT28PublpfE/PCj8206Cxpml/FeTKsZMGDRJ9RPIuj3deTgQrP5/Nopm7SLA4qS+A==}
     peerDependencies:
       '@aws-sdk/client-rds-data': '>=3'
       '@cloudflare/workers-types': '>=3'
       '@libsql/client': '*'
       '@neondatabase/serverless': '>=0.1'
+      '@opentelemetry/api': ^1.4.1
       '@planetscale/database': '>=1'
       '@types/better-sqlite3': '*'
       '@types/pg': '*'
@@ -36,6 +37,8 @@ packages:
       '@libsql/client':
         optional: true
       '@neondatabase/serverless':
+        optional: true
+      '@opentelemetry/api':
         optional: true
       '@planetscale/database':
         optional: true
