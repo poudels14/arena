@@ -9,7 +9,10 @@ const DashboardContext = createContext<{
 
 const useDashboardContext = () => useContext(DashboardContext)!;
 
-const DashboardContextProvider = (props: any) => {
+const DashboardContextProvider = (props: {
+  workspaceId: string;
+  children: any;
+}) => {
   const client = createTRPCProxyClient<AppRouter>({
     links: [
       httpLink({
@@ -22,7 +25,9 @@ const DashboardContextProvider = (props: any) => {
   });
 
   return (
-    <DashboardContext.Provider value={{ client, workspaceId: "1" }}>
+    <DashboardContext.Provider
+      value={{ client, workspaceId: props.workspaceId }}
+    >
       {props.children}
     </DashboardContext.Provider>
   );

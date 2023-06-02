@@ -7,7 +7,7 @@ const App = lazy(() => import("./apps/App.tsx"));
 
 const Routes = () => {
   return (
-    <DashboardContextProvider>
+    <DashboardContextProvider workspaceId="1">
       <SolidRoutes>
         <Route
           path="/apps/:id"

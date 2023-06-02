@@ -61,9 +61,7 @@ const createRepo = (ctx: Context) => {
         );
       return rows;
     },
-    async fetchById(
-      id: NonNullable<DbResource["id"]>
-    ): Promise<DbResource | undefined> {
+    async fetchById(id: string): Promise<DbResource | undefined> {
       const rows = await db
         .select()
         .from(resources)
@@ -71,14 +69,14 @@ const createRepo = (ctx: Context) => {
       return rows?.[0];
     },
     async archiveById(
-      resourceId: NonNullable<DbResource["id"]>
+      id: string
     ): Promise<Pick<Required<DbResource>, "archivedAt">> {
       const rows = await db
         .update(resources)
         .set({
           archivedAt: sql.raw(`NOW()`),
         })
-        .where(and(eq(resources.id, resourceId), isNull(resources.archivedAt)))
+        .where(and(eq(resources.id, id), isNull(resources.archivedAt)))
         .returning({
           archivedAt: resources.archivedAt,
         });

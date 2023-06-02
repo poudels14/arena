@@ -1,42 +1,72 @@
 import { merge, pick } from "lodash-es";
-import zod, { z } from "zod";
-import { App } from "@arena/studio";
+import { z } from "zod";
+import { App, MutationResponse } from "@arena/studio";
 import { procedure, router as trpcRouter } from "../trpc";
 import { notFound } from "../utils/errors";
+import { uniqueId } from "@arena/uikit/uniqueId";
 
 const appsRouter = trpcRouter({
-  list: procedure.query(async ({ ctx }): Promise<Omit<App, "widgets">[]> => {
-    const apps = await ctx.repo.apps.fetchByOwnerId("sagar");
-    return apps.map((app) => {
-      return pick(app, "id", "name", "description");
-    });
-  }),
-  get: procedure
-    .input(zod.string())
-    .query<App>(async ({ ctx, input: appId }) => {
-      const app = await ctx.repo.apps.fetchById(appId);
-      if (!app) {
-        return notFound("App not found");
-      }
-      const widgets = await ctx.repo.widgets.fetchByAppId(app.id);
-      return merge(pick(app, "id", "name", "description"), {
-        widgets: widgets.reduce((widgetsById, widget) => {
-          widgetsById[widget.id] = {
-            ...widget,
-            template: {
-              id: widget.templateId,
-              // TODO
-              name: "",
-              url: "",
-            },
-          };
-          return widgetsById;
-        }, {} as App["widgets"]),
+  add: procedure
+    .input(
+      z.object({
+        workspaceId: z.string(),
+        name: z.string(),
+        description: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }): Promise<MutationResponse> => {
+      const newApp = await ctx.repo.apps.insert({
+        id: uniqueId(),
+        ...(input as Required<typeof input>),
+        ownerId: "sagar",
+      });
+
+      return {
+        apps: {
+          created: [pick(newApp, "id", "name", "description")],
+        },
+      };
+    }),
+  list: procedure
+    .input(
+      z.object({
+        workspaceId: z.string(),
+      })
+    )
+    .query(async ({ ctx, input }): Promise<Omit<App, "widgets">[]> => {
+      const apps = await ctx.repo.apps.fetch({
+        workspaceId: input.workspaceId,
+        // TODO(sagar): dont hard code owner
+        ownerId: "sagar",
+      });
+      return apps.map((app) => {
+        return pick(app, "id", "name", "description");
       });
     }),
+  get: procedure.input(z.string()).query<App>(async ({ ctx, input: appId }) => {
+    const app = await ctx.repo.apps.fetchById(appId);
+    if (!app) {
+      return notFound("App not found");
+    }
+    const widgets = await ctx.repo.widgets.fetchByAppId(app.id);
+    return merge(pick(app, "id", "name", "description"), {
+      widgets: widgets.reduce((widgetsById, widget) => {
+        widgetsById[widget.id] = {
+          ...widget,
+          template: {
+            id: widget.templateId,
+            // TODO
+            name: "",
+            url: "",
+          },
+        };
+        return widgetsById;
+      }, {} as App["widgets"]),
+    });
+  }),
   update: procedure
     .input(
-      zod.object({
+      z.object({
         name: z.string().optional(),
         description: z.string().optional(),
         widgetId: z.string().optional(),

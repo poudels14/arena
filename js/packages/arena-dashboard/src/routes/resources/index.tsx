@@ -1,5 +1,5 @@
 import { createStore } from "@arena/solid-store";
-import AddResource from "./AddResource";
+import AddResourceDialog from "./AddResourceDialog";
 import { Show } from "solid-js";
 import { ResourcesTable } from "./ResourcesTable";
 
@@ -37,7 +37,7 @@ const Resources = () => {
       </div>
 
       <Show when={state.addResourceDialogOpen()}>
-        <AddResource
+        <AddResourceDialog
           closeDialog={() => {
             setState("addResourceDialogOpen", false);
             setState("resourcesRefreshedAt", new Date());

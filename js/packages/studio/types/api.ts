@@ -1,4 +1,5 @@
 import { Widget } from "@arena/widgets";
+import { App } from "./app";
 
 type EntityUpdates<T> = {
   /**
@@ -16,6 +17,8 @@ type EntityUpdates<T> = {
 };
 
 type MutationResponse = {
+  apps?: EntityUpdates<Omit<App, "widgets">>;
+
   /**
    * List of widgets affected by the mutation
    */

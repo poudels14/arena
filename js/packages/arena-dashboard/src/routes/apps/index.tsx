@@ -2,6 +2,8 @@ import { Show, For, createResource } from "solid-js";
 import { Title } from "@arena/core/solid";
 import { A } from "@solidjs/router";
 import { useDashboardContext } from "~/context";
+import { createStore } from "@arena/solid-store";
+import CreateAppDialog from "./CreateAppDialog";
 
 const App = (props: { id: string; name: string; description?: string }) => {
   return (
@@ -19,24 +21,50 @@ const App = (props: { id: string; name: string; description?: string }) => {
 };
 
 const Apps = () => {
-  const { client } = useDashboardContext();
+  const { client, workspaceId } = useDashboardContext();
+  const [state, setState] = createStore({
+    createAppDialogOpen: false,
+  });
 
-  const [apps] = createResource(() => {
-    return client.apps.list.query();
+  const [apps, { refetch }] = createResource(() => {
+    return client.apps.list.query({
+      workspaceId,
+    });
   });
 
   return (
     <Show when={apps()}>
       <Title>Apps</Title>
-      <div class="">
-        <div class="flex mt-40 px-16 space-x-4">
-          <For each={apps()} fallback="No apps">
+      <div class="w-full">
+        <div class="w-full px-10 py-10 flex justify-end">
+          <button
+            class="px-3 py-1.5 rounded text-xs border border-accent-11/60 hover:bg-accent-2 select-none"
+            onClick={() => setState("createAppDialogOpen", true)}
+          >
+            Create new app
+          </button>
+        </div>
+        <div class="flex mt-14 px-16 space-x-4">
+          <Show when={apps()?.length == 0}>
+            <div class="w-full py-10 text-sm text-center text-accent-9">
+              No apps created yet
+            </div>
+          </Show>
+          <For each={apps()}>
             {(app) => {
               return <App {...app} />;
             }}
           </For>
         </div>
       </div>
+      <Show when={state.createAppDialogOpen()}>
+        <CreateAppDialog
+          closeDialog={() => {
+            setState("createAppDialogOpen", false);
+            refetch();
+          }}
+        />
+      </Show>
     </Show>
   );
 };
