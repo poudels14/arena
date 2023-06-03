@@ -3,6 +3,7 @@ import { Transpiler } from "@arena/runtime/transpiler";
 import { babel, presets, plugins } from "@arena/runtime/babel";
 import * as mime from "mime";
 import * as path from "path";
+import { isMatch } from "matcher";
 
 const createFileServer = () => {
   // @ts-ignore
@@ -81,11 +82,22 @@ const createFileServer = () => {
   });
 };
 
+const TRANSPILED_CODE_BY_FILENAME = new Map();
+const TRANSPILED_FILED_LAST_MODIFIED_TIME = new Map();
 const getTranspiledJavascript = async (
   transpiler: Transpiler,
   filePath: string,
   ext: string
 ) => {
+  if (TRANSPILED_CODE_BY_FILENAME.has(filePath)) {
+    // only return cached transpiled code if the file hasn't been modified
+    // after it was transpiled
+    const { mtimeMs } = Arena.fs.lstatSync(filePath);
+    if (mtimeMs == TRANSPILED_FILED_LAST_MODIFIED_TIME.get(filePath)) {
+      return TRANSPILED_CODE_BY_FILENAME.get(filePath);
+    }
+  }
+
   const { code } = await transpiler.transpileFileAsync("./" + filePath);
   let transpiledCode = code;
 
@@ -99,6 +111,12 @@ const getTranspiledJavascript = async (
       ],
     });
     transpiledCode = solidjsCode;
+  }
+
+  if (isMatch(filePath, "*/node_modules/*")) {
+    TRANSPILED_CODE_BY_FILENAME.set(filePath, transpiledCode);
+    const { mtimeMs } = Arena.fs.lstatSync(filePath);
+    TRANSPILED_FILED_LAST_MODIFIED_TIME.set(filePath, mtimeMs);
   }
   return transpiledCode;
 };
