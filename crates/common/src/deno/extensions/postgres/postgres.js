@@ -8,8 +8,7 @@
 /**
  * Connection config
  * @typedef {Object} ConnectionConfig
- * @property {string} [connectionStringId]
- * @property {string} [connectionString]
+ * @property {string} [credential]
  * @property {QueryOptions} [options]
  */
 

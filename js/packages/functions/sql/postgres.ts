@@ -12,18 +12,14 @@ type QueryOptions = {
   camelCase?: boolean;
 };
 
-type ClientConfig = (
-  | {
-      host: string;
-      port: number;
-      database: string;
-      user: string;
-      password: string;
-    }
-  | {
-      connectionString: string;
-    }
-) & {
+type ClientConfig = {
+  credential: {
+    host: string;
+    port: number;
+    database: string;
+    username: string;
+    password: string;
+  };
   pool?: SqlDataQueryConfig["pool"];
   options?: QueryOptions;
 };
@@ -31,7 +27,11 @@ type ClientConfig = (
 class Client {
   client: typeof PgClient;
   constructor(config: ClientConfig) {
-    this.client = new PgClient(config);
+    const { credential } = config;
+    this.client = new PgClient({
+      ...config,
+      ...(credential.host ? credential : {}),
+    });
   }
 
   async execute(query: string, parameters: any[], options?: QueryOptions) {
@@ -51,14 +51,10 @@ const connect = (config: ClientConfig) => {
   return new Client(config);
 };
 
-const executeQuery = async ({
-  connectionString,
-  query,
-}: SqlDataQueryConfig) => {
+const executeQuery = async (config: SqlDataQueryConfig) => {
   // TODO(sagar): end connection after query if pool isn't used
-  return await connect({
-    connectionString,
-  }).execute(query.sql, query.params);
+  const { query, credential } = config;
+  return await connect({ credential }).execute(query.sql, query.params);
 };
 
 export { connect, executeQuery };

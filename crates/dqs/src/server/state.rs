@@ -1,4 +1,4 @@
-use crate::db::env_variable::{self, env_variables};
+use crate::db::resource::{self, resources};
 use anyhow::Result;
 use common::deno::resources::env_variable::{EnvVar, EnvironmentVariableStore};
 use diesel::prelude::*;
@@ -33,9 +33,10 @@ impl RuntimeState {
   ) -> Result<EnvironmentVariableStore> {
     let connection = &mut pool.get()?;
     Ok(EnvironmentVariableStore(
-      env_variable::table
-        .filter(env_variables::workspace_id.eq(workspace_id.to_string()))
-        .load::<env_variable::EnvVariable>(connection)?
+      resource::table
+        .filter(resources::workspace_id.eq(workspace_id.to_string()))
+        .filter(resources::archived_at.is_null())
+        .load::<resource::Resource>(connection)?
         .iter()
         .map(|v| {
           (
@@ -44,7 +45,7 @@ impl RuntimeState {
               id: v.id.clone(),
               key: v.key.clone(),
               value: v.value.clone(),
-              is_secret: v.ttype == "secret",
+              is_secret: v.secret,
             },
           )
         })

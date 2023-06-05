@@ -48,9 +48,41 @@ fn init() -> Extension {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConnectionConfig {
-  connection_string: Option<EnvironmentVariable>,
-
+  credential: Option<EnvironmentVariable>,
   options: Option<QueryOptions>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(untagged, rename_all = "camelCase")]
+enum ConnectionCredential {
+  String(String),
+  Config {
+    host: String,
+    port: String,
+    username: String,
+    password: String,
+    database: String,
+  },
+}
+
+impl ConnectionCredential {
+  pub fn to_connection_string(&self) -> String {
+    match self {
+      ConnectionCredential::String(connection_string) => {
+        connection_string.to_owned()
+      }
+      ConnectionCredential::Config {
+        host,
+        port,
+        username,
+        password,
+        database,
+      } => format!(
+        "postgresql://{}:{}@{}:{}/{}",
+        username, password, host, port, database
+      ),
+    }
+  }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -78,14 +110,18 @@ pub async fn op_postgres_create_connection(
   state: Rc<RefCell<OpState>>,
   config: ConnectionConfig,
 ) -> Result<ResourceId> {
-  let connection_string = match config.connection_string {
-    Some(v) => v.get_value(&state.borrow()),
-    None => bail!("connectionString is missing from config"),
-  }?;
+  let connection_string = match config.credential {
+    Some(cred) => {
+      let cred_value = cred
+        .get_value(&state.borrow())
+        .map_err(|_| anyhow!("Failed to get database connection credential"))?;
 
-  let connection_string = connection_string
-    .as_str()
-    .ok_or(anyhow!("connectionString should be string"))?;
+      serde_json::from_value::<ConnectionCredential>(cred_value)
+        .map_err(|_| anyhow!("unable to parse connection credential"))?
+        .to_connection_string()
+    }
+    None => bail!("connectionString is missing from config"),
+  };
 
   let (client, connection) =
     postgres::create_connection(&connection_string).await?;

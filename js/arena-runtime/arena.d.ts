@@ -294,13 +294,17 @@ declare module "@arena/runtime/rollup" {
 }
 
 declare module "@arena/runtime/postgres" {
-  type ClientConfig =
-    | {
-        connectionStringId: number;
-      }
-    | {
-        connectionString: string;
-      };
+  type ClientConfig = {
+    credential:
+      | string
+      | {
+          host: string;
+          port: string;
+          username: string;
+          password: string;
+          database: string;
+        };
+  };
 
   type Client = {
     connect(): Promise<void>;

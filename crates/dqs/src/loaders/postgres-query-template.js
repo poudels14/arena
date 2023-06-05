@@ -13,7 +13,7 @@ export default async function ({
   params,
 }) {
   const { rows } = await executeQuery({
-    connectionString: env["{{db}}"],
+    credential: env["{{db}}"],
     query: generateQueryInContext(params),
   });
   return rows;

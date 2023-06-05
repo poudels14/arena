@@ -1,9 +1,11 @@
 type SqlDataQueryConfig = {
-  /**
-   * Database connection string
-   */
-  connectionString: string;
-
+  credential: {
+    host: string;
+    port: number;
+    username: string;
+    password: string;
+    database: string;
+  };
   /**
    * Whether to use the connection pool
    *
