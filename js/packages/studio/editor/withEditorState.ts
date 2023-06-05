@@ -100,15 +100,26 @@ const withEditorState: Plugin<
     });
     const untrackedViewOnly = untrack(() => syncedStore.viewOnly);
 
-    const getSelectedWidgets = createMemo(() => {
-      const widgets = core.state.app.widgets();
-      if (!widgets) {
-        return [];
+    const getSelectedWidgets = createMemo(
+      () => {
+        const widgets = core.state.app.widgets();
+        if (!widgets) {
+          return [];
+        }
+        const selectedWidgets = plugins.state.withEditorState.selectedWidgets();
+        const allIds = Object.keys(widgets);
+        return selectedWidgets.filter((w) => allIds.includes(w));
+      },
+      [],
+      {
+        equals(prev, next) {
+          return (
+            prev.length == next.length &&
+            next.reduce((eq, n, i) => eq && n == prev[i], true)
+          );
+        },
       }
-      const selectedWidgets = plugins.state.withEditorState.selectedWidgets();
-      const allIds = Object.keys(widgets);
-      return selectedWidgets.filter((w) => allIds.includes(w));
-    });
+    );
 
     const isWidgetSelected = createSelector(
       getSelectedWidgets,
