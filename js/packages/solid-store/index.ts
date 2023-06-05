@@ -240,15 +240,15 @@ const updatePath = (root: any, path: any[]) => {
 
   const field = path[path.length - 1];
   const internalKey = toInternalKey(field);
+  const prevValue = field ? nodeValue[field] : nodeValue;
 
   // Note(sagar): if the value if not primitive type, need
   // to update the children objects. so call compareAndNotify
   let nodeToUpdate;
-  let value =
-    typeof valueFn == "function" ? valueFn(nodeValue[field]) : valueFn;
+  let value = typeof valueFn == "function" ? valueFn(prevValue) : valueFn;
 
   // if value is same as previous, return
-  if (value === nodeValue[field]) {
+  if (value === prevValue) {
     return;
   }
   updates.forEach((n) => {
