@@ -3,18 +3,17 @@
   "version": "1.0.0",
   "description": "A set of server-functions primitives to build backend easily",
   "main": "index.ts",
-  "scripts": {
-    "build": "pnpm node build.mjs"
-  },
+  "scripts": {},
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@arena/core": "workspace:^",
     "@arena/db": "workspace:^",
-    "@trpc/server": "^10.21.0",
+    "assert": "^2.0.0",
     "commander": "^10.0.0",
     "esbuild": "^0.17.10",
+    "find-my-way": "^7.6.2",
     "pg": "^8.11.0",
     "zod": "^3.21.4"
   }

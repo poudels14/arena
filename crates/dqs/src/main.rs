@@ -71,21 +71,15 @@ async fn main() -> Result<()> {
                 servers.set(workspaceId, server);
               }
 
-              const res = await server.pipeRequest({
+              const [status, headers, body] = await server.pipeRequest({
                 url: "http://0.0.0.0/execWidgetQuery",
                 method: "POST",
                 headers: [[ "content-type", "application/json" ]],
                 body: await req.json()
               });
-
-              const body = JSON.parse(String.fromCharCode.apply(null, res[2]));
-              if (body.error) {
-                try {
-                  body.error.message = JSON.parse(body.error.message);
-                } catch (e) {}
-              }
-              console.log("BODY =", JSON.stringify(body));
-              return new Response(JSON.stringify(body, null, 2));
+              return new Response(body, {
+                status
+              });
             }
           })
           "#,

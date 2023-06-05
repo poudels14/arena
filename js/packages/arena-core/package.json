@@ -15,10 +15,6 @@
     "coverage": "vitest run --coverage"
   },
   "exports": {
-    "./server": {
-      "import": "./server/index.ts",
-      "default": "./server/index.ts"
-    },
     "./solid": {
       "import": "./solid/index.ts",
       "default": "./solid/index.ts"
@@ -31,9 +27,9 @@
       "import": "./solid/server.tsx",
       "default": "./solid/server.tsx"
     },
-    "./dqs/": {
-      "import": "./dqs/",
-      "default": "./dqs/"
+    "./router": {
+      "import": "./router/index.ts",
+      "default": "./router/index.ts"
     }
   },
   "keywords": [],
@@ -51,7 +47,9 @@
     "@twind/preset-autoprefix": "^1.0.7",
     "@twind/preset-radix-ui": "^1.0.7",
     "@twind/preset-tailwind": "^1.1.4",
+    "assert": "^2.0.0",
     "clean-set": "^1.1.2",
+    "find-my-way": "^7.6.2",
     "klona": "^2.0.6",
     "query-string": "^8.1.0",
     "react": "^18.2.0",

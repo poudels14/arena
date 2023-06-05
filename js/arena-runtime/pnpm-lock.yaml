@@ -6,6 +6,9 @@ patchedDependencies:
     path: patches/rollup-plugin-postcss@4.0.2.patch
 
 dependencies:
+  '@arena/core':
+    specifier: workspace:^
+    version: link:../packages/arena-core
   '@arena/functions':
     specifier: workspace:^
     version: link:../packages/functions

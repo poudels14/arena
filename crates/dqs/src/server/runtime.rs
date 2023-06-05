@@ -10,7 +10,8 @@ use deno_core::{
 };
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
-use jsruntime::permissions::PermissionsContainer;
+use jsruntime::permissions::{FetchPermissions, PermissionsContainer};
+use std::collections::HashSet;
 use std::rc::Rc;
 use tracing::error;
 
@@ -47,17 +48,17 @@ pub async fn new(config: RuntimeConfig) -> Result<JsRuntime> {
       deno_web::BlobStore::default(),
       Default::default(),
     ),
-    // deno_fetch::init_ops::<PermissionsContainer>(
-    //   deno_fetch::Options {
-    //     user_agent: format!("arena/dqs/{}", &config.workspace_id).to_owned(),
-    //     root_cert_store: None,
-    //     proxy: None,
-    //     request_builder_hook: None,
-    //     unsafely_ignore_certificate_errors: None,
-    //     client_cert_chain_and_key: None,
-    //     file_fetch_handler: Rc::new(deno_fetch::DefaultFileFetchHandler),
-    //   },
-    // ),
+    deno_fetch::deno_fetch::init_ops::<PermissionsContainer>(
+      deno_fetch::Options {
+        user_agent: format!("arena/dqs/{}", &config.workspace_id).to_owned(),
+        root_cert_store_provider: None,
+        proxy: None,
+        request_builder_hook: None,
+        unsafely_ignore_certificate_errors: None,
+        client_cert_chain_and_key: None,
+        file_fetch_handler: Rc::new(deno_fetch::DefaultFileFetchHandler),
+      },
+    ),
     self::build_extension(state.clone()),
   ];
 
@@ -121,7 +122,14 @@ fn build_extension(state: RuntimeState) -> Extension {
       .state(move |op_state| {
         op_state.put::<RuntimeState>(state.clone());
         op_state.put::<EnvironmentVariableStore>(state.env_variables.clone());
-        op_state.put::<PermissionsContainer>(PermissionsContainer::default());
+        op_state.put::<PermissionsContainer>(PermissionsContainer {
+          // TODO(sagar): use workspace's allow/restrict list
+          net: Some(FetchPermissions {
+            restricted_urls: Some(HashSet::new()),
+            ..Default::default()
+          }),
+          ..Default::default()
+        });
       })
       .build()
 }

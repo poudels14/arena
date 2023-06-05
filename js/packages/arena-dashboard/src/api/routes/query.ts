@@ -1,83 +1,71 @@
-import { z } from "zod";
-import { pick } from "lodash-es";
 import { DqsServer, DqsCluster } from "@arena/runtime/dqs";
-import { procedure, router as trpcRouter } from "../trpc";
-import { notFound } from "../utils/errors";
-import { TRPCError } from "@trpc/server";
+import { router as createRouter } from "@arena/runtime/server";
+import { createContext } from "../context";
+
+const queryRouter = createRouter({});
+queryRouter.on(
+  "GET",
+  "/api/query/:appId/:widgetId/:field",
+  async (req: any, res: any, params: any, store: any, searchParams: any) => {
+    const ctx = await createContext({ req, resHeaders: new Headers() });
+    await pipeRequestToDqs("QUERY", ctx, params, searchParams, res);
+  }
+);
+
+queryRouter.on(
+  "POST",
+  "/api/query/:appId/:widgetId/:field",
+  async (req: any, res: any, params: any, store: any, searchParams: any) => {
+    const ctx = await createContext({ req, resHeaders: new Headers() });
+    await pipeRequestToDqs("MUTATION", ctx, params, searchParams, res);
+  }
+);
 
 const dqsCluster = new Map<string, DqsServer>();
-const queryRouter = trpcRouter({
-  fetch: procedure
-    .input(
-      z.object({
-        appId: z.string(),
-        widgetId: z.string(),
-        field: z.string(),
-        // the last updated time of the widget so that to reload
-        // data query if needed
-        updatedAt: z.string(),
-        params: z.record(z.any()),
-      })
-    )
-    .query(async ({ ctx, input }): Promise<any> => {
-      return await pipeRequestToDqs("QUERY", { ctx, input });
-    }),
-  mutate: procedure
-    .input(
-      z.object({
-        appId: z.string(),
-        widgetId: z.string(),
-        field: z.string(),
-        // the last updated time of the widget so that to reload
-        // data query if needed
-        updatedAt: z.string(),
-        params: z.record(z.any()),
-      })
-    )
-    .query(async ({ ctx, input }): Promise<any> => {
-      return await pipeRequestToDqs("MUTATION", { ctx, input });
-    }),
-});
-
-type Route = typeof queryRouter.fetch._def;
 const pipeRequestToDqs = async (
   trigger: "QUERY" | "MUTATION",
-  { input, ctx }: { ctx: Route["_ctx_out"]; input: Route["_input_out"] }
+  ctx: any,
+  params: Record<string, any>,
+  searchParams: Record<string, any>,
+  res: any
 ) => {
-  const app = await ctx.repo.apps.fetchById(input.appId);
+  const app = await ctx.repo.apps.fetchById(params.appId);
   if (!app) {
-    return notFound();
+    res.sendResponse(
+      new Response("Not found", {
+        status: 404,
+      })
+    );
+    return;
   }
-  const { workspaceId } = app;
+  const workspaceId = app.workspaceId!;
   let server = dqsCluster.get(workspaceId);
   if (!server || !server.isAlive()) {
     server = await DqsCluster.startStreamServer(workspaceId);
     dqsCluster.set(workspaceId, server);
   }
 
-  const response = await server.pipeRequest({
+  const [status, headers, body] = await server.pipeRequest({
     url: "http://0.0.0.0/execWidgetQuery",
     method: "POST",
     headers: [["content-type", "application/json"]],
     body: {
       trigger,
       workspaceId,
-      ...pick(input, "appId", "widgetId", "field", "params", "updatedAt"),
+      appId: params.appId,
+      widgetId: params.widgetId,
+      field: params.field,
+      params: JSON.parse(searchParams.params),
+      updatedAt: searchParams.updatedAt,
     },
   });
 
-  // TODO(sagar): find a way to send response without converting to JSON
-  const { result, error } = JSON.parse(
-    String.fromCharCode.apply(null, response[2])
+  res.sendResponse(
+    new Response(body, {
+      status,
+      headers: new Headers(headers),
+    })
   );
-  if (result) {
-    return result.data;
-  } else {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: error.message,
-    });
-  }
 };
 
 export { queryRouter };

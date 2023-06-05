@@ -325,6 +325,22 @@ declare module "@arena/runtime/server" {
     fetch: (req: Request) => Promise<Response>;
   };
 
+  export const router: (options: { host?: string }) => {
+    on(
+      method: "GET" | "POST",
+      route: string,
+      handler: (
+        req: any,
+        res: any,
+        params: any,
+        store: any,
+        searchParams: any
+      ) => Promise<void>
+    ): void;
+
+    route(request: Request): Promise<Response>;
+  };
+
   export const serve: (config: ServeConfig) => Promise<void>;
 }
 

@@ -14,6 +14,7 @@
     "arena.d.ts"
   ],
   "dependencies": {
+    "@arena/core": "workspace:^",
     "@arena/functions": "workspace:^",
     "@babel/core": "^7.21.3",
     "@babel/helper-plugin-utils": "^7.20.2",

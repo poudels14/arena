@@ -20,10 +20,18 @@ const App = (props: { id: string }) => {
         ((widget: any) =>
           client.widgets.delete.mutate(widget)) as ApiRoutes["deleteWidget"]
       }
-      queryWidgetData={
-        ((input: any) =>
-          client.dataQuery.fetch.query(input)) as ApiRoutes["queryWidgetData"]
-      }
+      queryWidgetData={async (input: any) => {
+        return await fetch(
+          `/api/query/${input.appId}/${input.widgetId}/${
+            input.field
+          }?updatedAt=${input.updatedAt}&params=${encodeURI(
+            JSON.stringify(input.params)
+          )}`,
+          {
+            method: "GET",
+          }
+        ).then((r) => r.json());
+      }}
     >
       <Editor appId={props.id} />
     </ApiContextProvider>

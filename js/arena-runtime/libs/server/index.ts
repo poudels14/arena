@@ -32,3 +32,4 @@ const serve = async (config: ServeConfig) => {
 };
 
 export { serve };
+export { router } from "@arena/core/router";
