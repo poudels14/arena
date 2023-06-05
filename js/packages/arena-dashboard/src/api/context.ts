@@ -13,7 +13,7 @@ export async function createContext({
 
   if (!client || !client?.isConnected()) {
     client = new Client({
-      connectionString: Arena.env.DATABASE_URL,
+      credential: Arena.env.DATABASE_URL,
     });
     await client.connect();
   }

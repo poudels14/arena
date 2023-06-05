@@ -2,7 +2,7 @@ import { z } from "zod";
 import { procedure, router as trpcRouter } from "../trpc";
 import { MutationResponse } from "@arena/studio";
 import { uniqueId } from "@arena/uikit/uniqueId";
-import { merge } from "lodash-es";
+import { merge, snakeCase } from "lodash-es";
 import { notFound } from "../utils/errors";
 
 const resourceSchemaForClient = z.object({
@@ -39,6 +39,8 @@ const resourcesRouter = trpcRouter({
       const newResource = await ctx.repo.resources.insert({
         id: uniqueId(),
         ...(input as Required<typeof input>),
+        // TODO(sp): if the key already exists, add sufix to make it unique
+        key: snakeCase(input.key ? input.key : input.name).toUpperCase(),
         secret: isSecret,
         createdBy: "sagar",
       });

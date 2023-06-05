@@ -3,9 +3,11 @@ import Dialog from "@arena/components/Dialog";
 import { Form, Textarea } from "@arena/components/form";
 import PostgresConfig from "./resources/Postgres";
 import { useDashboardContext } from "~/context";
+import { Show, createSignal } from "solid-js";
 
 const AddResourceDialog = (props: { closeDialog: () => void }) => {
   const { client, workspaceId } = useDashboardContext();
+  const [resourceType, setResourceType] = createSignal();
   return (
     <Dialog
       title="Add a new resource"
@@ -38,6 +40,7 @@ const AddResourceDialog = (props: { closeDialog: () => void }) => {
             optionValue="name"
             optionTextValue="title"
             itemClass="text-sm"
+            onChange={setResourceType}
           />
         </div>
 
@@ -60,7 +63,9 @@ const AddResourceDialog = (props: { closeDialog: () => void }) => {
           <div class="mb-1 block text-base text-accent-11">Resource Config</div>
 
           <div class="space-y-3">
-            <PostgresConfig />
+            <Show when={resourceType() == "@arena/sql/postgres"}>
+              <PostgresConfig />
+            </Show>
           </div>
         </div>
 

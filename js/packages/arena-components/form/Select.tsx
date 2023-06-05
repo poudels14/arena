@@ -2,45 +2,49 @@ import { Select as K } from "@kobalte/core";
 import CheckIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/tick";
 import CaretSortIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/double-caret-vertical";
 import { InlineIcon } from "../InlineIcon";
-import { createSignal, splitProps, useContext } from "solid-js";
+import { splitProps, useContext } from "solid-js";
 import { ElementProps } from "./types";
 import { StateContext } from "./state";
+
+type StringOrKeyOf<T> = T extends string ? undefined : keyof T;
 
 type SelectProps<T> = {
   options: T[];
   /**
    * Field name of `options` prop that should be used as form value
    */
-  optionValue?: string;
+  optionValue?: StringOrKeyOf<T>;
   /**
    * Field name of `options` prop that should be used to display in dropdown
    */
-  optionTextValue?: string;
+  optionTextValue?: StringOrKeyOf<T>;
   /**
    * Field name of `options` prop that should is used to check whether the
    * item is disabled. For example,
    * if `options = [ { name: "id", title: "Id", disabled: false }]`,
    * `optionDisabled = "disabled"` should be passed
    */
-  optionDisabled?: string;
+  optionDisabled?: StringOrKeyOf<T>;
   placeholder?: string;
   itemClass?: string;
   contentClass?: string;
 } & ElementProps;
 
 export default function Select<T>(props: SelectProps<T>) {
-  const [value, setValue] = createSignal(props.value);
-  const { setState } = useContext(StateContext)!;
-  // set initial value
-  setState(props.name, props.value);
+  const getValue = (option: T) => {
+    // @ts-expect-error
+    return typeof option === "object" ? option[props.optionValue!] : option;
+  };
 
   const getLabel = (option: T) => {
-    if (typeof option === "object") {
-      // @ts-expect-error
-      return option?.[props.optionTextValue!];
-    }
-    return option;
+    return (
+      typeof option === "object" ? option?.[props.optionTextValue!] : option
+    ) as string;
   };
+
+  const { state, setState } = useContext(StateContext)!;
+  // set initial value
+  setState(props.name, props.value);
 
   const [attrs, _] = splitProps(props, [
     "placeholder",
@@ -54,10 +58,10 @@ export default function Select<T>(props: SelectProps<T>) {
     <>
       <K.Root
         {...attrs}
-        value={value()}
-        onChange={(value) => {
-          setValue(value);
-          let v = typeof value === "object" ? value[props.optionValue!] : value;
+        // @ts-expect-error
+        value={props.options.find((o) => getValue(o) == state[props.name]?.())}
+        onChange={(option) => {
+          let v = getValue(option);
           props.onChange?.(v);
           setState(props.name, v);
         }}

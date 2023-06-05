@@ -1,10 +1,11 @@
 import { useEditorContext, TemplateStoreContext } from "../editor";
-import { For, Match, Show, Switch, createMemo } from "solid-js";
+import { For, Match, Show, Switch, createComputed, createMemo } from "solid-js";
 import type { DataSource } from "@arena/widgets";
 import { createStore } from "@arena/solid-store";
 import { CodeEditor } from "@arena/components";
 // @ts-ignore
 import debounce from "debounce";
+import { Form, Select } from "@arena/components/form";
 
 const Data = () => {
   const { getSelectedWidgets } = useEditorContext();
@@ -96,39 +97,85 @@ const Field = (
 };
 
 const FieldEditor = (props: { metadata: FieldMetadata }) => {
-  const { updateWidget } = useEditorContext();
-  const setDataLoader = (
-    loader: FieldMetadata["fieldConfig"]["config"]["loader"]
+  const { updateWidget, getAvailableResources } = useEditorContext();
+  const [state, setState] = createStore({
+    loader: null as FieldMetadata["fieldConfig"]["config"]["loader"] | null,
+    resource: null,
+  });
+  createComputed(() => {
+    setState({
+      loader: props.metadata.fieldConfig.config.loader,
+    });
+  });
+
+  const updateDataLoaderConfig = (
+    config: Omit<FieldMetadata["fieldConfig"]["config"], "value">
   ) => {
     const { widgetId, fieldName } = props.metadata;
-    updateWidget(widgetId, "config", "data", fieldName, "config", {
-      // @ts-expect-error
-      loader,
-      // TODO(sagar): set resource if selected
-      // resource: "",
-    });
+    // @ts-expect-error
+    updateWidget(widgetId, "config", "data", fieldName, "config", config);
   };
   return (
     <Show when={props.metadata}>
       <div class="flex-1 px-2 py-4 space-y-2 overflow-y-auto no-scrollbar">
         <div class="flex flex-row space-x-2">
           <div>Data Source</div>
-          <select
-            class="px-2 text-sm text-brand-12 rounded-sm outline-none appearance-none"
-            value={props.metadata.fieldConfig.config.loader}
-            onChange={(e) => setDataLoader(e.target.value as any)}
-          >
-            <For
-              each={[
-                ["@client/json", "Inline Data"],
-                ["@client/js", "Client Javascript"],
-                ["@arena/sql/postgres", "Postgres"],
-                ["@arena/server-function", "Custom Server Function"],
+          <Form class="text-brand-12 space-y-2">
+            <Select
+              name="loader"
+              placeholder="Select data source"
+              class="w-60 px-10 text-xs text-brand-12 rounded"
+              contentClass="z-[999999]"
+              itemClass="text-xs"
+              value={state.loader()}
+              options={[
+                { id: "@client/json", label: "Inline Data" },
+                { id: "@client/js", label: "Client Javascript" },
+                {
+                  id: "@arena/server-function",
+                  label: "Custom Server Function",
+                },
+                { id: "@arena/sql/postgres", label: "Postgres Database" },
               ]}
-            >
-              {(source) => <option value={source[0]}>{source[1]}</option>}
-            </For>
-          </select>
+              optionTextValue="label"
+              optionValue="id"
+              onChange={(loader) => {
+                if (loader != "@arena/sql/postgres") {
+                  updateDataLoaderConfig({ loader });
+                }
+                setState({
+                  loader,
+                });
+              }}
+            />
+            <Show when={state.loader() == "@arena/sql/postgres"}>
+              <Select
+                name="db"
+                placeholder="Select Postgress database"
+                class="w-60 px-10 text-xs text-brand-12 rounded"
+                contentClass="z-[999999]"
+                itemClass="text-xs"
+                // @ts-expect-error
+                value={props.metadata.fieldConfig.config.db}
+                options={getAvailableResources()}
+                optionTextValue="name"
+                optionValue="id"
+                onChange={(resource: string) => {
+                  updateDataLoaderConfig({
+                    loader: state.loader()!,
+                    // @ts-expect-error
+                    db: resource,
+                  });
+                  setState((prev: any) => {
+                    return {
+                      ...prev,
+                      resource,
+                    };
+                  });
+                }}
+              />
+            </Show>
+          </Form>
         </div>
         <div>
           <DataSourceEditor metadata={props.metadata} />
@@ -181,5 +228,7 @@ const DataSourceEditor = (props: { metadata: FieldMetadata }) => {
     </div>
   );
 };
+
+// const Show
 
 export { Data };

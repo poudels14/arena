@@ -54,6 +54,8 @@ type EditorStateContext = {
   setSelectedWidgets: (ids: Widget["id"][], replace?: boolean) => void;
   getSelectedWidgets: Accessor<string[]>;
   isWidgetSelected: (id: Widget["id"]) => boolean;
+
+  getAvailableResources: () => App["resources"][""][];
 };
 
 type EditorState = {
@@ -191,6 +193,9 @@ const withEditorState: Plugin<
       },
       getSelectedWidgets,
       isWidgetSelected,
+      getAvailableResources() {
+        return Object.values(core.state.app.resources());
+      },
     } as EditorStateContext);
 
     return {

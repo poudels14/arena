@@ -17,7 +17,7 @@ type EntityUpdates<T> = {
 };
 
 type MutationResponse = {
-  apps?: EntityUpdates<Omit<App, "widgets">>;
+  apps?: EntityUpdates<Omit<App, "widgets" | "resources">>;
 
   /**
    * List of widgets affected by the mutation

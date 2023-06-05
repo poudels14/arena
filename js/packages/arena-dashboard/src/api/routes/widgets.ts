@@ -145,9 +145,11 @@ const widgetsRouter = trpcRouter({
 
       merge(widget, rest);
       if (config?.data) {
-        widget.config.data =
+        merge(
+          widget.config.data,
           // @ts-expect-error
-          withDefaultSourceConfig(widget.templateId, config.data);
+          withDefaultSourceConfig(widget.templateId, config.data)
+        );
       }
 
       let widgetAfter;
