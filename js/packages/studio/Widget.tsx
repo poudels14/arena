@@ -167,6 +167,7 @@ const Widget = (props: {
   return (
     <ErrorBoundary
       fallback={(error, reset) => {
+        console.error(error);
         createComputed<boolean>((wasError) => {
           const isError = hasDataLoadingError();
           if (wasError && !isError) {

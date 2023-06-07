@@ -1,9 +1,18 @@
-import { Accessor, batch, onCleanup, splitProps, untrack } from "solid-js";
+import {
+  Accessor,
+  batch,
+  onCleanup,
+  onMount,
+  splitProps,
+  untrack,
+} from "solid-js";
 import { Plugin } from "..";
 import { Header } from "../column";
 import { InternalTable } from "../types";
 
-type ResizableColumnsConfig = {};
+type ResizableColumnsConfig = {
+  columnWidths?: Record<string, number>;
+};
 
 type State = {
   resizableColumns: {
@@ -17,14 +26,18 @@ type State = {
   };
 };
 
-type Methods = {};
+type ResizableColumnsMethods = {
+  getColumnWidths: Accessor<Record<string, number>>;
+};
 
 const createResizer =
-  (table: InternalTable<State, Methods>) =>
+  (table: InternalTable<State, ResizableColumnsConfig>) =>
   (resizer: Node, value: Accessor<[header: Header, th: any]>) => {
     const [header, th] = value();
     const updateWidth = (resizing: any, endX: number) => {
-      const newWidth = resizing.currentWidth + endX - resizing.startX;
+      const newWidth = Math.round(
+        resizing.currentWidth + endX - resizing.startX
+      );
       th.style.width = newWidth + "px";
       return newWidth;
     };
@@ -87,24 +100,38 @@ const createResizer =
     });
   };
 
-const withResizableColumns: Plugin<ResizableColumnsConfig, State, Methods> = (
-  config
-) => {
+const withResizableColumns: Plugin<
+  ResizableColumnsConfig,
+  State,
+  ResizableColumnsMethods
+> = (config) => {
   return (table) => {
     table.setState("_plugins", "resizableColumns", {
-      columnWidths: {},
+      columnWidths: config.columnWidths || {},
+    });
+
+    Object.assign(table, {
+      getColumnWidths() {
+        return table.state._plugins.resizableColumns.columnWidths();
+      },
     });
 
     const resizer = createResizer(table);
-    let thRef: any = null;
-    Object.assign(table.ui, {
-      Th: (props: Parameters<typeof table.ui.Th>[0]) => {
+    Object.assign(table.Ui, {
+      Th: (props: Parameters<typeof table.Ui.Th>[0]) => {
+        let thRef: any = null;
         const [_, rest] = splitProps(props, [
           "header",
           "class",
           "classList",
           "children",
         ]);
+
+        onMount(() => {
+          // Note(sp): set the width of each <th> so that the width doesn't
+          // change after first render until resized
+          thRef.style.width = thRef.clientWidth + "px";
+        });
         return (
           <th
             {...rest}
@@ -121,8 +148,7 @@ const withResizableColumns: Plugin<ResizableColumnsConfig, State, Methods> = (
               <div
                 class="resizer w-[4px] cursor-ew-resize"
                 draggable={false}
-                // @ts-ignore
-                use:resizer={[props.header, thRef]}
+                ref={(node) => resizer(node, () => [props.header, thRef])}
               ></div>
             </div>
           </th>

@@ -88,7 +88,7 @@ function createBaseTable<S, M, R>(config: BaseConfig<R>) {
     _plugins: {},
   });
 
-  const ui = {
+  const Ui = {
     Th: (props: JSX.HTMLElementTags["th"] & { header: Header }) => {
       const [_, rest] = splitProps(props, ["header", "children"]);
       return (
@@ -111,7 +111,7 @@ function createBaseTable<S, M, R>(config: BaseConfig<R>) {
     setData(data: any[]) {
       setState("_core", "data", data);
     },
-    ui,
+    Ui,
     internal: {
       getVisibleRows() {
         const data = state._core.data();

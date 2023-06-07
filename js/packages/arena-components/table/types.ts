@@ -41,7 +41,7 @@ type InternalTable<PluginsState, Methods> = {
 
   setData: (data: any[]) => void;
 
-  ui: {
+  Ui: {
     Th: (props: JSX.HTMLElementTags["th"] & { header: Header }) => JSXElement;
     Tr: (props: JSX.HTMLElementTags["tr"]) => JSXElement;
     Td: (
@@ -56,7 +56,7 @@ type InternalTable<PluginsState, Methods> = {
 
 type AnyInternalTable = InternalTable<unknown, unknown>;
 
-type Table<S, M, R> = Pick<InternalTable<S, M>, "state" | "ui"> & M;
+type Table<S, M, R> = Pick<InternalTable<S, M>, "state" | "Ui" | "setData"> & M;
 
 type Plugin<C, PS, M> = (config: C) => (table: InternalTable<PS, M>) => void;
 
