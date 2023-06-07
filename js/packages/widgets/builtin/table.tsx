@@ -74,7 +74,7 @@ const Table = (props: Template.Props<{ rows: any[] }>) => {
 
   return (
     <table
-      class="ar-table w-full h-fit table-auto border border-gray-300"
+      class="ar-table flex-1 h-fit table-auto border border-gray-300"
       {...props.attributes}
     >
       <thead class="thead border-(b,gray-300)">

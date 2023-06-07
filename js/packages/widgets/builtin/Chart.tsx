@@ -7,11 +7,12 @@ const metadata: Template.Metadata<{}> = {
   name: "Chart",
   description: "Chart",
   data: {},
-  class: "bg-white",
+  class: "bg-white w-[400px]",
 };
 
 const Chart = (props: Template.Props<{}>) => {
   let ref: any;
+
   onMount(() => {
     let data = [
       [1546300800, 1546387200],
@@ -22,9 +23,9 @@ const Chart = (props: Template.Props<{}>) => {
     let opts = {
       title: "My Chart",
       id: "chart1",
-      class: "my-chart",
+      class: "w-full",
       width: 400,
-      height: 300,
+      height: 400,
       series: [
         {},
         {
@@ -32,7 +33,7 @@ const Chart = (props: Template.Props<{}>) => {
           spanGaps: false,
           label: "RAM",
           value: (self: any, rawValue: any) => {
-            return "$" + rawValue?.toFixed(2);
+            return rawValue ? "$" + rawValue.toFixed(2) : "--";
           },
           stroke: "rgba(240,0,0,0.9)",
           width: 1,
