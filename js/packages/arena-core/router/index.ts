@@ -32,7 +32,7 @@ const response = (): any => {
   const internal: any = {
     status: 200,
     body: null,
-    headers: [],
+    headers: [["content-type", "application/json"]],
     _response: null,
   };
 
@@ -41,12 +41,10 @@ const response = (): any => {
       internal.status = status;
     },
     setHeader(name: string, value: string) {
-      internal.headers.push([name, value]);
+      name = name.toLowerCase();
+      internal.headers.filter((h: any) => h[0] != name).push([name, value]);
     },
     end(data: any) {
-      if (typeof data == "object") {
-        internal.headers.push(["content-type", "application/json"]);
-      }
       internal.body = data;
     },
     sendResponse(res: unknown) {
@@ -60,6 +58,7 @@ const response = (): any => {
         internal._response ??
         new Response(JSON.stringify(internal.body), {
           status: internal.status,
+          headers: new Headers(internal.headers),
         })
       );
     },
