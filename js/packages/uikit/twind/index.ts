@@ -81,7 +81,7 @@ const setupTwind = (config: Config = {}) => {
               const path: any[] = selector.split(/>/);
               return path.reduceRight((agg, p, idx) => {
                 if (idx === 0) {
-                  return { "&": agg };
+                  return { ":where(&)": agg };
                 } else {
                   return { [`&>${p}`]: agg };
                 }
