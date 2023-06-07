@@ -1,9 +1,11 @@
 import {
   ResourceReturn,
+  createMemo,
   createReaction,
   createResource,
   startTransition,
 } from "solid-js";
+import isEqual from "fast-deep-equal/es6";
 import { InternalEditor, Plugin } from "./types";
 import { DataSource } from "@arena/widgets/schema/data";
 import { useApiContext } from "../../ApiContext";
@@ -31,8 +33,17 @@ function useWidgetData(widgetId: string, field: string) {
   }
 
   const appId = ctx.state.app().id;
-  const resource = createResource(async () => {
-    const config = widget.config.data[field]();
+  const fieldConfig = createMemo(
+    widget.config.data[field],
+    {},
+    {
+      equals(prev, next) {
+        return isEqual(prev, next);
+      },
+    }
+  );
+  const resource = createResource(async (k, s) => {
+    const config = fieldConfig();
     switch (config.source) {
       case "template":
       case "dynamic": {
@@ -66,9 +77,9 @@ function useWidgetData(widgetId: string, field: string) {
       return;
     }
     startTransition(() => resource[1].refetch());
-    track(widget.config.data[field]);
+    track(fieldConfig);
   });
-  track(widget.config.data[field]);
+  track(fieldConfig);
 
   WIDGET_DATA_SIGNALS.set(accessorId, resource);
 
