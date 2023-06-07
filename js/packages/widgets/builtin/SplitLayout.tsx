@@ -11,7 +11,7 @@ const metadata: Template.Metadata<{}> = {
 const SplitLayout = (props: Template.Props<{}>) => {
   return (
     <div
-      class="ar-split-layout flex flex-row art-[>.slot>.preview](h-full,w-1)"
+      class="ar-split-layout flex flex-row art-[>.ar-widget](grow) art-[>.slot>.preview](h-full,w-1)"
       {...props.attributes}
     >
       <props.Editor.Slot parentId={props.id} />
