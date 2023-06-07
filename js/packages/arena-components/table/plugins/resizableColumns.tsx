@@ -130,7 +130,9 @@ const withResizableColumns: Plugin<
         onMount(() => {
           // Note(sp): set the width of each <th> so that the width doesn't
           // change after first render until resized
-          thRef.style.width = thRef.clientWidth + "px";
+          thRef.style.width =
+            (config.columnWidths?.[props.header.id] || thRef.clientWidth) +
+            "px";
         });
         return (
           <th

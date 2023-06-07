@@ -55,6 +55,12 @@ export namespace Template {
      * These can be edited by the users
      */
     class?: string;
+
+    /**
+     * This is used by Widget templates to store non-data config.
+     * For example, Table widget can use this field to store width of a column.
+     */
+    config?: any;
   };
 
   export type Props<Data extends Record<string, unknown>> = {
@@ -65,6 +71,8 @@ export namespace Template {
     attributes: any;
     data: Data;
     setData: StoreSetter<Data>;
+    config?: any;
+    setConfig: (config: any) => void;
     Editor: {
       Slot: (props: {
         parentId: string | null;

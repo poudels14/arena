@@ -93,6 +93,7 @@ const widgetsRouter = trpcRouter({
           },
           // @ts-expect-error
           data: withDefaultSourceConfig(input.templateId, defaultDataConfig),
+          config: z.any(),
           class: templateMetadata.class,
         },
       };
@@ -129,6 +130,7 @@ const widgetsRouter = trpcRouter({
           .object({
             layout: layoutUpdateSchema.optional(),
             data: dataUpdateSchema.optional(),
+            config: z.any(),
             class: z.string().optional(),
           })
           .optional(),
@@ -173,6 +175,10 @@ const widgetsRouter = trpcRouter({
           .map((c) => c.trim())
           .filter((c) => c.length > 0)
           .join(" ");
+      }
+
+      if (config?.config) {
+        widget.config.config = config?.config;
       }
 
       const updatedWidgets = compact([

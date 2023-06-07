@@ -1,4 +1,10 @@
-import { createMemo, createComputed, For, onMount } from "solid-js";
+import {
+  createMemo,
+  createComputed,
+  For,
+  onMount,
+  createEffect,
+} from "solid-js";
 import {
   createTableWithPlugins,
   withResizableColumns,
@@ -50,7 +56,9 @@ const Table = (props: Template.Props<{ rows: any[] }>) => {
     withPagination({
       pageSize: 10,
     }),
-    withResizableColumns({})
+    withResizableColumns({
+      columnWidths: props.config?.columnWidths,
+    })
   );
 
   const table = createTable({
@@ -61,6 +69,14 @@ const Table = (props: Template.Props<{ rows: any[] }>) => {
     // TODO(sagar): this causes the table data to be updated with
     // original data twice. figure out a way to prevent that
     table.setData(props.data.rows);
+  });
+
+  createEffect(() => {
+    const columnWidths = table.getColumnWidths();
+    props.setConfig({
+      ...(props.config || {}),
+      columnWidths,
+    });
   });
 
   const rows = createMemo(table.state.rows);

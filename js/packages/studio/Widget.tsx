@@ -10,13 +10,15 @@ import {
   Show,
 } from "solid-js";
 import type { Widget, WidgetConfig } from "@arena/widgets/schema";
+import { Store } from "@arena/solid-store";
+import { klona } from "klona";
+import isEqual from "fast-deep-equal/es6";
 import {
   EditorContext,
   TemplateStoreContext,
   useEditorContext,
   WidgetDataContext,
 } from "./editor";
-import { Store } from "@arena/solid-store";
 import { Slot } from "./Slot";
 
 type ActiveWidget = {
@@ -116,6 +118,14 @@ const WidgetRenderer = (props: WidgetProps) => {
       get classList() {
         return classList();
       },
+    },
+    // Note(sp): clone config so that it can be compared accurately even when
+    // it's mutated by the widget
+    config: klona(props.config.config!()),
+    setConfig(config: any) {
+      if (!isEqual(props.config.config!(), config)) {
+        ctx.updateWidget(props.id, "config", "config", config);
+      }
     },
     Editor: {
       Slot: Slot,

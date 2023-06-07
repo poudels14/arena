@@ -31,6 +31,9 @@ dependencies:
   debounce:
     specifier: ^1.2.1
     version: 1.2.1
+  fast-deep-equal:
+    specifier: ^3.1.3
+    version: 3.1.3
   klona:
     specifier: ^2.0.6
     version: 2.0.6
@@ -121,6 +124,10 @@ packages:
     dependencies:
       no-case: 3.0.4
       tslib: 2.3.1
+    dev: false
+
+  /fast-deep-equal@3.1.3:
+    resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
     dev: false
 
   /header-case@2.0.4:
