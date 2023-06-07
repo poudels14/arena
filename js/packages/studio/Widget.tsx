@@ -109,7 +109,6 @@ const WidgetRenderer = (props: WidgetProps) => {
 
   const widget = {
     id: props.id,
-    data,
     attributes: {
       id: props.id,
       ref(node: HTMLElement) {
@@ -118,6 +117,11 @@ const WidgetRenderer = (props: WidgetProps) => {
       get classList() {
         return classList();
       },
+    },
+    data,
+    // setter for transient data source
+    setData(field: string, value: string) {
+      ctx.setWidgetData(props.id, field, value);
     },
     // Note(sp): clone config so that it can be compared accurately even when
     // it's mutated by the widget

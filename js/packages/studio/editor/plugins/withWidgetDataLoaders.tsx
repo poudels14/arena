@@ -3,21 +3,68 @@ import {
   createMemo,
   createReaction,
   createResource,
+  createSignal,
   startTransition,
+  untrack,
 } from "solid-js";
 import isEqual from "fast-deep-equal/es6";
 import { InternalEditor, Plugin } from "./types";
 import { DataSource } from "@arena/widgets/schema/data";
 import { useApiContext } from "../../ApiContext";
 import { EditorStateContext } from "../withEditorState";
-import { Store } from "@arena/solid-store";
+import { $RAW, Store } from "@arena/solid-store";
 import { Widget } from "@arena/widgets";
 
 type WidgetDataContext = {
   useWidgetData: <T>(widgetId: string, field: string) => ResourceReturn<T>;
+
+  /**
+   * Only for data source of type "transient"
+   */
+  setWidgetData: (widgetId: string, field: string, value: any) => void;
 };
 
+const withWidgetDataLoaders: Plugin<{}, {}, {}> = (config) => (editor) => {
+  Object.assign(editor.context, {
+    useWidgetData: useWidgetData.bind(editor.context),
+    setWidgetData(widgetId: string, field: string, value: any) {
+      let valueSignal;
+      if ((valueSignal = TRANSIENT_DATA_STORE.get(widgetId, field))) {
+        valueSignal[1](value);
+        return;
+      }
+
+      const ctx = this as unknown as InternalEditor<
+        any,
+        EditorStateContext
+      >["context"];
+
+      const widget = ctx.useWidgetById(widgetId);
+      const fieldConfig = untrack(widget.config.data[field]);
+      if (fieldConfig.source == "transient") {
+        TRANSIENT_DATA_STORE.get(widgetId, field)[1](value);
+      }
+    },
+  });
+};
+
+const createTransientDataStore = () => {
+  const TRANSIENT_DATA = new Map();
+  return {
+    get(widgetId: string, field: string, defaultValue?: any) {
+      const accessorId = `${widgetId}/${field}`;
+      let signal;
+      if ((signal = TRANSIENT_DATA.get(accessorId))) {
+        return signal;
+      }
+      signal = createSignal(defaultValue);
+      TRANSIENT_DATA.set(accessorId, signal);
+      return signal;
+    },
+  };
+};
 const WIDGET_DATA_SIGNALS = new Map();
+const TRANSIENT_DATA_STORE = createTransientDataStore();
 
 function useWidgetData(widgetId: string, field: string) {
   // @ts-expect-error
@@ -42,6 +89,10 @@ function useWidgetData(widgetId: string, field: string) {
       },
     }
   );
+
+  if (widget.config.data[field][$RAW].source == "transient") {
+    return getTransientDataResource(widgetId, field);
+  }
   const resource = createResource(async (k, s) => {
     const config = fieldConfig();
     switch (config.source) {
@@ -62,7 +113,12 @@ function useWidgetData(widgetId: string, field: string) {
             );
         }
       }
+      case "userinput":
+        return useUserInputDataSource(config.config);
+      case "transient":
+        throw new Error("unreachable");
       default:
+        // @ts-expect-error
         throw new Error("Data source not supported: " + config.source);
     }
   });
@@ -91,13 +147,20 @@ function useWidgetData(widgetId: string, field: string) {
   return resource;
 }
 
-const withWidgetDataLoaders: Plugin<{}, {}, {}> = (config) => (editor) => {
-  Object.assign(editor.context, {
-    useWidgetData: useWidgetData.bind(editor.context),
-  });
-};
+function getTransientDataResource(widgetId: string, field: string) {
+  return [
+    TRANSIENT_DATA_STORE.get(widgetId, field)[0],
+    {
+      loading: false,
+    },
+  ];
+}
 
 function useInlineDataSource<T>(config: DataSource<T>["config"]) {
+  return config.value;
+}
+
+function useUserInputDataSource<T>(config: DataSource<T>["config"]) {
   return config.value;
 }
 

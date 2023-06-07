@@ -26,7 +26,10 @@ export namespace Template {
     Field extends keyof T
   > = Record<Field, DataFieldConfig<T[Field]>>;
 
-  type IncludingDefaults<T, S extends DataSource<T>> = Omit<S, "config"> & {
+  type IncludingDefaults<T, S extends DataSource<T>> = Omit<
+    S,
+    "config" | "value"
+  > & {
     default: S["config"];
     preview: T;
   };
@@ -35,7 +38,7 @@ export namespace Template {
     title: string;
     description?: string;
   } & (
-    | IncludingDefaults<T, DataSource.Transient<T>>
+    | Omit<DataSource.Transient<T>, "config" | "value">
     | IncludingDefaults<T, DataSource.UserInput<T>>
     | IncludingDefaults<T, DataSource.Dynamic>
     | IncludingDefaults<T, DataSource.Template>

@@ -94,7 +94,10 @@ const withPagination: Plugin<
         return currentPage;
       },
       pageSize() {
-        return table.state._plugins.pagination.pageSize();
+        return Math.min(
+          table.state._core.data().length,
+          table.state._plugins.pagination.pageSize()
+        );
       },
       currentPage() {
         return table.state._plugins.pagination.currentPage();

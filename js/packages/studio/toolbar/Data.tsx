@@ -1,5 +1,13 @@
 import { useEditorContext, TemplateStoreContext } from "../editor";
-import { For, Match, Show, Switch, createComputed, createMemo } from "solid-js";
+import {
+  For,
+  Match,
+  Show,
+  Switch,
+  createComputed,
+  createMemo,
+  createSelector,
+} from "solid-js";
 import type { DataSource } from "@arena/widgets";
 import { createStore } from "@arena/solid-store";
 import { CodeEditor } from "@arena/components";
@@ -23,7 +31,7 @@ const Data = () => {
     const template = useTemplate(widget.template.id);
 
     return Object.entries(widget.config.data)
-      .filter(([_, config]) => "dynamic" == config.source)
+      .filter(([_, config]) => ["dynamic", "userinput"].includes(config.source))
       .map(([fieldName, fieldConfig]) => {
         const templateConfig = template.metadata.data[fieldName];
         return {
@@ -41,6 +49,10 @@ const Data = () => {
     return metadata.find((c) => c.fieldName == field) || metadata[0];
   });
 
+  const isSelected = createSelector(
+    () => state.selectedField() || fieldMetadata()[0].fieldName
+  );
+
   return (
     <div class="flex flex-row px-2 h-full space-x-2 text-brand-1">
       <Switch>
@@ -52,12 +64,13 @@ const Data = () => {
         <Match when={true}>
           <div class="w-28 space-y-1">
             <div class="text-xs">Data Fields</div>
-            <div>
+            <div class="space-y-1">
               <For each={fieldMetadata()}>
                 {(field) => {
                   return (
                     <Field
                       {...field}
+                      selected={isSelected(field.fieldName)}
                       setSelectedField={(name) =>
                         setState("selectedField", name)
                       }
@@ -84,11 +97,17 @@ type FieldMetadata = {
 };
 
 const Field = (
-  props: FieldMetadata & { setSelectedField: (name: string) => void }
+  props: FieldMetadata & {
+    selected: boolean;
+    setSelectedField: (name: string) => void;
+  }
 ) => {
   return (
     <div
-      class="px-2 py-1 text-xs cursor-pointer rounded bg-brand-12/70 hover:bg-brand-12/40"
+      class="px-2 py-1 text-xs cursor-pointer rounded hover:bg-brand-12/40"
+      classList={{
+        "bg-brand-12/70": props.selected,
+      }}
       onClick={() => props.setSelectedField(props.fieldName)}
     >
       {props.title}
@@ -228,7 +247,5 @@ const DataSourceEditor = (props: { metadata: FieldMetadata }) => {
     </div>
   );
 };
-
-// const Show
 
 export { Data };

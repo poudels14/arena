@@ -119,10 +119,7 @@ export type DataSource<T> =
 export namespace DataSource {
   type withValue<Shape, T> = Omit<Shape, "value"> & { value: T };
 
-  export type Transient<T> = withValue<
-    z.infer<typeof transientSourceSchema>,
-    T
-  >;
+  export type Transient<T> = z.infer<typeof transientSourceSchema>;
 
   export type UserInput<T> = withValue<
     z.infer<typeof userInputSourceSchema>,

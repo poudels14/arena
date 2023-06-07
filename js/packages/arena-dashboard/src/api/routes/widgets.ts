@@ -8,6 +8,7 @@ import {
   DataSource,
   Template,
   dynamicSourceSchema,
+  userInputSourceSchema,
 } from "@arena/widgets/schema";
 import { TEMPLATES } from "@arena/studio/templates";
 import { MutationResponse } from "@arena/studio";
@@ -31,7 +32,10 @@ const layoutUpdateSchema = z.object({
 
 const dataUpdateSchema = z.record(
   z.object({
-    config: dynamicSourceSchema.shape.config,
+    config: z.union([
+      dynamicSourceSchema.shape.config,
+      userInputSourceSchema.shape.config,
+    ]),
   })
 );
 
@@ -91,7 +95,6 @@ const widgetsRouter = trpcRouter({
               after: layout.position.after,
             },
           },
-          // @ts-expect-error
           data: withDefaultSourceConfig(input.templateId, defaultDataConfig),
           config: z.any(),
           class: templateMetadata.class,
@@ -285,13 +288,17 @@ const getNextWidgetInLinkedList = async (
 
 const withDefaultSourceConfig = (
   templateId: DbWidget["templateId"],
-  dataConfig: Record<string, DataSource.Dynamic>
+  dataConfig: Record<string, DataSource<any>>
 ) => {
   const templateMetadata = TEMPLATES[templateId]
     .metadata as Template.Metadata<any>;
   const { fromEntries, entries } = Object;
   return fromEntries(
-    entries(dataConfig).map(([field, fieldConfig]) => {
+    entries(dataConfig).map(([field, fieldConfig]: any) => {
+      const templateFieldConfig = templateMetadata.data[field];
+      if (templateFieldConfig.source != "dynamic") {
+        return [field, fieldConfig];
+      }
       return [
         field,
         {
@@ -302,7 +309,7 @@ const withDefaultSourceConfig = (
               fieldConfig.config.value ||
               getDefaultValueForLoader(
                 fieldConfig.config.loader,
-                templateMetadata.data[field].preview
+                (templateMetadata.data[field] as any).preview
               ),
           },
         },
@@ -327,7 +334,13 @@ const getDefaultValueForLoader = (
     case "@client/json":
       return previewData;
     case "@client/js":
-      return "function query() {\n" + "\treturn " + dataJson + "\n" + "}";
+      return (
+        "function execute(app, widgets) {\n" +
+        "\treturn " +
+        dataJson +
+        "\n" +
+        "}"
+      );
     case "@arena/sql/postgres":
       return "SELECT 1;";
     case "@arena/server-function":
