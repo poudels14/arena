@@ -61,9 +61,13 @@ const Toolbar = () => {
     useEditorContext<ComponentTreeContext>();
   const isWidgetHighlighted = () => getSelectedWidgets().length == 1;
   createComputed(() => {
-    setState("tab", (_prev) => {
+    setState("tab", (prev) => {
       return {
-        active: isWidgetHighlighted() ? "data" : "templates",
+        active: isWidgetHighlighted()
+          ? prev.active != "templates"
+            ? prev.active
+            : "data"
+          : "templates",
       };
     });
   });
