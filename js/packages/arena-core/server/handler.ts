@@ -13,7 +13,7 @@ const createPageEvent = (event: FetchEvent): PageEvent => {
   let url = new URL(event.request.url);
   return {
     request: event.request,
-    env: Arena.env,
+    env: process.env,
     ctx: {
       path: url.pathname,
       search: url.search,

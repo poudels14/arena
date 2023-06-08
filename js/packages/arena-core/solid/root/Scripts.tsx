@@ -1,8 +1,8 @@
 // Credit: Solidjs
 import { HydrationScript, isServer, NoHydration } from "solid-js/web";
 
-const isDev = Arena.env.MODE === "development";
-const isSSR = Arena.env.ARENA_SSR;
+const isDev = process.env.MODE === "development";
+const isSSR = process.env.ARENA_SSR;
 
 const Scripts = () => {
   return (
@@ -15,7 +15,7 @@ const Scripts = () => {
               <script
                 type="module"
                 async
-                src={"/" + Arena.env.ARENA_ENTRY_CLIENT}
+                src={"/" + process.env.ARENA_ENTRY_CLIENT}
                 $ServerOnly
               ></script>
             </>
@@ -24,7 +24,7 @@ const Scripts = () => {
               type="module"
               async
               // TODO(sagar): think about how to inject published modules
-              src={Arena.env.ARENA_PUBLISHED_ENTRY_CLIENT}
+              src={process.env.ARENA_PUBLISHED_ENTRY_CLIENT}
             />
           ))}
       </NoHydration>

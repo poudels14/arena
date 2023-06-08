@@ -27,6 +27,10 @@
       "import": "./solid/server.tsx",
       "default": "./solid/server.tsx"
     },
+    "./server": {
+      "import": "./server/index.ts",
+      "default": "./server/index.ts"
+    },
     "./router": {
       "import": "./router/index.ts",
       "default": "./router/index.ts"

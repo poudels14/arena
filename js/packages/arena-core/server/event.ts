@@ -1,6 +1,6 @@
 interface FetchEvent {
   request: Request;
-  env: Arena.Env;
+  env: any;
 }
 
 type RequestContext = {

@@ -22,7 +22,7 @@ deno_core::extension!(
     ext.js(vec![ExtensionFileSource {
       specifier: "setup",
       code: ExtensionFileSourceCode::IncludedInBinary(
-        "Arena.env = Object.assign({}, Arena.core.ops.op_load_env());",
+        "Arena.env = Object.assign({}, Arena.core.ops.op_load_env());\nObject.assign(globalThis.process.env, Arena.env);",
       ),
     }]);
     ext.force_op_registration();

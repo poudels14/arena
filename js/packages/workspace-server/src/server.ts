@@ -8,6 +8,7 @@ const serve = async (
 ) => {
   // Note(sagar): since this is running in server, set SSR = true
   Arena.env.SSR = true;
+  process.env.SSR = true;
 
   // TODO(sagar): we need to store logs from Arena and logs from queries
   // separately

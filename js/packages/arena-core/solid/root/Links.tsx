@@ -7,11 +7,11 @@ import { ServerContext } from "../context";
  * @returns {JSXElement}
  */
 export default function Links() {
-  const isDev = Arena.env.MODE === "development";
+  const isDev = process.env.MODE === "development";
   const context = useContext(ServerContext);
   // TODO(sagar)
   // !isDev &&
-  //   Arena.env.ARENA_SSR &&
+  //   process.env.ARENA_SSR &&
   //   useAssets(() => getAssetsFromManifest(context!.env.manifest, context!.routerContext!));
   return null;
 }

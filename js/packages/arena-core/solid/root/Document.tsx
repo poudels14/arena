@@ -7,7 +7,7 @@ import Meta from "./Meta";
 import { Scripts } from "./Scripts";
 
 const Html = (props: ComponentProps<"html">) => {
-  if (Arena.env.SSR) {
+  if (process.env.SSR) {
     return ssrElement(
       "html",
       props,
@@ -20,7 +20,7 @@ const Html = (props: ComponentProps<"html">) => {
 };
 
 const Head = (props: ComponentProps<"head">) => {
-  if (Arena.env.SSR) {
+  if (process.env.SSR) {
     return ssrElement(
       "head",
       props,
@@ -40,15 +40,15 @@ const Head = (props: ComponentProps<"head">) => {
 };
 
 const Body = (props: ComponentProps<"body">) => {
-  if (Arena.env.SSR) {
+  if (process.env.SSR) {
     return ssrElement(
       "body",
       props,
-      () => (Arena.env.ARENA_SSR ? props.children : <Scripts />),
+      () => (process.env.ARENA_SSR ? props.children : <Scripts />),
       false
     ) as unknown as JSX.Element;
   } else {
-    if (Arena.env.ARENA_SSR) {
+    if (process.env.ARENA_SSR) {
       let child = children(() => props.children);
       spread(document.body, props, false, true);
       insert(
