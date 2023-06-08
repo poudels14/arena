@@ -1,4 +1,4 @@
-import { omit, merge, compact } from "lodash-es";
+import { omit, merge, compact, pick } from "lodash-es";
 import zod, { z } from "zod";
 import { Widget } from "@arena/widgets";
 import camelCase from "camelcase";
@@ -9,6 +9,7 @@ import {
   Template,
   dynamicSourceSchema,
   userInputSourceSchema,
+  widgetConfigSourceSchema,
 } from "@arena/widgets/schema";
 import { TEMPLATES } from "@arena/studio/templates";
 import { MutationResponse } from "@arena/studio";
@@ -33,6 +34,10 @@ const layoutUpdateSchema = z.object({
 const dataUpdateSchema = z.record(
   z.object({
     config: z.union([
+      // Note(sp): should be careful with zod validation; z.any() type should
+      // come before other types, otherwise casting could result in data of
+      // type any() being striped out
+      widgetConfigSourceSchema.shape.config,
       dynamicSourceSchema.shape.config,
       userInputSourceSchema.shape.config,
     ]),
@@ -66,7 +71,7 @@ const widgetsRouter = trpcRouter({
       const templateMetadata = TEMPLATES[templateId].metadata;
       const defaultDataConfig = Object.fromEntries(
         Object.entries(templateMetadata.data).map(
-          ([field, { title, source, default: config }]) => {
+          ([field, { source, default: config }]: any) => {
             return [field, { source, config }];
           }
         )
@@ -95,8 +100,10 @@ const widgetsRouter = trpcRouter({
               after: layout.position.after,
             },
           },
-          data: withDefaultSourceConfig(input.templateId, defaultDataConfig),
-          config: z.any(),
+          data: withDefaultSourceLoaderConfig(
+            input.templateId,
+            defaultDataConfig
+          ),
           class: templateMetadata.class,
         },
       };
@@ -133,7 +140,6 @@ const widgetsRouter = trpcRouter({
           .object({
             layout: layoutUpdateSchema.optional(),
             data: dataUpdateSchema.optional(),
-            config: z.any(),
             class: z.string().optional(),
           })
           .optional(),
@@ -150,10 +156,19 @@ const widgetsRouter = trpcRouter({
 
       merge(widget, rest);
       if (config?.data) {
+        const template = TEMPLATES[widget.templateId].metadata;
+        const updatableFields = Object.entries(template.data)
+          .filter(([f, c]) =>
+            ["dynamic", "userinput", "config"].includes(c.source)
+          )
+          .map(([f]) => f);
+
+        const dataConfigPatch = pick(config.data, updatableFields);
+
         merge(
           widget.config.data,
           // @ts-expect-error
-          withDefaultSourceConfig(widget.templateId, config.data)
+          withDefaultSourceLoaderConfig(widget.templateId, dataConfigPatch)
         );
       }
 
@@ -178,10 +193,6 @@ const widgetsRouter = trpcRouter({
           .map((c) => c.trim())
           .filter((c) => c.length > 0)
           .join(" ");
-      }
-
-      if (config?.config) {
-        widget.config.config = config?.config;
       }
 
       const updatedWidgets = compact([
@@ -286,7 +297,7 @@ const getNextWidgetInLinkedList = async (
   return nextWidget;
 };
 
-const withDefaultSourceConfig = (
+const withDefaultSourceLoaderConfig = (
   templateId: DbWidget["templateId"],
   dataConfig: Record<string, DataSource<any>>
 ) => {

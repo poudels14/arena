@@ -11,8 +11,6 @@ import {
 } from "solid-js";
 import type { Widget, WidgetConfig } from "@arena/widgets/schema";
 import { Store } from "@arena/solid-store";
-import { klona } from "klona";
-import isEqual from "fast-deep-equal/es6";
 import {
   EditorContext,
   TemplateStoreContext,
@@ -79,8 +77,8 @@ const WidgetRenderer = (props: WidgetProps) => {
    */
   const data = new Proxy(Object.fromEntries(props.dataLoaders), {
     get(target: any, fieldName: string) {
-      const [data] = target[fieldName];
-      return data();
+      const [data] = target[fieldName] || [];
+      return data?.();
     },
   });
 
@@ -122,14 +120,6 @@ const WidgetRenderer = (props: WidgetProps) => {
     // setter for transient data source
     setData(field: string, value: string) {
       ctx.setWidgetData(props.id, field, value);
-    },
-    // Note(sp): clone config so that it can be compared accurately even when
-    // it's mutated by the widget
-    config: klona(props.config.config!()),
-    setConfig(config: any) {
-      if (!isEqual(props.config.config!(), config)) {
-        ctx.updateWidget(props.id, "config", "config", config);
-      }
     },
     Editor: {
       Slot: Slot,

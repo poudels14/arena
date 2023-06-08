@@ -92,6 +92,18 @@ export const dataLoaderConfigSchema = z.union([
   }),
 ]);
 
+/**
+ * This is used by Widget to store non-data config.
+ * For example, Table widget can use this field to store width of a column.
+ */
+export const widgetConfigSourceSchema = z.object({
+  source: z.literal("config"),
+  config: z.any(),
+});
+
+/**
+ * This data source is set by templates itself and user can't edit it
+ */
 export const templateSourceSchema = z.object({
   source: z.literal("template"),
   config: dataLoaderConfigSchema,
@@ -107,12 +119,14 @@ export const dataSourceSchema = z.union([
   transientSourceSchema,
   userInputSourceSchema,
   templateSourceSchema,
+  widgetConfigSourceSchema,
   dynamicSourceSchema,
 ]) as ZodSchema<DataSource<any>>;
 
 export type DataSource<T> =
   | DataSource.Transient<T>
   | DataSource.UserInput<T>
+  | DataSource.Config
   | DataSource.Template
   | DataSource.Dynamic;
 
@@ -137,6 +151,7 @@ export namespace DataSource {
     field?: string;
   };
 
+  export type Config = z.infer<typeof widgetConfigSourceSchema>;
   export type Template = z.infer<typeof templateSourceSchema>;
   export type Dynamic = z.infer<typeof dynamicSourceSchema>;
 }

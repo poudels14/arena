@@ -8,6 +8,7 @@ import {
   untrack,
 } from "solid-js";
 import isEqual from "fast-deep-equal/es6";
+import { klona } from "klona";
 import { InternalEditor, Plugin } from "./types";
 import { DataSource } from "@arena/widgets/schema/data";
 import { useApiContext } from "../../ApiContext";
@@ -28,9 +29,8 @@ const withWidgetDataLoaders: Plugin<{}, {}, {}> = (config) => (editor) => {
   Object.assign(editor.context, {
     useWidgetData: useWidgetData.bind(editor.context),
     setWidgetData(widgetId: string, field: string, value: any) {
-      let valueSignal;
-      if ((valueSignal = TRANSIENT_DATA_STORE.get(widgetId, field))) {
-        valueSignal[1](value);
+      if (TRANSIENT_DATA_STORE.has(widgetId, field)) {
+        TRANSIENT_DATA_STORE.get(widgetId, field)[1](value);
         return;
       }
 
@@ -41,8 +41,21 @@ const withWidgetDataLoaders: Plugin<{}, {}, {}> = (config) => (editor) => {
 
       const widget = ctx.useWidgetById(widgetId);
       const fieldConfig = untrack(widget.config.data[field]);
+      // If a new data field is added to widget template,
+      // existing widget instances will be missing the new field
+      if (!fieldConfig) {
+        console.warn(
+          `Widget [${widgetId}] doesn't support data field: ${field}`
+        );
+        return;
+      }
       if (fieldConfig.source == "transient") {
         TRANSIENT_DATA_STORE.get(widgetId, field)[1](value);
+      } else if (
+        fieldConfig.source == "config" &&
+        !isEqual(fieldConfig.config, value)
+      ) {
+        ctx.updateWidget(widgetId, "config", "data", field, "config", value);
       }
     },
   });
@@ -60,6 +73,9 @@ const createTransientDataStore = () => {
       signal = createSignal(defaultValue);
       TRANSIENT_DATA.set(accessorId, signal);
       return signal;
+    },
+    has(widgetId: string, field: string) {
+      return TRANSIENT_DATA.has(`${widgetId}/${field}`);
     },
   };
 };
@@ -113,8 +129,10 @@ function useWidgetData(widgetId: string, field: string) {
             );
         }
       }
+      case "config":
+        return klona(config.config);
       case "userinput":
-        return useUserInputDataSource(config.config);
+        return config.config.value;
       case "transient":
         throw new Error("unreachable");
       default:
@@ -157,10 +175,6 @@ function getTransientDataResource(widgetId: string, field: string) {
 }
 
 function useInlineDataSource<T>(config: DataSource<T>["config"]) {
-  return config.value;
-}
-
-function useUserInputDataSource<T>(config: DataSource<T>["config"]) {
   return config.value;
 }
 

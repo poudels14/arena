@@ -16,7 +16,7 @@ import ChevronLeft from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/c
 import ChevronRight from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/chevron-right";
 import type { Template } from "..";
 
-const metadata: Template.Metadata<{ rows: any[] }> = {
+const metadata: Template.Metadata<{ rows: any[]; layout: any }> = {
   id: "at-table",
   name: "Table",
   description: "Table",
@@ -40,11 +40,18 @@ const metadata: Template.Metadata<{ rows: any[] }> = {
         },
       ],
     },
+    layout: {
+      title: "Layout",
+      source: "config",
+      default: {
+        columnWidths: {},
+      },
+    },
   },
   class: "bg-white art-[>.thead](bg-gray-50)",
 };
 
-const Table = (props: Template.Props<{ rows: any[] }>) => {
+const Table = (props: Template.Props<{ rows: any[]; layout: any }>) => {
   const createTable = createTableWithPlugins(
     withHeaders({
       headers: Object.keys(props.data.rows[0] || {}).map((k) => {
@@ -57,7 +64,7 @@ const Table = (props: Template.Props<{ rows: any[] }>) => {
       pageSize: 10,
     }),
     withResizableColumns({
-      columnWidths: props.config?.columnWidths,
+      columnWidths: props.data?.layout?.columnWidths,
     })
   );
 
@@ -73,8 +80,8 @@ const Table = (props: Template.Props<{ rows: any[] }>) => {
 
   createEffect(() => {
     const columnWidths = table.getColumnWidths();
-    props.setConfig({
-      ...(props.config || {}),
+    props.setData("layout", {
+      ...(props.data?.layout || {}),
       columnWidths,
     });
   });
@@ -122,7 +129,10 @@ const Table = (props: Template.Props<{ rows: any[] }>) => {
                 <For each={row.getVisibleCells()}>
                   {(cell) => {
                     return (
-                      <Ui.Td cell={cell} class="td text-center p-1 py-2" />
+                      <Ui.Td
+                        cell={cell}
+                        class="td p-1 py-2 text-center whitespace-nowrap"
+                      />
                     );
                   }}
                 </For>

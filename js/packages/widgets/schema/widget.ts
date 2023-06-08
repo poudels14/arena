@@ -15,7 +15,6 @@ export const widgetConfigSchema = z.object({
     }),
   }),
   data: z.record(dataSourceSchema),
-  config: z.any(),
   class: z.string().optional(),
 });
 

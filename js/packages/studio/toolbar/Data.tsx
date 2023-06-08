@@ -50,7 +50,7 @@ const Data = () => {
   });
 
   const isSelected = createSelector(
-    () => state.selectedField() || fieldMetadata()[0].fieldName
+    () => state.selectedField() || fieldMetadata()[0]?.fieldName
   );
 
   return (
@@ -131,7 +131,6 @@ const FieldEditor = (props: { metadata: FieldMetadata }) => {
     config: Omit<FieldMetadata["fieldConfig"]["config"], "value">
   ) => {
     const { widgetId, fieldName } = props.metadata;
-    // @ts-expect-error
     updateWidget(widgetId, "config", "data", fieldName, "config", config);
   };
   return (
