@@ -7,6 +7,14 @@ type App = {
 
   description?: string;
 
+  config: {
+    ui?: {
+      thumbnail?: {
+        class?: string;
+      };
+    };
+  };
+
   /**
    * List of all the widgets in the app
    */

@@ -17,7 +17,7 @@ const Resources = () => {
             <h1 class="text-xl font-semibold leading-6 text-accent-12/90">
               Resources
             </h1>
-            <p class="mt-2 text-sm font-light text-accent-11">
+            <p class="mt-2 text-sm font-normal text-accent-11">
               A list of all the resources in your account. All Postgres db,
               config, environment variables, etc will be shown here.
             </p>

@@ -55,6 +55,9 @@ dependencies:
   lodash-es:
     specifier: ^4.17.21
     version: 4.17.21
+  randomcolor:
+    specifier: ^0.6.2
+    version: 0.6.2
   solid-js:
     specifier: ^1.7.6
     version: 1.7.6
@@ -406,6 +409,10 @@ packages:
     dependencies:
       dot-case: 3.0.4
       tslib: 2.5.2
+    dev: false
+
+  /randomcolor@0.6.2:
+    resolution: {integrity: sha512-Mn6TbyYpFgwFuQ8KJKqf3bqqY9O1y37/0jgSK/61PUxV4QfIMv0+K2ioq8DfOjkBslcjwSzRfIDEXfzA9aCx7A==}
     dev: false
 
   /sentence-case@3.0.4:

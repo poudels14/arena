@@ -4,6 +4,7 @@ import {
   drizzle,
   eq,
   isNull,
+  jsonb,
   pgTable,
   sql,
   text,
@@ -18,6 +19,7 @@ export const apps = pgTable("apps", {
   name: varchar("name").notNull(),
   description: text("description"),
   workspaceId: varchar("workspace_id"),
+  config: jsonb("config"),
   ownerId: varchar("owner_id"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -26,6 +28,7 @@ export const apps = pgTable("apps", {
 
 type App = InferModel<typeof apps> & {
   description?: string;
+  config: any;
   archivedAt?: Date | null;
 };
 
@@ -73,6 +76,18 @@ const createRepo = (ctx: Context) => {
         sql`SELECT * FROM apps WHERE archived_at IS NULL AND owner_id = ${ownerId}`
       );
       return rows;
+    },
+    async archiveById(id: string): Promise<Pick<Required<App>, "archivedAt">> {
+      const rows = await db
+        .update(apps)
+        .set({
+          archivedAt: sql.raw(`NOW()`),
+        })
+        .where(and(eq(apps.id, id), isNull(apps.archivedAt)))
+        .returning({
+          archivedAt: apps.archivedAt,
+        });
+      return rows[0];
     },
   };
 };

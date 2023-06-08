@@ -83,7 +83,7 @@ const createRepo = (ctx: Context) => {
         sql`UPDATE widgets SET archived_at = NOW() WHERE id IN ${widgetIds}`
       );
     },
-  };
+  } as const;
 };
 
 export { createRepo, dbWidgetSchema };

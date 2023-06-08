@@ -7,7 +7,7 @@ const Sidebar = () => {
       <div class="px-4 bg-brand-12/90 text-white">
         <WorkspacePanel />
       </div>
-      <div class="px-3 mt-8 flex-1">
+      <div class="mt-8 flex-1">
         <Tabs />
       </div>
     </div>

@@ -4,7 +4,7 @@ const Tab = (props: { title: string; href: string }) => {
   return (
     <A
       href={props.href}
-      class="block px-1 py-1 rounded cursor-pointer hover:bg-brand-2"
+      class="block px-4 py-1 rounded cursor-pointer hover:bg-brand-2"
       activeClass="bg-brand-4"
       end
     >
