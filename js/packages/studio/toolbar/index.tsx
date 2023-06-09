@@ -1,4 +1,3 @@
-import { createStore, Store, StoreSetter } from "@arena/solid-store";
 import {
   createContext,
   JSX,
@@ -8,16 +7,21 @@ import {
   createComputed,
   createSelector,
   Accessor,
+  lazy,
 } from "solid-js";
+import { A } from "@solidjs/router";
+import { createStore, Store, StoreSetter } from "@arena/solid-store";
 import DragHandle from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/drag-handle-horizontal";
 import MinimizeIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/minimize";
 import MaximizeIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/maximize";
+import HomeIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/home";
 import { InlineIcon } from "@arena/components";
 import { Templates } from "./Templates";
-import { Data } from "./Data";
 import { StyleEditor } from "./StyleEditor";
 import { ComponentTreeContext, useEditorContext } from "../editor";
 import { ComponentTree } from "./ComponentTree";
+// @ts-ignore
+const Data = lazy(() => import("./Data.tsx"));
 
 type ToolbarTab =
   /**
@@ -77,14 +81,24 @@ const Toolbar = () => {
       <Switch>
         <Match when={isViewOnly()}>
           <div class="toolbar fixed bottom-0 w-full flex flex-row justify-center pointer-events-none z-[99999]">
-            <div
-              class="relative bottom-4 w-52 h-8 p-2 flex rounded-md text-brand-2 bg-brand-12/80 cursor-pointer pointer-events-auto space-x-2"
-              onClick={() => setViewOnly(false)}
-            >
-              <div class="flex-1 text-xs text-center">Open editor</div>
-              <InlineIcon size="16px" class="py-1 cursor-pointer">
-                <path d={MaximizeIcon[0]} />
-              </InlineIcon>
+            <div class="relative bottom-4 w-52 h-8 flex rounded-md text-brand-2 bg-brand-12/80 cursor-pointer pointer-events-auto space-x-2">
+              <A href="/apps">
+                <div class="inline-block px-2 py-2 rounded-l-md border-r border-brand-11 hover:bg-brand-10">
+                  <InlineIcon size="16px" class="cursor-pointer">
+                    <path d={HomeIcon[0]} />
+                  </InlineIcon>
+                </div>
+              </A>
+
+              <div
+                class="flex-1 flex p-2 text-xs text-center"
+                onClick={() => setViewOnly(false)}
+              >
+                <div class="flex-1">Open editor</div>
+                <InlineIcon size="16px" class="py-1 cursor-pointer">
+                  <path d={MaximizeIcon[0]} />
+                </InlineIcon>
+              </div>
             </div>
           </div>
         </Match>

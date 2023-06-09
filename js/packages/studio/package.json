@@ -16,6 +16,7 @@
     "@blueprintjs/icons": "^4.14.3",
     "@popperjs/core": "^2.11.7",
     "@solidjs/meta": "^0.28.4",
+    "@solidjs/router": "^0.8.2",
     "clean-set": "^1.1.2",
     "debounce": "^1.2.1",
     "fast-deep-equal": "^3.1.3",

@@ -33,7 +33,7 @@ const metadata: Template.Metadata<{
   class: "bg-white",
 };
 
-const Heading3 = (
+const Input = (
   props: Template.Props<{ type: string; placeholder: string; value: string }>
 ) => {
   return (
@@ -50,5 +50,5 @@ const Heading3 = (
   );
 };
 
-export default Heading3;
+export default Input;
 export { metadata };

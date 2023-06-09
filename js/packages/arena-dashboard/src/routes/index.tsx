@@ -1,9 +1,10 @@
 import { Routes as SolidRoutes, Route, useParams } from "@solidjs/router";
 import { lazy } from "solid-js";
-import { Dashboard } from "./dashboard";
 import { DashboardContextProvider } from "~/context";
 //@ts-ignore
 const App = lazy(() => import("./apps/App.tsx"));
+//@ts-ignore
+const Dashboard = lazy(() => import("./dashboard.tsx"));
 
 const Routes = () => {
   return (

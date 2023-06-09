@@ -247,4 +247,4 @@ const DataSourceEditor = (props: { metadata: FieldMetadata }) => {
   );
 };
 
-export { Data };
+export default Data;
