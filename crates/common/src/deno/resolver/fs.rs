@@ -15,8 +15,13 @@ const SUPPORTED_EXTENSIONS: [&'static str; 9] = [
   "ts", "tsx", "js", "mjs", "jsx", "json", "cjs", "css", ".scss",
 ];
 
+#[derive(Default)]
 pub(crate) struct ResolverCache {
   pub node_module_dirs: IndexMap<String, Vec<PathBuf>>,
+  /// Map of npm package name -> (package.json, path to package.json)
+  pub packages: IndexMap<String, (Package, PathBuf)>,
+  /// Map of resolved module path -> npm package name
+  pub resolved_path_to_package_name: IndexMap<String, String>,
 }
 
 pub struct FsModuleResolver {
@@ -40,7 +45,7 @@ impl FsModuleResolver {
       project_root,
       config,
       cache: Rc::new(RefCell::new(ResolverCache {
-        node_module_dirs: IndexMap::new(),
+        ..Default::default()
       })),
       builtin_modules,
     }

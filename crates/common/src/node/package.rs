@@ -2,7 +2,7 @@ use indexmap::map::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Package {
   pub name: String,
 
@@ -21,6 +21,9 @@ pub struct Package {
 
   #[serde(skip_serializing_if = "Option::is_none")]
   pub dependencies: Option<IndexMap<String, String>>,
+
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub imports: Option<IndexMap<String, Value>>,
 
   #[serde(skip_serializing_if = "Option::is_none")]
   pub exports: Option<IndexMap<String, Value>>,

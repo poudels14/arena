@@ -73,6 +73,7 @@ impl FsModuleResolver {
             &dir_path.join(&parsed_specifier.package_name),
           )
           .ok();
+          let dir_path = dir_path.clone();
           let resolved = self
             .load_npm_package(&dir_path, &parsed_specifier, &maybe_package)
             .or_else(|e| {
@@ -83,9 +84,47 @@ impl FsModuleResolver {
               debug!("error loading as file: {}", e);
               fs::load_as_directory(&dir_path.join(specifier), &maybe_package)
             })
+            .or_else(|e| {
+              debug!("error loading as directory: {}", e);
+
+              self.load_from_imports(
+                &specifier,
+                maybe_package.as_ref().map(|p| (p, &dir_path)).or_else(|| {
+                  cache.resolved_path_to_package_name.get(referrer).and_then(
+                    |package_name| {
+                      cache
+                        .packages
+                        .get(package_name)
+                        .as_ref()
+                        .map(|(package, dir)| (package, dir))
+                    },
+                  )
+                }),
+              )
+            })
             .and_then(|p| self.convert_to_url(p));
 
           if let Ok(resolved) = resolved {
+            if let Some(package) = maybe_package {
+              if !cache.packages.contains_key(&package.name) {
+                cache
+                  .packages
+                  .insert(package.name.clone(), (package.clone(), dir_path));
+              }
+              cache
+                .resolved_path_to_package_name
+                .insert(resolved.as_str().to_owned(), package.name.clone());
+            } else {
+              let referrer_package =
+                cache.resolved_path_to_package_name.get(referrer);
+
+              if let Some(referrer_package) = referrer_package {
+                let referrer_package = referrer_package.to_string();
+                cache
+                  .resolved_path_to_package_name
+                  .insert(resolved.as_str().to_owned(), referrer_package);
+              }
+            }
             return Ok(resolved);
           }
         }
@@ -104,8 +143,6 @@ impl FsModuleResolver {
     let package: &Package =
       maybe_package.as_ref().ok_or(anyhow!("not a npm package"))?;
 
-    debug!("package.json loaded");
-
     let package_export =
       self.load_package_exports(base_dir, specifier, &package);
 
@@ -114,12 +151,40 @@ impl FsModuleResolver {
     }
 
     // TODO(sagar): if package_json.module is present, use that
-
     bail!(
       "module not found for specifier: {}{}",
       &specifier.package_name,
       &specifier.sub_path[1..]
     );
+  }
+
+  /// Some packages have "imports" field in package.json that maps
+  /// specifier to the filename and the aliased specifier is used
+  /// to import modules; this is used to load those "aliased" modules
+  fn load_from_imports(
+    &self,
+    specifier: &str,
+    package: Option<(&Package, &PathBuf)>,
+  ) -> Result<PathBuf> {
+    if let Some((package, base_dir)) = package {
+      let resolved_path = package
+        .imports
+        .as_ref()
+        .and_then(|imports| imports.get(specifier))
+        .and_then(|conditional_imports| {
+          get_matching_export(conditional_imports, &self.config.conditions).ok()
+        })
+        .and_then(|alias| {
+          Some(normalize_path(base_dir.join(&package.name).join(alias)))
+        });
+
+      if let Some(resolved_path) = resolved_path {
+        if resolved_path.exists() {
+          return Ok(resolved_path);
+        }
+      }
+    }
+    bail!("package.json not available to load \"imports\" from");
   }
 
   fn load_package_exports(
