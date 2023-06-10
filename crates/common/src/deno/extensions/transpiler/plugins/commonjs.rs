@@ -136,6 +136,10 @@ impl Visit for CommonJsChecker {
         if *obj_sym == self.module && *prop_sym == self.exports {
           self.is_commonjs = true;
         }
+        // If there's exports.{ident}, consider it commonJs
+        if *obj_sym == self.exports {
+          self.is_commonjs = true;
+        }
       }
       _ => {}
     }
