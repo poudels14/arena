@@ -63,12 +63,16 @@ impl VisitMut for CommonJsToEsm {
       },
     ));
 
+    if node.body.iter().any(|m| m.is_module_decl()) {
+      return;
+    }
+
     let body = node
       .body
-      .iter_mut()
+      .iter()
       .map(move |m| match m {
         ModuleItem::ModuleDecl(_) => {
-          panic!("ModuleDecl not supported in commonjs module")
+          unreachable!("ModuleDecl not supported in commonjs module")
         }
         ModuleItem::Stmt(stmt) => stmt.to_owned(),
       })
