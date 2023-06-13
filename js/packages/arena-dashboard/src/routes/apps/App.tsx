@@ -24,8 +24,8 @@ const App = (props: { id: string }) => {
         return await fetch(
           `/api/query/${input.appId}/${input.widgetId}/${
             input.field
-          }?updatedAt=${input.updatedAt}&params=${encodeURI(
-            JSON.stringify(input.params)
+          }?updatedAt=${input.updatedAt}&props=${encodeURI(
+            JSON.stringify(input.props)
           )}`,
           {
             method: "GET",

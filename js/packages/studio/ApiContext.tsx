@@ -36,7 +36,7 @@ type ApiRoutes = {
     widgetId: string;
     field: string;
     updatedAt: string;
-    params: any;
+    props: any;
   }) => Promise<any>;
 };
 

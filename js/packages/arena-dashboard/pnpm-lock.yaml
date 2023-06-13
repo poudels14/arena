@@ -1,6 +1,9 @@
 lockfileVersion: '6.0'
 
 dependencies:
+  '@arena/cloud':
+    specifier: workspace:^
+    version: link:../cloud
   '@arena/components':
     specifier: workspace:^0.1.0
     version: link:../arena-components

@@ -19,11 +19,11 @@ const execWidgetQueryBodySchema = z.object({
   // the last updated time of the widget so that to reload
   // data query if needed
   updatedAt: z.string(),
-  params: z.record(z.any()).optional(),
+  props: z.record(z.any()).optional(),
 });
 
 r.on("POST", "/execWidgetQuery", async (req, res) => {
-  const { workspaceId, appId, widgetId, field, updatedAt, params } =
+  const { workspaceId, appId, widgetId, field, updatedAt, props } =
     execWidgetQueryBodySchema.parse(await req.json());
   try {
     const env = await import(
@@ -34,7 +34,7 @@ r.on("POST", "/execWidgetQuery", async (req, res) => {
     ).then(async (m) => {
       const result = await Promise.all([
         m.default({
-          params: params || {},
+          props: props || {},
           env,
         }),
       ]);

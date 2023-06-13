@@ -1,6 +1,7 @@
 use anyhow::Result;
 use deno_core::serde_v8;
 use deno_core::v8;
+use deno_core::FastString;
 use jsruntime::{IsolatedRuntime, RuntimeConfig};
 
 #[tokio::main]
@@ -42,7 +43,7 @@ async fn main() -> Result<()> {
   let result = runtime
     .execute_script(
       "<test>",
-      "console.log(Object.keys(globalThis)); ExampleObject",
+      FastString::Static("console.log(Object.keys(globalThis)); ExampleObject"),
     )
     .unwrap();
 

@@ -2,8 +2,6 @@ import { omit, merge, compact, pick } from "lodash-es";
 import zod, { z } from "zod";
 import { Widget } from "@arena/widgets";
 import camelCase from "camelcase";
-import { badRequest, notFound } from "../utils/errors";
-import { procedure, router as trpcRouter } from "../trpc";
 import {
   DataSource,
   Template,
@@ -13,7 +11,10 @@ import {
 } from "@arena/widgets/schema";
 import { TEMPLATES } from "@arena/studio/templates";
 import { MutationResponse } from "@arena/studio";
+import { transpileServerFunction } from "@arena/cloud/query";
 import { DbWidget, createRepo } from "../repos/widget";
+import { badRequest, notFound } from "../utils/errors";
+import { procedure, router as trpcRouter } from "../trpc";
 
 type DbRepo = { widgets: ReturnType<typeof createRepo> };
 
@@ -100,7 +101,7 @@ const widgetsRouter = trpcRouter({
               after: layout.position.after,
             },
           },
-          data: withDefaultSourceLoaderConfig(
+          data: await withDefaultSourceLoaderConfig(
             input.templateId,
             defaultDataConfig
           ),
@@ -167,8 +168,11 @@ const widgetsRouter = trpcRouter({
 
         merge(
           widget.config.data,
-          // @ts-expect-error
-          withDefaultSourceLoaderConfig(widget.templateId, dataConfigPatch)
+          await withDefaultSourceLoaderConfig(
+            widget.templateId,
+            // @ts-expect-error
+            dataConfigPatch
+          )
         );
       }
 
@@ -297,7 +301,7 @@ const getNextWidgetInLinkedList = async (
   return nextWidget;
 };
 
-const withDefaultSourceLoaderConfig = (
+const withDefaultSourceLoaderConfig = async (
   templateId: DbWidget["templateId"],
   dataConfig: Record<string, DataSource<any>>
 ) => {
@@ -305,14 +309,14 @@ const withDefaultSourceLoaderConfig = (
     .metadata as Template.Metadata<any>;
   const { fromEntries, entries } = Object;
   return fromEntries(
-    entries(dataConfig).map(([field, fieldConfig]: any) => {
-      const templateFieldConfig = templateMetadata.data[field];
-      if (templateFieldConfig.source != "dynamic") {
-        return [field, fieldConfig];
-      }
-      return [
-        field,
-        {
+    await Promise.all(
+      entries(dataConfig).map(async ([field, fieldConfig]: any) => {
+        const templateFieldConfig = templateMetadata.data[field];
+        const { source } = templateFieldConfig;
+        if (source != "dynamic" && source != "template") {
+          return [field, fieldConfig];
+        }
+        const updatedFieldConfig = {
           ...fieldConfig,
           config: {
             ...fieldConfig.config,
@@ -323,10 +327,25 @@ const withDefaultSourceLoaderConfig = (
                 (templateMetadata.data[field] as any).preview
               ),
           },
-        },
-      ];
-    })
+        };
+
+        await validateDataSource(updatedFieldConfig);
+        return [field, updatedFieldConfig];
+      })
+    )
   );
+};
+
+const validateDataSource = async (
+  dataSource: DataSource.Dynamic | DataSource.Template
+) => {
+  const { config } = dataSource;
+  if (config.loader == "@arena/server-function") {
+    const transpiled = await transpileServerFunction(config.value);
+    config.metatada = {
+      ...transpiled,
+    };
+  }
 };
 
 const getDefaultValueForLoader = (
@@ -357,7 +376,7 @@ const getDefaultValueForLoader = (
     case "@arena/server-function":
       // TODO(sagar): return default preview value
       return (
-        "export default function({ env, params }) {\n" +
+        "export default function({ env }) {\n" +
         "\treturn " +
         dataJson +
         "\n" +

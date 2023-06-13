@@ -47,8 +47,12 @@ ripemd.workspace = true
 rand.workspace = true
 
 swc_common.workspace = true
+swc_atoms.workspace = true
 swc_ecma_visit.workspace = true
 swc_ecma_ast.workspace = true
+swc_ecma_parser.workspace = true
+swc_ecma_transforms_base.workspace = true
+swc_ecma_codegen.workspace = true
 
 deno_core.workspace = true
 deno_fetch.workspace = true

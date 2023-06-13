@@ -142,6 +142,7 @@ dependencies = [
  "anyhow",
  "axum",
  "bytes",
+ "cloud",
  "common",
  "deno_core",
  "derivative",
@@ -512,6 +513,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a2dd5a6fe8c6e3502f568a6353e5273bbb15193ad9a89e457b9970798efbea1"
 
 [[package]]
+name = "cloud"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "common",
+ "deno_core",
+ "jsruntime",
+]
+
+[[package]]
 name = "codespan-reporting"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -573,8 +584,12 @@ dependencies = [
  "serde_json",
  "sha-1",
  "sha2",
+ "swc_atoms",
  "swc_common",
  "swc_ecma_ast",
+ "swc_ecma_codegen",
+ "swc_ecma_parser",
+ "swc_ecma_transforms_base",
  "swc_ecma_visit",
  "tokio",
  "tokio-postgres",

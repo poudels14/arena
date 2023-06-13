@@ -10,7 +10,7 @@ export default async function ({
    * the params that should be passed in would be `{"id": "_some_id_" }`.
    * Params is passed by the frontend
    */
-  params,
+  props: params,
 }) {
   const { rows } = await executeQuery({
     credential: env["{{db}}"],

@@ -1,6 +1,6 @@
 [workspace]
 
-members = ["common", "jsruntime", "workspace", "dqs", "dagger"]
+members = ["common", "jsruntime", "workspace", "dqs", "cloud", "dagger"]
 resolver = "2"
 
 [workspace.dependencies]
@@ -83,10 +83,13 @@ deno_web = "=0.138.0"
 deno_webidl = "=0.107.0"
 deno_ast = { version = "=0.26.0", features = ["transpiling"] }
 
-swc_ecma_visit = "=0.89.4"
-swc_common = "=0.31.4"
-swc_ecma_ast = "=0.103.4"
 swc_atoms = "=0.5.3"
+swc_common = "=0.31.4"
+swc_ecma_visit = "=0.89.4"
+swc_ecma_ast = "=0.103.4"
+swc_ecma_parser = "=0.133.10"
+swc_ecma_transforms_base = "0.126"
+swc_ecma_codegen = "0.138"
 
 [profile.release]
 strip = true

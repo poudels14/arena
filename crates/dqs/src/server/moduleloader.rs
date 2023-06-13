@@ -175,6 +175,9 @@ impl AppkitModuleLoader {
               SourceConfig::JavaScript(js_config) => js_config.to_dqs_module(),
             }
           }
+          _ => unreachable!(
+            "Only Postgres/Javascript Dynamic data source supported"
+          ),
         }
       }
       Err(e) => Err(e.into()),

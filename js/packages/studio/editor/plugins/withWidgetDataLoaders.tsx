@@ -95,7 +95,11 @@ function useWidgetData(widgetId: string, field: string) {
     return WIDGET_DATA_SIGNALS.get(accessorId);
   }
 
-  const appId = ctx.state.app().id;
+  if (widget.config.data[field][$RAW].source == "transient") {
+    return getTransientDataResource(widgetId, field);
+  }
+
+  const app = ctx.state.app();
   const fieldConfig = createMemo(
     widget.config.data[field],
     {},
@@ -106,10 +110,66 @@ function useWidgetData(widgetId: string, field: string) {
     }
   );
 
-  if (widget.config.data[field][$RAW].source == "transient") {
-    return getTransientDataResource(widgetId, field);
-  }
-  const resource = createResource(async (k, s) => {
+  const propsGenerator = createMemo(() => {
+    const config = fieldConfig();
+
+    switch (config.source) {
+      case "template":
+      case "dynamic":
+        const cfg = config.config;
+        switch (cfg.loader) {
+          case "@arena/sql/postgres":
+          case "@arena/server-function":
+            if (cfg.metatada?.propsGenerator) {
+              const widgets = ctx.state.app.widgets();
+              const uniqueWidgetSlugs = new Set();
+              let slugStr = "";
+              Object.entries(widgets).map(([id, w]) => {
+                if (uniqueWidgetSlugs.has(w.slug)) {
+                  return;
+                }
+                uniqueWidgetSlugs.add(w.slug);
+                slugStr += `"${id}": ${w.slug},`;
+              });
+              return new Function(
+                `{ ${slugStr} }`,
+                cfg.metatada.propsGenerator
+              );
+            }
+          default:
+            return () => ({});
+        }
+      default:
+        return () => ({});
+    }
+  });
+
+  const getProps = createMemo(() => {
+    let generator = propsGenerator();
+    if (generator) {
+      // TODO(sagar): clean up this proxy
+      const genCtxt = new Proxy(
+        {},
+        {
+          get(target, widgetId) {
+            return new Proxy(
+              {},
+              {
+                get(target, field) {
+                  // @ts-expect-error
+                  return ctx.useWidgetData(widgetId, field)?.[0]?.();
+                },
+              }
+            );
+          },
+        }
+      );
+      const p = generator(genCtxt);
+      return p;
+    }
+  });
+
+  const resource = createResource(getProps, async (props) => {
     const config = fieldConfig();
     switch (config.source) {
       case "template":
@@ -122,7 +182,13 @@ function useWidgetData(widgetId: string, field: string) {
             return useClientJsDataSource(cfg);
           case "@arena/sql/postgres":
           case "@arena/server-function":
-            return await useServerFunctionDataSource(appId, widget, field, cfg);
+            return await useServerFunctionDataSource(
+              app.id,
+              widget,
+              field,
+              cfg,
+              props
+            );
           default:
             throw new Error(
               "Data source not supported: " + JSON.stringify(cfg)
@@ -187,7 +253,8 @@ async function useServerFunctionDataSource(
   appId: string,
   widget: Store<Widget>,
   field: string,
-  config: DataSource<any>["config"]
+  config: DataSource<any>["config"],
+  props: any
 ) {
   const { routes } = useApiContext();
   return await routes.queryWidgetData({
@@ -195,7 +262,7 @@ async function useServerFunctionDataSource(
     widgetId: widget.id(),
     field,
     updatedAt: widget.updatedAt(),
-    params: {}, // TODO(sagar)
+    props,
   });
 }
 

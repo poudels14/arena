@@ -55,7 +55,7 @@ const pipeRequestToDqs = async (
       appId: params.appId,
       widgetId: params.widgetId,
       field: params.field,
-      params: JSON.parse(searchParams.params),
+      props: JSON.parse(searchParams.props),
       updatedAt: searchParams.updatedAt,
     },
   });

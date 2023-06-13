@@ -181,6 +181,7 @@ impl WorkspaceServer {
         include_str!("../../../../js/packages/workspace-server/dist/server.js"),
       ),
       dqs_extension.clone(),
+      BuiltinModule::Custom(cloud::extension::extension),
     ];
 
     if self.dev_mode {

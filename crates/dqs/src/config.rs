@@ -10,12 +10,11 @@ pub struct WidgetConfig {
 #[serde(tag = "source")]
 pub enum DataConfig {
   #[serde(alias = "dynamic")]
-  Dynamic {
-    config: SourceConfig,
-  },
-  Template {
-    config: SourceConfig,
-  },
+  Dynamic { config: SourceConfig },
+  #[serde(alias = "template")]
+  Template { config: SourceConfig },
+  #[serde(alias = "config")]
+  Unknown,
 }
 
 #[derive(Debug, Deserialize)]
@@ -46,4 +45,11 @@ pub struct SqlMetadata {
 #[derive(Debug, Deserialize)]
 pub struct JavascriptSourceConfig {
   pub value: String,
+  pub metadata: Option<JavascriptQueryMetadata>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JavascriptQueryMetadata {
+  pub server_module: String,
 }
