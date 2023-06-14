@@ -8,6 +8,9 @@ import {
   createMemo,
 } from "solid-js";
 import { Store, StoreSetter, createSyncedStore } from "@arena/solid-store";
+import isEqual from "fast-deep-equal/es6";
+// @ts-expect-error
+import delve from "dlv";
 import { uniqueId } from "@arena/uikit";
 import cleanSet from "clean-set";
 import { App } from "../types/app";
@@ -154,14 +157,19 @@ const withEditorState: Plugin<
     const updateWidget: EditorStateContext["updateWidget"] = async (
       ...path: any
     ) => {
-      if (untrackedViewOnly()) {
-        return;
-      }
       const widgetId = path.shift();
       const value = path.pop();
+      const payload = cleanSet({}, path, value);
+      const widget = untrack(core.state.app.widgets[widgetId]);
+      if (
+        untrackedViewOnly() ||
+        isEqual(delve(payload, path), delve(widget, path))
+      ) {
+        return;
+      }
       const updates = await api.routes.updateWidget({
         id: widgetId,
-        ...cleanSet({}, path, value),
+        ...payload,
       });
       // TODO(sp): revert changed if API call failed
 

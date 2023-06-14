@@ -60,7 +60,7 @@ type WidgetProps = {
    * It's setup outside ErrorBoundary so that we can refetch data and reset
    * error state later
    */
-  dataLoaders: [string, ResourceReturn<any>][];
+  dataLoaders: [string, ResourceReturn<any>[0]][];
   children: (widget: { attributes: Record<string, any> }) => JSX.Element;
 };
 
@@ -77,7 +77,7 @@ const WidgetRenderer = (props: WidgetProps) => {
    */
   const data = new Proxy(Object.fromEntries(props.dataLoaders), {
     get(target: any, fieldName: string) {
-      const [data] = target[fieldName] || [];
+      const data = target[fieldName];
       return data?.();
     },
   });
@@ -85,7 +85,7 @@ const WidgetRenderer = (props: WidgetProps) => {
   const [isDataReady, setIsDataReady] = createSignal(false);
   createComputed(() => {
     const loading = props.dataLoaders.reduce((loading, loader) => {
-      const w = loader[1][0];
+      const w = loader[1];
       return loading || w.loading;
     }, false);
 
@@ -119,7 +119,7 @@ const WidgetRenderer = (props: WidgetProps) => {
     data,
     // setter for transient data source
     setData(field: string, value: string) {
-      ctx.setWidgetData(props.id, field, value);
+      ctx.useWidgetDataSetter(props.id, field)(value);
     },
     Editor: {
       Slot: Slot,
@@ -160,7 +160,7 @@ const Widget = (props: {
 
   const hasDataLoadingError = createMemo(() => {
     return dataLoaders.reduce((error, loader) => {
-      const data = loader[1][0];
+      const data = loader[1];
       // use data.loading here so that when it's changed,
       // the error state is re-calculated
       void data.loading;
