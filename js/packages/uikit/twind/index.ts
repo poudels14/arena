@@ -69,10 +69,11 @@ const setupTwind = (config: Config = {}) => {
              * Since selector is optional, reverse the array such that it's
              * easier to patten match
              */
-            const [style, selector, _] = input
+            let [style, selector, _] = input
               .substring(4)
-              .split(/\[|\]-/)
+              .split(/\]-/)
               .reverse();
+            selector = selector.substring(1);
 
             const css = {
               "@apply": style,
@@ -81,7 +82,8 @@ const setupTwind = (config: Config = {}) => {
               const path: any[] = selector.split(/>/);
               return path.reduceRight((agg, p, idx) => {
                 if (idx === 0) {
-                  return { ":where(&)": agg };
+                  const prefix = p == "" ? "&" : "";
+                  return { [`:where(${prefix}${p})`]: agg };
                 } else {
                   return { [`&>${p}`]: agg };
                 }
