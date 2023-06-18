@@ -45,26 +45,12 @@ const withWidgetDataLoaders: Plugin<{}, {}, WidgetDataContext> =
     }
     onCleanup(() => ONCE_CACHE.clear());
 
-    const getFieldConfig = (widgetId: string, field: string) => {
-      const widget = ctx.useWidgetById(widgetId);
-      const fieldConfig = widget.config.data[field]();
-      // If a new data field is added to widget template,
-      // existing widget instances will be missing the new field
-      if (!fieldConfig) {
-        console.warn(
-          `Widget [${widgetId}] doesn't support data field: ${field}`
-        );
-        return null;
-      }
-      return fieldConfig;
-    };
-
     const getFieldConfigMemo = (widgetId: string, field: string) =>
-      once(`${widgetId}/${field}`, () =>
+      once(`${widgetId}/${field}/config`, () =>
         createMemo(
           () => {
             const widget = ctx.useWidgetById(widgetId);
-            return klona(widget.config.data[field]());
+            return klona(widget.config.data[field]() || {});
           },
           {},
           {
@@ -168,8 +154,8 @@ const withWidgetDataLoaders: Plugin<{}, {}, WidgetDataContext> =
     };
 
     const getFieldDataStore = (widgetId: string, field: string) =>
-      once(`${widgetId}/${field}`, () => {
-        const config = untrack(() => getFieldConfig(widgetId, field));
+      once(`${widgetId}/${field}/data-store`, () => {
+        const config = untrack(getFieldConfigMemo(widgetId, field));
         if (!config) {
           return [() => {}];
         }
@@ -204,13 +190,12 @@ const withWidgetDataLoaders: Plugin<{}, {}, WidgetDataContext> =
              */
             const track = createReaction(() => {
               startTransition(() => signal[1].refetch());
-              track(() => getFieldConfig(widgetId, field));
+              track(getFieldConfigMemo(widgetId, field));
             });
-            track(() => getFieldConfig(widgetId, field));
+            track(getFieldConfigMemo(widgetId, field));
             return signal;
           }
           default:
-            // @ts-expect-error
             throw new Error("Unsupported data source:" + config.source);
         }
       });
@@ -221,14 +206,14 @@ const withWidgetDataLoaders: Plugin<{}, {}, WidgetDataContext> =
       },
       useWidgetDataSetter(widgetId: string, field: string) {
         return untrack(() => {
-          const source = getFieldConfig(widgetId, field)?.source;
+          const source = getFieldConfigMemo(widgetId, field)?.().source;
           if (source == "transient") {
             const store = getFieldDataStore(widgetId, field);
             return store[1];
           } else if (source == "config") {
             return (value: any) => {
               untrack(() => {
-                const fieldConfig = getFieldConfig(widgetId, field)!;
+                const fieldConfig = getFieldConfigMemo(widgetId, field)();
                 if (!isEqual(fieldConfig.config, value)) {
                   ctx.updateWidget(
                     widgetId,

@@ -1,42 +1,50 @@
 import { DqsServer, DqsCluster } from "@arena/runtime/dqs";
-import { router as createRouter } from "@arena/runtime/server";
-import { createContext } from "../context";
+import { createRouter, procedure } from "@arena/runtime/server";
+import { Context } from "../context";
 
-const queryRouter = createRouter({});
-queryRouter.on(
-  "GET",
-  "/api/query/:appId/:widgetId/:field",
-  async (req: any, res: any, params: any, store: any, searchParams: any) => {
-    const ctx = await createContext({ req, resHeaders: new Headers() });
-    await pipeRequestToDqs("QUERY", ctx, params, searchParams, res);
+const p = procedure<Context>().use(async ({ ctx, params, errors, next }) => {
+  if (!ctx.user || !(await ctx.acl.hasAppAccess(params.appId, "can-view"))) {
+    return errors.forbidden();
   }
-);
+  return next({});
+});
 
-queryRouter.on(
-  "POST",
-  "/api/query/:appId/:widgetId/:field",
-  async (req: any, res: any, params: any, store: any, searchParams: any) => {
-    const ctx = await createContext({ req, resHeaders: new Headers() });
-    await pipeRequestToDqs("MUTATION", ctx, params, searchParams, res);
-  }
-);
+const queryRouter = createRouter<Context>({
+  prefix: "/query",
+  routes: {
+    "/:appId/:widgetId/:field": p
+      .use(async ({ req, ctx, params, searchParams, next, errors }) => {
+        if (req.method == "POST") {
+          if (
+            !(await ctx.acl.hasAppAccess(
+              params.appId,
+              "can-trigger-mutate-query"
+            ))
+          ) {
+            return errors.forbidden();
+          }
+          return await pipeRequestToDqs("MUTATION", ctx, params, searchParams);
+        }
+        return next({});
+      })
+      .query(async ({ ctx, params, searchParams }) => {
+        return await pipeRequestToDqs("QUERY", ctx, params, searchParams);
+      }),
+  },
+});
 
 const dqsCluster = new Map<string, DqsServer>();
 const pipeRequestToDqs = async (
   trigger: "QUERY" | "MUTATION",
-  ctx: any,
+  ctx: Context,
   params: Record<string, any>,
-  searchParams: Record<string, any>,
-  res: any
+  searchParams: Record<string, any>
 ) => {
   const app = await ctx.repo.apps.fetchById(params.appId);
   if (!app) {
-    res.sendResponse(
-      new Response("Not found", {
-        status: 404,
-      })
-    );
-    return;
+    return new Response("Not found", {
+      status: 404,
+    });
   }
   const workspaceId = app.workspaceId!;
   let server = dqsCluster.get(workspaceId);
@@ -60,12 +68,10 @@ const pipeRequestToDqs = async (
     },
   });
 
-  res.sendResponse(
-    new Response(body, {
-      status,
-      headers: new Headers(headers),
-    })
-  );
+  return new Response(body, {
+    status,
+    headers: new Headers(headers),
+  });
 };
 
 export { queryRouter };

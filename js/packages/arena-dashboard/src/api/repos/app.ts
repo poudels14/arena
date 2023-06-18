@@ -20,7 +20,7 @@ export const apps = pgTable("apps", {
   description: text("description"),
   workspaceId: varchar("workspace_id"),
   config: jsonb("config"),
-  ownerId: varchar("owner_id"),
+  createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   archivedAt: timestamp("archived_at"),
@@ -55,27 +55,14 @@ const createRepo = (ctx: Context) => {
       );
       return rows?.[0];
     },
-    async fetch(filter: {
-      workspaceId: string;
-      ownerId: string;
-    }): Promise<Required<App>[]> {
+    async listApps(filter: { workspaceId: string }): Promise<Required<App>[]> {
       const rows = await db
         .select()
         .from(apps)
         .where(
-          and(
-            eq(apps.workspaceId, filter.workspaceId),
-            eq(apps.ownerId, filter.ownerId),
-            isNull(apps.archivedAt)
-          )
+          and(eq(apps.workspaceId, filter.workspaceId), isNull(apps.archivedAt))
         );
       return rows as App[];
-    },
-    async fetchByOwnerId(ownerId: string): Promise<App[]> {
-      const { rows } = await ctx.client.query<App>(
-        sql`SELECT * FROM apps WHERE archived_at IS NULL AND owner_id = ${ownerId}`
-      );
-      return rows;
     },
     async archiveById(id: string): Promise<Pick<Required<App>, "archivedAt">> {
       const rows = await db

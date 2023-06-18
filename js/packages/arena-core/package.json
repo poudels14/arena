@@ -42,6 +42,7 @@
   "license": "UNLICENSED",
   "dependencies": {
     "@arena/runtime": "workspace:^0.1.0",
+    "@arena/solid-store": "workspace:^",
     "@maverick-js/signals": "^5.9.1",
     "@reactively/core": "^0.0.6",
     "@reactively/decorate": "^0.0.2",
@@ -53,8 +54,10 @@
     "@twind/preset-tailwind": "^1.1.4",
     "assert": "^2.0.0",
     "clean-set": "^1.1.2",
+    "cookie": "^0.5.0",
     "find-my-way": "^7.6.2",
     "klona": "^2.0.6",
+    "path": "^0.12.7",
     "query-string": "^8.1.0",
     "react": "^18.2.0",
     "solid-js": "^1.7.6",

@@ -30,7 +30,12 @@ const App = (props: { id: string }) => {
           {
             method: "GET",
           }
-        ).then((r) => r.json());
+        ).then(async (r) => {
+          if (r.status != 200) {
+            throw new Error(await r.text());
+          }
+          return await r.json();
+        });
       }}
     >
       <Editor appId={props.id} />

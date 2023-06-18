@@ -9,11 +9,14 @@ import { ServerContextProvider } from "./context";
 
 const noSSR = !Arena.env.ARENA_SSR;
 const docType = ssr("<!DOCTYPE html>");
-const ServerRoot = ({ event }: { event: PageEvent }) => {
+const ServerRoot = <E extends PageEvent>({
+  event,
+  ...props
+}: { event: E } & Record<string, any>) => {
   const path = event.ctx.path + event.ctx.search;
 
   return (
-    <ServerContextProvider value={event}>
+    <ServerContextProvider value={{ event, ...props }}>
       <MetaProvider tags={event.tags}>
         {noSSR ? (
           <Root />

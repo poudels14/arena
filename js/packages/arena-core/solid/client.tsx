@@ -15,11 +15,10 @@ const ArenaRouter = (props: RouterProps) => {
 const ClientRoot = () => {
   return (
     <ServerContextProvider
-      value={
-        {
-          // TODO(sagar): mockFetchEvent
-        }
-      }
+      value={{
+        // TODO(sagar): mockFetchEvent
+        event: null!,
+      }}
     >
       <MetaProvider>
         <ArenaRouter

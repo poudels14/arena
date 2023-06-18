@@ -1,3 +1,4 @@
 export { renderAsync } from "./rendering";
-export { createHandler } from "./handler";
+export { chainMiddlewares, createHandler } from "./handler";
+export type { PageEvent } from "./event";
 export type { Handler } from "./handler";

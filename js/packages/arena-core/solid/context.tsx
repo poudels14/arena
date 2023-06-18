@@ -1,6 +1,17 @@
-import { createContext } from "solid-js";
+import { Context, createContext, useContext } from "solid-js";
+import { PageEvent } from "../server/event";
 
-const ServerContext = createContext({});
+type ServerContext = {
+  event: PageEvent;
+};
+
+const ServerContext = createContext<ServerContext>();
+function useServerContext<T>() {
+  return (
+    useContext(ServerContext as unknown as Context<ServerContext & T>) || {}
+  );
+}
+
 const ServerContextProvider = ServerContext.Provider;
 
-export { ServerContextProvider, ServerContext };
+export { ServerContextProvider, useServerContext };

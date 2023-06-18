@@ -1,19 +1,24 @@
 import { trough } from "trough";
 // @ts-ignore
 import qs from "query-string";
+// @ts-ignore
+import cookie from "cookie";
 import { FetchEvent, PageEvent } from "./event";
 
-type Middleware = (event: PageEvent) => Promise<Response | void>;
+type Middleware<Arg> = (arg: Arg) => Promise<Response | void>;
 
 type Handler = {
   execute: (event: FetchEvent) => Promise<Response>;
 };
 
 const createPageEvent = (event: FetchEvent): PageEvent => {
-  let url = new URL(event.request.url);
+  const { request } = event;
+  let url = new URL(request.url);
+  const cookies = cookie.parse(request.headers.get("Cookie") || "");
   return {
-    request: event.request,
+    request,
     env: process.env,
+    cookies,
     ctx: {
       path: url.pathname,
       search: url.search,
@@ -23,7 +28,7 @@ const createPageEvent = (event: FetchEvent): PageEvent => {
   };
 };
 
-const createHandler = (...middlewares: Middleware[]): Handler => {
+function chainMiddlewares<T>(...middlewares: Middleware<T>[]) {
   const pipeline = middlewares.reduce((t, m) => {
     return t.use(m).use((r) => {
       // Note(sagar): if the middleware returns a response, stop executing
@@ -43,43 +48,48 @@ const createHandler = (...middlewares: Middleware[]): Handler => {
     });
   });
 
-  return {
-    /**
-     * This returns the Response object
-     */
-    execute(event: FetchEvent) {
-      return new Promise((resolve, reject) => {
-        const pageEvent = createPageEvent(event);
-        pipeline.run(pageEvent, (err: any, data: any) => {
-          // Note(sagar): if either data or error is of type Response,
-          // return it early. Else, wrap it with Response and return it
-          if (err instanceof Response) {
-            return resolve(err);
-          } else if (data instanceof Response) {
-            return resolve(data);
-          }
+  return (e: T) => {
+    return new Promise<Response>((resolve, reject) => {
+      pipeline.run(e, (err: any, data: any) => {
+        // Note(sagar): if either data or error is of type Response,
+        // return it early. Else, wrap it with Response and return it
+        if (err instanceof Response) {
+          return resolve(err);
+        } else if (data instanceof Response) {
+          return resolve(data);
+        }
 
-          if (err) {
-            console.error(err);
-            resolve(
-              new Response(null, {
-                status: 503,
-                // TODO(sagar): use some library to get proper error messages
-                statusText: "Internal Server Error",
-              })
-            );
-          } else {
-            resolve(
-              new Response(data, {
-                status: 200,
-              })
-            );
-          }
-        });
+        if (err) {
+          console.error(err);
+          resolve(
+            new Response(null, {
+              status: 503,
+              // TODO(sagar): use some library to get proper error messages
+              statusText: "Internal Server Error",
+            })
+          );
+        } else {
+          resolve(
+            new Response(data, {
+              status: 200,
+            })
+          );
+        }
       });
+    });
+  };
+}
+
+const createHandler = (...middlewares: Middleware<PageEvent>[]): Handler => {
+  const pipeline = chainMiddlewares(...middlewares);
+
+  return {
+    execute(event: FetchEvent) {
+      const pageEvent = createPageEvent(event);
+      return pipeline(pageEvent);
     },
   };
 };
 
 export type { Handler };
-export { createHandler };
+export { chainMiddlewares, createHandler };

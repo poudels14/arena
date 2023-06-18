@@ -1,6 +1,5 @@
 // credit: solid-start
-import { useContext } from "solid-js";
-import { ServerContext } from "../context";
+import { useServerContext } from "../context";
 
 /**
  * Links are used to load assets for the server rendered HTML
@@ -8,7 +7,7 @@ import { ServerContext } from "../context";
  */
 export default function Links() {
   const isDev = process.env.MODE === "development";
-  const context = useContext(ServerContext);
+  const context = useServerContext();
   // TODO(sagar)
   // !isDev &&
   //   process.env.ARENA_SSR &&

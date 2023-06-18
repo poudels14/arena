@@ -1,5 +1,6 @@
 interface FetchEvent {
   request: Request;
+  cookies: Record<string, string>;
   env: any;
 }
 

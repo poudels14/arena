@@ -1,11 +1,13 @@
 import { PageEvent } from "@arena/core/server/event";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
-import { createContext } from "./context";
+import { mergedRouter } from "@arena/runtime/server";
+import { Context } from "./context";
 import { procedure, router as trpcRouter } from "./trpc";
 import { appsRouter } from "./routes/apps";
 import { widgetsRouter } from "./routes/widgets";
 import { resourcesRouter } from "./routes/resources";
 import { queryRouter } from "./routes/query";
+import { accountRouter } from "./routes/account";
 
 const r = trpcRouter({
   apps: appsRouter,
@@ -24,13 +26,18 @@ type RouterOptions = {
 };
 
 const router = (options: RouterOptions) => {
-  return async (event: PageEvent) => {
+  const findMyRouter = mergedRouter({
+    prefix: "/api",
+    routers: [queryRouter, accountRouter],
+  });
+
+  return async ({ event, context }: { event: PageEvent; context: Context }) => {
     if (options.prefix && !event.ctx.path.startsWith(options.prefix)) {
       return;
     }
 
     let res;
-    if ((res = await queryRouter.route(event.request))) {
+    if ((res = await findMyRouter.route(event.request, context))) {
       return res;
     }
 
@@ -38,7 +45,9 @@ const router = (options: RouterOptions) => {
       endpoint: options.prefix || "",
       req: event.request,
       router: r,
-      createContext,
+      createContext() {
+        return context;
+      },
       onError(e) {
         console.error(e.error);
       },

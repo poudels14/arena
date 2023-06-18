@@ -4,7 +4,7 @@ CREATE TABLE apps (
   description TEXT,
   workspace_id VARCHAR(50),
   config JSONB,
-  owner_id VARCHAR(50),
+  created_by VARCHAR(50),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   archived_at TIMESTAMPTZ DEFAULT NULL

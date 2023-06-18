@@ -325,21 +325,91 @@ declare module "@arena/runtime/server" {
     fetch: (req: Request) => Promise<Response>;
   };
 
-  export const router: (options: { host?: string }) => {
-    on(
-      method: "GET" | "POST",
-      route: string,
-      handler: (
-        req: any,
-        res: any,
-        params: any,
-        store: any,
-        searchParams: any
-      ) => Promise<void>
-    ): void;
-
-    route(request: Request): Promise<Response>;
+  type Handler<Context> = {
+    (args: { req: Request; ctx: Context }): Promise<Response>;
+    method: "GET" | "POST" | "PATCH";
   };
+
+  type RouterConfig = {
+    host?: string;
+    prefix?: string;
+  };
+
+  type ProcedureCallbackArgs<Context> = {
+    req: Request;
+    ctx: Context;
+    params: Record<string, string>;
+    searchParams: Record<string, string>;
+    cookies: Record<string, string>;
+    errors: {
+      notFound(): void;
+      badRequest(): void;
+      forbidden(): void;
+      internalServerError(): void;
+    };
+    setHeader: (name: string, value: string) => void;
+    setCookie(
+      name: string,
+      value: string,
+      options?: {
+        domain?: string | undefined;
+        /**
+         * The default function is the global `encodeURIComponent`
+         */
+        encode?(value: string): string;
+        /**
+         * By default, no expiration is set, and most clients will delete it after session expires
+         */
+        expires?: Date | undefined;
+        /**
+         * By default, the `HttpOnly` attribute is not set.
+         */
+        httpOnly?: boolean | undefined;
+        maxAge?: number | undefined;
+        /**
+         * By default, the path is considered the "default path".
+         */
+        path?: string | undefined;
+        priority?: "low" | "medium" | "high" | undefined;
+        sameSite?: true | false | "lax" | "strict" | "none" | undefined;
+        /**
+         * By default, the `Secure` attribute is not set.
+         */
+        secure?: boolean | undefined;
+      }
+    ): void;
+    clearCookie: (name: string) => void;
+    redirect: (path: string) => void;
+    next: (args: Partial<ProcedureCallbackArgs<Context>>) => void;
+  };
+
+  type ProcedureCallback<Context> = (
+    args: ProcedureCallbackArgs<Context>
+  ) => Promise<any> | any;
+
+  type Procedure<Context> = {
+    use(cb: ProcedureCallback<Context>): Procedure<Context>;
+    query(cb: ProcedureCallback<Context>): Handler<Context>;
+    mutate(cb: ProcedureCallback<Context>): Handler<Context>;
+    patch(cb: ProcedureCallback<Context>): Handler<Context>;
+  };
+
+  export const procedure: <Context>() => Procedure<Context>;
+
+  export const createRouter: <Context>(
+    config: RouterConfig & {
+      routes: Record<string, Handler<Context>>;
+    }
+  ) => {
+    route(request: Request, context: Context): Promise<Response>;
+  };
+
+  export const mergedRouter: <Context>(
+    config: RouterConfig & {
+      prefix?: string;
+      routers: ReturnType<typeof createRouter<Context>>[];
+    }
+  ) => ReturnType<typeof createRouter<Context>>;
 
   export const serve: (config: ServeConfig) => Promise<void>;
 }

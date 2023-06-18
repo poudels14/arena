@@ -5,6 +5,8 @@ use deno_core::{op, Extension, OpState};
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::jwt::{op_cloud_jwt_sign, op_cloud_jwt_verify};
+
 pub fn extension() -> BuiltinExtension {
   BuiltinExtension {
     extension: Some(self::init()),
@@ -15,7 +17,11 @@ pub fn extension() -> BuiltinExtension {
 
 pub(crate) fn init() -> Extension {
   Extension::builder("arena/cloud")
-    .ops(vec![op_cloud_transpile_js_data_query::decl()])
+    .ops(vec![
+      op_cloud_transpile_js_data_query::decl(),
+      op_cloud_jwt_sign::decl(),
+      op_cloud_jwt_verify::decl(),
+    ])
     .force_op_registration()
     .build()
 }

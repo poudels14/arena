@@ -1,12 +1,11 @@
 // credit: solid-start
 import { renderTags } from "@solidjs/meta";
-import { useContext } from "solid-js";
 import { ssr, useAssets } from "solid-js/web";
-import { ServerContext } from "../context";
+import { useServerContext } from "../context";
 
 export default function Meta() {
-  const context = useContext(ServerContext);
+  const { event } = useServerContext();
   // @ts-expect-error The ssr() types do not match the Assets child types
-  useAssets(() => ssr(renderTags(context.tags)));
+  useAssets(() => ssr(renderTags(event.tags)));
   return null;
 }
