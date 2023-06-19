@@ -12,6 +12,7 @@ use common::deno::permissions::{FileSystemPermissions, PermissionsContainer};
 use deno_core::{
   op, Extension, ExtensionFileSource, ExtensionFileSourceCode, OpState,
 };
+use jsruntime::permissions::FetchPermissions;
 use jsruntime::{IsolatedRuntime, RuntimeOptions};
 use serde_json::{json, Value};
 use std::collections::HashSet;
@@ -206,6 +207,10 @@ impl WorkspaceServer {
           root: self.workspace.dir.clone(),
           // Note(sp): only give read access to workspace directory
           allowed_read_paths: HashSet::from_iter(vec![".".to_owned()]),
+          ..Default::default()
+        }),
+        net: Some(FetchPermissions {
+          restricted_urls: Some(Default::default()),
           ..Default::default()
         }),
         ..Default::default()

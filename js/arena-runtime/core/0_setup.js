@@ -18,6 +18,7 @@ import {
   forgivingBase64UrlEncode as encodeToBase64Url,
 } from "ext:deno_web/00_infra.js";
 import { ReadableStream } from "ext:deno_web/06_streams.js";
+import { fetch } from "ext:deno_fetch/26_fetch.js";
 import { Console } from "ext:deno_console/01_console.js";
 
 const primordials = globalThis.__bootstrap.primordials;
@@ -87,6 +88,7 @@ function promiseRejectCallback(type, promise, reason) {
     TextDecoder,
     TextEncoderStream,
     TextDecoderStream,
+    fetch,
     encodeToBase64,
     encodeToBase64Url,
   });
