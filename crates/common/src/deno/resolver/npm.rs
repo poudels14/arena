@@ -73,6 +73,7 @@ impl FsModuleResolver {
             &dir_path.join(&parsed_specifier.package_name),
           )
           .ok();
+
           let dir_path = dir_path.clone();
           let resolved = self
             .load_npm_package(&dir_path, &parsed_specifier, &maybe_package)
@@ -83,6 +84,15 @@ impl FsModuleResolver {
             .or_else(|e| {
               debug!("error loading as file: {}", e);
               fs::load_as_directory(&dir_path.join(specifier), &maybe_package)
+            })
+            .or_else(|e| {
+              debug!("error loading from imports: {}", e);
+              if let Some(package) = maybe_package.as_ref() {
+                if let Some(main) = package.main.as_ref() {
+                  return Ok(dir_path.join(main));
+                }
+              }
+              Err(anyhow!("package.json \"main\" not found"))
             })
             .or_else(|e| {
               debug!("error loading as directory: {}", e);
@@ -255,6 +265,9 @@ impl FsModuleResolver {
   ) -> Result<String> {
     match package.exports.as_ref() {
       Some(exports) => {
+        if let Some(export) = exports.as_str() {
+          return Ok(export.to_string());
+        }
         // Exports are selected based on this doc:
         // https://webpack.js.org/guides/package-exports/
         if let Some(subpath_export) = exports.get(specifier_subpath) {

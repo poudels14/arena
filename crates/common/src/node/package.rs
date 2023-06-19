@@ -26,5 +26,5 @@ pub struct Package {
   pub imports: Option<IndexMap<String, Value>>,
 
   #[serde(skip_serializing_if = "Option::is_none")]
-  pub exports: Option<IndexMap<String, Value>>,
+  pub exports: Option<Value>,
 }
