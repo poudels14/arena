@@ -1,9 +1,14 @@
-[env]
-MODE="development"
-ARENA_SSR=false
-ARENA_ENTRY_CLIENT="entry-client.tsx"
-
 [javascript.resolve]
 alias = { "~" = "./src" }
 conditions = ["solid", "server", "node"]
-dedupe = ["solid-js", "solid-js/web", "@solidjs/meta", "@solidjs/router"]
+dedupe = [
+  "solid-js",
+  "solid-js/web",
+  "@solidjs/meta",
+  "@solidjs/router",
+  "@arena/solid-store",
+  "@arena/solid-dnd",
+  "@arena/uikit",
+  "@kobalte/core",
+  "@arena/components",
+]

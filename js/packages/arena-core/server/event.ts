@@ -1,7 +1,7 @@
 interface FetchEvent {
   request: Request;
   cookies: Record<string, string>;
-  env: any;
+  env: Record<string, string | undefined>;
 }
 
 type RequestContext = {

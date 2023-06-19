@@ -4,8 +4,8 @@ declare namespace Arena {
      * This flag can be used to tree-shake client and server side code
      * branches depending on which env the bundle is being generated for
      */
-    SSR: boolean;
-  } & Record<string, any>;
+    SSR: "true" | "false";
+  } & Record<string, string>;
 
   /**
    * Start TCP server; Works only if the http server extension is used

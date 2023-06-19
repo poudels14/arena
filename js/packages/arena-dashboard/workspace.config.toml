@@ -6,8 +6,8 @@ entry = "./entry-server.tsx"
 
 [server.env]
 MODE = "development"
-SSR = true
-ARENA_SSR = false
+SSR = "true"
+ARENA_SSR = "false"
 
 [server.javascript.resolve]
 alias = { "~" = "./src" }
@@ -36,8 +36,8 @@ entry = "./entry-client.tsx"
 [client.env]
 MODE = "development"
 NODE_ENV = "development"
-SSR = false
-ARENA_SSR = false
+SSR = "false"
+ARENA_SSR = "false"
 
 [client.javascript.resolve]
 alias = { "~" = "./src" }

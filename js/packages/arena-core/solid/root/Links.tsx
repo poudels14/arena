@@ -1,4 +1,5 @@
 // credit: solid-start
+import env from "../../env";
 import { useServerContext } from "../context";
 
 /**
@@ -6,11 +7,11 @@ import { useServerContext } from "../context";
  * @returns {JSXElement}
  */
 export default function Links() {
-  const isDev = process.env.MODE === "development";
+  const isDev = env.MODE === "development";
   const context = useServerContext();
   // TODO(sagar)
   // !isDev &&
-  //   process.env.ARENA_SSR &&
+  //   env.ARENA_SSR &&
   //   useAssets(() => getAssetsFromManifest(context!.env.manifest, context!.routerContext!));
   return null;
 }

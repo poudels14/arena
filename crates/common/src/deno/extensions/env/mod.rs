@@ -6,6 +6,7 @@ use deno_core::op;
 use deno_core::ExtensionFileSource;
 use deno_core::ExtensionFileSourceCode;
 use deno_core::OpState;
+use indexmap::IndexMap;
 use serde_json::json;
 use serde_json::Value;
 
@@ -33,26 +34,33 @@ deno_core::extension!(
 
 #[op]
 fn op_load_env(state: &mut OpState) -> Result<Value> {
-  let mut env = {
+  let mut env_vars: IndexMap<String, String> = IndexMap::new();
+  let env = {
     state
       .try_borrow::<ArenaConfig>()
       .as_ref()
       .and_then(|c| c.env.clone())
       .unwrap_or_default()
   };
-  let env = env.0.as_object_mut().unwrap();
+
+  if let Some(envs) = env.0.as_object() {
+    envs.iter().for_each(|(key, value)| {
+      env_vars.insert(key.clone(), value.to_string());
+    })
+  }
 
   std::env::vars().for_each(|(key, value)| {
-    if !env.contains_key(&key) {
-      (*env).insert(key, json!(value));
+    if !env_vars.contains_key(&key) {
+      env_vars.insert(key, value);
     }
   });
 
   // load env variables from .env files
   let config = state.borrow::<RuntimeConfig>().project_root.clone();
-  let _ = match env.get("MODE").and_then(|m| m.as_str()) {
-    Some("production") => dotenvy::from_filename_iter(config.join(".env")).ok(),
-    _ => dotenvy::from_filename_iter(config.join(".env.dev")).ok(),
+  if env_vars.get("MODE").unwrap_or(&String::from("")) == "production" {
+    dotenvy::from_filename_iter(config.join(".env")).ok()
+  } else {
+    dotenvy::from_filename_iter(config.join(".env.dev")).ok()
   }
   .map(|envs| {
     envs
@@ -60,9 +68,9 @@ fn op_load_env(state: &mut OpState) -> Result<Value> {
       .filter(|e| e.is_ok())
       .map(|e| e.unwrap())
       .for_each(|(key, value)| {
-        (*env).insert(key, json!(value));
+        env_vars.insert(key, value);
       });
   });
 
-  Ok(json!(env))
+  Ok(json!(env_vars))
 }

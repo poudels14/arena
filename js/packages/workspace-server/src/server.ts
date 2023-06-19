@@ -2,14 +2,14 @@ import type { Handler } from "@arena/core/server";
 import { serve as serveHttp } from "@arena/runtime/server";
 import { createFileServer } from "./fileserver";
 
+// Note(sagar): since this is running in server, set SSR = true
+Arena.env.SSR = "true";
+process.env.SSR = "true";
+
 const serve = async (
   handler: Handler,
   options: { serveFiles?: boolean } = {}
 ) => {
-  // Note(sagar): since this is running in server, set SSR = true
-  Arena.env.SSR = true;
-  process.env.SSR = true;
-
   // TODO(sagar): we need to store logs from Arena and logs from queries
   // separately
   console.log("[Arena.Workspace.serve]: Listening to connections...");

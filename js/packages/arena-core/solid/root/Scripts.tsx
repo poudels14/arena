@@ -1,8 +1,9 @@
 // Credit: Solidjs
 import { HydrationScript, isServer, NoHydration } from "solid-js/web";
+import env from "../../env";
 
-const isDev = process.env.MODE === "development";
-const isSSR = process.env.ARENA_SSR;
+const isDev = env.MODE === "development";
+const isSSR = env.ARENA_SSR;
 
 const Scripts = () => {
   return (

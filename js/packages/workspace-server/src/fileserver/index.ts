@@ -10,8 +10,8 @@ const createFileServer = () => {
   const { resolve } = Arena.Workspace?.config?.client?.javascript || {};
   const clientEnv = Object.assign(
     {
-      // Note(sagar): since this is client env, always set SSR = true
-      SSR: false,
+      // Note(sagar): since this is client env, always set SSR = "true"
+      SSR: "false",
     },
     Arena.env,
     // @ts-ignore

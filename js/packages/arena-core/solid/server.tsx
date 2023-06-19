@@ -6,8 +6,9 @@ import { ssr } from "solid-js/web";
 // @ts-ignore
 import Root from "~/root";
 import { ServerContextProvider } from "./context";
+import env from "../env";
 
-const noSSR = !Arena.env.ARENA_SSR;
+const noSSR = !env.ARENA_SSR;
 const docType = ssr("<!DOCTYPE html>");
 const ServerRoot = <E extends PageEvent>({
   event,

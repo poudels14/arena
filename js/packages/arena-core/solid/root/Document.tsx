@@ -5,9 +5,10 @@ import { insert, NoHydration, spread, ssrElement } from "solid-js/web";
 import Links from "./Links";
 import Meta from "./Meta";
 import { Scripts } from "./Scripts";
+import env from "../../env";
 
 const Html = (props: ComponentProps<"html">) => {
-  if (process.env.SSR) {
+  if (env.SSR) {
     return ssrElement(
       "html",
       props,
@@ -20,7 +21,7 @@ const Html = (props: ComponentProps<"html">) => {
 };
 
 const Head = (props: ComponentProps<"head">) => {
-  if (process.env.SSR) {
+  if (env.SSR) {
     return ssrElement(
       "head",
       props,
@@ -40,15 +41,15 @@ const Head = (props: ComponentProps<"head">) => {
 };
 
 const Body = (props: ComponentProps<"body">) => {
-  if (process.env.SSR) {
+  if (env.SSR) {
     return ssrElement(
       "body",
       props,
-      () => (process.env.ARENA_SSR ? props.children : <Scripts />),
+      () => (env.ARENA_SSR ? props.children : <Scripts />),
       false
     ) as unknown as JSX.Element;
   } else {
-    if (process.env.ARENA_SSR) {
+    if (env.ARENA_SSR) {
       let child = children(() => props.children);
       spread(document.body, props, false, true);
       insert(
