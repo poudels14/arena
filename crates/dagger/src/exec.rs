@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use jsruntime::{IsolatedRuntime, RuntimeConfig};
+use jsruntime::{IsolatedRuntime, RuntimeOptions};
 
 #[derive(Parser, Debug)]
 pub struct Command {
@@ -10,7 +10,7 @@ pub struct Command {
 
 impl Command {
   pub async fn execute(&self) -> Result<()> {
-    let mut runtime = IsolatedRuntime::new(RuntimeConfig {
+    let mut runtime = IsolatedRuntime::new(RuntimeOptions {
       enable_console: true,
       transpile: false,
       ..Default::default()

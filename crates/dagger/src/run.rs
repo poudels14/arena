@@ -4,7 +4,7 @@ use common::config::ArenaConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use deno_core::resolve_url_or_path;
 use jsruntime::permissions::{FileSystemPermissions, PermissionsContainer};
-use jsruntime::{IsolatedRuntime, RuntimeConfig};
+use jsruntime::{IsolatedRuntime, RuntimeOptions};
 use std::collections::HashSet;
 
 #[derive(Parser, Debug)]
@@ -40,7 +40,7 @@ impl Command {
       ])
     }
 
-    let mut runtime = IsolatedRuntime::new(RuntimeConfig {
+    let mut runtime = IsolatedRuntime::new(RuntimeOptions {
       project_root: Some(project_root.clone()),
       config: Some(ArenaConfig::find_in_path_hierachy().unwrap_or_default()),
       enable_console: true,

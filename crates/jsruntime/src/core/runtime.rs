@@ -4,6 +4,7 @@ use common::config::ArenaConfig;
 use common::deno::extensions::BuiltinExtensions;
 use common::deno::permissions::PermissionsContainer;
 use common::deno::resolver::fs::FsModuleResolver;
+use common::deno::RuntimeConfig;
 use deno_core::{
   v8, ExtensionFileSource, ExtensionFileSourceCode, FastString, JsRealm,
   ModuleLoader,
@@ -21,7 +22,7 @@ pub static RUNTIME_PROD_SNAPSHOT: &[u8] =
 
 #[derive(Derivative)]
 #[derivative(Default)]
-pub struct RuntimeConfig {
+pub struct RuntimeOptions {
   /// Project root must be passed
   /// This should either be a directory where arena.config.toml is located
   /// or current directory
@@ -57,21 +58,23 @@ pub struct RuntimeConfig {
 }
 
 pub struct IsolatedRuntime {
-  pub config: RuntimeConfig,
   pub runtime: Rc<RefCell<JsRuntime>>,
 }
 
 impl IsolatedRuntime {
-  pub fn new(mut config: RuntimeConfig) -> Result<IsolatedRuntime> {
-    if config.project_root.is_none() {
-      bail!("config.project_root must be set");
-    } else if config.config.is_none() {
-      bail!("config.config must be set");
+  pub fn new(mut options: RuntimeOptions) -> Result<IsolatedRuntime> {
+    if options.project_root.is_none() {
+      bail!("options.project_root must be set");
+    } else if options.config.is_none() {
+      bail!("options.config must be set");
     }
 
-    let permissions = config.permissions.clone();
+    let permissions = options.permissions.clone();
+    let config = RuntimeConfig {
+      project_root: options.project_root.clone().unwrap(),
+    };
 
-    let arena_config = config.config.clone().unwrap_or_default();
+    let arena_config = options.config.clone().unwrap_or_default();
     let mut extensions = vec![
       deno_webidl::deno_webidl::init_ops(),
       deno_console::deno_console::init_ops(),
@@ -82,7 +85,7 @@ impl IsolatedRuntime {
       ),
       deno_fetch::deno_fetch::init_ops::<PermissionsContainer>(
         deno_fetch::Options {
-          user_agent: config
+          user_agent: options
             .user_agent
             .as_ref()
             .unwrap_or(&"arena/runtime".to_owned())
@@ -98,6 +101,7 @@ impl IsolatedRuntime {
       Extension::builder("arena/core/permissions")
         .state(move |state| {
           state.put::<PermissionsContainer>(permissions.to_owned());
+          state.put::<RuntimeConfig>(config);
         })
         .build(),
       // Note(sagar): put ArenaConfig in the state so that other extensions
@@ -107,28 +111,28 @@ impl IsolatedRuntime {
           state.put::<ArenaConfig>(arena_config.to_owned());
         })
         .build(),
-      Self::get_setup_extension(&config),
+      Self::get_setup_extension(&options),
     ];
 
-    extensions.extend(config.builtin_extensions.deno_extensions());
+    extensions.extend(options.builtin_extensions.deno_extensions());
 
     // Note(sagar): take extensions out of the config and set it to empty
     // vec![] so that config can be stored without having Send trait
-    if config.extensions.len() > 0 {
-      let exts = config.extensions;
+    if options.extensions.len() > 0 {
+      let exts = options.extensions;
       extensions.extend(exts);
-      config.extensions = vec![];
+      options.extensions = vec![];
     }
 
-    let create_params = config.heap_limits.map(|(initial, max)| {
+    let create_params = options.heap_limits.map(|(initial, max)| {
       v8::Isolate::create_params().heap_limits(initial, max)
     });
 
     let module_loader: Option<Rc<dyn ModuleLoader>> =
-      if config.disable_module_loader {
+      if options.disable_module_loader {
         None
       } else {
-        let builtin_modules: Vec<String> = config
+        let builtin_modules: Vec<String> = options
           .builtin_extensions
           .get_specifiers()
           .iter()
@@ -137,10 +141,10 @@ impl IsolatedRuntime {
         // Note(sagar): module loader should be disabled for deployed app
         Some(Rc::new(loaders::FsModuleLoader::new(
           loaders::ModuleLoaderOption {
-            transpile: config.transpile,
+            transpile: options.transpile,
             resolver: FsModuleResolver::new(
-              config.project_root.clone().unwrap(),
-              config
+              options.project_root.clone().unwrap(),
+              options
                 .config
                 .as_ref()
                 .and_then(|c| c.javascript.as_ref())
@@ -165,7 +169,7 @@ impl IsolatedRuntime {
     });
 
     // Note(sagar): if the heap limits are set, terminate the runtime manually
-    if config.heap_limits.is_some() {
+    if options.heap_limits.is_some() {
       let cb_handle = js_runtime.v8_isolate().thread_safe_handle();
       js_runtime.add_near_heap_limit_callback(
         move |current_limit, _initial_limit| {
@@ -176,12 +180,11 @@ impl IsolatedRuntime {
       );
     }
 
-    config
+    options
       .builtin_extensions
       .load_runtime_modules(&mut js_runtime)?;
 
     let runtime = IsolatedRuntime {
-      config,
       runtime: Rc::new(RefCell::new(js_runtime)),
     };
 
@@ -262,7 +265,7 @@ impl IsolatedRuntime {
     super::function::Function::new(self.runtime.clone(), code, realm)
   }
 
-  fn get_setup_extension(config: &RuntimeConfig) -> Extension {
+  fn get_setup_extension(config: &RuntimeOptions) -> Extension {
     let mut js_files = Vec::new();
 
     js_files.push(ExtensionFileSource {

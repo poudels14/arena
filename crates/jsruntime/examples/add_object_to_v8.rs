@@ -2,11 +2,11 @@ use anyhow::Result;
 use deno_core::serde_v8;
 use deno_core::v8;
 use deno_core::FastString;
-use jsruntime::{IsolatedRuntime, RuntimeConfig};
+use jsruntime::{IsolatedRuntime, RuntimeOptions};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-  let r = IsolatedRuntime::new(RuntimeConfig {
+  let r = IsolatedRuntime::new(RuntimeOptions {
     enable_console: true,
     ..Default::default()
   })?;

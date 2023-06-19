@@ -1,2 +1,2 @@
-mod jwt;
 pub mod extension;
+mod jwt;

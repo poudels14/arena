@@ -3,7 +3,7 @@ use clap::{value_parser, Parser};
 use common::config::ArenaConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use jsruntime::permissions::{FileSystemPermissions, PermissionsContainer};
-use jsruntime::{IsolatedRuntime, RuntimeConfig};
+use jsruntime::{IsolatedRuntime, RuntimeOptions};
 use std::collections::HashSet;
 use url::Url;
 
@@ -20,7 +20,7 @@ impl Command {
     let cwd = std::env::current_dir()?;
     let cwd = cwd.to_str().unwrap();
     let project_root = ArenaConfig::find_project_root()?;
-    let mut runtime = IsolatedRuntime::new(RuntimeConfig {
+    let mut runtime = IsolatedRuntime::new(RuntimeOptions {
       project_root: Some(project_root.clone()),
       config: Some(ArenaConfig::default()),
       enable_console: true,

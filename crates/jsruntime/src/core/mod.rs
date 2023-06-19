@@ -4,5 +4,4 @@ mod transpiler;
 
 pub mod function;
 
-pub use runtime::IsolatedRuntime;
-pub use runtime::RuntimeConfig;
+pub use runtime::{IsolatedRuntime, RuntimeOptions};

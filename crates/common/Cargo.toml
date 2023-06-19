@@ -36,6 +36,7 @@ ring.workspace = true
 chrono.workspace = true
 pathdiff.workspace = true
 once_cell.workspace = true
+dotenvy.workspace = true
 
 digest.workspace = true
 hex.workspace = true

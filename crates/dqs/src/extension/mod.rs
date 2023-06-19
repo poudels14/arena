@@ -1,6 +1,6 @@
 use self::handle::DqsServerHandle;
 use self::stream::RequestStreamSender;
-use crate::server::{self, RuntimeConfig, ServerEvents};
+use crate::server::{self, RuntimeOptions, ServerEvents};
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
@@ -72,7 +72,7 @@ async fn op_dqs_start_tcp_server(
   let (tx, rx) = oneshot::channel();
   let thread_handle = thread::spawn(move || {
     server::start(
-      RuntimeConfig {
+      RuntimeOptions {
         workspace_id,
         db_pool: db_pool.into(),
         server_config: HttpServerConfig::Tcp {
@@ -101,7 +101,7 @@ async fn op_dqs_start_stream_server(
   let db_pool = cluster.get_db_pool()?;
   let thread_handle = thread::spawn(move || {
     server::start(
-      RuntimeConfig {
+      RuntimeOptions {
         workspace_id,
         db_pool: db_pool.into(),
         server_config: HttpServerConfig::Stream(Rc::new(RefCell::new(

@@ -1,10 +1,12 @@
 use super::BuiltinExtension;
 use crate::config::ArenaConfig;
+use crate::deno::RuntimeConfig;
 use anyhow::Result;
 use deno_core::op;
 use deno_core::ExtensionFileSource;
 use deno_core::ExtensionFileSourceCode;
 use deno_core::OpState;
+use serde_json::json;
 use serde_json::Value;
 
 pub fn extension() -> BuiltinExtension {
@@ -31,9 +33,36 @@ deno_core::extension!(
 
 #[op]
 fn op_load_env(state: &mut OpState) -> Result<Value> {
-  let env = state
-    .try_borrow::<ArenaConfig>()
-    .and_then(|c| c.env.clone())
-    .unwrap_or_default();
-  Ok(env.0)
+  let mut env = {
+    state
+      .try_borrow::<ArenaConfig>()
+      .as_ref()
+      .and_then(|c| c.env.clone())
+      .unwrap_or_default()
+  };
+  let env = env.0.as_object_mut().unwrap();
+
+  std::env::vars().for_each(|(key, value)| {
+    if !env.contains_key(&key) {
+      (*env).insert(key, json!(value));
+    }
+  });
+
+  // load env variables from .env files
+  let config = state.borrow::<RuntimeConfig>().project_root.clone();
+  let _ = match env.get("MODE").and_then(|m| m.as_str()) {
+    Some("production") => dotenvy::from_filename_iter(config.join(".env")).ok(),
+    _ => dotenvy::from_filename_iter(config.join(".env.dev")).ok(),
+  }
+  .map(|envs| {
+    envs
+      .into_iter()
+      .filter(|e| e.is_ok())
+      .map(|e| e.unwrap())
+      .for_each(|(key, value)| {
+        (*env).insert(key, json!(value));
+      });
+  });
+
+  Ok(json!(env))
 }

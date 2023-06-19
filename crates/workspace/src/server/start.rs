@@ -12,7 +12,7 @@ use common::deno::permissions::{FileSystemPermissions, PermissionsContainer};
 use deno_core::{
   op, Extension, ExtensionFileSource, ExtensionFileSourceCode, OpState,
 };
-use jsruntime::{IsolatedRuntime, RuntimeConfig};
+use jsruntime::{IsolatedRuntime, RuntimeOptions};
 use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::thread;
@@ -192,7 +192,7 @@ impl WorkspaceServer {
     }
 
     let workspace_config = self.workspace.config.clone();
-    let mut runtime = IsolatedRuntime::new(RuntimeConfig {
+    let mut runtime = IsolatedRuntime::new(RuntimeOptions {
       // TODO(sagar): disabled this when running deployed workspace
       project_root: Some(self.workspace.project_root()),
       config: ArenaConfig::find_in_path_hierachy(),

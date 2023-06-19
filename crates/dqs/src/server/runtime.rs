@@ -19,7 +19,7 @@ pub static WORKSPACE_DQS_SNAPSHOT: &[u8] =
   include_bytes!(concat!(env!("OUT_DIR"), "/WORKSPACE_DQS_SNAPSHOT.bin"));
 
 #[derive(Default, Clone)]
-pub struct RuntimeConfig {
+pub struct RuntimeOptions {
   pub workspace_id: String,
 
   pub db_pool: Option<Pool<ConnectionManager<PgConnection>>>,
@@ -35,7 +35,7 @@ pub struct RuntimeConfig {
   pub heap_limits: Option<(usize, usize)>,
 }
 
-pub async fn new(config: RuntimeConfig) -> Result<JsRuntime> {
+pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
   let db_pool = config.db_pool.unwrap();
   let state =
     RuntimeState::init(config.workspace_id.clone(), db_pool.clone()).await?;

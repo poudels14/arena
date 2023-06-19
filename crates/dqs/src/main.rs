@@ -2,7 +2,7 @@ use anyhow::Result;
 use common::config::ArenaConfig;
 use common::deno::extensions::server::HttpServerConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
-use jsruntime::{IsolatedRuntime, RuntimeConfig};
+use jsruntime::{IsolatedRuntime, RuntimeOptions};
 use tracing_subscriber::prelude::*;
 use tracing_tree::HierarchicalLayer;
 use url::Url;
@@ -25,7 +25,7 @@ async fn main() -> Result<()> {
   tracing::subscriber::set_global_default(subscriber).unwrap();
 
   let project_root = ArenaConfig::find_project_root()?;
-  let mut runtime = IsolatedRuntime::new(RuntimeConfig {
+  let mut runtime = IsolatedRuntime::new(RuntimeOptions {
     project_root: Some(project_root.clone()),
     config: Some(ArenaConfig::default()),
     enable_console: true,

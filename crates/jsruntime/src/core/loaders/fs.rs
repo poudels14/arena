@@ -1,5 +1,5 @@
 use super::super::transpiler;
-use crate::{IsolatedRuntime, RuntimeConfig};
+use crate::{IsolatedRuntime, RuntimeOptions};
 use anyhow::{anyhow, bail, Error};
 use common::config::ArenaConfig;
 use common::deno::extensions::server::response::HttpResponse;
@@ -50,7 +50,7 @@ impl FsModuleLoader {
 
         let local = tokio::task::LocalSet::new();
         let _r = local.block_on(&rt, async {
-          let mut runtime = IsolatedRuntime::new(RuntimeConfig {
+          let mut runtime = IsolatedRuntime::new(RuntimeOptions {
             project_root: Some(project_root.clone()),
             config: Some(ArenaConfig::default()),
             enable_console: true,

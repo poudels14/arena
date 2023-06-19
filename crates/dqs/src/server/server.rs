@@ -1,4 +1,4 @@
-use super::runtime::{self, RuntimeConfig};
+use super::runtime::{self, RuntimeOptions};
 use anyhow::{anyhow, Result};
 use common::beam;
 use deno_core::v8::IsolateHandle;
@@ -21,7 +21,7 @@ pub enum Command {
 }
 
 pub(crate) fn start(
-  config: RuntimeConfig,
+  config: RuntimeOptions,
   tx: oneshot::Sender<mpsc::Receiver<ServerEvents>>,
 ) -> Result<()> {
   let (events_tx, events_rx) = mpsc::channel(5);
