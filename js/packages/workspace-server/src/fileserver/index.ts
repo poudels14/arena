@@ -5,9 +5,17 @@ import * as mime from "mime";
 import * as path from "path";
 import { isMatch } from "matcher";
 
-const createFileServer = () => {
-  // @ts-ignore
+const getResolverConfig = () => {
+  // @ts-expect-error
   const { resolve } = Arena.Workspace?.config?.client?.javascript || {};
+  return {
+    preserve_symlink: resolve?.preserve_symlink || true,
+    conditions: resolve?.conditions || ["browser"],
+    dedupe: resolve?.dedupe,
+  };
+};
+
+const createFileServer = () => {
   const clientEnv = Object.assign(
     {
       // Note(sagar): since this is client env, always set SSR = "true"
@@ -20,11 +28,7 @@ const createFileServer = () => {
 
   const transpiler = new Transpiler({
     resolve_import: true,
-    resolver: {
-      preserve_symlink: resolve?.preserve_symlink || true,
-      conditions: resolve?.conditions || ["browser", "development"],
-      dedupe: resolve?.dedupe,
-    },
+    resolver: getResolverConfig(),
     replace: Object.fromEntries(
       Object.entries(clientEnv).flatMap(([k, v]) => {
         return [
@@ -107,7 +111,7 @@ const getTranspiledJavascript = async (
       presets: [[presets.solidjs, { generate: "dom", hydratable: true }]],
       plugins: [
         [plugins.transformCommonJs, { exportsOnly: true }],
-        plugins.importResolver,
+        [plugins.importResolver, getResolverConfig()],
       ],
     });
     transpiledCode = solidjsCode;

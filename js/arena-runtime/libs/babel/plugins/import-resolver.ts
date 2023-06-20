@@ -3,11 +3,12 @@ import { declare } from "@babel/helper-plugin-utils";
 import * as t from "@babel/types";
 import { Resolver } from "@arena/runtime/resolver";
 
-const resolver = declare((_api, _options) => {
+const resolver = declare((_api, options) => {
   const state = {
     // TODO(sagar): close resolver
     resolver: new Resolver({
       preserve_symlink: true,
+      ...options,
     }),
   };
 
