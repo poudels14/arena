@@ -130,7 +130,12 @@ impl FsModuleResolver {
     let alias = &self.config.alias;
 
     for k in alias.keys() {
-      if specifier.starts_with(k) {
+      let alias_len = k.len();
+      if specifier.starts_with(k)
+        && (specifier.len() == alias_len
+          || (specifier.len() > alias_len
+            && &specifier[alias_len..alias_len + 1] == "/"))
+      {
         let value = alias.get(k).unwrap();
         debug!("matched alias: {}={}", k, value);
         return format!(
