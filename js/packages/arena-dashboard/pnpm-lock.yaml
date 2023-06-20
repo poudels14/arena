@@ -13,6 +13,9 @@ dependencies:
   '@arena/db':
     specifier: workspace:^
     version: link:../db
+  '@arena/email':
+    specifier: workspace:^
+    version: link:../email
   '@arena/runtime':
     specifier: workspace:^
     version: link:../../arena-runtime
@@ -58,6 +61,9 @@ dependencies:
   debounce:
     specifier: ^1.2.1
     version: 1.2.1
+  ky:
+    specifier: ^0.33.3
+    version: 0.33.3
   lodash-es:
     specifier: ^4.17.21
     version: 4.17.21
@@ -385,6 +391,11 @@ packages:
       '@formatjs/fast-memoize': 2.0.1
       '@formatjs/icu-messageformat-parser': 2.4.0
       tslib: 2.5.2
+    dev: false
+
+  /ky@0.33.3:
+    resolution: {integrity: sha512-CasD9OCEQSFIam2U8efFK81Yeg8vNMTBUqtMOHlrcWQHqUX3HeCl9Dr31u4toV7emlH8Mymk5+9p0lL6mKb/Xw==}
+    engines: {node: '>=14.16'}
     dev: false
 
   /lodash-es@4.17.21:

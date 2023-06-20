@@ -17,7 +17,14 @@ export async function createContext({
   const user = await repo.users.fetchById(parseUserIdFromCookies(req));
   const acl = new AclChecker(client!, user);
 
-  return { req, resHeaders, user, repo, acl };
+  return {
+    req,
+    resHeaders,
+    user,
+    repo,
+    acl,
+    host: process.env.ARENA_HOST || "http://localhost:8000",
+  };
 }
 
 const getDbRepo = async () => {

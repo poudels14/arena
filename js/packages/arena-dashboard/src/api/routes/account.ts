@@ -2,8 +2,11 @@ import { createRouter, procedure } from "@arena/runtime/server";
 import jwt from "@arena/cloud/jwt";
 // @ts-expect-error
 import ms from "ms";
-import { Context } from "../context";
 import { pick } from "lodash-es";
+import ky from "ky";
+import { renderToString } from "@arena/email";
+import { Context } from "../context";
+import { Login } from "../emails/Login";
 
 const p = procedure<Context>();
 const accountRouter = createRouter<any>({
@@ -35,9 +38,26 @@ const accountRouter = createRouter<any>({
         secret: process.env.JWT_SIGNINIG_SECRET,
       });
 
-      return {
-        token: signInToken,
-      };
+      const json = await ky
+        .post("https://api.resend.com/emails", {
+          headers: {
+            Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+          },
+          json: {
+            from: "Sign in to Arena <signin@emails.tryarena.io>",
+            to: "poudels14@gmail.com",
+            subject: "Sign in to Arena",
+            html: renderToString(
+              Login({
+                magicLink: `${ctx.host}/login/email?magicToken=${signInToken}`,
+              })
+            ),
+          },
+        })
+        .json();
+
+      // TODO(sagar): show message saying login-link has been sent
+      return "Ok";
     }),
     "/login/email": p.query(
       async ({ req, ctx, searchParams, setCookie, errors, redirect }) => {
