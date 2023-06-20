@@ -75,15 +75,14 @@ const setupTwind = (config: Config = {}) => {
               .reverse();
             selector = selector.substring(1);
 
-            const css = {
+            let css = {
               "@apply": style,
             };
             if (selector) {
               const path: any[] = selector.split(/>/);
-              return path.reduceRight((agg, p, idx) => {
+              css = path.reduceRight((agg, p, idx) => {
                 if (idx === 0) {
-                  const prefix = p == "" ? "&" : "";
-                  return { [`:where(${prefix}${p})`]: agg };
+                  return p == "" ? agg : { [`& ${p}`]: agg };
                 } else {
                   return { [`&>${p}`]: agg };
                 }
