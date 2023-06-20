@@ -1,5 +1,6 @@
 pub mod plugins;
 
+use self::plugins::jsx_analyzer::JsxAnalyzer;
 use super::resolver::BuildConfig;
 use crate::deno::extensions::BuiltinExtension;
 use crate::deno::resolver;
@@ -28,6 +29,7 @@ use std::rc::Rc;
 use swc_common::chain;
 use swc_common::pass::Optional;
 use swc_ecma_visit::FoldWith;
+use swc_ecma_visit::VisitWith;
 
 pub fn extension() -> BuiltinExtension {
   BuiltinExtension {
@@ -168,6 +170,7 @@ fn transpile_code(
     }
   };
 
+  let mut jsx_analyzer = JsxAnalyzer::new();
   let parsed = deno_ast::parse_module_with_post_process(
     ParseParams {
       specifier: filename_str.to_string(),
@@ -181,6 +184,7 @@ fn transpile_code(
       maybe_syntax: None,
     },
     |p| {
+      p.visit_children_with(&mut jsx_analyzer);
       let config = &transpiler.as_ref().config;
       p.fold_with(&mut chain!(
         Optional::new(
@@ -197,7 +201,7 @@ fn transpile_code(
       // TODO(sagar): take all of these in options arg later
       &EmitOptions {
         emit_metadata: true,
-        transform_jsx: false,
+        transform_jsx: jsx_analyzer.is_react,
         inline_source_map: transpiler
           .config
           .source_map

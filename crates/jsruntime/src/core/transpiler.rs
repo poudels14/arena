@@ -2,12 +2,14 @@ use anyhow::{anyhow, bail, Result};
 use common::deno::extensions::server::response::HttpResponse;
 use common::deno::extensions::server::HttpRequest;
 use common::deno::extensions::transpiler::plugins;
+use common::deno::extensions::transpiler::plugins::jsx_analyzer::JsxAnalyzer;
 use deno_ast::{EmitOptions, MediaType, ParseParams, SourceTextInfo};
 use http::Method;
 use http_body::Body;
 use std::path::Path;
 use std::sync::Arc;
 use swc_ecma_visit::FoldWith;
+use swc_ecma_visit::VisitWith;
 use tokio::sync::mpsc;
 
 pub async fn transpile(
@@ -18,6 +20,7 @@ pub async fn transpile(
 ) -> Result<Arc<str>> {
   // TODO(sagar): strip out all dynamic transpiling for vms running deployed apps
 
+  let mut jsx_analyzer = JsxAnalyzer::new();
   let parsed = deno_ast::parse_module_with_post_process(
     ParseParams {
       specifier: module_path.to_str().unwrap().to_owned(),
@@ -27,19 +30,22 @@ pub async fn transpile(
       scope_analysis: false,
       maybe_syntax: None,
     },
-    |p| p.fold_with(&mut plugins::commonjs::to_esm()),
+    |p| {
+      p.visit_children_with(&mut jsx_analyzer);
+      p.fold_with(&mut plugins::commonjs::to_esm())
+    },
   )?;
 
   let parsed_code = parsed
     .transpile(&EmitOptions {
       emit_metadata: true,
-      transform_jsx: false,
+      transform_jsx: jsx_analyzer.is_react,
       ..Default::default()
     })?
     .text;
 
   let code = match module_path.extension() {
-    Some(ext) if ext == "tsx" || ext == "jsx" => {
+    Some(ext) if !jsx_analyzer.is_react && (ext == "tsx" || ext == "jsx") => {
       transpile_jsx(transpiler_stream, &parsed_code).await?
     }
     _ => parsed_code.to_owned(),
