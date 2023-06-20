@@ -13,8 +13,8 @@ use std::path::{Path, PathBuf};
 use tracing::{debug, error, Level};
 use url::{ParseError, Url};
 
-static ORDERED_EXPORT_CONDITIONS: Lazy<IndexSet<&str>> =
-  Lazy::new(|| indexset!["import"]);
+static DEFAULT_EXPORT_CONDITIONS: Lazy<IndexSet<&str>> =
+  Lazy::new(|| indexset!["node"]);
 
 impl FsModuleResolver {
   #[tracing::instrument(skip_all, level = "trace")]
@@ -326,7 +326,11 @@ fn get_matching_export(
   let export = subpath_export.as_object().unwrap();
   for (condition, value) in export.iter() {
     if conditions.contains(condition)
-      || ORDERED_EXPORT_CONDITIONS.contains(condition.as_str())
+      || condition.eq("import")
+      // Note(sp): if explicit conditions isn't passed, use default conditions
+      // that uses node modules
+      || (conditions.is_empty()
+        && DEFAULT_EXPORT_CONDITIONS.contains(condition.as_str()))
     {
       let span = tracing::span!(Level::DEBUG, "get_matching_export", condition);
       let _enter = span.enter();
