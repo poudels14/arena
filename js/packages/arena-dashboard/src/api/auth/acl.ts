@@ -52,7 +52,7 @@ class AclChecker {
     apps: A[],
     access: AccessType
   ) {
-    if (new Set(apps.map((a) => a.workspaceId)).size != 1) {
+    if (apps.length > 0 && new Set(apps.map((a) => a.workspaceId)).size != 1) {
       throw new Error("Only apps in the same workspace can be filtered");
     }
 
@@ -75,9 +75,12 @@ class AclChecker {
   // TODO(sagar): generalize access check for apps/resources
   // TODO(sagar): test
   async filterResourcesByAccess<
-    A extends Pick<DbResource, "id" | "workspaceId">
-  >(resources: A[], access: AccessType) {
-    if (new Set(resources.map((a) => a.workspaceId)).size != 1) {
+    R extends Pick<DbResource, "id" | "workspaceId">
+  >(resources: R[], access: AccessType) {
+    if (
+      resources.length > 0 &&
+      new Set(resources.map((a) => a.workspaceId)).size != 1
+    ) {
       throw new Error("Only resources in the same workspace can be filtered");
     }
 
