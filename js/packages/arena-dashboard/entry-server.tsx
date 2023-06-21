@@ -17,7 +17,12 @@ const handler = chainMiddlewares<{ event: PageEvent; context: Context }>(
     return (
       <ServerRoot
         event={event}
-        user={pick(context.user, "id", "email", "config")}
+        user={{
+          ...pick(context.user, "id", "email", "config"),
+          workspaces: context.user.workspaces.map((w) =>
+            pick(w, "id", "name", "access")
+          ),
+        }}
       />
     );
   })

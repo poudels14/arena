@@ -1,15 +1,22 @@
 import { Acl, createRepo } from "../repos/acl";
 import { App } from "../repos/app";
+import { DbResource } from "../repos/resources";
 import type { User } from "../repos/user";
 import { Client } from "@arena/runtime/postgres";
+import { Workspace } from "../repos/workspace";
 
 type AccessType = "can-view" | "can-trigger-mutate-query" | "admin";
+type WorkspaceAccessType = "member" | "admin" | "owner";
+
+type UserInfo = Pick<User, "id" | "email" | "config"> & {
+  workspaces: Workspace[];
+};
 
 class AclChecker {
   private repo: ReturnType<typeof createRepo>;
-  private user: Pick<User, "id" | "email" | "config">;
+  private user: UserInfo;
   private accessList: Acl[] | null;
-  constructor(client: Client, user: User | null | undefined) {
+  constructor(client: Client, user: UserInfo | null | undefined) {
     this.repo = createRepo({ client });
     this.user = user || {
       id: "public",
@@ -17,6 +24,7 @@ class AclChecker {
       config: {
         waitlisted: false,
       },
+      workspaces: [],
     };
     this.accessList = null;
   }
@@ -63,8 +71,41 @@ class AclChecker {
     );
   }
 
-  async hasWorkspaceAccess(workspaceId: string, access: AccessType) {
-    throw new Error("not implemented");
+  // TODO(sagar): generalize access check for apps/resources
+  // TODO(sagar): test
+  async filterResourcesByAccess<
+    A extends Pick<DbResource, "id" | "workspaceId">
+  >(resources: A[], access: AccessType) {
+    if (new Set(resources.map((a) => a.workspaceId)).size != 1) {
+      throw new Error("Only resources in the same workspace can be filtered");
+    }
+
+    const accessList = await this.getAccessList();
+    const resourcesAccesses = accessList.reduce((agg, acl) => {
+      if (
+        acl.resourceId &&
+        (acl.userId == this.user.id || acl.userId == "everyone")
+      ) {
+        agg[acl.resourceId] = acl.access;
+      }
+      return agg;
+    }, {} as Record<DbResource["id"], AccessType>);
+
+    return resources.filter((a) =>
+      this.isAccessSameOrSuperseding(resourcesAccesses[a.id], access)
+    );
+  }
+
+  async hasWorkspaceAccess(workspaceId: string, access: WorkspaceAccessType) {
+    return (
+      this.user.workspaces.findIndex(
+        (w) =>
+          w.id == workspaceId &&
+          (w.access == access ||
+            w.access == "owner" ||
+            (access == "member" && ["owner", "admin"].includes(w.access)))
+      ) > -1
+    );
   }
 
   async hasAppAccess(appId: string, access: AccessType) {
@@ -73,7 +114,18 @@ class AclChecker {
         .length == 1
     );
   }
+
+  async hasResourceAccess(resourceId: string, access: AccessType) {
+    return (
+      (
+        await this.filterResourcesByAccess(
+          [{ id: resourceId, workspaceId: "" }],
+          access
+        )
+      ).length == 1
+    );
+  }
 }
 
 export { AclChecker };
-export type { AccessType };
+export type { AccessType, WorkspaceAccessType };

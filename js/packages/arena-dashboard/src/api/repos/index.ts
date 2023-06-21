@@ -1,4 +1,5 @@
 import { Client } from "@arena/runtime/postgres";
+import { createRepo as createWorkspaceRepo } from "./workspace";
 import { createRepo as createUserRepo } from "./user";
 import { createRepo as createAclRepo } from "./acl";
 import { createRepo as createAppRepo } from "./app";
@@ -10,8 +11,9 @@ const createRepo = (client: Client) => {
     client,
   };
   return {
-    acl: createAclRepo(context),
+    workspaces: createWorkspaceRepo(context),
     users: createUserRepo(context),
+    acl: createAclRepo(context),
     apps: createAppRepo(context),
     widgets: createWidgetsRepo(context),
     resources: createResourcesRepo(context),

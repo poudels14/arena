@@ -16,7 +16,7 @@ import { merge } from "lodash-es";
 import { Context } from "./context";
 
 export const resources = pgTable("resources", {
-  id: varchar("id"),
+  id: varchar("id").notNull(),
   workspaceId: varchar("workspace_id"),
   name: varchar("name").notNull(),
   description: text("description"),

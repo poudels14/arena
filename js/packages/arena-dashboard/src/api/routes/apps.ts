@@ -6,7 +6,7 @@ import { notFound } from "../utils/errors";
 import { uniqueId } from "@arena/uikit/uniqueId";
 // @ts-expect-error
 import randomColor from "randomcolor";
-import { TRPCError } from "@trpc/server";
+import { checkAppAccess, checkWorkspaceAccess } from "../middlewares/idor";
 
 const appsRouter = trpcRouter({
   add: procedure
@@ -17,6 +17,7 @@ const appsRouter = trpcRouter({
         description: z.string().optional(),
       })
     )
+    .use(checkWorkspaceAccess((input) => input.workspaceId, "member"))
     .mutation(async ({ ctx, input }): Promise<MutationResponse> => {
       const newApp = await ctx.repo.apps.insert({
         id: uniqueId(),
@@ -41,6 +42,7 @@ const appsRouter = trpcRouter({
         workspaceId: z.string(),
       })
     )
+    .use(checkWorkspaceAccess((input) => input.workspaceId, "member"))
     .query(
       async ({ ctx, input }): Promise<Omit<App, "widgets" | "resources">[]> => {
         const apps = await ctx.acl.filterAppsByAccess(
@@ -56,18 +58,8 @@ const appsRouter = trpcRouter({
       }
     ),
   get: procedure
-    .use(async ({ ctx, input, rawInput, next }) => {
-      if (!(await ctx.acl.hasAppAccess(rawInput as string, "can-view"))) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Access denied",
-        });
-      }
-      return next({
-        ctx,
-      });
-    })
     .input(z.string())
+    .use(checkAppAccess((input) => input, "can-view"))
     .query<App>(async ({ ctx, input: appId }) => {
       const app = await ctx.repo.apps.fetchById(appId);
       if (!app) {
@@ -120,6 +112,7 @@ const appsRouter = trpcRouter({
         id: z.string(),
       })
     )
+    .use(checkAppAccess((input) => input.id, "admin"))
     .mutation(async ({ ctx, input }): Promise<MutationResponse> => {
       // TODO: check IDOR
       const app = await ctx.repo.apps.fetchById(input.id);

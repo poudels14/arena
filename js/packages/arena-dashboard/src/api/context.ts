@@ -15,12 +15,20 @@ export async function createContext({
 }: FetchCreateContextFnOptions) {
   const repo = await getDbRepo();
   const user = await repo.users.fetchById(parseUserIdFromCookies(req));
-  const acl = new AclChecker(client!, user);
+  const workspaces = user
+    ? await repo.workspaces.listWorkspaces({ userId: user.id })
+    : [];
+
+  const userInfo = {
+    ...user,
+    workspaces,
+  } as typeof user & { workspaces: typeof workspaces };
+  const acl = new AclChecker(client!, userInfo);
 
   return {
     req,
     resHeaders,
-    user,
+    user: userInfo,
     repo,
     acl,
     host: process.env.ARENA_HOST || "http://localhost:8000",

@@ -4,6 +4,7 @@ import { MutationResponse } from "@arena/studio";
 import { uniqueId } from "@arena/uikit/uniqueId";
 import { merge, snakeCase } from "lodash-es";
 import { notFound } from "../utils/errors";
+import { checkResourceAccess, checkWorkspaceAccess } from "../middlewares/idor";
 
 const resourceSchemaForClient = z.object({
   id: z.string(),
@@ -32,6 +33,7 @@ const resourcesRouter = trpcRouter({
         contextId: z.string().optional(),
       })
     )
+    .use(checkWorkspaceAccess((input) => input.workspaceId, "member"))
     .mutation(async ({ ctx, input }): Promise<MutationResponse> => {
       // TODO(sp): validate workspace id
 
@@ -57,6 +59,7 @@ const resourcesRouter = trpcRouter({
         workspaceId: z.string(),
       })
     )
+    .use(checkWorkspaceAccess((input) => input.workspaceId, "member"))
     .query(
       async ({
         ctx,
@@ -78,6 +81,7 @@ const resourcesRouter = trpcRouter({
         workspaceId: z.string(),
       })
     )
+    .use(checkResourceAccess((input) => input.id, "admin"))
     .mutation(async ({ ctx, input }): Promise<MutationResponse> => {
       const queryToArchive = await ctx.repo.resources.fetchById(input.id);
       if (!queryToArchive || queryToArchive.workspaceId != input.workspaceId) {

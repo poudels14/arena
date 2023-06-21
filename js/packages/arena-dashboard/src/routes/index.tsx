@@ -1,5 +1,6 @@
+import { createSyncedStore } from "@arena/solid-store";
 import { Routes as SolidRoutes, Route, useParams } from "@solidjs/router";
-import { lazy } from "solid-js";
+import { createMemo, lazy } from "solid-js";
 import { DashboardContextProvider } from "~/context";
 
 const App = lazy(() => import("./apps/App.tsx"));
@@ -7,8 +8,28 @@ const Dashboard = lazy(() => import("./dashboard.tsx"));
 const Waitlisted = lazy(() => import("./waitlist.tsx"));
 
 const Routes = (props: { user: any }) => {
+  const [state, setState] = createSyncedStore(
+    {
+      selectedWorkspace: null,
+    },
+    {
+      storeKey: "dashboard/routes/index",
+    }
+  );
+
+  const workspaceId = createMemo(() => {
+    const workspaces = props.user.workspaces;
+    const selected = workspaces.find(
+      (w: any) => w.id == state.selectedWorkspace
+    );
+    if (!selected) {
+      setState("selectedWorkspace", workspaces[0].id);
+    }
+    return (selected || workspaces[0]).id;
+  });
+
   return (
-    <DashboardContextProvider workspaceId="1" user={props.user}>
+    <DashboardContextProvider workspaceId={workspaceId()} user={props.user}>
       <SolidRoutes>
         <Route
           path="/apps/:id"
