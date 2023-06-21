@@ -9,6 +9,8 @@ import {
 } from "@arena/db/pg";
 import { Context } from "./context";
 import { WorkspaceAccessType } from "../auth/acl";
+import { uniqueId } from "@arena/uikit/uniqueId";
+import { pick } from "lodash-es";
 
 const workspaces = pgTable("workspaces", {
   id: varchar("id").notNull(),
@@ -56,6 +58,29 @@ const createRepo = (ctx: Context) => {
           )
         );
       return rows as Workspace[];
+    },
+    async createWorkspaceForUser(userId: string): Promise<Required<Workspace>> {
+      const workspaceId = uniqueId();
+      const workspaceRows = await db
+        .insert(workspaces)
+        .values({
+          id: workspaceId,
+          name: "Default workspace",
+        })
+        .returning();
+
+      const workspace = workspaceRows[0];
+
+      await db.insert(workspaceMembers).values({
+        workspaceId: workspace.id,
+        userId,
+        access: "owner",
+      });
+
+      return {
+        ...pick(workspace, "id", "name"),
+        access: "owner",
+      };
     },
   };
 };

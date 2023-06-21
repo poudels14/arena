@@ -80,6 +80,15 @@ const accountRouter = createRouter<any>({
             return errors.badRequest();
           }
 
+          const workspaces = await ctx.repo.workspaces.listWorkspaces({
+            userId: user.id,
+          });
+
+          // if there's no workspace for the user, create one
+          if (workspaces.length == 0) {
+            await ctx.repo.workspaces.createWorkspaceForUser(user.id);
+          }
+
           const signInToken = jwt.sign({
             header: { alg: "HS256" },
             payload: {
