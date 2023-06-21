@@ -48,7 +48,7 @@ const StyleEditor = () => {
 
   return (
     <div class="flex flex-col w-full h-full px-4">
-      <div class="text-sm text-accent-9 pb-5">
+      <div class="text-sm text-accent-8 pb-5">
         Use Tailwind class to style the widget. The class names should be
         separated by space.
       </div>

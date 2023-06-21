@@ -1,18 +1,16 @@
 import { defineConfig, install, tw, css, apply } from "@twind/core";
 import type { Preset } from "@twind/core";
 import presetAutoprefix from "@twind/preset-autoprefix";
-import presetTailwind from "@twind/preset-tailwind/base";
-import * as tailwindColor from "@twind/preset-tailwind/colors";
-import {
-  mauve,
-  gray,
-  slateDark,
-  grayDark,
-} from "@twind/preset-radix-ui/colors";
+import presetTailwind, {
+  TailwindPresetBaseOptions,
+} from "@twind/preset-tailwind/base";
 import "./style.css";
 
 type Config = {
   presets?: Preset[];
+  tailwind?: {
+    colors?: TailwindPresetBaseOptions["colors"];
+  };
 };
 
 const setupTwind = (config: Config = {}) => {
@@ -22,17 +20,7 @@ const setupTwind = (config: Config = {}) => {
       presets: [
         presetAutoprefix(),
         presetTailwind({
-          colors: {
-            brand: mauve,
-            brandDark: slateDark,
-            accent: gray,
-            accentDark: grayDark,
-            gray: tailwindColor.gray,
-            green: tailwindColor.green,
-            red: tailwindColor.red,
-            cyan: tailwindColor.cyan,
-            blue: tailwindColor.blue,
-          },
+          colors: config.tailwind?.colors,
         }),
         ...(config.presets || []),
       ],

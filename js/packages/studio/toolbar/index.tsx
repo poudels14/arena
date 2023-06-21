@@ -83,7 +83,7 @@ const Toolbar = () => {
           <div class="toolbar fixed bottom-0 w-full flex flex-row justify-center pointer-events-none z-[99999]">
             <div class="relative bottom-4 w-52 h-8 flex rounded-md text-brand-2 bg-brand-12/80 cursor-pointer pointer-events-auto space-x-2">
               <A href="/apps">
-                <div class="inline-block px-2 py-2 rounded-l-md border-r border-brand-11 hover:bg-brand-10">
+                <div class="inline-block px-2 py-2 rounded-l-md border-r border-brand-11/30 hover:bg-brand-10">
                   <InlineIcon size="16px" class="cursor-pointer">
                     <path d={HomeIcon[0]} />
                   </InlineIcon>
@@ -158,7 +158,7 @@ const Tab = (props: TabsProps) => {
         ...(props.classList || {}),
         "cursor-pointer": !props.disabled,
         "bg-brand-11 text-brand-1": props.isActive(props.id),
-        "text-brand-11 cursor-not-allowed": props.disabled,
+        hidden: props.disabled,
       }}
       onClick={() => !props.disabled && setState("tab", "active", props.id)}
     >
@@ -172,7 +172,14 @@ const ToolbarTabs = (props: {
   disableWidgetConfigTabs: boolean;
 }) => {
   return (
-    <div class="px-4 py-1 flex flex-row space-x-2 text-sm text-brand-7 select-none">
+    <div class="px-4 py-1 flex flex-row space-x-2 text-sm text-brand-5 select-none">
+      <A href="/apps">
+        <div class="inline-block px-2 py-2 rounded-sm hover:bg-brand-12/80">
+          <InlineIcon size="16px" class="cursor-pointer">
+            <path d={HomeIcon[0]} />
+          </InlineIcon>
+        </div>
+      </A>
       <Tab
         id="chat"
         isActive={props.isActive}

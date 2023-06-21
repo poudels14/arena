@@ -142,13 +142,13 @@ const createNewAppThumbnail = () => {
   const gradientFrom = randomColor({
     luminosity: "light",
     format: "rgba",
-    alpha: 0.8,
+    alpha: 0.3,
   });
 
   const gradientTo = randomColor({
     luminosity: "dark",
     format: "rgba",
-    alpha: 0.8,
+    alpha: 0.5,
   });
 
   return {

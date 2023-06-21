@@ -96,12 +96,7 @@ const AppEditor = () => {
   return (
     <>
       <Title>{state.app.name()}</Title>
-      <div
-        class="w-full h-full min-w-[768px] no-scrollbar"
-        classList={{
-          "pb-64": !isViewOnly(),
-        }}
-      >
+      <div class="w-full h-full min-w-[768px] no-scrollbar">
         <Canvas showGrid={!isViewOnly()}>
           <Switch>
             <Match when={getRootWidget()}>

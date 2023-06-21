@@ -13,9 +13,6 @@ dependencies:
   '@twind/preset-autoprefix':
     specifier: ^1.0.7
     version: 1.0.7(@twind/core@1.1.3)
-  '@twind/preset-radix-ui':
-    specifier: ^1.0.7
-    version: 1.0.7(@twind/core@1.1.3)
   '@twind/preset-tailwind':
     specifier: ^1.1.4
     version: 1.1.4(@twind/core@1.1.3)
@@ -56,19 +53,6 @@ packages:
     dependencies:
       '@twind/core': 1.1.3
       style-vendorizer: 2.2.3
-    dev: false
-
-  /@twind/preset-radix-ui@1.0.7(@twind/core@1.1.3):
-    resolution: {integrity: sha512-EyQtZ/PqTA4Cf5qOc8Gjy56ZwZMd5Nk+Zsm4ZRE8b7fdiMhH3FbCSXjCUeFluSgaIhdMbaVHV2AOa6Z0RBSkBQ==}
-    engines: {node: '>=14.15.0'}
-    peerDependencies:
-      '@twind/core': ^1.1.0
-      typescript: ^4.8.4
-    peerDependenciesMeta:
-      typescript:
-        optional: true
-    dependencies:
-      '@twind/core': 1.1.3
     dev: false
 
   /@twind/preset-tailwind@1.1.4(@twind/core@1.1.3):

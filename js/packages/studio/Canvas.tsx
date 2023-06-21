@@ -1,5 +1,6 @@
-import { createStore } from "@arena/solid-store";
 import { Show } from "solid-js";
+import { createStore } from "@arena/solid-store";
+import { useEditorContext } from "./editor";
 
 const GridLines = (props: { width: number; height: number; scale: number }) => {
   return (
@@ -15,6 +16,7 @@ const GridLines = (props: { width: number; height: number; scale: number }) => {
 };
 
 const Canvas = (props: { showGrid: boolean; children: any }) => {
+  const { isViewOnly } = useEditorContext<any>();
   const [state, setState] = createStore({
     scale: 1,
   });
@@ -24,7 +26,12 @@ const Canvas = (props: { showGrid: boolean; children: any }) => {
       <Show when={props.showGrid}>
         <GridLines width={40} height={30} scale={state.scale()} />
       </Show>
-      <div class="arena-canvas-container relative w-full h-full overflow-x-auto overflow-y-auto">
+      <div
+        class="arena-canvas-container relative w-full h-full overflow-x-auto overflow-y-auto"
+        classList={{
+          "pb-64": !isViewOnly(),
+        }}
+      >
         <div
           class="arena-canvas relative"
           style={{
