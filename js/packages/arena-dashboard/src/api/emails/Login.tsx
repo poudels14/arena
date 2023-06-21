@@ -17,7 +17,7 @@ const Login = (props: { magicLink: string }) => {
       <Body>
         <Container>
           <Img
-            src={`${baseUrl}/static/raycast-logo.png`}
+            src={`${baseUrl}/static/arena-logo.png`}
             width={48}
             height={48}
             alt="Arena"
@@ -48,7 +48,7 @@ const Login = (props: { magicLink: string }) => {
           </p>
           <Hr style={hr} />
           <Img
-            src={`${baseUrl}/static/raycast-logo.png`}
+            src={`${baseUrl}/static/arena-logo.png`}
             width={32}
             height={32}
             style={{
