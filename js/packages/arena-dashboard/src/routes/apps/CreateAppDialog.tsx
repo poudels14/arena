@@ -4,7 +4,7 @@ import { Form, Textarea } from "@arena/components/form";
 import { useDashboardContext } from "~/context";
 
 const CreateAppDialog = (props: { closeDialog: () => void }) => {
-  const { client, workspaceId } = useDashboardContext();
+  const { client, workspace } = useDashboardContext();
   return (
     <Dialog
       title="Create a new app"
@@ -16,7 +16,7 @@ const CreateAppDialog = (props: { closeDialog: () => void }) => {
         onSubmit={async (value) => {
           await client.apps.add.mutate({
             ...value,
-            workspaceId,
+            workspaceId: workspace.id,
           });
           props.closeDialog();
         }}

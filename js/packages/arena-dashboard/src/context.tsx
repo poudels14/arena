@@ -2,16 +2,21 @@ import { createContext, useContext } from "solid-js";
 import { createTRPCProxyClient, httpLink } from "@trpc/client";
 import type { AppRouter } from "~/api";
 
+type Workspace = {
+  id: string;
+  name: string;
+};
+
 const DashboardContext = createContext<{
   client: ReturnType<typeof createTRPCProxyClient<AppRouter>>;
-  workspaceId: string;
+  workspace: Workspace;
   user: any;
 }>();
 
 const useDashboardContext = () => useContext(DashboardContext)!;
 
 const DashboardContextProvider = (props: {
-  workspaceId: string;
+  workspace: Workspace;
   user: any;
   children: any;
 }) => {
@@ -28,7 +33,7 @@ const DashboardContextProvider = (props: {
 
   return (
     <DashboardContext.Provider
-      value={{ client, workspaceId: props.workspaceId, user: props.user }}
+      value={{ client, workspace: props.workspace, user: props.user }}
     >
       {props.children}
     </DashboardContext.Provider>

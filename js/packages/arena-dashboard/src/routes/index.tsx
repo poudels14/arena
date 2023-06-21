@@ -17,7 +17,7 @@ const Routes = (props: { user: any }) => {
     }
   );
 
-  const workspaceId = createMemo(() => {
+  const workspace = createMemo(() => {
     const workspaces = props.user.workspaces;
     const selected = workspaces.find(
       (w: any) => w.id == state.selectedWorkspace
@@ -25,11 +25,11 @@ const Routes = (props: { user: any }) => {
     if (!selected) {
       setState("selectedWorkspace", workspaces[0].id);
     }
-    return (selected || workspaces[0]).id;
+    return selected || workspaces[0];
   });
 
   return (
-    <DashboardContextProvider workspaceId={workspaceId()} user={props.user}>
+    <DashboardContextProvider workspace={workspace()} user={props.user}>
       <SolidRoutes>
         <Route
           path="/apps/:id"

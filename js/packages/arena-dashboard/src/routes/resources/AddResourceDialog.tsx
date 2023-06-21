@@ -6,7 +6,7 @@ import { useDashboardContext } from "~/context";
 import { Show, createSignal } from "solid-js";
 
 const AddResourceDialog = (props: { closeDialog: () => void }) => {
-  const { client, workspaceId } = useDashboardContext();
+  const { client, workspace } = useDashboardContext();
   const [resourceType, setResourceType] = createSignal();
   return (
     <Dialog
@@ -19,7 +19,7 @@ const AddResourceDialog = (props: { closeDialog: () => void }) => {
         onSubmit={async (value) => {
           await client.resources.add.mutate({
             ...value,
-            workspaceId,
+            workspaceId: workspace.id,
           });
           props.closeDialog();
         }}

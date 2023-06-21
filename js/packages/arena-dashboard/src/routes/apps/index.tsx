@@ -30,14 +30,14 @@ const App = (props: {
 };
 
 const Apps = () => {
-  const { client, workspaceId } = useDashboardContext();
+  const { client, workspace } = useDashboardContext();
   const [state, setState] = createStore({
     createAppDialogOpen: false,
   });
 
   const [apps, { refetch }] = createResource(() => {
     return client.apps.list.query({
-      workspaceId,
+      workspaceId: workspace.id,
     });
   });
 

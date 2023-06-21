@@ -6,16 +6,16 @@ import { InlineIcon } from "@arena/components";
 import debounce from "debounce";
 
 const ResourcesTable = (props: { refresh: any }) => {
-  const { client, workspaceId } = useDashboardContext();
+  const { client, workspace } = useDashboardContext();
   const [resources, { refetch }] = createResource(
     () => props.refresh,
-    () => client.resources.list.query({ workspaceId })
+    () => client.resources.list.query({ workspaceId: workspace.id })
   );
 
   const deleteResource = debounce(async (id: string) => {
     await client.resources.archive.mutate({
       id,
-      workspaceId,
+      workspaceId: workspace.id,
     });
     refetch();
   }, 200);
