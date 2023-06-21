@@ -30,6 +30,13 @@ const appsRouter = trpcRouter({
         },
       });
 
+      await ctx.repo.acl.addAccess({
+        workspaceId: input.workspaceId,
+        userId: ctx.user.id,
+        access: "owner",
+        appId: newApp.id,
+      });
+
       return {
         apps: {
           created: [pick(newApp, "id", "name", "description", "config")],

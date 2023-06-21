@@ -47,6 +47,13 @@ const resourcesRouter = trpcRouter({
         createdBy: "sagar",
       });
 
+      await ctx.repo.acl.addAccess({
+        workspaceId: input.workspaceId,
+        userId: ctx.user.id,
+        access: "owner",
+        resourceId: newResource.id,
+      });
+
       return {
         resources: {
           created: [resourceSchemaForClient.parse(newResource)],

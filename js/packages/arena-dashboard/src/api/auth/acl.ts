@@ -5,7 +5,7 @@ import type { User } from "../repos/user";
 import { Client } from "@arena/runtime/postgres";
 import { Workspace } from "../repos/workspace";
 
-type AccessType = "can-view" | "can-trigger-mutate-query" | "admin";
+type AccessType = "can-view" | "can-trigger-mutate-query" | "admin" | "owner";
 type WorkspaceAccessType = "member" | "admin" | "owner";
 
 type UserInfo = Pick<User, "id" | "email" | "config"> & {
@@ -42,6 +42,7 @@ class AclChecker {
   private isAccessSameOrSuperseding(access: AccessType, another: AccessType) {
     return (
       access == another ||
+      access == "owner" ||
       (access == "admin" &&
         ["can-view", "can-trigger-mutate-query"].includes(another))
     );

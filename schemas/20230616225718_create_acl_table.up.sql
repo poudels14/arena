@@ -8,6 +8,7 @@ CREATE TABLE acl (
   -- access control
   path VARCHAR(50) DEFAULT NULL,
   resource_id VARCHAR(50) DEFAULT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   archived_at TIMESTAMPTZ DEFAULT NULL
 );
