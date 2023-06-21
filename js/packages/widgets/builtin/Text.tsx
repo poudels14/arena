@@ -20,8 +20,8 @@ const metadata: Template.Metadata<{ text: string }> = {
 
 const Text = (props: Template.Props<{ text: string }>) => {
   return (
-    <p class="text-accent-12" {...props.attributes}>
-      {props.data.text}
+    <p class="text-accent-12" {...props.attrs}>
+      {props.text}
     </p>
   );
 };

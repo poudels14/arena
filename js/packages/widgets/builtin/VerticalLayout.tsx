@@ -12,7 +12,7 @@ const VerticalLayout = (props: Template.Props<{}>) => {
   return (
     <div
       class="ar-vertical-layout flex flex-col art-[>.slot>.preview](h-1,w-auto)"
-      {...props.attributes}
+      {...props.attrs}
     >
       <props.Editor.Slot parentId={props.id} />
     </div>

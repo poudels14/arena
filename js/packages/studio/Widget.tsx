@@ -61,7 +61,7 @@ type WidgetProps = {
    * error state later
    */
   dataLoaders: [string, ResourceReturn<any>[0]][];
-  children: (widget: { attributes: Record<string, any> }) => JSX.Element;
+  children: (widget: { attrs: Record<string, any> }) => JSX.Element;
 };
 
 /**
@@ -70,17 +70,6 @@ type WidgetProps = {
  */
 const WidgetRenderer = (props: WidgetProps) => {
   const ctx = useEditorContext<WidgetDataContext>();
-
-  /**
-   * Note(sagar): return proxy here so that Templates don't have to use
-   * signals to access `data.{field}`
-   */
-  const data = new Proxy(Object.fromEntries(props.dataLoaders), {
-    get(target: any, fieldName: string) {
-      const data = target[fieldName];
-      return data?.();
-    },
-  });
 
   const [isDataReady, setIsDataReady] = createSignal(false);
   createComputed(() => {
@@ -105,26 +94,66 @@ const WidgetRenderer = (props: WidgetProps) => {
     };
   });
 
-  const widget = {
-    id: props.id,
-    attributes: {
+  const dataLoaders = Object.fromEntries(props.dataLoaders);
+  const dataSetters = Object.fromEntries(
+    props.dataLoaders.map(([field]) => {
+      return [
+        `set` + field[0].toUpperCase() + field.substring(1),
+        (value: any) => {
+          ctx.useWidgetDataSetter(props.id, field)(value);
+        },
+      ];
+    })
+  );
+
+  const widget = new Proxy(
+    {
+      Editor: {
+        Slot: Slot,
+      },
       id: props.id,
-      ref(node: HTMLElement) {
-        setWidgetRef(props.id, node, ctx);
+      attrs: {
+        id: props.id,
+        ref(node: HTMLElement) {
+          setWidgetRef(props.id, node, ctx);
+        },
+        get classList() {
+          return classList();
+        },
       },
-      get classList() {
-        return classList();
+      ...dataSetters,
+    },
+    {
+      get(target: any, field: string) {
+        if (target[field]) {
+          return target[field];
+        } else if (dataLoaders[field]) {
+          return dataLoaders[field]();
+        } else if (field.startsWith("set") && field.length > 3) {
+          // catch-all for setter
+          return (value: any) => {};
+        }
       },
-    },
-    data,
-    // setter for transient data source
-    setData(field: string, value: string) {
-      ctx.useWidgetDataSetter(props.id, field)(value);
-    },
-    Editor: {
-      Slot: Slot,
-    },
-  };
+      getOwnPropertyDescriptor(_, property) {
+        return {
+          configurable: true,
+          enumerable: true,
+          get() {
+            return _.get(property);
+          },
+        };
+      },
+      ownKeys(target) {
+        return [
+          ...Reflect.ownKeys(target),
+          ...props.dataLoaders.flatMap(([k]) => [
+            k,
+            `set` + k.charAt(0).toUpperCase() + k.substring(1),
+          ]),
+        ];
+      },
+    }
+  );
 
   const Component = props.children;
   return (

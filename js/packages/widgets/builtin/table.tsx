@@ -54,7 +54,7 @@ const metadata: Template.Metadata<{ rows: any[]; layout: any }> = {
 const Table = (props: Template.Props<{ rows: any[]; layout: any }>) => {
   const createTable = createTableWithPlugins(
     withHeaders({
-      headers: Object.keys(props.data.rows[0] || {}).map((k) => {
+      headers: Object.keys(props.rows[0] || {}).map((k) => {
         return {
           key: k,
         };
@@ -64,24 +64,24 @@ const Table = (props: Template.Props<{ rows: any[]; layout: any }>) => {
       pageSize: 10,
     }),
     withResizableColumns({
-      columnWidths: props.data?.layout?.columnWidths,
+      columnWidths: props?.layout?.columnWidths,
     })
   );
 
   const table = createTable({
-    data: props.data.rows,
+    data: props.rows,
   });
 
   createComputed(() => {
     // TODO(sagar): this causes the table data to be updated with
     // original data twice. figure out a way to prevent that
-    table.setData(props.data.rows);
+    table.setData(props.rows);
   });
 
   createEffect(() => {
     const columnWidths = table.getColumnWidths();
-    props.setData("layout", {
-      ...(props.data?.layout || {}),
+    props.setLayout({
+      ...(props.layout || {}),
       columnWidths,
     });
   });
@@ -99,7 +99,7 @@ const Table = (props: Template.Props<{ rows: any[]; layout: any }>) => {
   return (
     <table
       class="ar-table h-fit table-auto border border-gray-300"
-      {...props.attributes}
+      {...props.attrs}
     >
       <thead class="thead border-(b,gray-300)">
         <For each={table.getHeaderGroups()}>

@@ -10,7 +10,7 @@ const metadata: Template.Metadata<{}> = {
 
 const Box = (props: Template.Props<{}>) => {
   return (
-    <div {...props.attributes}>
+    <div {...props.attrs}>
       <props.Editor.Slot parentId={props.id} />
     </div>
   );

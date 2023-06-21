@@ -38,13 +38,13 @@ const Input = (
 ) => {
   return (
     <input
-      {...props.attributes}
+      {...props.attrs}
       class="px-2 py-1 rounded border border-accent-6 outline-none ring-inset focus:ring-1 placeholder:text-accent-9"
-      type={props.data.type}
-      value={props.data.value}
-      placeholder={props.data.placeholder}
+      type={props.type}
+      value={props.value}
+      placeholder={props.placeholder}
       onInput={(e) => {
-        props.setData("value", e.target.value);
+        props.setValue(e.target.value);
       }}
     />
   );

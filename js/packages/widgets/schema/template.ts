@@ -61,14 +61,20 @@ export namespace Template {
     class?: string;
   };
 
+  type DataSetter<Data> = Data extends Record<string, unknown>
+    ? {
+        [T in keyof Data as `set${Capitalize<string & T>}`]: (
+          value: Data[T]
+        ) => void;
+      }
+    : void;
+
   export type Props<Data extends Record<string, unknown>> = {
     /**
      * Widget id
      */
     id: string;
-    attributes: any;
-    data: Data;
-    setData: StoreSetter<Data>;
+    attrs: any;
     Editor: {
       Slot: (props: {
         parentId: string | null;
@@ -82,5 +88,6 @@ export namespace Template {
         children?: JSX.Element;
       }) => JSX.Element;
     };
-  };
+  } & Data &
+    DataSetter<Data>;
 }

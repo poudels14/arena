@@ -13,7 +13,7 @@ const Layout = (props: Template.Props<{}>) => {
   // needed only in edit mode
   let ref: any;
   return (
-    <div class="t t-layout-vertical h-full" {...props.attributes}>
+    <div class="t t-layout-vertical h-full" {...props.attrs}>
       <div class="flex flex-col space-y-1">
         <props.Editor.Slot parentId={props.id} />
       </div>

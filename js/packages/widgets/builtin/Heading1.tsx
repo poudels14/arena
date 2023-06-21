@@ -20,8 +20,8 @@ const metadata: Template.Metadata<{ text: string }> = {
 
 const Heading1 = (props: Template.Props<{ text: string }>) => {
   return (
-    <h1 class="text-4xl font-bold tracking-tight" {...props.attributes}>
-      {props.data.text}
+    <h1 class="text-4xl font-bold tracking-tight" {...props.attrs}>
+      {props.text}
     </h1>
   );
 };
