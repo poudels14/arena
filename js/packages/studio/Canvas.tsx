@@ -29,7 +29,7 @@ const Canvas = (props: { showGrid: boolean; children: any }) => {
       <div
         class="arena-canvas-container relative w-full h-full overflow-x-auto overflow-y-auto"
         classList={{
-          "pb-64": !isViewOnly(),
+          "pb-64 no-scrollbar": !isViewOnly(),
         }}
       >
         <div
