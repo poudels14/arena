@@ -3,13 +3,18 @@ use super::DataQuery;
 use crate::query::args_sanitizer::ArgsSanitizer;
 use anyhow::{anyhow, bail, Result};
 use deno_ast::swc::parser::lexer::Lexer;
+use indexmap::IndexSet;
+use swc_atoms::JsWord;
 use swc_common::sync::Lrc;
 use swc_common::{chain, FileName, Mark, SourceMap};
 use swc_ecma_parser::{Parser as SwcParser, StringInput, Syntax};
 use swc_ecma_transforms_base::resolver;
 use swc_ecma_visit::{FoldWith, VisitMutWith};
 
-pub fn parse(code: &str) -> Result<DataQuery> {
+pub fn parse(
+  code: &str,
+  known_globals: &IndexSet<JsWord>,
+) -> Result<DataQuery> {
   let cm: Lrc<SourceMap> = Default::default();
 
   let fm = cm
@@ -34,6 +39,7 @@ pub fn parse(code: &str) -> Result<DataQuery> {
 
     let module = swc_parser.parse_module().map_err(|e| anyhow!("{:?}", e))?;
     let mut props_prefixer = PropsSanitizer {
+      known_globals: &known_globals,
       unresolved_mark,
       unresolved_exprs: vec![],
     };
@@ -52,6 +58,8 @@ pub fn parse(code: &str) -> Result<DataQuery> {
 
 #[cfg(test)]
 mod tests {
+  use indexmap::indexset;
+
   use crate::ast::emitter::ToString;
   use crate::query::parser;
 
@@ -64,6 +72,7 @@ mod tests {
         return input.text.value;
       }
       "#,
+      &indexset! {},
     )
     .unwrap();
     assert_eq!(1, query.unresolved_exprs.len());
@@ -75,9 +84,11 @@ mod tests {
 
   #[test]
   fn test_default_fn_arg_sanitization() {
-    let query =
-      parser::parse("export default function() { return input.value }")
-        .unwrap();
+    let query = parser::parse(
+      "export default function() { return input.value }",
+      &indexset! {},
+    )
+    .unwrap();
 
     assert_eq!(
       "export default function({ env , props  }) {    return props.input.value;}",

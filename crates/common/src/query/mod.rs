@@ -1,7 +1,11 @@
+use std::sync::OnceLock;
+
 use self::parser::parse;
 use crate::ast::emitter::ToString;
 use crate::ast::types::*;
 use anyhow::Result;
+use indexmap::{indexset, IndexSet};
+use swc_atoms::JsWord;
 use swc_ecma_ast::{Expr, Module, Prop, PropOrSpread};
 
 pub(crate) mod args_sanitizer;
@@ -14,9 +18,22 @@ pub struct DataQuery {
   pub unresolved_exprs: Vec<Expr>,
 }
 
+static INIT: OnceLock<IndexSet<JsWord>> = OnceLock::new();
+
+fn get_allowed_global_idents() -> IndexSet<JsWord> {
+  indexset! {
+    JsWord::from("JSON"),
+    JsWord::from("Boolean"),
+    JsWord::from("parseInt"),
+    JsWord::from("console"),
+    JsWord::from("fetch"),
+    JsWord::from("Date")
+  }
+}
+
 impl DataQuery {
   pub fn from(code: &str) -> Result<DataQuery> {
-    parse(code)
+    parse(code, &INIT.get_or_init(get_allowed_global_idents))
   }
 
   pub fn get_props_generator(&self) -> Result<String> {
@@ -62,6 +79,7 @@ fn membr_to_key_value(node: &Expr, value: Expr) -> Prop {
 #[cfg(test)]
 mod tests {
   use crate::query::parser;
+  use indexmap::indexset;
 
   #[test]
   fn test_args_generator() {
@@ -71,6 +89,7 @@ mod tests {
         return input.value
       }
       "#,
+      &indexset! {},
     )
     .unwrap();
     assert_eq!(
