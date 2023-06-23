@@ -1,1 +1,1 @@
-DROP TABLE acl;
+DROP TABLE acls;

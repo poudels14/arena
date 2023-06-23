@@ -12,7 +12,7 @@ import { Context } from "./context";
 import { AccessType } from "../auth";
 import { uniqueId } from "@arena/uikit/uniqueId";
 
-export const acls = pgTable("acl", {
+export const acls = pgTable("acls", {
   id: varchar("id").notNull(),
   /**
    * Special user ids:

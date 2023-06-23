@@ -5,7 +5,29 @@ import type { User } from "../repos/user";
 import { Client } from "@arena/runtime/postgres";
 import { Workspace } from "../repos/workspace";
 
-type AccessType = "can-view" | "can-trigger-mutate-query" | "admin" | "owner";
+type AccessType =
+  /**
+   * This access allows user to view an app (i.e. run GET queries),
+   * view resources, use resources in an app for fetching data but prevent from
+   * running mutate action on app or using resources for mutate action;
+   */
+  | "view-entity"
+  /**
+   * This access allows user to run mutate actions of the app, or run mutate
+   * actions on resources (for eg, INSERT/UPDATE on postgres db).
+   *
+   * If a user has access on an app but not on a resource, only the queries
+   * in the app can be run by the user and can't use the resource directly
+   */
+  | "mutate-entity"
+  /**
+   * This access allows user to edit an app, a resource, etc
+   */
+  | "admin"
+  /**
+   * The owner of an app, a resource allows full-access
+   */
+  | "owner";
 type WorkspaceAccessType = "member" | "admin" | "owner";
 
 type UserInfo = Pick<User, "id" | "email" | "config"> & {
@@ -43,8 +65,7 @@ class AclChecker {
     return (
       access == another ||
       access == "owner" ||
-      (access == "admin" &&
-        ["can-view", "can-trigger-mutate-query"].includes(another))
+      (access == "admin" && ["view-entity", "mutate-entity"].includes(another))
     );
   }
 

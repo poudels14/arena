@@ -1,4 +1,4 @@
-CREATE TABLE acl (
+CREATE TABLE acls (
   id VARCHAR(50) UNIQUE,
   workspace_id VARCHAR(50) NOT NULL,
   user_id VARCHAR(50) NOT NULL,

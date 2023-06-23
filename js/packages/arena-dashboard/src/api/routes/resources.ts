@@ -73,9 +73,11 @@ const resourcesRouter = trpcRouter({
         input,
       }): Promise<z.infer<typeof resourceSchemaForClient>[]> => {
         // TODO(sp): validate workspace id
-        const resources = await ctx.repo.resources.fetchByWorkspaceId(
-          input.workspaceId
+        const resources = await ctx.acl.filterResourcesByAccess(
+          await ctx.repo.resources.fetchByWorkspaceId(input.workspaceId),
+          "view-entity"
         );
+
         return resources.map((resource) =>
           resourceSchemaForClient.parse(resource)
         );

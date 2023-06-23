@@ -3,7 +3,7 @@ import { createRouter, procedure } from "@arena/runtime/server";
 import { Context } from "../context";
 
 const p = procedure<Context>().use(async ({ ctx, params, errors, next }) => {
-  if (!ctx.user || !(await ctx.acl.hasAppAccess(params.appId, "can-view"))) {
+  if (!ctx.user || !(await ctx.acl.hasAppAccess(params.appId, "view-entity"))) {
     return errors.forbidden();
   }
   return next({});
@@ -15,12 +15,7 @@ const queryRouter = createRouter<Context>({
     "/:appId/:widgetId/:field": p
       .use(async ({ req, ctx, params, searchParams, next, errors }) => {
         if (req.method == "POST") {
-          if (
-            !(await ctx.acl.hasAppAccess(
-              params.appId,
-              "can-trigger-mutate-query"
-            ))
-          ) {
+          if (!(await ctx.acl.hasAppAccess(params.appId, "view-entity"))) {
             return errors.forbidden();
           }
           return await pipeRequestToDqs("MUTATION", ctx, params, searchParams);

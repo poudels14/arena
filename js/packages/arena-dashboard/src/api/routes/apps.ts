@@ -56,7 +56,7 @@ const appsRouter = trpcRouter({
           await ctx.repo.apps.listApps({
             workspaceId: input.workspaceId,
           }),
-          "can-view"
+          "view-entity"
         );
 
         return apps.map((app) => {
@@ -66,15 +66,16 @@ const appsRouter = trpcRouter({
     ),
   get: procedure
     .input(z.string())
-    .use(checkAppAccess((input) => input, "can-view"))
+    .use(checkAppAccess((input) => input, "view-entity"))
     .query<App>(async ({ ctx, input: appId }) => {
       const app = await ctx.repo.apps.fetchById(appId);
       if (!app) {
         return notFound("App not found");
       }
       const widgets = await ctx.repo.widgets.fetchByAppId(app.id);
-      const resources = await ctx.repo.resources.fetchByWorkspaceId(
-        app.workspaceId!
+      const resources = await ctx.acl.filterResourcesByAccess(
+        await ctx.repo.resources.fetchByWorkspaceId(app.workspaceId!),
+        "view-entity"
       );
       return merge(pick(app, "id", "name", "description", "config"), {
         widgets: widgets.reduce((widgetsById, widget) => {
