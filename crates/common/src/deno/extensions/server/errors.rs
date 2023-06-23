@@ -1,4 +1,5 @@
 use super::response::HttpResponse;
+use axum::response;
 use http::{Response, StatusCode};
 use hyper::body::HttpBody;
 use hyper::Body;
@@ -9,7 +10,9 @@ pub enum Error {
   StdError,
   HyperError,
   HttpError,
+  AnyhowError,
   ResponseBuilder,
+  NotFound,
 }
 
 impl fmt::Display for Error {
@@ -35,6 +38,22 @@ impl From<hyper::Error> for Error {
 impl From<http::Error> for Error {
   fn from(_: http::Error) -> Self {
     Self::HttpError
+  }
+}
+
+impl From<anyhow::Error> for Error {
+  fn from(_: anyhow::Error) -> Self {
+    Self::AnyhowError
+  }
+}
+
+impl response::IntoResponse for Error {
+  fn into_response(self) -> response::Response {
+    match self {
+      Self::NotFound => (StatusCode::NOT_FOUND, "Not found").into_response(),
+      _ => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error")
+        .into_response(),
+    }
   }
 }
 

@@ -10,8 +10,10 @@ use deno_core::{op, CancelHandle, OpState, ResourceId};
 use futures::future::{pending, select, Either};
 use futures::never::Never;
 use futures::FutureExt;
-use http::Method;
+use http::{Method, Request};
+use hyper::body::HttpBody;
 use hyper::server::conn::Http;
+use hyper::Body;
 use std::cell::RefCell;
 use std::error::Error;
 use std::net::Ipv4Addr;
@@ -25,8 +27,10 @@ use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 use tokio::task::spawn_local;
 use tower::ServiceBuilder;
+use tower::ServiceExt;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::{AllowOrigin, CorsLayer};
+use tower_http::services::ServeDir;
 use tracing::info;
 
 #[op]
@@ -103,7 +107,7 @@ pub(crate) async fn op_http_accept(
       },
     )
     .service_fn(move |req| {
-      request::handle_request(tx.clone(), handle_options.clone(), req)
+      handle_request(tx.clone(), handle_options.clone(), req)
     });
 
   let conn_fut = Http::new()
@@ -143,6 +147,33 @@ pub(crate) async fn op_http_accept(
         closed_fut: Some(closed_fut),
       });
   Ok(connection_rid)
+}
+
+pub async fn handle_request(
+  req_sender: mpsc::Sender<(HttpRequest, mpsc::Sender<HttpResponse>)>,
+  options: HandleOptions,
+  req: Request<Body>,
+) -> Result<(HttpResponse, HttpResponseMetata), errors::Error> {
+  let metadata = HttpResponseMetata {
+    method: req.method().as_str().to_string(),
+    path: req.uri().path().to_string(),
+    req_received_at: Instant::now(),
+  };
+
+  match options.serve_dir {
+    Some(base_dir) if req.uri().path().starts_with("/static") => {
+      let res = ServeDir::new(base_dir).oneshot(req).await;
+      return Ok((
+        res.map(|r| r.map(|body| body.map_err(Into::into).boxed_unsync()))?,
+        metadata,
+      ));
+    }
+    _ => {}
+  }
+
+  request::pipe_request(req_sender, req)
+    .await
+    .map(|r| (r, metadata))
 }
 
 /// Filters out the ever-surprising 'shutdown ENOTCONN' errors.

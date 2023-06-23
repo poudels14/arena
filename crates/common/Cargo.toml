@@ -20,6 +20,7 @@ hyper.workspace = true
 tower.workspace = true
 tower-http.workspace = true
 http-body.workspace = true
+axum.workspace = true
 tracing.workspace = true
 futures.workspace = true
 bytes.workspace = true

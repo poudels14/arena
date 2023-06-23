@@ -13,7 +13,7 @@ use hyper::body::HttpBody;
 use hyper::Body;
 use std::cell::RefCell;
 use std::rc::Rc;
-pub(crate) mod errors;
+pub mod errors;
 mod executor;
 pub mod request;
 mod resources;

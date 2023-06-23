@@ -3,6 +3,14 @@ name = "dqs"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "dqs_cloud"
+path = "src/dqs_cloud.rs"
+
+[[bin]]
+name = "dqs"
+path = "src/main.rs"
+
 [dependencies]
 anyhow.workspace = true
 serde.workspace = true
@@ -21,8 +29,14 @@ diesel.workspace = true
 handlebars.workspace = true
 uuid.workspace = true
 once_cell.workspace = true
+tower.workspace = true
+tower-http.workspace = true
+axum.workspace = true
+axum-extra.workspace = true
+jsonwebtoken.workspace = true
 common = { path = "../common" }
 jsruntime = { path = "../jsruntime" }
+cloud = { path = "../cloud" }
 
 deno_core.workspace = true
 deno_webidl.workspace = true
