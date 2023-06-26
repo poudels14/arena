@@ -1,5 +1,5 @@
 import { splitProps, useContext } from "solid-js";
-import { StateContext } from "./state";
+import { useStateContext } from "./state";
 import { ElementProps } from "./types";
 
 type InputProps = {
@@ -8,7 +8,7 @@ type InputProps = {
 } & ElementProps;
 
 export default function Input(props: InputProps) {
-  const { setState } = useContext(StateContext)!;
+  const { setState } = useStateContext<any>();
   // set initial value
   setState(props.name, props.value);
   const [attrs] = splitProps(props, ["name", "value", "type", "placeholder"]);

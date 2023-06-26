@@ -1,7 +1,7 @@
 import { createStore } from "@arena/solid-store";
 import { JSX, createDeferred } from "solid-js";
 import { ElementProps } from "./types";
-import { NestedObject, NestedObjectProps, StateContext } from "./state";
+import { StateContext, NestedObject, NestedObjectProps } from "./state";
 
 type FormProps = {
   children: any;

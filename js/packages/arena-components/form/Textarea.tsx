@@ -1,6 +1,6 @@
 import { splitProps, useContext } from "solid-js";
 import { ElementProps } from "./types";
-import { StateContext } from "./state";
+import { useStateContext } from "./state";
 
 type TextareaProps = {
   type?: string;
@@ -9,7 +9,7 @@ type TextareaProps = {
 } & ElementProps;
 
 export default function Textarea(props: TextareaProps) {
-  const { setState } = useContext(StateContext)!;
+  const { setState } = useStateContext<any>();
   // set initial value
   setState(props.name, props.value);
   const [attrs] = splitProps(props, ["name", "value", "placeholder", "rows"]);
