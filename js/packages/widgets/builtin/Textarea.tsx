@@ -5,9 +5,9 @@ const metadata: Template.Metadata<{
   placeholder: string;
   value: string;
 }> = {
-  id: "at-input",
-  name: "Input",
-  description: "Input",
+  id: "at-textarea",
+  name: "Textarea",
+  description: "Textarea",
   data: {
     type: {
       title: "Type",
@@ -26,18 +26,18 @@ const metadata: Template.Metadata<{
       preview: "Enter text",
     },
     value: {
-      title: "Input",
+      title: "Textarea",
       source: "transient",
     },
   },
   class: "bg-white",
 };
 
-const Input = (
+const Textarea = (
   props: Template.Props<{ type: string; placeholder: string; value: string }>
 ) => {
   return (
-    <input
+    <textarea
       class="px-2 py-1 rounded border border-accent-6 outline-none ring-inset focus:ring-1 placeholder:text-accent-9"
       type={props.type}
       value={props.value}
@@ -50,5 +50,5 @@ const Input = (
   );
 };
 
-export default Input;
+export default Textarea;
 export { metadata };

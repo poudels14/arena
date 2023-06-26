@@ -7,9 +7,8 @@ const metadata: Template.Metadata<{ text: string }> = {
   data: {
     text: {
       title: "Text",
-      source: "dynamic",
+      source: "userinput",
       default: {
-        loader: "@client/json",
         value: "Heading 1",
       },
       preview: "Heading 1",

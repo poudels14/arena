@@ -7,10 +7,10 @@ import { Template } from "@arena/widgets";
 
 type Slot = Template.Props<any>["Editor"]["Slot"];
 
-const Slot: Slot = (props) => {
+const Slot: Slot = (props: any) => {
   const { state } = useDragDropContext();
   const activeDraggable = createMemo(() => state.active.draggable());
-  const { useChildren } = useEditorContext<ComponentTreeContext>();
+  const { useChildren, isViewOnly } = useEditorContext<ComponentTreeContext>();
   const children = createMemo(() => useChildren(props.parentId));
   return (
     <Switch>
@@ -35,7 +35,7 @@ const Slot: Slot = (props) => {
           }}
         </For>
       </Match>
-      <Match when={true}>
+      <Match when={!isViewOnly()}>
         <Placeholder parentId={props.parentId}>{props.children}</Placeholder>
       </Match>
     </Switch>
@@ -55,7 +55,7 @@ const Droppable = (props: {
     }
   );
   return (
-    <div ref={droppable.ref} class="slot">
+    <div ref={droppable.ref} class="slot" style={`margin: 0;`}>
       <Show when={droppable.isActiveDroppable}>
         <PreviewTemplate draggable={props.activeDraggable!} />
       </Show>
