@@ -30,7 +30,7 @@ type EditorContext<T> = InternalEditor<
       | "setSelectedWidgets"
       | "getSelectedWidgets"
       | "isWidgetSelected"
-      | "getAvailableResources"
+      | "useResources"
     >
 >["context"];
 

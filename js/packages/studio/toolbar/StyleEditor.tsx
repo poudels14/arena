@@ -5,8 +5,7 @@ import { Form, Input } from "@arena/components/form";
 import debounce from "debounce";
 
 const StyleEditor = () => {
-  const { getSelectedWidgets } = useEditorContext();
-  const { useWidgetById, updateWidget } =
+  const { getSelectedWidgets, useWidgetById, updateWidget } =
     useEditorContext<TemplateStoreContext>();
 
   const classes = createMemo(() => {
@@ -90,4 +89,4 @@ const StyleEditor = () => {
   );
 };
 
-export { StyleEditor };
+export default StyleEditor;

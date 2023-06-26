@@ -12,18 +12,22 @@ type ShortcutCommand = (context: CommandContext) => void;
 const withKeyboardShortcuts: Plugin<{}, void, void> = (config) => {
   return ({ context }) => {
     const handleKeydown = (e: KeyboardEvent) => {
-      if (e.target != document.body) {
-        return;
-      }
       let key = e.code;
       key = key == " " ? "space" : key;
       const compoundKey = `${e.ctrlKey ? "ctrl+" : ""}${
         e.shiftKey ? "shift+" : ""
       }${key.toLowerCase()}` as keyof typeof SHORTCUTS;
 
-      SHORTCUTS[compoundKey]?.(context as unknown as CommandContext);
+      let shortcut;
+      if ((shortcut = SHORTCUTS[compoundKey])) {
+        e.preventDefault();
+        e.stopPropagation();
+        shortcut(context as unknown as CommandContext);
+      }
     };
-    document.addEventListener("keydown", handleKeydown);
+    document.addEventListener("keydown", handleKeydown, {
+      capture: true,
+    });
     onCleanup(() => document.removeEventListener("keydown", handleKeydown));
 
     Object.assign(context, {});

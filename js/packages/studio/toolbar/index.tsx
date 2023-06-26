@@ -17,17 +17,19 @@ import MaximizeIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/
 import HomeIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/home";
 import { InlineIcon } from "@arena/components";
 import { Templates } from "./Templates";
-import { StyleEditor } from "./StyleEditor";
+import GeneralInfo from "./GeneralInfo";
+import StyleEditor from "./StyleEditor";
+import Data from "./Data";
 import { ComponentTreeContext, useEditorContext } from "../editor";
 import { ComponentTree } from "./ComponentTree";
 // @ts-ignore
-const Data = lazy(() => import("./Data.tsx"));
 
 type ToolbarTab =
   /**
    * Show Arena AI chat box
    */
   | "chat"
+  | "general"
   /**
    * Show data editor
    */
@@ -180,7 +182,8 @@ const ToolbarTabs = (props: {
           </InlineIcon>
         </div>
       </A>
-      <Tab
+      <div class="flex-1"></div>
+      {/* <Tab
         id="chat"
         isActive={props.isActive}
         classList={{
@@ -192,6 +195,13 @@ const ToolbarTabs = (props: {
           placeholder="Ask Arena..."
           class="w-full py-1 text-sm placeholder:text-brand-5 bg-transparent text-brand-1 rounded-l outline-none"
         />
+      </Tab> */}
+      <Tab
+        id="general"
+        isActive={props.isActive}
+        disabled={props.disableWidgetConfigTabs}
+      >
+        General
       </Tab>
       <Tab
         id="data"
@@ -220,6 +230,9 @@ const TabContent = (props: {
 }) => {
   return (
     <Switch>
+      <Match when={props.isWidgetHighlighted() && props.isActive("general")}>
+        <GeneralInfo />
+      </Match>
       <Match when={props.isWidgetHighlighted() && props.isActive("data")}>
         <Data />
       </Match>

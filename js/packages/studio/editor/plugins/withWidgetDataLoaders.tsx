@@ -179,7 +179,9 @@ const withWidgetDataLoaders: Plugin<{}, {}, WidgetDataContext> =
             const propsGetter = createMemo(() => {
               const getter = propsGetterGenerator();
               if (getter) {
-                return getter(propsGeneratorContext);
+                try {
+                  return getter(propsGeneratorContext);
+                } catch (e) {}
               }
               return {};
             });

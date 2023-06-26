@@ -69,25 +69,33 @@ export namespace Template {
       }
     : void;
 
+  export type Editor = {
+    useContext: () => {
+      useResources: (filter?: {
+        type?: string;
+      }) => { id: string; name: string; type: string }[];
+    };
+    Slot: (props: {
+      parentId: string | null;
+
+      /**
+       * Whether the slot should contain a single widget of multiple widgets
+       * Default: single
+       */
+      type?: "single" | "multiple";
+
+      children?: JSX.Element;
+    }) => JSX.Element;
+  };
+
   export type Props<Data extends Record<string, unknown>> = {
     /**
      * Widget id
      */
     id: string;
     attrs: any;
-    Editor: {
-      Slot: (props: {
-        parentId: string | null;
-
-        /**
-         * Whether the slot should contain a single widget of multiple widgets
-         * Default: single
-         */
-        type?: "single" | "multiple";
-
-        children?: JSX.Element;
-      }) => JSX.Element;
-    };
+    Editor: Editor;
+    isLoading(field: string): boolean;
   } & Data &
     DataSetter<Data>;
 }

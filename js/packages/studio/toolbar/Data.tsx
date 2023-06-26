@@ -16,8 +16,7 @@ import debounce from "debounce";
 import { Form, Select } from "@arena/components/form";
 
 const Data = () => {
-  const { getSelectedWidgets } = useEditorContext();
-  const { useTemplate, useWidgetById } =
+  const { getSelectedWidgets, useTemplate, useWidgetById } =
     useEditorContext<TemplateStoreContext>();
 
   const [state, setState] = createStore<{ selectedField: string | null }>({
@@ -40,7 +39,8 @@ const Data = () => {
           title: templateConfig?.title || "Unrecognized field",
           fieldConfig: fieldConfig as DataSource.Dynamic,
         };
-      });
+      })
+      .sort((a, b) => a.fieldName.localeCompare(b.fieldName));
   });
 
   const selectedFieldMetadata = createMemo(() => {
@@ -116,7 +116,7 @@ const Field = (
 };
 
 const FieldEditor = (props: { metadata: FieldMetadata }) => {
-  const { updateWidget, getAvailableResources } = useEditorContext();
+  const { updateWidget, useResources } = useEditorContext();
   const [state, setState] = createStore({
     loader: null as FieldMetadata["fieldConfig"]["config"]["loader"] | null,
     resource: null,
@@ -138,62 +138,64 @@ const FieldEditor = (props: { metadata: FieldMetadata }) => {
       <div class="flex-1 px-2 py-4 space-y-2 overflow-y-auto no-scrollbar">
         <div class="flex flex-row space-x-2">
           <div>Data Source</div>
-          <Form class="text-brand-12 space-y-2">
-            <Select
-              name="loader"
-              placeholder="Select data source"
-              class="w-60 px-10 text-xs text-brand-12 rounded"
-              contentClass="z-[999999]"
-              itemClass="text-xs"
-              value={state.loader()}
-              options={[
-                { id: "@client/json", label: "Inline Data" },
-                { id: "@client/js", label: "Client Javascript" },
-                {
-                  id: "@arena/server-function",
-                  label: "Custom Server Function",
-                },
-                { id: "@arena/sql/postgres", label: "Postgres Database" },
-              ]}
-              optionTextValue="label"
-              optionValue="id"
-              onChange={(loader) => {
-                if (loader != "@arena/sql/postgres") {
-                  updateDataLoaderConfig({ loader });
-                }
-                setState({
-                  loader,
-                });
-              }}
-            />
-            <Show when={state.loader() == "@arena/sql/postgres"}>
+          <Show when={props.metadata.fieldConfig.source == "dynamic"}>
+            <Form class="text-brand-12 space-y-2">
               <Select
-                name="db"
-                placeholder="Select Postgress database"
+                name="loader"
+                placeholder="Select data source"
                 class="w-60 px-10 text-xs text-brand-12 rounded"
                 contentClass="z-[999999]"
                 itemClass="text-xs"
-                // @ts-expect-error
-                value={props.metadata.fieldConfig.config.db}
-                options={getAvailableResources()}
-                optionTextValue="name"
+                value={state.loader()}
+                options={[
+                  { id: "@client/json", label: "Inline Data" },
+                  { id: "@client/js", label: "Client Javascript" },
+                  {
+                    id: "@arena/server-function",
+                    label: "Custom Server Function",
+                  },
+                  { id: "@arena/sql/postgres", label: "Postgres Database" },
+                ]}
+                optionTextValue="label"
                 optionValue="id"
-                onChange={(resource: string) => {
-                  updateDataLoaderConfig({
-                    loader: state.loader()!,
-                    // @ts-expect-error
-                    db: resource,
-                  });
-                  setState((prev: any) => {
-                    return {
-                      ...prev,
-                      resource,
-                    };
+                onChange={(loader) => {
+                  if (loader != "@arena/sql/postgres") {
+                    updateDataLoaderConfig({ loader });
+                  }
+                  setState({
+                    loader,
                   });
                 }}
               />
-            </Show>
-          </Form>
+              <Show when={state.loader() == "@arena/sql/postgres"}>
+                <Select
+                  name="db"
+                  placeholder="Select Postgress database"
+                  class="w-60 px-10 text-xs text-brand-12 rounded"
+                  contentClass="z-[999999]"
+                  itemClass="text-xs"
+                  // @ts-expect-error
+                  value={props.metadata.fieldConfig.config.db}
+                  options={useResources()}
+                  optionTextValue="name"
+                  optionValue="id"
+                  onChange={(resource: string) => {
+                    updateDataLoaderConfig({
+                      loader: state.loader()!,
+                      // @ts-expect-error
+                      db: resource,
+                    });
+                    setState((prev: any) => {
+                      return {
+                        ...prev,
+                        resource,
+                      };
+                    });
+                  }}
+                />
+              </Show>
+            </Form>
+          </Show>
         </div>
         <div>
           <DataSourceEditor metadata={props.metadata} />
@@ -213,7 +215,7 @@ const DataSourceEditor = (props: { metadata: FieldMetadata }) => {
     const isSql = config.loader == "@arena/sql/postgres";
     return {
       code:
-        config.loader == "@client/json" && typeof config.value != "string"
+        typeof config.value != "string"
           ? JSON.stringify(config.value, null, 2)
           : config.value,
       lang: isJavascript ? "javascript" : isSql ? "sql" : "text",
@@ -229,10 +231,7 @@ const DataSourceEditor = (props: { metadata: FieldMetadata }) => {
     const config = fieldConfig.config;
     updateWidget(widgetId, "config", "data", fieldName, "config", {
       ...config,
-      value:
-        config.loader == "@client/json" && typeof config.value != "string"
-          ? JSON.parse(value)
-          : value,
+      value: typeof config.value != "string" ? JSON.parse(value) : value,
     });
   }, 300);
 

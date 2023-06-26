@@ -4,6 +4,7 @@ import {
   TemplateStoreContext,
   createEditorWithPlugins,
   useEditorContext,
+  withWidgetProps,
   withEditorState,
   withTemplateStore,
   withWidgetDataLoaders,
@@ -31,6 +32,7 @@ const Editor = (props: EditorProps) => {
     withEditorState({
       appId: props.appId,
     }),
+    withWidgetProps(),
     withComponentTree(),
     withTemplateStore({
       templates: TEMPLATES,

@@ -13,11 +13,11 @@ import type { Widget, WidgetConfig } from "@arena/widgets/schema";
 import { Store } from "@arena/solid-store";
 import {
   EditorContext,
+  WidgetPropsContext,
   TemplateStoreContext,
   useEditorContext,
   WidgetDataContext,
 } from "./editor";
-import { Slot } from "./Slot";
 
 type ActiveWidget = {
   id?: string | null;
@@ -37,8 +37,10 @@ const setWidgetRef = (
   ctx: EditorContext<any>
 ) => {
   const onClick = (e: MouseEvent) => {
-    e.stopPropagation();
-    ctx.setSelectedWidgets([id], !e.ctrlKey);
+    if (!ctx.isViewOnly()) {
+      e.stopPropagation();
+      ctx.setSelectedWidgets([id], !e.ctrlKey);
+    }
   };
 
   node.addEventListener("pointerdown", onClick);
@@ -69,7 +71,7 @@ type WidgetProps = {
  * using {@link createWidget}
  */
 const WidgetRenderer = (props: WidgetProps) => {
-  const ctx = useEditorContext<WidgetDataContext>();
+  const ctx = useEditorContext<WidgetDataContext & WidgetPropsContext>();
 
   const [isDataReady, setIsDataReady] = createSignal(false);
   createComputed(() => {
@@ -108,9 +110,8 @@ const WidgetRenderer = (props: WidgetProps) => {
 
   const widget = new Proxy(
     {
-      Editor: {
-        Slot: Slot,
-      },
+      ...dataSetters,
+      Editor: ctx.Editor,
       id: props.id,
       attrs: {
         id: props.id,
@@ -121,7 +122,9 @@ const WidgetRenderer = (props: WidgetProps) => {
           return classList();
         },
       },
-      ...dataSetters,
+      isLoading(field: string) {
+        return dataLoaders[field]?.loading || false;
+      },
     },
     {
       get(target: any, field: string) {
@@ -131,7 +134,7 @@ const WidgetRenderer = (props: WidgetProps) => {
           return dataLoaders[field]();
         } else if (field.startsWith("set") && field.length > 3) {
           // catch-all for setter
-          return (value: any) => {};
+          return () => {};
         }
       },
       getOwnPropertyDescriptor(_, property) {
@@ -166,15 +169,7 @@ const WidgetRenderer = (props: WidgetProps) => {
 // TODO(sagar): this is more of a editable widget than DynamicWidget,
 // so, rename it to a better name
 
-/**
- *
- * @param previousWidgetId is the id of the widget that's rendered before this
- * widget in a Slot. it is used to determine the order of widgets
- */
-const Widget = (props: {
-  widgetId: string;
-  previousWidgetId?: string | null;
-}) => {
+const Widget = (props: { widgetId: string }) => {
   const ctx = useEditorContext<TemplateStoreContext & WidgetDataContext>();
   const { useTemplate, useWidgetById } = ctx;
   const widget = useWidgetById(props.widgetId);

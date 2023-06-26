@@ -13,7 +13,7 @@ import isEqual from "fast-deep-equal/es6";
 import delve from "dlv";
 import { uniqueId } from "@arena/uikit";
 import cleanSet from "clean-set";
-import { App } from "../types/app";
+import { App, Resource } from "../types/app";
 import { Plugin } from "./plugins/types";
 import { Widget } from "@arena/widgets/schema";
 import { useApiContext } from "../ApiContext";
@@ -58,7 +58,7 @@ type EditorStateContext = {
   getSelectedWidgets: Accessor<string[]>;
   isWidgetSelected: (id: Widget["id"]) => boolean;
 
-  getAvailableResources: () => App["resources"][""][];
+  useResources: (filter?: { type?: string }) => Resource[];
 };
 
 type EditorState = {
@@ -212,8 +212,10 @@ const withEditorState: Plugin<
       },
       getSelectedWidgets,
       isWidgetSelected,
-      getAvailableResources() {
-        return Object.values(core.state.app.resources());
+      useResources(filter) {
+        return Object.values(core.state.app.resources()).filter((r) => {
+          return !filter?.type || filter?.type == r.type;
+        });
       },
     } as EditorStateContext);
 
