@@ -1,13 +1,19 @@
 import { createStore } from "@arena/solid-store";
 import AddResourceDialog from "./AddResourceDialog";
-import { Show } from "solid-js";
+import { createResource, Show } from "solid-js";
 import { ResourcesTable } from "./ResourcesTable";
+import { useDashboardContext } from "~/context";
 
 const Resources = () => {
+  const { client } = useDashboardContext();
   const [state, setState] = createStore({
     addResourceDialogOpen: false,
     resourcesRefreshedAt: new Date(),
   });
+
+  const [resourceTypes] = createResource(() =>
+    client.resources.listTypes.query()
+  );
 
   return (
     <div class="w-full h-full overflow-y-auto">
@@ -42,6 +48,7 @@ const Resources = () => {
             setState("addResourceDialogOpen", false);
             setState("resourcesRefreshedAt", new Date());
           }}
+          resourceTypes={resourceTypes() || []}
         />
       </Show>
     </div>

@@ -12,7 +12,7 @@ import {
   isNull,
   sql,
 } from "@arena/db/pg";
-import { merge } from "lodash-es";
+import { isUndefined, merge } from "lodash-es";
 import { Context } from "./context";
 
 export const resources = pgTable("resources", {
@@ -31,7 +31,17 @@ export const resources = pgTable("resources", {
   archivedAt: timestamp("archived_at"),
 });
 
+export const resourceTypes = pgTable("resource_types", {
+  id: varchar("id").notNull(),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  config: jsonb("config").notNull(),
+  isSecret: boolean("is_secret").notNull(),
+  archivedAt: timestamp("archived_at"),
+});
+
 type DbResource = InferModel<typeof resources>;
+type DbResourceType = InferModel<typeof resourceTypes>;
 
 const createRepo = (ctx: Context) => {
   const db = drizzle(ctx.client);
@@ -47,18 +57,23 @@ const createRepo = (ctx: Context) => {
       const updated = rows[0];
       return merge(config, updated) as DbResource;
     },
-    async fetchByWorkspaceId(
-      workspaceId: NonNullable<DbResource["workspaceId"]>
-    ): Promise<Required<DbResource>[]> {
+    async fetch(filter: {
+      id?: string;
+      workspaceId?: NonNullable<DbResource["workspaceId"]>;
+      type?: string;
+    }): Promise<Required<DbResource>[]> {
+      const conditions = [];
+
+      !isUndefined(filter.id) && conditions.push(eq(resources.id, filter.id));
+      !isUndefined(filter.workspaceId) &&
+        conditions.push(eq(resources.workspaceId, filter.workspaceId));
+      !isUndefined(filter.type) &&
+        conditions.push(eq(resources.type, filter.type));
+
       const rows = await db
         .select()
         .from(resources)
-        .where(
-          and(
-            eq(resources.workspaceId, workspaceId),
-            isNull(resources.archivedAt)
-          )
-        );
+        .where(and(...conditions, isNull(resources.archivedAt)));
       return rows;
     },
     async fetchById(id: string): Promise<DbResource | undefined> {
@@ -67,6 +82,13 @@ const createRepo = (ctx: Context) => {
         .from(resources)
         .where(and(eq(resources.id, id), isNull(resources.archivedAt)));
       return rows?.[0];
+    },
+    async fetchResourceTypes(): Promise<DbResourceType[]> {
+      const rows = await db
+        .select()
+        .from(resourceTypes)
+        .where(and(isNull(resourceTypes.archivedAt)));
+      return rows;
     },
     async archiveById(
       id: string

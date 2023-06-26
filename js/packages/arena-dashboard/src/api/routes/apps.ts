@@ -74,7 +74,9 @@ const appsRouter = trpcRouter({
       }
       const widgets = await ctx.repo.widgets.fetchByAppId(app.id);
       const resources = await ctx.acl.filterResourcesByAccess(
-        await ctx.repo.resources.fetchByWorkspaceId(app.workspaceId!),
+        await ctx.repo.resources.fetch({
+          workspaceId: app.workspaceId!,
+        }),
         "view-entity"
       );
       return merge(pick(app, "id", "name", "description", "config"), {

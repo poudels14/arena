@@ -52,4 +52,5 @@ pub struct JavascriptSourceConfig {
 #[serde(rename_all = "camelCase")]
 pub struct JavascriptQueryMetadata {
   pub server_module: String,
+  pub resources: Option<Vec<String>>,
 }

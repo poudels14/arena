@@ -17,4 +17,3 @@ CREATE TABLE resources (
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   archived_at TIMESTAMPTZ DEFAULT NULL
 );
-

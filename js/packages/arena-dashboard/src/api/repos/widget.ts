@@ -15,7 +15,7 @@ const dbWidgetSchema = z.object({
   config: widgetConfigSchema,
   createdBy: z.string(),
   updatedAt: z.string(),
-  archivedAt: z.string().optional(),
+  archivedAt: z.string().optional().nullable(),
 });
 
 type DbWidget = z.infer<typeof dbWidgetSchema>;

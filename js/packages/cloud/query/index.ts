@@ -1,15 +1,20 @@
-const transpileServerFunction = async (code: string) => {
-  const [propsGenerator, serverModule] = await Arena.core.opAsync(
-    "op_cloud_transpile_js_data_query",
-    code
-  );
-
-  return {
-    // TODO(sp): set parsing error
-    errors: null,
-    propsGenerator,
-    serverModule,
-  };
+type DataQueryTranspileResult = {
+  errors: any[];
+  propsGenerator: string;
+  serverModule: string;
+  /**
+   * list of ids of the resources used by this data query
+   */
+  resources: string[];
 };
 
-export { transpileServerFunction };
+const transpileDataQuery = async (
+  code: string
+): Promise<DataQueryTranspileResult> => {
+  const { errors, propsGenerator, serverModule, resources } =
+    await Arena.core.opAsync("op_cloud_transpile_js_data_query", code);
+
+  return { errors, propsGenerator, serverModule, resources };
+};
+
+export { transpileDataQuery };

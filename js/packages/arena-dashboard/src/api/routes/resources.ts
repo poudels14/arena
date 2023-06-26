@@ -3,7 +3,7 @@ import { procedure, router as trpcRouter } from "../trpc";
 import { MutationResponse } from "@arena/studio";
 import { uniqueId } from "@arena/uikit/uniqueId";
 import { merge, snakeCase } from "lodash-es";
-import { notFound } from "../utils/errors";
+import { badRequest, notFound } from "../utils/errors";
 import { checkResourceAccess, checkWorkspaceAccess } from "../middlewares/idor";
 
 const resourceSchemaForClient = z.object({
@@ -11,12 +11,18 @@ const resourceSchemaForClient = z.object({
   workspaceId: z.string(),
   name: z.string(),
   description: z.string().optional().nullable(),
-  type: z.enum(["@arena/sql/postgres", "env", "config"]),
+  type: z.string(),
   secret: z.boolean(),
   key: z.string().optional().nullable(),
   contextId: z.string().optional().nullable(),
   createdBy: z.string(),
   updatedAt: z.string(),
+});
+
+const resourceTypeSchemaForClient = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().optional().nullable(),
 });
 
 const resourcesRouter = trpcRouter({
@@ -26,7 +32,7 @@ const resourcesRouter = trpcRouter({
         workspaceId: z.string(),
         name: z.string(),
         description: z.string().optional(),
-        type: z.enum(["@arena/sql/postgres", "env", "config"]),
+        type: z.string(),
 
         key: z.string().optional(),
         value: z.any(),
@@ -37,14 +43,20 @@ const resourcesRouter = trpcRouter({
     .mutation(async ({ ctx, input }): Promise<MutationResponse> => {
       // TODO(sp): validate workspace id
 
-      const isSecret = ["@arena/sql/postgres"].includes(input.type);
+      const resourceType = (await ctx.repo.resources.fetchResourceTypes()).find(
+        (t) => t.id == input.type
+      );
+      if (!resourceType) {
+        return badRequest();
+      }
+
       const newResource = await ctx.repo.resources.insert({
-        id: uniqueId(),
+        id: uniqueId(16),
         ...(input as Required<typeof input>),
         // TODO(sp): if the key already exists, add sufix to make it unique
         key: snakeCase(input.key ? input.key : input.name).toUpperCase(),
-        secret: isSecret,
-        createdBy: "sagar",
+        secret: resourceType.isSecret,
+        createdBy: ctx.user!.id,
       });
 
       await ctx.repo.acl.addAccess({
@@ -60,6 +72,18 @@ const resourcesRouter = trpcRouter({
         },
       };
     }),
+  listTypes: procedure.query(
+    async ({
+      ctx,
+      input,
+    }): Promise<z.infer<typeof resourceTypeSchemaForClient>[]> => {
+      const resourceTypes = await ctx.repo.resources.fetchResourceTypes();
+
+      return resourceTypes.map((type) =>
+        resourceTypeSchemaForClient.parse(type)
+      );
+    }
+  ),
   list: procedure
     .input(
       z.object({
@@ -74,7 +98,9 @@ const resourcesRouter = trpcRouter({
       }): Promise<z.infer<typeof resourceSchemaForClient>[]> => {
         // TODO(sp): validate workspace id
         const resources = await ctx.acl.filterResourcesByAccess(
-          await ctx.repo.resources.fetchByWorkspaceId(input.workspaceId),
+          await ctx.repo.resources.fetch({
+            workspaceId: input.workspaceId,
+          }),
           "view-entity"
         );
 

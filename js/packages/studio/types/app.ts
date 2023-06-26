@@ -23,15 +23,14 @@ type App = {
   /**
    * List of all the resources available to the app
    */
-  resources: Record<
-    string,
-    {
-      id: string;
-      name: string;
-      description: string | null;
-      type: string;
-    }
-  >;
+  resources: Record<string, Resource>;
 };
 
-export type { App };
+type Resource = {
+  id: string;
+  type: string;
+  name: string;
+  description?: string | null;
+};
+
+export type { App, Resource };

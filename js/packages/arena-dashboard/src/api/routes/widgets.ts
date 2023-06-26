@@ -1,20 +1,23 @@
-import { omit, merge, compact, pick } from "lodash-es";
+import { omit, merge, compact, pick, isNil } from "lodash-es";
 import zod, { z } from "zod";
 import { Widget } from "@arena/widgets";
 import camelCase from "camelcase";
 import {
   DataSource,
   Template,
+  dataSourceSchema,
   dynamicSourceSchema,
   userInputSourceSchema,
   widgetConfigSourceSchema,
 } from "@arena/widgets/schema";
 import { TEMPLATES } from "@arena/studio/templates";
 import { MutationResponse } from "@arena/studio";
-import { transpileServerFunction } from "@arena/cloud/query";
-import { DbWidget, createRepo } from "../repos/widget";
+import { transpileDataQuery } from "@arena/cloud/query";
+import { DbWidget, createRepo, dbWidgetSchema } from "../repos/widget";
 import { badRequest, notFound } from "../utils/errors";
 import { procedure, router as trpcRouter } from "../trpc";
+import { widgetSchema } from "@arena/widgets/schema/widget";
+import { AclChecker } from "../auth/acl";
 
 type DbRepo = { widgets: ReturnType<typeof createRepo> };
 
@@ -102,6 +105,7 @@ const widgetsRouter = trpcRouter({
             },
           },
           data: await withDefaultSourceLoaderConfig(
+            ctx.acl,
             input.templateId,
             defaultDataConfig
           ),
@@ -111,8 +115,7 @@ const widgetsRouter = trpcRouter({
 
       const widget = await ctx.repo.widgets.insert({
         ...newWidget,
-        // TODO(sagar): update
-        createdBy: "sagar",
+        createdBy: ctx.user!.id,
       });
       if (widgetAfter) {
         widgetAfter.config.layout.position = {
@@ -166,12 +169,15 @@ const widgetsRouter = trpcRouter({
 
         const dataConfigPatch = pick(config.data, updatableFields);
 
-        merge(
-          widget.config.data,
-          await withDefaultSourceLoaderConfig(
-            widget.templateId,
-            // @ts-expect-error
-            dataConfigPatch
+        widget.config.data = z.record(dataSourceSchema).parse(
+          merge(
+            widget.config.data,
+            await withDefaultSourceLoaderConfig(
+              ctx.acl,
+              widget.templateId,
+              // @ts-expect-error
+              dataConfigPatch
+            )
           )
         );
       }
@@ -192,15 +198,15 @@ const widgetsRouter = trpcRouter({
         }
       }
 
-      if (config?.class) {
-        widget.config.class = [...new Set(config.class.split(" "))]
+      if (!isNil(config?.class)) {
+        widget.config.class = [...new Set(config!.class.split(" "))]
           .map((c) => c.trim())
           .filter((c) => c.length > 0)
           .join(" ");
       }
 
       const updatedWidgets = compact([
-        await ctx.repo.widgets.update(widget),
+        await ctx.repo.widgets.update(dbWidgetSchema.parse(widget)),
         widgetAfter ? await ctx.repo.widgets.update(widgetAfter) : null,
       ]);
       return {
@@ -302,6 +308,7 @@ const getNextWidgetInLinkedList = async (
 };
 
 const withDefaultSourceLoaderConfig = async (
+  acl: AclChecker,
   templateId: DbWidget["templateId"],
   dataConfig: Record<string, DataSource<any>>
 ) => {
@@ -329,7 +336,7 @@ const withDefaultSourceLoaderConfig = async (
           },
         };
 
-        await validateDataSource(updatedFieldConfig);
+        await validateDataSource(acl, updatedFieldConfig);
         return [field, updatedFieldConfig];
       })
     )
@@ -337,14 +344,37 @@ const withDefaultSourceLoaderConfig = async (
 };
 
 const validateDataSource = async (
+  acl: AclChecker,
   dataSource: DataSource.Dynamic | DataSource.Template
 ) => {
   const { config } = dataSource;
   if (config.loader == "@arena/server-function") {
-    const transpiled = await transpileServerFunction(config.value);
-    config.metatada = {
-      ...transpiled,
-    };
+    try {
+      const transpiled = await transpileDataQuery(config.value);
+      if (
+        (
+          await Promise.all(
+            transpiled.resources.map((r) =>
+              acl.hasResourceAccess(r, "view-entity")
+            )
+          )
+        ).some((hasAccess) => !hasAccess)
+      ) {
+        throw new Error("Doesn't have access to resource");
+      }
+
+      config.metatada = {
+        ...transpiled,
+      };
+    } catch (e) {
+      throw new Error("Invalid code");
+    }
+  } else if (config.loader == "@arena/sql/postgres") {
+    const dbResource = (dataSource.config as any).db!;
+    if (!(await acl.hasResourceAccess(dbResource, "view-entity"))) {
+      throw new Error("Doesn't have access to resource");
+    }
+    // TODO(sagar): validate whether the user has access to transpiled.resources
   }
 };
 

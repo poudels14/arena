@@ -1,29 +1,36 @@
+import { Show, Switch, Match, createSignal } from "solid-js";
 import { Input, Select } from "@arena/components/form";
 import Dialog from "@arena/components/Dialog";
 import { Form, Textarea } from "@arena/components/form";
 import PostgresConfig from "./resources/Postgres";
+import ApiKeyConfig from "./resources/ApiKey";
 import { useDashboardContext } from "~/context";
-import { Show, createSignal } from "solid-js";
+import { createMutationQuery } from "@arena/uikit/solid";
 
-const AddResourceDialog = (props: { closeDialog: () => void }) => {
+const AddResourceDialog = (props: {
+  closeDialog: () => void;
+  resourceTypes: { id: string; name: string }[];
+}) => {
   const { client, workspace } = useDashboardContext();
-  const [resourceType, setResourceType] = createSignal();
+  const [resourceType, setResourceType] = createSignal<string>();
+  const addNewResource = createMutationQuery<any>(async (value) => {
+    await client.resources.add.mutate({
+      ...value,
+      workspaceId: workspace.id,
+    });
+    props.closeDialog();
+  });
+
   return (
     <Dialog
       title="Add a new resource"
       open={true}
       onOpenChange={(open) => !open && props.closeDialog()}
-      contentClass="pt-5 px-8 w-[800px] shadow-accent-11"
+      contentClass="pt-4 px-4 w-[800px] shadow-accent-11"
     >
       <Form
-        onSubmit={async (value) => {
-          await client.resources.add.mutate({
-            ...value,
-            workspaceId: workspace.id,
-          });
-          props.closeDialog();
-        }}
-        class="w-full px-2 py-4 h-[350px] text-sm text-accent-12 overflow-y-auto space-y-5 shadow-sm no-scrollbar"
+        onSubmit={addNewResource}
+        class="w-full pt-4 h-[350px] text-sm text-accent-12 overflow-y-auto space-y-5 shadow-sm no-scrollbar"
       >
         <div class="space-y-1">
           <label class="block text-base font-medium">Resource type</label>
@@ -31,15 +38,12 @@ const AddResourceDialog = (props: { closeDialog: () => void }) => {
             class="w-full text-sm"
             name="type"
             placeholder="Select resource type"
-            options={[
-              {
-                name: "@arena/sql/postgres",
-                title: "Postgres database",
-              },
-            ]}
-            optionValue="name"
-            optionTextValue="title"
+            options={props.resourceTypes}
+            optionValue="id"
+            optionTextValue="name"
+            triggerClass="w-64"
             itemClass="text-sm"
+            contentClass="w-64"
             onChange={setResourceType}
           />
         </div>
@@ -58,18 +62,27 @@ const AddResourceDialog = (props: { closeDialog: () => void }) => {
             placeholder="Resource description"
           />
         </div>
-
-        <div>
-          <div class="mb-1 block text-base text-accent-11">Resource Config</div>
-
-          <div class="space-y-3">
-            <Show when={resourceType() == "@arena/sql/postgres"}>
-              <PostgresConfig />
+        <Show when={resourceType()}>
+          <div class="space-y-2">
+            <div class="mb-1 block text-base font-medium">Resource Config</div>
+            <div class="space-y-3">
+              <Switch>
+                <Match when={resourceType() == "@arena/sql/postgres"}>
+                  <PostgresConfig />
+                </Match>
+                <Match when={resourceType()?.startsWith("@arena/apikey/")}>
+                  <ApiKeyConfig />
+                </Match>
+              </Switch>
+            </div>
+          </div>
+        </Show>
+        <div class="flex">
+          <div class="flex-1 font-medium text-red-600">
+            <Show when={addNewResource.error}>
+              Error adding a new resource. Please try again.
             </Show>
           </div>
-        </div>
-
-        <div class="flex justify-end">
           <button class="px-4 py-1.5 text-sm text-center text-accent-1 bg-brand-12/80 rounded">
             Submit
           </button>
