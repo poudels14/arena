@@ -10,14 +10,14 @@ class Websocket {
   }
 
   async send(data: any) {
-    await opAsync("op_websocket_send", this.#txId, {
+    return await opAsync("op_websocket_send", this.#txId, {
       close: false,
       payload: data,
     });
   }
 
   async close(data?: any) {
-    await opAsync("op_websocket_send", this.#txId, {
+    return await opAsync("op_websocket_send", this.#txId, {
       close: true,
       payload: data,
     });
@@ -29,7 +29,7 @@ class Websocket {
 
   async next() {
     try {
-      const value = await opAsync("op_websocket_recv", this.#rxId);
+      const value = await opAsync("op_websocket_recv", this.#rxId, this.#txId);
       return { value, done: value?.close };
     } catch (error) {
       console.error(

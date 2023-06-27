@@ -33,6 +33,7 @@ pub struct WebsocketIncomingStream(
 
 impl Resource for WebsocketIncomingStream {
   fn close(self: Rc<Self>) {
+    debug!("Incoming stream of websocket dropped");
     drop(self);
   }
 }
@@ -48,6 +49,7 @@ pub struct WebsocketOutgoingStream(pub mpsc::Sender<WebsocketMessage>);
 
 impl Resource for WebsocketOutgoingStream {
   fn close(self: Rc<Self>) {
+    debug!("Outgoing stream of websocket dropped");
     drop(self);
   }
 }
@@ -68,6 +70,7 @@ pub struct WebsocketMessage {
 pub(crate) async fn op_websocket_recv(
   state: Rc<RefCell<OpState>>,
   receiver_rid: ResourceId,
+  sender_rid: ResourceId,
 ) -> Result<Option<WebsocketMessage>> {
   let receiver = {
     state
@@ -79,12 +82,18 @@ pub(crate) async fn op_websocket_recv(
   let mut receiver = receiver.0.borrow_mut();
   match receiver.recv().await {
     Some(data) => Ok(Some(data)),
-    // Close the socket if None is received since
-    // the mpsc sender was probably dropped
-    None => Ok(Some(WebsocketMessage {
-      close: true,
-      ..Default::default()
-    })),
+    None => {
+      // None will be received if the mpsc sender is dropped
+      // So, close the incoming stream and "close" both incoming/outgoing
+      // streams
+      state.borrow_mut().resource_table.close(receiver_rid)?;
+      state.borrow_mut().resource_table.close(sender_rid)?;
+
+      Ok(Some(WebsocketMessage {
+        close: true,
+        ..Default::default()
+      }))
+    }
   }
 }
 
@@ -93,15 +102,22 @@ pub(crate) async fn op_websocket_send(
   state: Rc<RefCell<OpState>>,
   sender_rid: ResourceId,
   value: WebsocketMessage,
-) -> Result<()> {
+) -> u16 {
   let sender = {
     state
       .borrow_mut()
       .resource_table
-      .get::<WebsocketOutgoingStream>(sender_rid)?
+      .get::<WebsocketOutgoingStream>(sender_rid)
   };
 
-  sender.0.send(value).await.map_err(|e| anyhow!("{}", e))
+  if let Ok(sender) = sender {
+    // return 1 if message sending successful
+    match sender.0.send(value).await {
+      Ok(_) => return 1,
+      _ => {}
+    }
+  }
+  return 0;
 }
 
 pub fn upgrade_to_websocket(
@@ -155,7 +171,7 @@ pub fn handle_websocket(
         .map_err(|_| anyhow!("error upgrading to websocket"))?,
     );
 
-    let (in_tx, in_rx) = mpsc::channel::<WebsocketMessage>(5);
+    let (in_tx, in_rx) = mpsc::channel::<WebsocketMessage>(15);
     let (out_tx, mut out_rx) = mpsc::channel::<WebsocketMessage>(5);
     if let Some(websocket_tx) = websocket_tx {
       websocket_tx
@@ -229,13 +245,6 @@ pub fn handle_websocket(
               .map_err(|_| anyhow!("error writing to websocket"))?;
 
             if msg.close {
-              in_tx
-                .send(WebsocketMessage {
-                  payload: None,
-                  close: true,
-                })
-                .await
-                .map_err(|e| anyhow!("{}", e))?;
               debug!("Websocket closed by the server");
               break;
             }
@@ -243,6 +252,8 @@ pub fn handle_websocket(
         }
       }
     }
+    drop(in_tx);
+    drop(out_rx);
     Ok::<(), anyhow::Error>(())
   });
 }
