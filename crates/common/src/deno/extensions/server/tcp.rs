@@ -1,8 +1,8 @@
 pub use self::request::HttpRequest;
-use super::errors;
+use super::errors::{self};
 use super::request::HandleOptions;
 use super::resources::{HttpConnection, HttpServerConfig, TcpServer};
-use super::response::{HttpResponse, HttpResponseMetata};
+use super::response::{HttpResponse, HttpResponseMetata, ParsedHttpResponse};
 use super::{executor, request};
 use anyhow::Result;
 use deno_core::CancelFuture;
@@ -24,7 +24,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::net::TcpListener;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use tokio::task::spawn_local;
 use tower::ServiceBuilder;
 use tower::ServiceExt;
@@ -66,7 +66,8 @@ pub(crate) async fn op_http_accept(
   };
 
   let (tcp_stream, _) = server.listener.borrow_mut().accept().await?;
-  let (tx, rx) = mpsc::channel::<(HttpRequest, mpsc::Sender<HttpResponse>)>(10);
+  let (tx, rx) =
+    mpsc::channel::<(HttpRequest, oneshot::Sender<ParsedHttpResponse>)>(10);
 
   let cors = CorsLayer::new()
     .allow_methods([Method::GET])
@@ -113,14 +114,15 @@ pub(crate) async fn op_http_accept(
   let conn_fut = Http::new()
     .with_executor(executor::LocalExecutor)
     .http1_keep_alive(true)
-    .serve_connection(tcp_stream, service);
+    .serve_connection(tcp_stream, service)
+    .with_upgrades();
 
   let cancel_handle = CancelHandle::new_rc();
   let shutdown_fut = pending::<Never>().or_cancel(&cancel_handle).fuse();
 
   // A local task that polls the hyper connection future to completion.
   let task_fut = async move {
-    let conn_fut = std::pin::pin!(conn_fut);
+    let conn_fut = pin!(conn_fut);
     let shutdown_fut = pin!(shutdown_fut);
     let result = match select(conn_fut, shutdown_fut).await {
       Either::Left((result, _)) => result,
@@ -129,7 +131,6 @@ pub(crate) async fn op_http_accept(
         conn_fut.await
       }
     };
-
     filter_enotconn(result).map_err(Arc::from)
   };
   let (task_fut, closed_fut) = task_fut.remote_handle();
@@ -149,8 +150,8 @@ pub(crate) async fn op_http_accept(
   Ok(connection_rid)
 }
 
-pub async fn handle_request(
-  req_sender: mpsc::Sender<(HttpRequest, mpsc::Sender<HttpResponse>)>,
+pub async fn handle_request<'a>(
+  req_sender: mpsc::Sender<(HttpRequest, oneshot::Sender<ParsedHttpResponse>)>,
   options: HandleOptions,
   req: Request<Body>,
 ) -> Result<(HttpResponse, HttpResponseMetata), errors::Error> {

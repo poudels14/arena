@@ -5,7 +5,9 @@ use axum::response::IntoResponse;
 use axum::{routing, Router};
 use axum_extra::extract::cookie::Cookie;
 use cloud::acl::{Access, AclEntity};
-use common::deno::extensions::server::response::HttpResponse;
+use common::deno::extensions::server::response::{
+  HttpResponse, ParsedHttpResponse,
+};
 use common::deno::extensions::server::{errors, HttpRequest};
 use deno_core::ZeroCopyBuf;
 use http::{Method, Request};
@@ -19,7 +21,7 @@ use std::env;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
 use std::str::FromStr;
-use tokio::sync::mpsc;
+use tokio::sync::oneshot;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tracing::debug;
@@ -142,7 +144,7 @@ pub async fn pipe_dqs_request(
     return Err(errors::Error::NotFound);
   }
 
-  let (tx, mut rx) = mpsc::channel::<HttpResponse>(10);
+  let (tx, rx) = oneshot::channel::<ParsedHttpResponse>();
   let body = {
     match *req.method() {
       // Note(sagar): Deno's Request doesn't support body in GET/HEAD
@@ -189,7 +191,9 @@ pub async fn pipe_dqs_request(
     .await
     .map_err(|_| errors::Error::ResponseBuilder)?;
 
-  rx.recv().await.ok_or(errors::Error::ResponseBuilder)
+  rx.await
+    .map_err(|_| errors::Error::ResponseBuilder)
+    .and_then(|v| v.into())
 }
 
 fn parse_cookies(req: &Request<Body>) -> HashMap<String, String> {

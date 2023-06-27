@@ -1,5 +1,6 @@
-const { opAsync } = Arena.core;
+import { Websocket } from "./websocket";
 
+const { opAsync } = Arena.core;
 class ArenaRequest extends Request {
   rid: number;
 
@@ -18,13 +19,21 @@ class ArenaRequest extends Request {
     let content =
       innerResponse.body?.streamOrStatic?.body || innerResponse.body?.source;
     // TODO(sagar): throw error if stream is used
-    await opAsync(
+    let maybeWebsocket = await opAsync(
       "op_http_send_response",
       this.rid,
       innerResponse.status,
       innerResponse.headerList || [],
       content
     );
+
+    if (maybeWebsocket) {
+      return [
+        new Websocket(maybeWebsocket[0], maybeWebsocket[1]),
+        maybeWebsocket[2],
+      ];
+    }
+    return undefined;
   }
 }
 

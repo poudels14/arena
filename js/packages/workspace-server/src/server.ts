@@ -1,5 +1,5 @@
 import type { Handler } from "@arena/core/server";
-import { serve as serveHttp } from "@arena/runtime/server";
+import { serve as arenaServer } from "@arena/runtime/server";
 import { createFileServer } from "./fileserver";
 
 // Note(sagar): since this is running in server, set SSR = true
@@ -15,21 +15,17 @@ const serve = async (
   console.log("[Arena.Workspace.serve]: Listening to connections...");
 
   const fileServer = options.serveFiles ? createFileServer() : null;
-  await serveHttp({
+  await arenaServer({
     async fetch(req) {
-      let event = {
-        request: req,
-        env: Arena.env,
-      };
-
       if (fileServer) {
-        let file = await fileServer.execute(event);
+        let file = await fileServer.fetch(req);
         if (file.status !== 404) {
           return file;
         }
       }
-      return await handler.execute(event);
+      return await handler.fetch(req);
     },
+    websocket: handler.websocket,
   });
 };
 

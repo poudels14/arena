@@ -1,9 +1,11 @@
 use super::response::HttpResponse;
 use axum::response;
+use http::header::{InvalidHeaderName, InvalidHeaderValue};
 use http::{Response, StatusCode};
 use hyper::body::HttpBody;
 use hyper::Body;
 use std::fmt;
+use std::str::Utf8Error;
 
 #[derive(Debug, Clone)]
 pub enum Error {
@@ -11,7 +13,10 @@ pub enum Error {
   HyperError,
   HttpError,
   AnyhowError,
+  InvalidHeaderNameError,
+  InvalidHeaderValueError,
   ResponseBuilder,
+  Utf8Error,
   NotFound,
 }
 
@@ -44,6 +49,24 @@ impl From<http::Error> for Error {
 impl From<anyhow::Error> for Error {
   fn from(_: anyhow::Error) -> Self {
     Self::AnyhowError
+  }
+}
+
+impl From<InvalidHeaderName> for Error {
+  fn from(_: InvalidHeaderName) -> Self {
+    Self::InvalidHeaderNameError
+  }
+}
+
+impl From<InvalidHeaderValue> for Error {
+  fn from(_: InvalidHeaderValue) -> Self {
+    Self::InvalidHeaderValueError
+  }
+}
+
+impl From<Utf8Error> for Error {
+  fn from(_: Utf8Error) -> Self {
+    Self::Utf8Error
   }
 }
 

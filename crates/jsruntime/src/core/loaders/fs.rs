@@ -2,7 +2,7 @@ use super::super::transpiler;
 use crate::{IsolatedRuntime, RuntimeOptions};
 use anyhow::{anyhow, bail, Error};
 use common::config::ArenaConfig;
-use common::deno::extensions::server::response::HttpResponse;
+use common::deno::extensions::server::response::ParsedHttpResponse;
 use common::deno::extensions::server::{HttpRequest, HttpServerConfig};
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use common::deno::resolver::fs::FsModuleResolver;
@@ -18,12 +18,13 @@ use std::pin::Pin;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::thread;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use url::Url;
 
 pub(crate) struct FsModuleLoader {
   transpile: bool,
-  transpiler_stream: mpsc::Sender<(HttpRequest, mpsc::Sender<HttpResponse>)>,
+  transpiler_stream:
+    mpsc::Sender<(HttpRequest, oneshot::Sender<ParsedHttpResponse>)>,
   resolver: FsModuleResolver,
 }
 

@@ -34,7 +34,14 @@ declare namespace Arena {
     status: number,
     headers: [string, string][],
     data?: null | string | number
+  ): Promise<void | [number, number, any]>;
+
+  function OpAsync(
+    fn: "op_websocket_send",
+    txId: number,
+    data: any
   ): Promise<void>;
+  function OpAsync(fn: "op_websocket_recv", rxId: number): Promise<any>;
 
   /**
    * Transpile the given filename
@@ -321,8 +328,15 @@ declare module "@arena/runtime/postgres" {
 }
 
 declare module "@arena/runtime/server" {
+  interface Websocket extends AsyncIterator<any> {
+    send(data: any): Promise<void>;
+    close(data?: any): Promise<void>;
+    next(): Promise<any>;
+  }
+
   type ServeConfig = {
     fetch: (req: Request) => Promise<Response>;
+    websocket?: (websocket: Websocket, data: any) => void;
   };
 
   type Handler<Context> = {

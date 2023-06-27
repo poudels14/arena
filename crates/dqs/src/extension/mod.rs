@@ -10,13 +10,13 @@ use common::deno::extensions::server::HttpServerConfig;
 use common::deno::extensions::BuiltinExtension;
 use common::resolve_from_root;
 use deno_core::op;
+use deno_core::ByteString;
 use deno_core::Extension;
 use deno_core::OpState;
 use deno_core::Resource;
 use deno_core::ResourceId;
 use deno_core::StringOrBuffer;
 use deno_core::ZeroCopyBuf;
-use hyper::body::HttpBody;
 use serde_json::Value;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -181,16 +181,16 @@ async fn op_dqs_pipe_request_to_stream(
     Option<StringOrBuffer>,
   ),
 ) -> Result<(
-  u16,                   /* status */
-  Vec<(String, String)>, /* headers */
-  ZeroCopyBuf,           /* body */
+  u16,                           /* status */
+  Vec<(ByteString, ByteString)>, /* headers */
+  Option<StringOrBuffer>,        /* body */
 )> {
   let sender = state
     .borrow()
     .resource_table
     .get::<RequestStreamSender>(sender_id)?;
 
-  let (tx, mut rx) = mpsc::channel(2);
+  let (tx, rx) = oneshot::channel();
   sender
     .sender
     .send((
@@ -204,29 +204,8 @@ async fn op_dqs_pipe_request_to_stream(
     ))
     .await?;
 
-  match rx.recv().await {
-    Some(mut response) => Ok((
-      response.status().into(),
-      response
-        .headers()
-        .iter()
-        .map(|(key, value)| {
-          (
-            key.to_string(),
-            String::from_utf8(value.as_bytes().to_owned()).unwrap(),
-          )
-        })
-        .collect::<Vec<(String, String)>>(),
-      <Box<[u8]> as Into<ZeroCopyBuf>>::into(
-        response
-          .body_mut()
-          .data()
-          .await
-          .and_then(|r| r.ok())
-          .map(|r| r.to_vec().into_boxed_slice())
-          .unwrap_or_default(),
-      ),
-    )),
+  match rx.await {
+    Ok(response) => Ok((response.status, response.headers, response.data)),
     _ => bail!("error receiving response from stream"),
   }
 }

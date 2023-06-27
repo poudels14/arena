@@ -28,10 +28,22 @@ const handler = chainMiddlewares<{ event: PageEvent; context: Context }>(
   })
 );
 
-export default createHandler(async (event) => {
+const http = createHandler(async (event) => {
   const context = await createContext({
     req: event.request,
     resHeaders: event.request.headers,
   });
+
+  if (event.ctx.path == "/ws" && context.user) {
+    return new Response(JSON.stringify(context.user), {
+      headers: [["Upgrade", "websocket"]],
+    });
+  }
+
   return handler({ event, context });
 });
+
+export default {
+  fetch: http.fetch,
+  async websocket(socket: any, data: any) {},
+};

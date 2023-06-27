@@ -1,22 +1,21 @@
-use super::errors;
-use super::response::HttpResponse;
+use super::errors::{self};
+use super::response::{HttpResponse, ParsedHttpResponse};
+use super::websocket::{self};
+use anyhow::Result;
 use deno_core::ZeroCopyBuf;
 use http::{Method, Request};
 use hyper::body::HttpBody;
 use hyper::Body;
 use serde::Serialize;
 use std::path::PathBuf;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 
 // TODO(sagar): use fast serialization?
 #[derive(Debug, Serialize)]
 pub struct HttpRequest {
   pub url: String,
-
   pub method: String,
-
   pub headers: Vec<(String, String)>,
-
   pub body: Option<ZeroCopyBuf>,
 }
 
@@ -28,11 +27,14 @@ pub struct HandleOptions {
 
 /// Sends the request to the given http_channel and returns the
 /// response returned by the channel
-pub async fn pipe_request(
-  http_channel: mpsc::Sender<(HttpRequest, mpsc::Sender<HttpResponse>)>,
+pub async fn pipe_request<'a>(
+  http_channel: mpsc::Sender<(
+    HttpRequest,
+    oneshot::Sender<ParsedHttpResponse>,
+  )>,
   mut req: Request<Body>,
 ) -> Result<HttpResponse, errors::Error> {
-  let (tx, mut rx) = mpsc::channel::<HttpResponse>(10);
+  let (tx, rx) = oneshot::channel::<ParsedHttpResponse>();
 
   let body = {
     match *req.method() {
@@ -56,7 +58,9 @@ pub async fn pipe_request(
       .map(|(key, value)| {
         (
           key.to_string(),
-          String::from_utf8(value.as_bytes().to_owned()).unwrap(),
+          simdutf8::basic::from_utf8(value.as_bytes())
+            .unwrap()
+            .to_owned(),
         )
       })
       .collect::<Vec<(String, String)>>(),
@@ -68,7 +72,15 @@ pub async fn pipe_request(
     .await
     .map_err(|_| errors::Error::ResponseBuilder)?;
 
-  rx.recv().await.ok_or(errors::Error::ResponseBuilder)
+  match rx.await {
+    Ok(res) => {
+      if res.has_upgrade_header() {
+        return websocket::upgrade_to_websocket(req, res);
+      }
+      res.into()
+    }
+    Err(_) => Err(errors::Error::ResponseBuilder),
+  }
 }
 
 impl From<&str> for HttpRequest {

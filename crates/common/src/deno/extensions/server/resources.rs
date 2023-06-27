@@ -1,5 +1,5 @@
 use super::request::HttpRequest;
-use super::response::HttpResponse;
+use super::response::ParsedHttpResponse;
 use deno_core::Resource;
 use futures::future::{RemoteHandle, Shared};
 use std::borrow::Cow;
@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 use tokio::net::TcpListener;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 
 #[derive(Clone, Default, Debug)]
 pub enum HttpServerConfig {
@@ -18,7 +18,11 @@ pub enum HttpServerConfig {
     serve_dir: Option<PathBuf>,
   },
   Stream(
-    Rc<RefCell<mpsc::Receiver<(HttpRequest, mpsc::Sender<HttpResponse>)>>>,
+    Rc<
+      RefCell<
+        mpsc::Receiver<(HttpRequest, oneshot::Sender<ParsedHttpResponse>)>,
+      >,
+    >,
   ),
   #[default]
   None,
@@ -50,8 +54,9 @@ impl Resource for TcpServer {
 
 #[derive(Clone)]
 pub(super) struct StreamServer {
-  pub listener:
-    Rc<RefCell<mpsc::Receiver<(HttpRequest, mpsc::Sender<HttpResponse>)>>>,
+  pub listener: Rc<
+    RefCell<mpsc::Receiver<(HttpRequest, oneshot::Sender<ParsedHttpResponse>)>>,
+  >,
 }
 
 impl Resource for StreamServer {
@@ -64,8 +69,9 @@ impl Resource for StreamServer {
 
 #[derive(Clone)]
 pub(super) struct HttpConnection {
-  pub req_stream:
-    Rc<RefCell<mpsc::Receiver<(HttpRequest, mpsc::Sender<HttpResponse>)>>>,
+  pub req_stream: Rc<
+    RefCell<mpsc::Receiver<(HttpRequest, oneshot::Sender<ParsedHttpResponse>)>>,
+  >,
 
   #[allow(dead_code)]
   pub closed_fut: Option<Shared<RemoteHandle<Result<(), Arc<hyper::Error>>>>>,
@@ -81,9 +87,9 @@ impl Resource for HttpConnection {
   }
 }
 
-pub(super) struct HttpResponseHandle {
-  pub sender: mpsc::Sender<HttpResponse>,
-}
+pub(super) struct HttpResponseHandle(
+  pub RefCell<Option<oneshot::Sender<ParsedHttpResponse>>>,
+);
 
 impl Resource for HttpResponseHandle {
   fn name(&self) -> Cow<str> {

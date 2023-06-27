@@ -3,16 +3,22 @@ import { trough } from "trough";
 import qs from "query-string";
 // @ts-ignore
 import cookie from "cookie";
-import { FetchEvent, PageEvent } from "./event";
+import { PageEvent } from "./event";
 
 type Middleware<Arg> = (arg: Arg) => Promise<Response | void>;
 
+interface Websocket extends AsyncIterator<any> {
+  send(data: any): Promise<void>;
+  close(data?: any): Promise<void>;
+  next(): Promise<any>;
+}
+
 type Handler = {
-  execute: (event: FetchEvent) => Promise<Response>;
+  fetch: (req: Request) => Promise<Response>;
+  websocket?: (websocket: Websocket, data: any) => void;
 };
 
-const createPageEvent = (event: FetchEvent): PageEvent => {
-  const { request } = event;
+const createPageEvent = (request: Request): PageEvent => {
   let url = new URL(request.url);
   const cookies = cookie.parse(request.headers.get("Cookie") || "");
   return {
@@ -84,7 +90,7 @@ const createHandler = (...middlewares: Middleware<PageEvent>[]): Handler => {
   const pipeline = chainMiddlewares(...middlewares);
 
   return {
-    execute(event: FetchEvent) {
+    fetch(event: Request) {
       const pageEvent = createPageEvent(event);
       return pipeline(pageEvent);
     },

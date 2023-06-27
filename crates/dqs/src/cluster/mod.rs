@@ -7,7 +7,7 @@ use crate::server::{Command, RuntimeOptions, ServerEvents};
 use anyhow::Result;
 use anyhow::{anyhow, Context};
 use common::beam;
-use common::deno::extensions::server::response::HttpResponse;
+use common::deno::extensions::server::response::ParsedHttpResponse;
 use common::deno::extensions::server::{HttpRequest, HttpServerConfig};
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
@@ -32,7 +32,8 @@ pub struct DqsCluster {
 #[derive(Debug, Clone)]
 pub struct DqsServer {
   pub workspace_id: String,
-  pub http_channel: mpsc::Sender<(HttpRequest, mpsc::Sender<HttpResponse>)>,
+  pub http_channel:
+    mpsc::Sender<(HttpRequest, oneshot::Sender<ParsedHttpResponse>)>,
   pub commands_channel: beam::Sender<Command, Value>,
 }
 

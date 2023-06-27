@@ -1,19 +1,23 @@
 use anyhow::{anyhow, bail, Result};
-use common::deno::extensions::server::response::HttpResponse;
+use bytes::Bytes;
+use common::deno::extensions::server::response::ParsedHttpResponse;
 use common::deno::extensions::server::HttpRequest;
 use common::deno::extensions::transpiler::plugins;
 use common::deno::extensions::transpiler::plugins::jsx_analyzer::JsxAnalyzer;
 use deno_ast::{EmitOptions, MediaType, ParseParams, SourceTextInfo};
 use http::Method;
-use http_body::Body;
 use std::path::Path;
 use std::sync::Arc;
 use swc_ecma_visit::FoldWith;
 use swc_ecma_visit::VisitWith;
 use tokio::sync::mpsc;
+use tokio::sync::oneshot;
 
 pub async fn transpile(
-  transpiler_stream: mpsc::Sender<(HttpRequest, mpsc::Sender<HttpResponse>)>,
+  transpiler_stream: mpsc::Sender<(
+    HttpRequest,
+    oneshot::Sender<ParsedHttpResponse>,
+  )>,
   module_path: &Path,
   media_type: &MediaType,
   code: &str,
@@ -55,19 +59,28 @@ pub async fn transpile(
 }
 
 async fn transpile_jsx<'a>(
-  transpiler_stream: mpsc::Sender<(HttpRequest, mpsc::Sender<HttpResponse>)>,
+  transpiler_stream: mpsc::Sender<(
+    HttpRequest,
+    oneshot::Sender<ParsedHttpResponse>,
+  )>,
   code: &str,
 ) -> Result<String> {
-  let (tx, mut rx) = mpsc::channel(2);
+  let (tx, rx) = oneshot::channel();
   transpiler_stream
     .send(((Method::POST, code).into(), tx))
     .await?;
-  if let Some(mut response) = rx.recv().await {
-    return Ok(
-      std::str::from_utf8(&response.body_mut().data().await.unwrap()?)
-        .map_err(|e| anyhow!("{}", e))?
-        .to_owned(),
-    );
+  if let Ok(response) = rx.await {
+    return response
+      .data
+      .and_then(|b| Some(Bytes::from(b).to_vec()))
+      .and_then(|v| {
+        Some(
+          simdutf8::basic::from_utf8(&v)
+            .expect("Error reading transpiled code")
+            .to_owned(),
+        )
+      })
+      .ok_or(anyhow!("Error reading transpiled code"));
   }
   bail!("Failed to transpile code using babel");
 }
