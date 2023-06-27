@@ -1,6 +1,7 @@
 use super::BuiltinExtension;
 use crate::config::ArenaConfig;
 use crate::deno::RuntimeConfig;
+use crate::dotenv;
 use anyhow::Result;
 use deno_core::op;
 use deno_core::ExtensionFileSource;
@@ -57,20 +58,12 @@ fn op_load_env(state: &mut OpState) -> Result<Value> {
 
   // load env variables from .env files
   let config = state.borrow::<RuntimeConfig>().project_root.clone();
-  if env_vars.get("MODE").unwrap_or(&String::from("")) == "production" {
-    dotenvy::from_filename_iter(config.join(".env")).ok()
-  } else {
-    dotenvy::from_filename_iter(config.join(".env.dev")).ok()
-  }
-  .map(|envs| {
-    envs
-      .into_iter()
-      .filter(|e| e.is_ok())
-      .map(|e| e.unwrap())
-      .for_each(|(key, value)| {
-        env_vars.insert(key, value);
-      });
-  });
+  dotenv::load_env(env_vars.get("MODE").unwrap_or(&String::from("")), &config)
+    .unwrap_or(vec![])
+    .iter()
+    .for_each(|(key, value)| {
+      env_vars.insert(key.to_owned(), value.to_owned());
+    });
 
   Ok(json!(env_vars))
 }

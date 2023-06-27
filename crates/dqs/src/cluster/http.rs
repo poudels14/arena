@@ -24,7 +24,6 @@ use std::str::FromStr;
 use tokio::sync::oneshot;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::{AllowOrigin, CorsLayer};
-use tracing::debug;
 
 pub(crate) async fn start_server(
   cluster: DqsCluster,
@@ -49,7 +48,7 @@ pub(crate) async fn start_server(
     .with_state(cluster);
 
   let addr: SocketAddr = (Ipv4Addr::from_str(&address)?, port).into();
-  debug!("DQS cluster started");
+  println!("DQS cluster started");
   axum::Server::bind(&addr)
     .serve(app.into_make_service())
     .await

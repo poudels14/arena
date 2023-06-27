@@ -1,4 +1,5 @@
 use anyhow::Result;
+use common::dotenv;
 use std::env;
 use tracing_subscriber::prelude::*;
 use tracing_tree::HierarchicalLayer;
@@ -20,6 +21,14 @@ async fn main() -> Result<()> {
         .with_thread_names(true),
     );
   tracing::subscriber::set_global_default(subscriber).unwrap();
+
+  dotenv::load_env(
+    &env::var("MODE").unwrap_or(String::from("")),
+    &env::current_dir().unwrap(),
+  )
+  .unwrap_or(vec![])
+  .iter()
+  .for_each(|(key, value)| env::set_var(key, value));
 
   let host = env::var("HOST").unwrap_or("0.0.0.0".to_owned());
   let port = env::var("PORT")
