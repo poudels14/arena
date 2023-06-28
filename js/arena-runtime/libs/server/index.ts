@@ -20,11 +20,14 @@ const serve = async (config: ServeConfig) => {
               status: 200,
             });
 
-      req!.send(response).then((result) => {
-        if (result && config.websocket) {
-          config.websocket(result[0], result[1]);
-        }
-      });
+      await req!
+        .send(response)
+        .then((result) => {
+          if (result && config.websocket) {
+            config.websocket(result[0], result[1]);
+          }
+        })
+        .catch((e) => console.error(e));
     } catch (error) {
       console.error(error);
       req!.send(

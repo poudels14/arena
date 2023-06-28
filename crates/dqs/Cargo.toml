@@ -20,6 +20,7 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 tracing-tree.workspace = true
 tokio.workspace = true
+tokio-stream.workspace = true
 url.workspace = true
 nom.workspace = true
 hyper.workspace = true

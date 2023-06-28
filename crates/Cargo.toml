@@ -10,6 +10,7 @@ serde_json = { version = "1.0.85", features = [
   "indexmap",
 ] }
 tokio = { version = "1.28.2", features = ["full"] }
+tokio-stream = { version = "0.1.14", features = ["sync"] }
 futures = "0.3.25"
 reqwest = { version = "0.11", features = [
   "json",
@@ -82,6 +83,7 @@ nom = "7.1.3"
 simdutf8 = "0.1.4"
 handlebars = "4.3.7"
 dotenvy = "0.15.7"
+mime = "0.3.17"
 
 deno_core = "=0.189.0"
 deno_console = "=0.107.0"

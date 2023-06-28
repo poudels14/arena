@@ -1,14 +1,15 @@
 pub use self::request::HttpRequest;
-use super::response::{HttpResponse, ParsedHttpResponse};
+use super::response::ParsedHttpResponse;
 use super::{errors, request};
 use anyhow::{anyhow, Result};
+use axum::response::Response;
 use deno_core::{op, OpState, ResourceId, ZeroCopyBuf};
 use deno_core::{Resource, StringOrBuffer};
 use digest::Digest;
 use fastwebsockets::upgrade::upgrade;
 use fastwebsockets::{FragmentCollector, Frame, OpCode, Payload};
 use http::header::{CONNECTION, SEC_WEBSOCKET_ACCEPT, SEC_WEBSOCKET_KEY};
-use http::{HeaderName, HeaderValue, Request, Response, StatusCode};
+use http::{HeaderName, HeaderValue, Request, StatusCode};
 use http_body::Empty;
 use hyper::body::HttpBody;
 use hyper::Body;
@@ -123,7 +124,7 @@ pub(crate) async fn op_websocket_send(
 pub fn upgrade_to_websocket(
   req: Request<Body>,
   res: ParsedHttpResponse,
-) -> Result<HttpResponse, errors::Error> {
+) -> Result<Response, errors::Error> {
   let sec_accept = match req.headers().get(SEC_WEBSOCKET_KEY) {
     Some(sec_key) => sec_websocket_accept_header(sec_key.as_bytes()).ok(),
     None => None,

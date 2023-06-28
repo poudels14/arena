@@ -1,7 +1,8 @@
 use super::errors::{self};
-use super::response::{HttpResponse, ParsedHttpResponse};
+use super::response::ParsedHttpResponse;
 use super::websocket::{self};
 use anyhow::Result;
+use axum::response::Response;
 use deno_core::ZeroCopyBuf;
 use http::{Method, Request};
 use hyper::body::HttpBody;
@@ -33,7 +34,7 @@ pub async fn pipe_request<'a>(
     oneshot::Sender<ParsedHttpResponse>,
   )>,
   mut req: Request<Body>,
-) -> Result<HttpResponse, errors::Error> {
+) -> Result<Response, errors::Error> {
   let (tx, rx) = oneshot::channel::<ParsedHttpResponse>();
 
   let body = {
@@ -77,7 +78,7 @@ pub async fn pipe_request<'a>(
       if res.has_upgrade_header() {
         return websocket::upgrade_to_websocket(req, res);
       }
-      res.into()
+      res.into_response().await
     }
     Err(_) => Err(errors::Error::ResponseBuilder),
   }

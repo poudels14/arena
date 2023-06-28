@@ -1,13 +1,11 @@
 use super::DqsCluster;
 use anyhow::{anyhow, bail, Context, Result};
 use axum::extract::{Path, Query, State};
-use axum::response::IntoResponse;
+use axum::response::{IntoResponse, Response};
 use axum::{routing, Router};
 use axum_extra::extract::cookie::Cookie;
 use cloud::acl::{Access, AclEntity};
-use common::deno::extensions::server::response::{
-  HttpResponse, ParsedHttpResponse,
-};
+use common::deno::extensions::server::response::ParsedHttpResponse;
 use common::deno::extensions::server::{errors, HttpRequest};
 use deno_core::ZeroCopyBuf;
 use http::{Method, Request};
@@ -108,7 +106,7 @@ pub async fn pipe_dqs_request(
   field: &str,
   params: DataQuerySearchParams,
   mut req: Request<Body>,
-) -> Result<HttpResponse, errors::Error> {
+) -> Result<Response, errors::Error> {
   let cookies = parse_cookies(&req);
   let user_id = cookies
     .get("user")
@@ -190,9 +188,8 @@ pub async fn pipe_dqs_request(
     .await
     .map_err(|_| errors::Error::ResponseBuilder)?;
 
-  rx.await
-    .map_err(|_| errors::Error::ResponseBuilder)
-    .and_then(|v| v.into())
+  let res = rx.await.map_err(|_| errors::Error::ResponseBuilder)?;
+  res.into_response().await
 }
 
 fn parse_cookies(req: &Request<Body>) -> HashMap<String, String> {

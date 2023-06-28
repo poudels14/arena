@@ -1,32 +1,29 @@
-use super::response::HttpResponse;
-use axum::response;
+use axum::response::{self, Response};
 use http::header::{InvalidHeaderName, InvalidHeaderValue};
-use http::{Response, StatusCode};
+use http::StatusCode;
 use hyper::body::HttpBody;
 use hyper::Body;
 use std::fmt;
-use std::str::Utf8Error;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum Error {
   StdError,
   HyperError,
   HttpError,
-  AnyhowError,
+  AnyhowError(Box<anyhow::Error>),
   InvalidHeaderNameError,
   InvalidHeaderValueError,
   ResponseBuilder,
-  Utf8Error,
   NotFound,
 }
+
+impl std::error::Error for Error {}
 
 impl fmt::Display for Error {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     write!(f, "Error: {:?}", self)
   }
 }
-
-impl std::error::Error for Error {}
 
 impl From<std::io::Error> for Error {
   fn from(_: std::io::Error) -> Self {
@@ -47,8 +44,8 @@ impl From<http::Error> for Error {
 }
 
 impl From<anyhow::Error> for Error {
-  fn from(_: anyhow::Error) -> Self {
-    Self::AnyhowError
+  fn from(e: anyhow::Error) -> Self {
+    Self::AnyhowError(e.into())
   }
 }
 
@@ -61,12 +58,6 @@ impl From<InvalidHeaderName> for Error {
 impl From<InvalidHeaderValue> for Error {
   fn from(_: InvalidHeaderValue) -> Self {
     Self::InvalidHeaderValueError
-  }
-}
-
-impl From<Utf8Error> for Error {
-  fn from(_: Utf8Error) -> Self {
-    Self::Utf8Error
   }
 }
 
@@ -90,11 +81,11 @@ macro_rules! into_response {
 }
 
 #[allow(dead_code)]
-pub fn internal_server_error() -> HttpResponse {
+pub fn internal_server_error() -> Response {
   into_response!(StatusCode::INTERNAL_SERVER_ERROR, "Internal server error")
 }
 
 #[allow(dead_code)]
-pub fn not_found() -> HttpResponse {
+pub fn not_found() -> Response {
   into_response!(StatusCode::NOT_FOUND, "Not found")
 }

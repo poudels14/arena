@@ -2,9 +2,10 @@ pub use self::request::HttpRequest;
 use super::errors::{self};
 use super::request::HandleOptions;
 use super::resources::{HttpConnection, HttpServerConfig, TcpServer};
-use super::response::{HttpResponse, HttpResponseMetata, ParsedHttpResponse};
+use super::response::{HttpResponseMetata, ParsedHttpResponse};
 use super::{executor, request};
 use anyhow::Result;
+use axum::response::{IntoResponse, Response};
 use deno_core::CancelFuture;
 use deno_core::{op, CancelHandle, OpState, ResourceId};
 use futures::future::{pending, select, Either};
@@ -28,7 +29,9 @@ use tokio::sync::{mpsc, oneshot};
 use tokio::task::spawn_local;
 use tower::ServiceBuilder;
 use tower::ServiceExt;
-use tower_http::compression::CompressionLayer;
+use tower_http::compression::{
+  predicate::NotForContentType, CompressionLayer, DefaultPredicate, Predicate,
+};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::services::ServeDir;
 use tracing::info;
@@ -77,12 +80,15 @@ pub(crate) async fn op_http_accept(
     serve_dir: server.serve_dir,
   };
 
+  let compression_predicate = DefaultPredicate::new()
+    .and(NotForContentType::new(mime::TEXT_EVENT_STREAM.as_ref()));
+
   let service = ServiceBuilder::new()
-    .layer(CompressionLayer::new())
+    .layer(CompressionLayer::new().compress_when(compression_predicate))
     .layer(cors)
     .map_result(
-      |res: Result<(HttpResponse, HttpResponseMetata), errors::Error>| {
-        <Result<HttpResponse, errors::Error>>::Ok(
+      |res: Result<(Response, HttpResponseMetata), errors::Error>| {
+        <Result<Response, errors::Error>>::Ok(
           res
             .map(|res| {
               info!(
@@ -103,7 +109,8 @@ pub(crate) async fn op_http_accept(
               tracing::error_span!("request", error = err.to_string());
               err
             })
-            .unwrap_or(errors::internal_server_error()),
+            .unwrap_or(errors::internal_server_error().into_response())
+            .into_response(),
         )
       },
     )
@@ -154,7 +161,7 @@ pub async fn handle_request<'a>(
   req_sender: mpsc::Sender<(HttpRequest, oneshot::Sender<ParsedHttpResponse>)>,
   options: HandleOptions,
   req: Request<Body>,
-) -> Result<(HttpResponse, HttpResponseMetata), errors::Error> {
+) -> Result<(Response, HttpResponseMetata), errors::Error> {
   let metadata = HttpResponseMetata {
     method: req.method().as_str().to_string(),
     path: req.uri().path().to_string(),
@@ -165,7 +172,9 @@ pub async fn handle_request<'a>(
     Some(base_dir) if req.uri().path().starts_with("/static") => {
       let res = ServeDir::new(base_dir).oneshot(req).await;
       return Ok((
-        res.map(|r| r.map(|body| body.map_err(Into::into).boxed_unsync()))?,
+        res.map(|r| {
+          r.map(|body| body.map_err(|e| axum::Error::new(e)).boxed_unsync())
+        })?,
         metadata,
       ));
     }

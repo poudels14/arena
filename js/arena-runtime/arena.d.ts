@@ -33,8 +33,29 @@ declare namespace Arena {
     rid: number,
     status: number,
     headers: [string, string][],
-    data?: null | string | number
-  ): Promise<void | [number, number, any]>;
+    data: null | string | number,
+    isStream: boolean | null | undefined
+  ): Promise<[number | null, number | null, any]>;
+
+  /**
+   * Write data to stream if the streaming response is being sent
+   * This is used for SSE, etc
+   *
+   * Returns the length of bytes written to the stream
+   * Returns -1 if write failed
+   */
+  function OpAsync(
+    fn: "op_http_write_data_to_stream",
+    streamId: number,
+    eventName: "data",
+    data: any
+  ): Promise<void>;
+
+  function OpAsync(
+    fn: "op_websocket_recv",
+    rxId: number,
+    txId: number
+  ): Promise<any>;
 
   /**
    * returns 0 if sending message failed
@@ -122,6 +143,11 @@ declare namespace Arena {
       op_node_hash_digest: (ctx: number) => number[];
       op_node_hash_digest_hex: (ctx: number) => string;
       op_node_generate_secret: (buffer: any) => void;
+
+      /**
+       * Returns true if stream was successfully closed
+       */
+      op_http_close_stream: (id: number) => boolean;
 
       /**
        * Only set if Resolver module is used

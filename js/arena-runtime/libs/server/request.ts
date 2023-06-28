@@ -1,6 +1,6 @@
 import { Websocket } from "./websocket";
 
-const { opAsync } = Arena.core;
+const { ops, opAsync } = Arena.core;
 class ArenaRequest extends Request {
   rid: number;
 
@@ -16,6 +16,32 @@ class ArenaRequest extends Request {
       response
     );
 
+    if (innerResponse?.body?.streamOrStatic instanceof ReadableStream) {
+      const body = innerResponse?.body?.streamOrStatic;
+      const [writerId] = await opAsync(
+        "op_http_send_response",
+        this.rid,
+        innerResponse.status,
+        innerResponse.headerList || [],
+        null,
+        true
+      );
+
+      // TODO(sagar): handle async/await subscription better
+      let next;
+      let reader = body.getReader();
+      while ((next = await reader.read()) && !next.done) {
+        await opAsync(
+          "op_http_write_data_to_stream",
+          writerId!,
+          "data",
+          next.value
+        );
+      }
+      ops.op_http_close_stream(writerId!);
+      return;
+    }
+
     let content =
       innerResponse.body?.streamOrStatic?.body || innerResponse.body?.source;
     // TODO(sagar): throw error if stream is used
@@ -24,7 +50,8 @@ class ArenaRequest extends Request {
       this.rid,
       innerResponse.status,
       innerResponse.headerList || [],
-      content
+      content,
+      false
     );
 
     if (maybeWebsocket) {
