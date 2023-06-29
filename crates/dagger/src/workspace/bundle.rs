@@ -1,7 +1,8 @@
 use anyhow::Result;
-use clap::{value_parser, Parser};
+use clap::Parser;
 use common::config::ArenaConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
+use deno_core::resolve_url_or_path;
 use jsruntime::permissions::{FileSystemPermissions, PermissionsContainer};
 use jsruntime::{IsolatedRuntime, RuntimeOptions};
 use std::collections::HashSet;
@@ -9,9 +10,9 @@ use url::Url;
 
 #[derive(Parser, Debug)]
 pub struct Command {
-  /// Whether to minify client bundle. Server bundle isn't minified
-  #[arg(short('m'), long, value_parser=value_parser!(bool), default_value_t = true)]
-  pub minify: bool,
+  /// Path to `bundle.config.js`
+  #[arg(short('c'))]
+  pub config: String,
 }
 
 impl Command {
@@ -24,6 +25,7 @@ impl Command {
       project_root: Some(project_root.clone()),
       config: Some(ArenaConfig::default()),
       enable_console: true,
+      transpile: true,
       builtin_extensions: BuiltinExtensions::with_modules(vec![
         BuiltinModule::Fs,
         BuiltinModule::Node,
@@ -61,17 +63,18 @@ impl Command {
       ..Default::default()
     })?;
 
+    let config_file =
+      resolve_url_or_path(&self.config, &std::env::current_dir()?)?;
     runtime
       .execute_main_module_code(
         &Url::parse("file://main").unwrap(),
         &format!(
           r#"
-        import {{ bundle }} from "dagger/bundler";
-        bundle({{
-          minify: {0}
-        }})
+        import bundler from "{0}";
+        import {{ loadConfig }} from "dagger/bundler";
+        loadConfig().then(config => bundler(config));
         "#,
-          self.minify
+          config_file
         ),
       )
       .await?;
