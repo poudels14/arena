@@ -1,39 +1,53 @@
-import { Show, For, createResource } from "solid-js";
+import { Show, For, createResource, createEffect, onCleanup } from "solid-js";
 import { Title } from "@arena/core/solid";
-import { A } from "@solidjs/router";
-import { useDashboardContext } from "~/context";
+import { Store, StoreSetter } from "@arena/solid-store";
+import {
+  Routes as SolidRoutes,
+  Route,
+  useNavigate,
+  useParams,
+} from "@solidjs/router";
 import { createStore } from "@arena/solid-store";
+import { useDashboardContext } from "~/context";
 import CreateAppDialog from "./CreateAppDialog";
+import AppThumbnail from "./AppThumbnail";
 
-const App = (props: {
-  id: string;
-  name: string;
-  description?: string;
-  config: any;
-}) => {
-  const thumbnailClass = () => props.config?.ui?.thumbnail?.class;
-  return (
-    <A
-      href={"/apps/" + props.id}
-      class="w-48 h-24 lg:w-64 lg:h-36 relative group bg-brand-2 rounded-lg bg-gradient-to-br cursor-pointer"
-      classList={{
-        [thumbnailClass()]: Boolean(thumbnailClass()),
-      }}
-    >
-      <div class="absolute bottom-0 px-4 py-2">
-        <div class="font-medium text-accent-12/80 group-hover:text-brand-12">
-          {props.name}
-        </div>
-      </div>
-    </A>
-  );
+type PageState = {
+  createAppDialogOpen: boolean;
 };
 
 const Apps = () => {
-  const { client, workspace } = useDashboardContext();
-  const [state, setState] = createStore({
+  const [state, setState] = createStore<PageState>({
     createAppDialogOpen: false,
   });
+
+  return (
+    <SolidRoutes>
+      <Route
+        path="/:id?"
+        component={() => {
+          const params = useParams();
+          createEffect(() => {
+            if (params.id == "new") {
+              setState("createAppDialogOpen", true);
+            }
+            onCleanup(() => {
+              setState("createAppDialogOpen", false);
+            });
+          });
+          return <Home state={state} setState={setState} />;
+        }}
+      />
+    </SolidRoutes>
+  );
+};
+
+const Home = (props: {
+  state: Store<PageState>;
+  setState: StoreSetter<PageState>;
+}) => {
+  const navigate = useNavigate();
+  const { client, workspace } = useDashboardContext();
 
   const [apps, { refetch }] = createResource(() => {
     return client.apps.list.query({
@@ -48,7 +62,9 @@ const Apps = () => {
         <div class="w-full px-10 py-10 flex justify-end">
           <button
             class="px-3 py-1.5 rounded text-xs border border-accent-11/60 hover:bg-accent-2 select-none"
-            onClick={() => setState("createAppDialogOpen", true)}
+            onClick={() => {
+              navigate("/apps/new");
+            }}
           >
             Create new app
           </button>
@@ -61,15 +77,15 @@ const Apps = () => {
           </Show>
           <For each={apps()}>
             {(app) => {
-              return <App {...app} />;
+              return <AppThumbnail {...app} />;
             }}
           </For>
         </div>
       </div>
-      <Show when={state.createAppDialogOpen()}>
+      <Show when={props.state.createAppDialogOpen()}>
         <CreateAppDialog
           closeDialog={() => {
-            setState("createAppDialogOpen", false);
+            navigate("/apps");
             refetch();
           }}
         />

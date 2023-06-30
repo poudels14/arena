@@ -2,6 +2,7 @@
   "name": "arena-dashboard",
   "version": "0.0.1",
   "dependencies": {
+    "@arena/apps": "workspace:^",
     "@arena/cloud": "workspace:^",
     "@arena/components": "workspace:^0.1.0",
     "@arena/core": "^0.1.0",

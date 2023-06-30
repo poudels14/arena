@@ -33,6 +33,11 @@ const Routes = (props: { user: any }) => {
       <SolidRoutes>
         <Route
           path="/apps/:id"
+          matchFilters={{
+            id: (id) => {
+              return !["new"].includes(id);
+            },
+          }}
           component={() => {
             const params = useParams();
             return <App id={params.id} />;

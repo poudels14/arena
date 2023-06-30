@@ -4,19 +4,16 @@ import {
   useLocation,
   useNavigate,
 } from "@solidjs/router";
-import { lazy, createEffect } from "solid-js";
-import { ChatBox } from "../jarvis";
+import { createEffect } from "solid-js";
 import { Sidebar } from "../sidebar";
 import { Resources } from "./resources";
-
-//@ts-ignore
-const Apps = lazy(() => import("./apps/index.tsx"));
+import Apps from "./apps";
 
 const DashboardPages = () => {
   return (
     <>
       <SolidRoutes>
-        <Route path="/apps" component={Apps} />
+        <Route path="/apps/*" component={Apps} />
         <Route path="/resources" component={Resources} />
       </SolidRoutes>
     </>
