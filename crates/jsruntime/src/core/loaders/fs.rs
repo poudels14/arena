@@ -157,7 +157,9 @@ impl ModuleLoader for FsModuleLoader {
         | MediaType::Dcts
         | MediaType::Tsx
         | MediaType::Jsx => (ModuleType::JavaScript, None, transpile),
-        MediaType::Json => (ModuleType::Json, None, false),
+        MediaType::Json => {
+          (ModuleType::JavaScript, Some(self::load_json(&path)?), false)
+        }
         _ => match path.extension().and_then(|e| e.to_str()) {
           Some("css") => {
             (ModuleType::JavaScript, Some(self::load_css(&path)?), false)
@@ -201,4 +203,9 @@ impl ModuleLoader for FsModuleLoader {
 fn load_css(path: &PathBuf) -> Result<Arc<str>, Error> {
   let css = std::fs::read_to_string(path.clone())?;
   Ok(format!(r#"export default `{css}`;"#).into())
+}
+
+fn load_json(path: &PathBuf) -> Result<Arc<str>, Error> {
+  let json = std::fs::read_to_string(path.clone())?;
+  Ok(format!(r#"export default JSON.parse(`{json}`);"#).into())
 }
