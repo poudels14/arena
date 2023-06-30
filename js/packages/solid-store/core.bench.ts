@@ -1,5 +1,5 @@
 import { describe, bench, afterAll } from "vitest";
-import { createStore } from ".";
+import { createStore } from "./core";
 import { createStore as createSolidStore } from "solid-js/store";
 import { createRoot, createEffect, onCleanup } from "solid-js";
 

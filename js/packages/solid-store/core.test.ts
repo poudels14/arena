@@ -1,5 +1,5 @@
 import { describe, expect, test, vitest } from "vitest";
-import { createStore, $RAW } from ".";
+import { createStore, $RAW } from "./core";
 import { createRoot, createEffect, onCleanup } from "solid-js";
 
 describe("Store", () => {

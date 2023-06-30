@@ -1,7 +1,8 @@
 import { For, JSX, Match, Show, Switch, createMemo } from "solid-js";
 import { useDragDropContext, createDroppable } from "@arena/solid-dnd";
 import { Draggable } from "@arena/solid-dnd/draggable";
-import { ComponentTreeContext, useEditorContext } from "./editor";
+import { useEditorContext } from "./editor/editor";
+import { ComponentTreeContext } from "./editor/plugins/withComponentTree";
 import { Widget } from "./Widget";
 import { Template } from "@arena/widgets";
 

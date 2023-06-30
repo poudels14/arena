@@ -11,13 +11,12 @@ import {
 } from "solid-js";
 import type { Widget, WidgetConfig } from "@arena/widgets/schema";
 import { Store } from "@arena/solid-store";
-import {
-  EditorContext,
+import { EditorContext, useEditorContext } from "./editor/editor";
+import type {
   WidgetPropsContext,
   TemplateStoreContext,
-  useEditorContext,
   WidgetDataContext,
-} from "./editor";
+} from "./editor/plugins";
 
 type ActiveWidget = {
   id?: string | null;

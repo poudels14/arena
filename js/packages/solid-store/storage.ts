@@ -1,5 +1,5 @@
 import { createEffect } from "solid-js";
-import { createStore } from "./index";
+import { createStore } from "./core";
 
 /**
  * Creates a store that's synced with local storage
