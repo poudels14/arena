@@ -26,13 +26,17 @@ const resolver = (
           resolvedBy: "arena-resolver",
         };
       }
-      const resolvedPath = resolver.resolve(source, importer || "./");
-      if (resolvedPath) {
-        return {
-          id: path.join(resolver.root, resolvedPath),
-          external: false,
-          resolvedBy: "arena-resolver",
-        };
+      try {
+        const resolvedPath = resolver.resolve(source, importer || "./");
+        if (resolvedPath) {
+          return {
+            id: path.join(resolver.root, resolvedPath),
+            external: false,
+            resolvedBy: "arena-resolver",
+          };
+        }
+      } catch (e) {
+        return null;
       }
     },
   };
