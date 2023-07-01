@@ -22,28 +22,30 @@ const r = createRouter({
     "/healthy": p.query(() => {
       return "Ok";
     }),
-    "/execWidgetQuery": p.mutate(async ({ req }) => {
-      const { workspaceId, appId, widgetId, field, updatedAt, props } =
-        execWidgetQueryBodySchema.parse(await req.json());
-      try {
-        const env = await import(
-          `~/apps/${appId}/widgets/${widgetId}/${field}/env`
-        );
-        return await import(
-          `~/apps/${appId}/widgets/${widgetId}/${field}?updatedAt=${updatedAt}`
-        ).then(async (m) => {
-          const result = await Promise.all([
-            m.default({
-              props: props || {},
-              env,
-            }),
-          ]);
-          return result[0];
-        });
-      } catch (e) {
-        return e;
+    "/:appId/widgets/:widgetId/api/:field": p.mutate(
+      async ({ req, params }) => {
+        const { workspaceId, appId, widgetId, field, updatedAt, props } =
+          execWidgetQueryBodySchema.parse(await req.json());
+        try {
+          const env = await import(
+            `~/apps/${appId}/widgets/${widgetId}/${field}/env`
+          );
+          return await import(
+            `~/apps/${appId}/widgets/${widgetId}/${field}?updatedAt=${updatedAt}`
+          ).then(async (m) => {
+            const result = await Promise.all([
+              m.default({
+                props: props || {},
+                env,
+              }),
+            ]);
+            return result[0];
+          });
+        } catch (e) {
+          return e;
+        }
       }
-    }),
+    ),
   },
 });
 

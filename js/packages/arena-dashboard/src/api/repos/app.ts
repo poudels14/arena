@@ -18,6 +18,7 @@ export const apps = pgTable("apps", {
   id: varchar("id").notNull(),
   name: varchar("name").notNull(),
   description: text("description"),
+  template: jsonb("template"),
   workspaceId: varchar("workspace_id"),
   config: jsonb("config"),
   createdBy: varchar("created_by"),
@@ -27,6 +28,7 @@ export const apps = pgTable("apps", {
 });
 
 type App = InferModel<typeof apps> & {
+  template: { id: string; version: string } | null;
   description?: string;
   config: any;
   archivedAt?: Date | null;

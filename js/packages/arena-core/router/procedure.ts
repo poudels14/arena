@@ -15,7 +15,14 @@ type ProcedureCallbackArgs<Context> = {
     value: string,
     options?: CookieSerializeOptions
   ) => void;
+  /**
+   * Path params
+   */
   params: Record<string, string>;
+
+  /**
+   * Search/Query params
+   */
   searchParams: Record<string, string>;
   cookies: Record<string, string>;
   errors: {

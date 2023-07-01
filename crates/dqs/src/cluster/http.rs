@@ -36,12 +36,12 @@ pub(crate) async fn start_server(
     .layer(cors)
     .layer(CompressionLayer::new())
     .route(
-      "/api/query/:appId/:widgetId/:field",
-      routing::get(handle_dqs_get_query),
+      "/w/:appId/widgets/:widgetId/api/:field",
+      routing::get(handle_widget_get_query),
     )
     .route(
-      "/api/query/:appId/:widgetId/:field",
-      routing::post(handle_dqs_mutate_query),
+      "/api/:appId/widgets/:widgetId/api/:field",
+      routing::post(handle_widgets_mutate_query),
     )
     .with_state(cluster);
 
@@ -62,13 +62,13 @@ pub struct DataQuerySearchParams {
   pub updated_at: Option<String>,
 }
 
-pub async fn handle_dqs_get_query(
+pub async fn handle_widget_get_query(
   Path((app_id, widget_id, field)): Path<(String, String, String)>,
   Query(search_params): Query<DataQuerySearchParams>,
   State(cluster): State<DqsCluster>,
   req: Request<Body>,
 ) -> impl IntoResponse {
-  pipe_dqs_request(
+  pipe_widget_query_request(
     &cluster,
     "QUERY",
     &app_id,
@@ -80,13 +80,13 @@ pub async fn handle_dqs_get_query(
   .await
 }
 
-pub async fn handle_dqs_mutate_query(
+pub async fn handle_widgets_mutate_query(
   Path((app_id, widget_id, field)): Path<(String, String, String)>,
   Query(search_params): Query<DataQuerySearchParams>,
   State(cluster): State<DqsCluster>,
   req: Request<Body>,
 ) -> impl IntoResponse {
-  pipe_dqs_request(
+  pipe_widget_query_request(
     &cluster,
     "MUTATION",
     &app_id,
@@ -98,7 +98,7 @@ pub async fn handle_dqs_mutate_query(
   .await
 }
 
-pub async fn pipe_dqs_request(
+pub async fn pipe_widget_query_request(
   cluster: &DqsCluster,
   trigger: &str, // "QUERY" | "MUTATION"
   app_id: &str,
@@ -162,7 +162,7 @@ pub async fn pipe_dqs_request(
     .context("failed to parse props")?;
   let request = HttpRequest {
     method: "POST".to_owned(),
-    url: "http://0.0.0.0/execWidgetQuery".to_owned(),
+    url: format!("http://0.0.0.0/{app_id}/widgets/{widget_id}/api/{field}"),
     headers: vec![(("content-type".to_owned(), "application/json".to_owned()))],
     body: Some(ZeroCopyBuf::ToV8(Some(
       json!({

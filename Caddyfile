@@ -1,0 +1,26 @@
+{
+	admin :10000 {
+	}
+	http_port 8000
+}
+
+localhost:8000 {
+	header Cache-Control max-age=0
+	encode zstd gzip
+
+	log {
+		level DEBUG
+	}
+
+	route /static/* {
+		reverse_proxy localhost:9000
+	}
+
+	route /* {
+		reverse_proxy 127.0.0.1:9001
+	}
+
+	route /w/* {
+		reverse_proxy localhost:9002
+	}
+}

@@ -15,6 +15,12 @@ const appsRouter = trpcRouter({
         workspaceId: z.string(),
         name: z.string(),
         description: z.string().optional(),
+        template: z
+          .object({
+            id: z.string(),
+            version: z.string(),
+          })
+          .optional(),
       })
     )
     .use(checkWorkspaceAccess((input) => input.workspaceId, "member"))
@@ -39,7 +45,9 @@ const appsRouter = trpcRouter({
 
       return {
         apps: {
-          created: [pick(newApp, "id", "name", "description", "config")],
+          created: [
+            pick(newApp, "id", "name", "template", "description", "config"),
+          ],
         },
       };
     }),
@@ -60,7 +68,7 @@ const appsRouter = trpcRouter({
         );
 
         return apps.map((app) => {
-          return pick(app, "id", "name", "description", "config");
+          return pick(app, "id", "name", "template", "description", "config");
         });
       }
     ),
@@ -79,30 +87,33 @@ const appsRouter = trpcRouter({
         }),
         "view-entity"
       );
-      return merge(pick(app, "id", "name", "description", "config"), {
-        widgets: widgets.reduce((widgetsById, widget) => {
-          widgetsById[widget.id] = {
-            ...widget,
-            template: {
-              id: widget.templateId,
-              // TODO
-              name: "",
-              url: "",
-            },
-          };
-          return widgetsById;
-        }, {} as App["widgets"]),
-        resources: resources.reduce((resourcesById, resource) => {
-          resourcesById[resource.id!] = pick(
-            resource as App["resources"][""],
-            "id",
-            "name",
-            "description",
-            "type"
-          );
-          return resourcesById;
-        }, {} as App["resources"]),
-      });
+      return merge(
+        pick(app, "id", "name", "template", "description", "config"),
+        {
+          widgets: widgets.reduce((widgetsById, widget) => {
+            widgetsById[widget.id] = {
+              ...widget,
+              template: {
+                id: widget.templateId,
+                // TODO
+                name: "",
+                url: "",
+              },
+            };
+            return widgetsById;
+          }, {} as App["widgets"]),
+          resources: resources.reduce((resourcesById, resource) => {
+            resourcesById[resource.id!] = pick(
+              resource as App["resources"][""],
+              "id",
+              "name",
+              "description",
+              "type"
+            );
+            return resourcesById;
+          }, {} as App["resources"]),
+        }
+      );
     }),
   update: procedure
     .input(
@@ -134,7 +145,10 @@ const appsRouter = trpcRouter({
       return {
         apps: {
           deleted: [
-            merge(pick(app, "id", "name", "description", "config"), archivedAt),
+            merge(
+              pick(app, "id", "name", "template", "description", "config"),
+              archivedAt
+            ),
           ],
         },
       };

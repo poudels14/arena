@@ -7,6 +7,11 @@ type App = {
 
   description?: string;
 
+  template: {
+    id: string;
+    version: string;
+  } | null;
+
   config: {
     ui?: {
       thumbnail?: {

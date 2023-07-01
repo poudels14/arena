@@ -162,7 +162,6 @@ impl WorkspaceServer {
   }
 
   async fn start_workspace_js_server(&self) -> Result<()> {
-    let dqs_extension = BuiltinModule::Custom(dqs::extension);
     let mut builtin_modules = vec![
       BuiltinModule::Fs,
       BuiltinModule::Env,
@@ -181,7 +180,6 @@ impl WorkspaceServer {
         "@arena/workspace-server",
         include_str!("../../../../js/packages/workspace-server/dist/server.js"),
       ),
-      dqs_extension.clone(),
       BuiltinModule::Custom(cloud::extension::extension),
     ];
 
@@ -237,9 +235,6 @@ impl WorkspaceServer {
       heap_limits: self.workspace.heap_limits,
       ..Default::default()
     })?;
-
-    BuiltinExtensions::with_modules(vec![dqs_extension])
-      .load_snapshot_modules(&mut runtime.runtime.borrow_mut())?;
 
     let server_entry = self.workspace.server_entry();
     let server_entry = server_entry

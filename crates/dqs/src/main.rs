@@ -72,7 +72,7 @@ async fn main() -> Result<()> {
               }
 
               const [status, headers, body] = await server.pipeRequest({
-                url: "http://0.0.0.0/execWidgetQuery",
+                url: `http://0.0.0.0/${appId}/widget/${widgetId}/api/${field}`,
                 method: "POST",
                 headers: [[ "content-type", "application/json" ]],
                 body: await req.json()

@@ -14,9 +14,9 @@ const { babel, postcss, terser } = plugins;
  * app template. Remove this once a better workflow is in place.
  */
 const BUILTIN_APP_ENTRIES = BUILTIN_APPS.reduce((agg, app) => {
-  agg[`apps/${app.id}-${app.version}`] = `~/@arena/apps/${app.id.substring(
-    "@arena/".length
-  )}`;
+  agg[
+    `templates/apps/${app.id}/${app.version}`
+  ] = `~/@arena/apps/${app.id.substring("@arena/".length)}`;
   return agg;
 }, {});
 
@@ -73,11 +73,14 @@ export default async function (options) {
   if (options.server) {
     const { entry, javascript } = options.server;
     await buildServer({
-      input: entry,
+      input: {
+        index: entry,
+        ...BUILTIN_APP_ENTRIES,
+      },
       output: {
         format: "es",
-        inlineDynamicImports: true,
-        file: path.join(outDir, "server/index.js"),
+        entryFileNames: "[name].js",
+        dir: path.join(outDir, "server/"),
       },
       javascript,
       plugins: [

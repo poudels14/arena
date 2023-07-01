@@ -10,9 +10,9 @@ const p = procedure<Context>().use(async ({ ctx, params, errors, next }) => {
 });
 
 const queryRouter = createRouter<Context>({
-  prefix: "/query",
+  prefix: "/w",
   routes: {
-    "/:appId/:widgetId/:field": p
+    "/:appId/widgets/:widgetId/api/:field": p
       .use(async ({ req, ctx, params, searchParams, next, errors }) => {
         if (req.method == "POST") {
           if (!(await ctx.acl.hasAppAccess(params.appId, "view-entity"))) {
@@ -48,16 +48,17 @@ const pipeRequestToDqs = async (
     dqsCluster.set(workspaceId, server);
   }
 
+  const { appId, widgetId, field } = params;
   const [status, headers, body] = await server.pipeRequest({
-    url: "http://0.0.0.0/execWidgetQuery",
+    url: `http://0.0.0.0/${appId}/widget/${widgetId}/api/${field}`,
     method: "POST",
     headers: [["content-type", "application/json"]],
     body: {
       trigger,
       workspaceId,
-      appId: params.appId,
-      widgetId: params.widgetId,
-      field: params.field,
+      appId,
+      widgetId,
+      field,
       props: JSON.parse(searchParams.props),
       updatedAt: searchParams.updatedAt,
     },

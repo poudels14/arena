@@ -22,7 +22,7 @@ const App = (props: { id: string }) => {
       }
       queryWidgetData={async (input: any) => {
         return await fetch(
-          `/api/query/${input.appId}/${input.widgetId}/${
+          `/w/${input.appId}/widgets/${input.widgetId}/api/${
             input.field
           }?updatedAt=${input.updatedAt}&props=${encodeURI(
             JSON.stringify(input.props)

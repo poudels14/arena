@@ -28,7 +28,7 @@ type RouterOptions = {
 const router = (options: RouterOptions) => {
   const findMyRouter = mergedRouter({
     prefix: "/api",
-    routers: [queryRouter, accountRouter],
+    routers: [accountRouter],
   });
 
   return async ({ event, context }: { event: PageEvent; context: Context }) => {
