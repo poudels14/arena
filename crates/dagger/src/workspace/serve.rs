@@ -2,6 +2,7 @@ use anyhow::Result;
 use arena_workspace::server::ServerOptions;
 use arena_workspace::WorkspaceConfig;
 use clap::Parser;
+use std::env;
 use std::path::Path;
 use tracing::{info, Level};
 
@@ -32,13 +33,17 @@ impl Command {
       heap_limits: None,
     };
 
+    let port = env::var("PORT")
+      .ok()
+      .and_then(|p: String| p.parse().ok())
+      .unwrap_or(8000);
     let handle = {
       let span = tracing::span!(Level::DEBUG, "starting workspace server");
       let _enter = span.enter();
       arena_workspace::server::serve(
         workspace,
         ServerOptions {
-          port: 8000,
+          port,
           ..Default::default()
         },
       )

@@ -9,7 +9,7 @@ ast = []
 dotenv = []
 deno = []
 data_query = []
-all = ["ast", "dotenv", "deno", "data_query", "fs_rerun_if_changed"]
+all = ["ast", "dotenv", "deno", "data_query"]
 
 [dependencies]
 anyhow.workspace = true

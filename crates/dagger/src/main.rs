@@ -7,6 +7,8 @@ use anyhow::bail;
 use anyhow::Result;
 use clap::Parser;
 use colored::*;
+use common::dotenv;
+use std::env;
 use std::str::FromStr;
 use tracing::debug;
 use tracing_subscriber::filter::Directive;
@@ -57,6 +59,14 @@ async fn main() -> Result<()> {
 
   let args = Args::parse();
   debug!("Running cli with args: {:?}", args);
+
+  dotenv::load_env(
+    &env::var("MODE").unwrap_or(String::from("")),
+    &env::current_dir().unwrap(),
+  )
+  .unwrap_or(vec![])
+  .iter()
+  .for_each(|(key, value)| env::set_var(key, value));
 
   let res: Result<()> = async {
     match args.command {
