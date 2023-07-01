@@ -40,6 +40,11 @@ impl Command {
       })
       .await?;
 
+    let port = env::var("PORT")
+      .ok()
+      .and_then(|p: String| p.parse().ok())
+      .unwrap_or(8000);
+
     let handle = {
       let span = tracing::span!(Level::DEBUG, "starting workspace server");
       let _enter = span.enter();
@@ -47,7 +52,7 @@ impl Command {
         workspace,
         ServerOptions {
           dev_mode: true,
-          port: 8000,
+          port,
           ..Default::default()
         },
       )

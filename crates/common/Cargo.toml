@@ -5,6 +5,11 @@ edition = "2021"
 
 [features]
 fs_rerun_if_changed = []
+ast = []
+dotenv = []
+deno = []
+data_query = []
+all = ["ast", "dotenv", "deno", "data_query", "fs_rerun_if_changed"]
 
 [dependencies]
 anyhow.workspace = true

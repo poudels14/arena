@@ -17,7 +17,7 @@ http-body.workspace = true
 http.workspace = true
 bytes.workspace = true
 simdutf8.workspace = true
-common = { path = "../common" }
+common = { path = "../common", features = ["all"] }
 
 deno_core.workspace = true
 deno_console.workspace = true
@@ -29,7 +29,7 @@ deno_ast.workspace = true
 swc_ecma_visit.workspace = true
 
 [build-dependencies]
-common = { path = "../common", features = ["fs_rerun_if_changed"] }
+common = { path = "../common", features = ["all"] }
 futures.workspace = true
 url.workspace = true
 deno_core.workspace = true

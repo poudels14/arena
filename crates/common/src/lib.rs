@@ -1,8 +1,13 @@
+#[cfg(feature = "ast")]
 pub mod ast;
 pub mod beam;
+#[cfg(feature = "deno")]
 pub mod config;
+#[cfg(feature = "deno")]
 pub mod deno;
+#[cfg(feature = "dotenv")]
 pub mod dotenv;
 pub mod node;
+#[cfg(feature = "data_query")]
 pub mod query;
 pub mod utils;

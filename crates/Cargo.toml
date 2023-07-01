@@ -1,6 +1,14 @@
 [workspace]
 
-members = ["common", "jsruntime", "workspace", "dqs", "cloud", "dagger"]
+members = [
+  "common",
+  "jsruntime",
+  "workspace",
+  "dqs",
+  "registry",
+  "cloud",
+  "dagger",
+]
 resolver = "2"
 
 [workspace.dependencies]
@@ -84,6 +92,7 @@ simdutf8 = "0.1.4"
 handlebars = "4.3.7"
 dotenvy = "0.15.7"
 mime = "0.3.17"
+mime_guess = "2.0.4"
 
 deno_core = "=0.189.0"
 deno_console = "=0.107.0"
