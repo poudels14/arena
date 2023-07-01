@@ -20,10 +20,11 @@ import {
   DragOverlay,
   useDragDropContext,
 } from "@arena/solid-dnd";
-import { Match, Switch, createMemo } from "solid-js";
+import { Match, Switch, createMemo, lazy } from "solid-js";
 import { Widget } from "./Widget";
 import { Slot } from "./Slot";
 import { TEMPLATES } from "./templates";
+import { App } from "./types";
 
 type EditorProps = EditorStateConfig & {};
 
@@ -101,6 +102,9 @@ const AppEditor = () => {
       <div class="w-full h-full min-w-[768px] no-scrollbar">
         <Canvas showGrid={!isViewOnly()}>
           <Switch>
+            <Match when={state.app.template()}>
+              <AppWithTemplate app={state.app()} />
+            </Match>
             <Match when={getRootWidget()}>
               <Widget widgetId={getRootWidget()} />
             </Match>
@@ -113,6 +117,14 @@ const AppEditor = () => {
       <Toolbar />
     </>
   );
+};
+
+const AppWithTemplate = (props: { app: App }) => {
+  const template = props.app.template!;
+  const Component = lazy(
+    () => import(`/static/templates/apps/${template.id}/${template.version}.js`)
+  );
+  return <Component />;
 };
 
 export { Editor };
