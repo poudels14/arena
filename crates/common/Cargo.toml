@@ -47,6 +47,7 @@ once_cell.workspace = true
 simdutf8.workspace = true
 dotenvy.workspace = true
 mime.workspace = true
+reqwest.workspace = true
 
 digest.workspace = true
 base64.workspace = true
@@ -70,3 +71,4 @@ deno_core.workspace = true
 deno_fetch.workspace = true
 deno_web.workspace = true
 deno_ast.workspace = true
+deno_tls.workspace = true

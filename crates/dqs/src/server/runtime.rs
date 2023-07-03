@@ -8,10 +8,12 @@ use deno_core::{
   v8, Extension, ExtensionFileSource, ExtensionFileSourceCode, JsRuntime,
   Snapshot,
 };
+use deno_fetch::CreateHttpClientOptions;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
 use jsruntime::permissions::{FetchPermissions, PermissionsContainer};
 use std::collections::HashSet;
+use std::net::IpAddr;
 use std::rc::Rc;
 use tracing::error;
 
@@ -33,10 +35,15 @@ pub struct RuntimeOptions {
 
   /// Heap limit tuple: (initial size, max hard limit) in bytes
   pub heap_limits: Option<(usize, usize)>,
+
+  /// The local address to use for outgoing network request
+  /// This is useful if we need to restrict the outgoing network
+  /// request to a specific network device/address
+  pub egress_address: Option<IpAddr>,
 }
 
 pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
-  let db_pool = config.db_pool.unwrap();
+  let db_pool = config.db_pool.clone().unwrap();
   let state =
     RuntimeState::init(config.workspace_id.clone(), db_pool.clone()).await?;
 
@@ -50,7 +57,7 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
     ),
     deno_fetch::deno_fetch::init_ops::<PermissionsContainer>(
       deno_fetch::Options {
-        user_agent: format!("arena/dqs/{}", &config.workspace_id).to_owned(),
+        user_agent: get_user_agent(&config.workspace_id),
         root_cert_store_provider: None,
         proxy: None,
         request_builder_hook: None,
@@ -59,7 +66,7 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
         file_fetch_handler: Rc::new(deno_fetch::DefaultFileFetchHandler),
       },
     ),
-    self::build_extension(state.clone()),
+    self::build_extension(state.clone(), &config),
   ];
 
   let mut builtin_extensions = BuiltinExtensions::with_modules(vec![
@@ -100,7 +107,10 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
   Ok(runtime)
 }
 
-fn build_extension(state: RuntimeState) -> Extension {
+fn build_extension(state: RuntimeState, config: &RuntimeOptions) -> Extension {
+  let user_agent = get_user_agent(&config.workspace_id);
+  let egress_address = config.egress_address.clone();
+
   Extension::builder("workspace/runtime")
       .js(vec![
         ExtensionFileSource {
@@ -130,6 +140,29 @@ fn build_extension(state: RuntimeState) -> Extension {
           }),
           ..Default::default()
         });
+        if let Some(egress_address) = egress_address {
+          let mut client = common::deno::fetch::get_default_http_client_builder(
+            &user_agent,
+            CreateHttpClientOptions {
+              root_cert_store: None,
+              ca_certs: vec![],
+              proxy: None,
+              unsafely_ignore_certificate_errors: None,
+              client_cert_chain_and_key: None,
+              pool_max_idle_per_host: None,
+              pool_idle_timeout: None,
+              http1: true,
+              http2: true,
+            },
+          )
+          .unwrap();
+          client = client.local_address(egress_address);
+          op_state.put::<reqwest::Client>(client.build().unwrap());
+        }
       })
       .build()
+}
+
+fn get_user_agent(workspace_id: &str) -> String {
+  format!("arena/dqs/{}", workspace_id)
 }

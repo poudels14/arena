@@ -14,6 +14,7 @@ use diesel::PgConnection;
 use serde_json::Value;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::net::IpAddr;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::thread;
@@ -22,7 +23,15 @@ use tracing::info;
 use uuid::Uuid;
 
 #[derive(Clone)]
+pub struct DqsClusterOptions {
+  /// The IP address that DQS should use for outgoing network requests
+  /// from DQS JS runtime
+  pub dqs_egress_addr: Option<IpAddr>,
+}
+
+#[derive(Clone)]
 pub struct DqsCluster {
+  options: DqsClusterOptions,
   pub id: String,
   pub servers: Arc<Mutex<HashMap<String, DqsServer>>>,
   pub db_pool: Pool<ConnectionManager<PgConnection>>,
@@ -38,9 +47,10 @@ pub struct DqsServer {
 }
 
 impl DqsCluster {
-  pub fn new() -> Result<Self> {
+  pub fn new(options: DqsClusterOptions) -> Result<Self> {
     let db_pool = db::create_connection_pool()?;
     Ok(Self {
+      options,
       id: Uuid::new_v4().to_string(),
       servers: Arc::new(Mutex::new(HashMap::new())),
       db_pool: db_pool.clone(),
@@ -53,6 +63,7 @@ impl DqsCluster {
     let (stream_tx, stream_rx) = mpsc::channel(5);
     let db_pool = self.db_pool.clone();
     let workspace_id_clone = workspace_id.clone();
+    let egress_address = self.options.dqs_egress_addr.clone();
     let _thread_handle = thread::spawn(move || {
       crate::server::start(
         RuntimeOptions {
@@ -61,6 +72,7 @@ impl DqsCluster {
           server_config: HttpServerConfig::Stream(Rc::new(RefCell::new(
             stream_rx,
           ))),
+          egress_address,
           ..Default::default()
         },
         events_rx_tx,

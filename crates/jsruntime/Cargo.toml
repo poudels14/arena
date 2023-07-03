@@ -17,6 +17,7 @@ http-body.workspace = true
 http.workspace = true
 bytes.workspace = true
 simdutf8.workspace = true
+reqwest.workspace = true
 common = { path = "../common", features = ["all"] }
 
 deno_core.workspace = true

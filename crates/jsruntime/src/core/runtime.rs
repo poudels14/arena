@@ -4,14 +4,16 @@ use common::config::ArenaConfig;
 use common::deno::extensions::BuiltinExtensions;
 use common::deno::permissions::PermissionsContainer;
 use common::deno::resolver::fs::FsModuleResolver;
-use common::deno::RuntimeConfig;
+use common::deno::{self, RuntimeConfig};
 use deno_core::{
   v8, ExtensionFileSource, ExtensionFileSourceCode, FastString, JsRealm,
   ModuleLoader,
 };
 use deno_core::{Extension, JsRuntime, Snapshot};
+use deno_fetch::CreateHttpClientOptions;
 use derivative::Derivative;
 use std::cell::RefCell;
+use std::net::IpAddr;
 use std::path::PathBuf;
 use std::rc::Rc;
 use tracing::error;
@@ -55,6 +57,11 @@ pub struct RuntimeOptions {
   pub disable_module_loader: bool,
 
   pub builtin_extensions: BuiltinExtensions,
+
+  /// The local address to use for outgoing network request
+  /// This is useful if we need to restrict the outgoing network
+  /// request to a specific network device/address
+  pub egress_addr: Option<IpAddr>,
 }
 
 pub struct IsolatedRuntime {
@@ -75,6 +82,12 @@ impl IsolatedRuntime {
     };
 
     let arena_config = options.config.clone().unwrap_or_default();
+    let user_agent = options
+      .user_agent
+      .as_ref()
+      .unwrap_or(&"arena/runtime".to_owned())
+      .to_string();
+    let egress_addr = options.egress_addr.clone();
     let mut extensions = vec![
       deno_webidl::deno_webidl::init_ops(),
       deno_console::deno_console::init_ops(),
@@ -85,11 +98,7 @@ impl IsolatedRuntime {
       ),
       deno_fetch::deno_fetch::init_ops::<PermissionsContainer>(
         deno_fetch::Options {
-          user_agent: options
-            .user_agent
-            .as_ref()
-            .unwrap_or(&"arena/runtime".to_owned())
-            .to_string(),
+          user_agent: user_agent.clone(),
           root_cert_store_provider: None,
           proxy: None,
           request_builder_hook: None,
@@ -109,6 +118,25 @@ impl IsolatedRuntime {
       Extension::builder("arena/config")
         .state(move |state| {
           state.put::<ArenaConfig>(arena_config.to_owned());
+          if let Some(egress_addr) = egress_addr {
+            let mut client = deno::fetch::get_default_http_client_builder(
+              &user_agent,
+              CreateHttpClientOptions {
+                root_cert_store: None,
+                ca_certs: vec![],
+                proxy: None,
+                unsafely_ignore_certificate_errors: None,
+                client_cert_chain_and_key: None,
+                pool_max_idle_per_host: None,
+                pool_idle_timeout: None,
+                http1: true,
+                http2: true,
+              },
+            )
+            .unwrap();
+            client = client.local_address(egress_addr);
+            state.put::<reqwest::Client>(client.build().unwrap());
+          }
         })
         .build(),
       Self::get_setup_extension(&options),

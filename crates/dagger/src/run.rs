@@ -3,7 +3,9 @@ use clap::Parser;
 use common::config::ArenaConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use deno_core::resolve_url_or_path;
-use jsruntime::permissions::{FileSystemPermissions, PermissionsContainer};
+use jsruntime::permissions::{
+  FetchPermissions, FileSystemPermissions, PermissionsContainer,
+};
 use jsruntime::{IsolatedRuntime, RuntimeOptions};
 use std::collections::HashSet;
 
@@ -19,6 +21,10 @@ pub struct Command {
   /// Whether to enable build tools in main runtime; default false
   #[arg(short('b'), long)]
   enable_build_tools: bool,
+
+  /// The network address to use for outgoing network requests from JS runtime
+  #[arg(long)]
+  egress_addr: Option<String>,
 }
 
 impl Command {
@@ -40,6 +46,11 @@ impl Command {
       ])
     }
 
+    let egress_addr = self
+      .egress_addr
+      .as_ref()
+      .map(|addr| addr.parse())
+      .transpose()?;
     let mut runtime = IsolatedRuntime::new(RuntimeOptions {
       project_root: Some(project_root.clone()),
       config: Some(ArenaConfig::find_in_path_hierachy().unwrap_or_default()),
@@ -58,8 +69,13 @@ impl Command {
           ]),
           ..Default::default()
         }),
+        net: Some(FetchPermissions {
+          restricted_urls: Some(HashSet::new()),
+          ..Default::default()
+        }),
         ..Default::default()
       },
+      egress_addr,
       ..Default::default()
     })?;
 

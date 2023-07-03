@@ -9,7 +9,17 @@ mod db;
 mod loaders;
 mod server;
 mod specifier;
-use cluster::DqsCluster;
+use clap::Parser;
+use cluster::{DqsCluster, DqsClusterOptions};
+
+#[derive(Parser, Debug)]
+#[command(version)]
+struct Args {
+  /// The IP address that DQS should use for outgoing network requests
+  /// from DQS JS runtime
+  #[arg(long)]
+  egress_addr: Option<String>,
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -35,7 +45,15 @@ async fn main() -> Result<()> {
     .ok()
     .and_then(|p: String| p.parse().ok())
     .unwrap_or(8000);
-  let dqs_cluster = DqsCluster::new()?;
+
+  let args = Args::parse();
+  let dqs_egress_addr = args
+    .egress_addr
+    .as_ref()
+    .map(|addr| addr.parse())
+    .transpose()?;
+  let dqs_cluster = DqsCluster::new(DqsClusterOptions { dqs_egress_addr })?;
+
   cluster::http::start_server(dqs_cluster, host, port).await?;
 
   Ok(())
