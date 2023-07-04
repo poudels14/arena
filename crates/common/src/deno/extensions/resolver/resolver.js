@@ -5,7 +5,7 @@ function require(...args) {
 }
 
 const resolver = new Resolver({
-  preserve_symlink: true,
+  preserveSymlink: true,
 });
 
 Object.assign(require, {

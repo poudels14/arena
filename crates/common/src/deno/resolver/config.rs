@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Derivative, Serialize, Deserialize)]
 #[derivative(Clone, Debug, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct Config {
   /// to use pnpm, preserve_symlink should be false since packages
   /// are hoisted

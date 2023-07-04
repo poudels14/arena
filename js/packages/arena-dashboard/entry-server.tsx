@@ -4,12 +4,21 @@ import {
   renderAsync,
 } from "@arena/core/server";
 import type { PageEvent } from "@arena/core/server";
+import { createModuleRouter } from "@arena/runtime/moduleloader";
 import { ServerRoot } from "@arena/core/solid/server";
 import { pick } from "lodash-es";
 import { router } from "~/api";
 import { Context, createContext } from "~/api/context";
 
 const handler = chainMiddlewares<{ event: PageEvent; context: Context }>(
+  process.env.MODE == "development"
+    ? createModuleRouter({
+        env: {
+          SSR: "false",
+        },
+        preserveSymlink: true,
+      })
+    : null,
   router({
     prefix: "/api",
   }),
@@ -34,16 +43,9 @@ const http = createHandler(async (event) => {
     resHeaders: event.request.headers,
   });
 
-  if (event.ctx.path == "/ws" && context.user) {
-    return new Response(JSON.stringify(context.user), {
-      headers: [["Upgrade", "websocket"]],
-    });
-  }
-
   return handler({ event, context });
 });
 
 export default {
   fetch: http.fetch,
-  async websocket(socket: any, data: any) {},
 };

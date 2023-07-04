@@ -1,7 +1,6 @@
 import { serve } from "@arena/runtime/server";
 import { router } from "builtin:///@arena/dqs/router";
 
-const r = router();
 serve({
   async fetch(req) {
     const url = new URL(req.url);
@@ -10,6 +9,6 @@ serve({
     if (url.pathname === "/_healthy") {
       return "OK";
     }
-    return r.route(req);
+    return await router.route(req, {});
   },
 });

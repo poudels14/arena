@@ -8,7 +8,7 @@ import { PageEvent } from "./event";
 type Middleware<Arg> = (arg: Arg) => Promise<Response | void>;
 
 interface Websocket extends AsyncIterator<any> {
-  send(data: any): Promise<void>;
+  send(data: any): Promise<number>;
   close(data?: any): Promise<void>;
   next(): Promise<any>;
 }
@@ -34,16 +34,24 @@ const createPageEvent = (request: Request): PageEvent => {
   };
 };
 
-function chainMiddlewares<T>(...middlewares: Middleware<T>[]) {
-  const pipeline = middlewares.reduce((t, m) => {
-    return t.use(m).use((r) => {
-      // Note(sagar): if the middleware returns a response, stop executing
-      // rest of the middlewares and send response
-      if (r instanceof Response) {
-        throw r;
-      }
-    });
-  }, trough());
+/**
+ * Chain bunch of middlewares
+ *
+ * This allows passing `null` as a middleware so that a middleware
+ * can be chained conditionally.
+ */
+function chainMiddlewares<T>(...middlewares: (Middleware<T> | null)[]) {
+  const pipeline = middlewares
+    .filter((m) => Boolean(m))
+    .reduce((t, m) => {
+      return t.use(m!).use((r) => {
+        // Note(sagar): if the middleware returns a response, stop executing
+        // rest of the middlewares and send response
+        if (r instanceof Response) {
+          throw r;
+        }
+      });
+    }, trough());
 
   /**
    * If the middlewares don't return a response, return 404 as default response

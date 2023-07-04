@@ -60,6 +60,7 @@ struct TranspileResult {
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 struct TranspilerConfig {
   /**
    * A set of key/value that will be replaced

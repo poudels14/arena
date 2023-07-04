@@ -6,7 +6,6 @@ import { procedure, router as trpcRouter } from "./trpc";
 import { appsRouter } from "./routes/apps";
 import { widgetsRouter } from "./routes/widgets";
 import { resourcesRouter } from "./routes/resources";
-import { queryRouter } from "./routes/query";
 import { accountRouter } from "./routes/account";
 
 const r = trpcRouter({

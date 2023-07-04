@@ -5,7 +5,7 @@ use deno_core::v8::IsolateHandle;
 use deno_core::JsRuntime;
 use serde_json::Value;
 use tokio::sync::{mpsc, oneshot};
-use tracing::{debug, info};
+use tracing::debug;
 use url::Url;
 
 #[derive(Debug)]
@@ -49,16 +49,19 @@ pub(crate) fn start(
     local
       .spawn_local(async { listen_to_commands(receiver, terminate_tx).await });
 
-    info!("DQS server started...");
-    tokio::select! {
-      _terminate = terminate_rx => {
-        info!("terinating DQS server...");
+    debug!("DQS server started...");
+    let res = tokio::select! {
+      res = terminate_rx => {
+        res.map(|_| "Terminated by a termination command".to_owned()).map_err(|e| anyhow!("{}", e))
+
       },
-      _runtime_res = run_dqs_server(runtime) => {}
-    }
-    info!("DQS server stopped");
+      res = run_dqs_server(runtime) => {
+        res.map(|_| "Terminated due to event-loop completion".to_owned()).map_err(|e| anyhow!("{}", e))
+      }
+    };
+    debug!("DQS server stopped");
     events_tx
-      .send(ServerEvents::Terminated(Ok("Graceful shutdown".to_owned())))
+      .send(ServerEvents::Terminated(res))
       .await?;
     Ok(())
   });
@@ -91,8 +94,7 @@ async fn run_dqs_server(mut runtime: JsRuntime) -> Result<()> {
 
   let rx = runtime.mod_evaluate(mod_id);
   runtime.run_event_loop(false).await?;
-  rx.await??;
-  Ok(())
+  rx.await?
 }
 
 async fn listen_to_commands(
@@ -106,6 +108,7 @@ async fn listen_to_commands(
         tx.send(Value::String("PONG".to_owned())).unwrap();
       }
       Command::Terminate => {
+        debug!("DQS runtime received terminate command");
         let res = terminate_tx
           .send(())
           .map(|_| Value::Bool(true))

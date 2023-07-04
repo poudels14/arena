@@ -176,10 +176,6 @@ impl WorkspaceServer {
           Some(self.workspace.dir.clone())
         },
       }),
-      BuiltinModule::CustomRuntimeModule(
-        "@arena/workspace-server",
-        include_str!("../../../../js/packages/workspace-server/dist/server.js"),
-      ),
       BuiltinModule::Custom(cloud::extension::extension),
     ];
 
@@ -187,6 +183,7 @@ impl WorkspaceServer {
       builtin_modules.extend(vec![
         BuiltinModule::Resolver(self.workspace.project_root()),
         BuiltinModule::Transpiler,
+        BuiltinModule::ModuleLoader,
       ])
     }
 
@@ -249,19 +246,21 @@ impl WorkspaceServer {
             &Url::parse("file:///arena/workspace-server/init")?,
             &format!(
               r#"
-                import {{ serve }} from "@arena/workspace-server";
+                import {{ serve }} from "@arena/runtime/server";
 
                 // Note(sagar): need to dynamically load the entry-server.tsx or
                 // whatever the entry file is for the workspace so that it's
                 // transpiled properly
 
+                // Note(sagar): since this is running in server, set SSR = true
+                Arena.env.SSR = "true";
+                process.env.SSR = "true";
                 await import("file://{}").then(async ({{ default: m }}) => {{
-                  serve(m, {{
-                    serveFiles: {}
-                  }});
+                  serve(m);
+                  console.log("[Workspace Server]: Listening to connections...");
                 }});
               "#,
-              server_entry, self.dev_mode
+              server_entry
             ),
           )
           .await?;

@@ -17,7 +17,7 @@ const execWidgetQueryBodySchema = z.object({
 });
 
 const p = procedure();
-const r = createRouter({
+const router = createRouter({
   routes: {
     "/healthy": p.query(() => {
       return "Ok";
@@ -48,20 +48,5 @@ const r = createRouter({
     ),
   },
 });
-
-const router = () => {
-  return {
-    async route(request: Request) {
-      const res = await r.route(request, {});
-      if (res) {
-        return res;
-      }
-
-      return new Response("Not found", {
-        status: 404,
-      });
-    },
-  };
-};
 
 export { router };

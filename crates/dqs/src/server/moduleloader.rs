@@ -8,16 +8,13 @@ use deno_core::{
   futures::FutureExt, ModuleLoader, ModuleSourceFuture, ModuleSpecifier,
   ResolutionKind,
 };
-use deno_core::{ModuleSource, ModuleType, OpState};
+use deno_core::{ModuleSource, ModuleType};
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
 use loaders::ResourceLoader;
 use serde_json::{json, Value};
-use std::cell::RefCell;
-use std::future::Future;
 use std::pin::Pin;
-use std::rc::Rc;
 use tracing::info;
 use url::Url;
 
@@ -137,16 +134,6 @@ impl ModuleLoader for AppkitModuleLoader {
       ))
     }
     .boxed_local()
-  }
-
-  fn prepare_load(
-    &self,
-    _op_state: Rc<RefCell<OpState>>,
-    _module_specifier: &ModuleSpecifier,
-    _maybe_referrer: Option<String>,
-    _is_dyn_import: bool,
-  ) -> Pin<Box<dyn Future<Output = Result<(), Error>>>> {
-    async { Ok(()) }.boxed_local()
   }
 }
 

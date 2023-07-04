@@ -217,7 +217,7 @@ declare namespace Arena {
   let wasi: any;
 
   type ResolverConfig = {
-    preserve_symlink?: boolean;
+    preserveSymlink?: boolean;
 
     alias?: Record<string, string>;
 
@@ -230,7 +230,7 @@ declare namespace Arena {
     /**
      * Whether to resolve the import when transpiling
      */
-    resolve_import?: boolean;
+    resolveImport?: boolean;
 
     resolver?: ResolverConfig;
 
@@ -240,7 +240,7 @@ declare namespace Arena {
      */
     replace?: Record<string, string>;
 
-    source_map?: "inline";
+    sourceMap?: "inline";
   };
 
   // this should be exposed by runtime
@@ -496,4 +496,66 @@ declare module "@arena/runtime/dqs" {
 
     static startStreamServer(workspaceId: string): Promise<DqsServer>;
   }
+}
+
+declare module "@arena/runtime/bundler" {
+  type BuildConfig = {
+    env?: Record<string, any>;
+    javascript?: {
+      resolve?: {
+        alias?: Record<string, string>;
+        conditions?: string[];
+        dedupe?: string[];
+      };
+    };
+  };
+
+  /**
+   * Build server bundle
+   */
+  export const server: (options: {
+    input: string;
+    output: any;
+    javascript?: BuildConfig["javascript"];
+    /**
+     * rollup plugins
+     */
+    plugins?: any[];
+  }) => Promise<void>;
+
+  /**
+   * Build client bundle
+   */
+  export const client: (options: {
+    input: string;
+    output: any;
+    env?: BuildConfig["env"];
+    javascript?: BuildConfig["javascript"];
+    /**
+     * rollup plugins
+     */
+    plugins?: any[];
+  }) => Promise<void>;
+}
+
+declare module "@arena/runtime/moduleloader" {
+  type ModuleLoaderOptions = {
+    env?: Record<string, string>;
+  } & Arena.ResolverConfig;
+
+  type ModuleLoader = {
+    load: (path: string) => Promise<{
+      contentType: string;
+      code: string;
+    }>;
+  };
+
+  export const createModuleLoader: (
+    options: ModuleLoaderOptions
+  ) => ModuleLoader;
+
+  export const createModuleRouter: (
+    options: ModuleLoaderOptions,
+    pathAlias?: Record<string, string>
+  ) => (req: { event: any; context: any }) => Promise<Response | undefined>;
 }

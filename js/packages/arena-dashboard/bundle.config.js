@@ -2,7 +2,7 @@ import path from "path";
 import {
   client as buildClient,
   server as buildServer,
-} from "@arena/workspace-server/builder";
+} from "@arena/runtime/bundler";
 import { presets } from "@arena/runtime/babel";
 import { plugins } from "@arena/runtime/rollup";
 import pkg from "./package";
@@ -14,9 +14,7 @@ const { babel, postcss, terser } = plugins;
  * app template. Remove this once a better workflow is in place.
  */
 const BUILTIN_APP_ENTRIES = BUILTIN_APPS.reduce((agg, app) => {
-  agg[
-    `templates/apps/${app.id}/${app.version}`
-  ] = `~/@arena/apps/${app.id.substring("@arena/".length)}`;
+  agg[`templates/apps/${app.id}/${app.version}`] = `~/${app.id}`;
   return agg;
 }, {});
 

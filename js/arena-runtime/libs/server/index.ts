@@ -13,6 +13,11 @@ const serve = async (config: ServeConfig) => {
   streams.pipe(mergeMap((stream) => from(stream!))).subscribe(async (req) => {
     try {
       let res = await config.fetch(req!);
+      if (!res) {
+        return new Response("Not found", {
+          status: 404,
+        });
+      }
       let response =
         res instanceof Response
           ? res

@@ -155,6 +155,24 @@ program.option("--minify").action(async (options, cmd) => {
         dqs: "./libs/dqs/index.ts",
       },
     }),
+    build({
+      ...options,
+      entryPoints: {
+        bundler: "./libs/bundler/index.ts",
+      },
+      external: ["@arena/runtime/rollup"],
+    }),
+    build({
+      ...options,
+      entryPoints: {
+        moduleloader: "./libs/moduleloader/index.ts",
+      },
+      external: [
+        "@arena/runtime/resolver",
+        "@arena/runtime/transpiler",
+        "@arena/runtime/babel",
+      ],
+    }),
     /**
      * This bundles exports of `@arena/functions/...` so that it can be
      * embedded in DQS server during build time to avoid file access during

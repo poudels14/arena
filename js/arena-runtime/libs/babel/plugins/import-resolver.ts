@@ -7,7 +7,7 @@ const resolver = declare((_api, options) => {
   const state = {
     // TODO(sagar): close resolver
     resolver: new Resolver({
-      preserve_symlink: true,
+      preserveSymlink: true,
       ...options,
     }),
   };

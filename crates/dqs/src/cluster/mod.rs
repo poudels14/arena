@@ -19,7 +19,6 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::thread;
 use tokio::sync::{mpsc, oneshot, Mutex};
-use tracing::info;
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -100,13 +99,20 @@ impl DqsCluster {
                 commands_channel: commands,
               },
             );
-            info!("[workspace = {}] DQS server started!", workspace_id);
+            println!("[workspace = {}] DQS server started!", workspace_id);
             started_tx.take().map(|tx| tx.send(()));
           }
-          Some(ServerEvents::Terminated(_result)) => {
+          Some(ServerEvents::Terminated(result)) => {
             let mut servers = servers.lock().await;
             servers.remove(&workspace_id);
-            info!("[workspace = {}] DQS server terminated!", workspace_id);
+            println!(
+              "[workspace = {}] DQS server terminated!{}",
+              workspace_id,
+              result
+                .err()
+                .map(|e| format!(" Caused by = {}", e))
+                .unwrap_or_default()
+            );
             break;
           }
           _ => {

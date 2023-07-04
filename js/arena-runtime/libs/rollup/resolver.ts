@@ -12,7 +12,7 @@ const resolver = (
   options: Arena.ResolverConfig & { external?: string[] } = {}
 ) => {
   const resolver = new Resolver({
-    preserve_symlink: true,
+    preserveSymlink: true,
     ...options,
   });
 

@@ -34,12 +34,7 @@ impl Command {
         BuiltinModule::Resolver(project_root),
         BuiltinModule::Babel,
         BuiltinModule::Rollup,
-        BuiltinModule::CustomRuntimeModule(
-          "@arena/workspace-server/builder",
-          include_str!(
-            "../../../../js/packages/workspace-server/dist/builder.js"
-          ),
-        ),
+        BuiltinModule::Bundler,
         BuiltinModule::CustomRuntimeModule(
           "dagger/bundler",
           include_str!("bundler.js"),
