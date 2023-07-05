@@ -82,8 +82,9 @@ const createFileLoader = (options: FileLoaderOptions) => {
  */
 const createFileRouter = (options: FileLoaderOptions) => {
   const fileloader = createFileLoader(options);
-  return async ({ event }: any) => {
-    let path = event.ctx.path;
+  return async (req: Request) => {
+    const url = new URL(req.url);
+    let path = url.pathname;
     // Note(sagar): since `path` starts with `/` but we want all the paths to
     // be relative to the project root, prefix it with `.` if path isn't in
     // pathAlias
@@ -97,6 +98,15 @@ const createFileRouter = (options: FileLoaderOptions) => {
         });
       }
     } catch (e) {}
+    /**
+     * Note(sagar): return 404 for favicon if not found. This is to prevent
+     * next router from being called if file router doesn't return anything.
+     */
+    if (url.pathname == "/favicon.ico") {
+      return new Response("Not found", {
+        status: 404,
+      });
+    }
   };
 };
 

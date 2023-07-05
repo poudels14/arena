@@ -4,20 +4,24 @@ import {
   renderAsync,
 } from "@arena/core/server";
 import type { PageEvent } from "@arena/core/server";
-import { createModuleRouter } from "@arena/runtime/moduleloader";
+import { createFileRouter } from "@arena/runtime/filerouter";
 import { ServerRoot } from "@arena/core/solid/server";
 import { pick } from "lodash-es";
 import { router } from "~/api";
 import { Context, createContext } from "~/api/context";
 
+const fileRouter = createFileRouter({
+  env: {
+    SSR: "false",
+  },
+  resolve: {
+    preserveSymlink: true,
+  },
+});
+
 const handler = chainMiddlewares<{ event: PageEvent; context: Context }>(
   process.env.MODE == "development"
-    ? createModuleRouter({
-        env: {
-          SSR: "false",
-        },
-        preserveSymlink: true,
-      })
+    ? async ({ event }) => fileRouter(event.request)
     : null,
   router({
     prefix: "/api",

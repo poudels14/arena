@@ -1,6 +1,7 @@
 {
   "name": "arena-dashboard",
   "version": "0.0.1",
+  "private": true,
   "arena": {
     "env": {
       "ARENA_SSR": "false"
@@ -40,7 +41,7 @@
             "@arena/runtime/postgres",
             "@arena/runtime/dqs",
             "@arena/runtime/server",
-            "@arena/runtime/moduleloader",
+            "@arena/runtime/filerouter",
             "crypto"
           ]
         }

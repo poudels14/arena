@@ -559,5 +559,5 @@ declare module "@arena/runtime/filerouter" {
 
   export const createFileRouter: (
     options: FileLoaderOptions
-  ) => (req: { event: any }) => Promise<Response | undefined>;
+  ) => (req: Request) => Promise<Response | undefined>;
 }
