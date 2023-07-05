@@ -5,15 +5,16 @@ import { pick, merge } from "lodash-es";
 import { Resolver } from "@arena/runtime/resolver";
 import { Transpiler } from "./transpiler";
 
-type ModuleLoaderOptions = {
+type FileLoaderOptions = {
   env?: Record<string, string>;
-} & Arena.ResolverConfig;
+  resolve?: Arena.ResolverConfig;
+};
 
 /**
  * This creates an ESM module loader that returns transpiled JS/TS
  * files given the file path
  */
-const createModuleLoader = (options: ModuleLoaderOptions) => {
+const createFileLoader = (options: FileLoaderOptions) => {
   const env = merge(Arena.env, Arena.config?.client?.env, options.env);
 
   const resolverConfig = merge(
@@ -21,7 +22,13 @@ const createModuleLoader = (options: ModuleLoaderOptions) => {
       preserveSymlink: true,
     },
     Arena.config?.client?.javascript?.resolve,
-    pick(options || {}, "preserveSymlink", "alias", "conditions", "dedupe")
+    pick(
+      options.resolve || {},
+      "preserveSymlink",
+      "alias",
+      "conditions",
+      "dedupe"
+    )
   );
 
   const resolver = new Resolver(resolverConfig);
@@ -56,13 +63,13 @@ const createModuleLoader = (options: ModuleLoaderOptions) => {
         if (["application/json"].includes(contentType)) {
           content = await Arena.fs.readToString(filename);
         } else {
-          throw new Error("Unsupported file type:" + ext);
+          content = await Arena.fs.readFile(filename);
         }
       }
 
       return {
         contentType: responseContentType!,
-        code: content,
+        content,
       };
     },
   };
@@ -73,18 +80,18 @@ const createModuleLoader = (options: ModuleLoaderOptions) => {
  * file is found. The file path from the route would be treated as relative
  * to the root path of the resolver.
  */
-const createModuleRouter = (
-  options: ModuleLoaderOptions,
-  pathAlias: Record<string, string> = {}
-) => {
-  const moduleloader = createModuleLoader(options);
+const createFileRouter = (options: FileLoaderOptions) => {
+  const fileloader = createFileLoader(options);
   return async ({ event }: any) => {
     let path = event.ctx.path;
-    path = pathAlias[path] ?? "./" + path;
+    // Note(sagar): since `path` starts with `/` but we want all the paths to
+    // be relative to the project root, prefix it with `.` if path isn't in
+    // pathAlias
+    path = "." + path;
     try {
-      const res = await moduleloader.load(path);
+      const res = await fileloader.load(path);
       if (res) {
-        return new Response(res.code, {
+        return new Response(res.content, {
           status: 200,
           headers: [["content-type", res.contentType]],
         });
@@ -93,4 +100,4 @@ const createModuleRouter = (
   };
 };
 
-export { createModuleLoader, createModuleRouter };
+export { createFileRouter };

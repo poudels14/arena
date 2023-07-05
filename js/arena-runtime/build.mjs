@@ -165,7 +165,7 @@ program.option("--minify").action(async (options, cmd) => {
     build({
       ...options,
       entryPoints: {
-        moduleloader: "./libs/moduleloader/index.ts",
+        filerouter: "./libs/filerouter/index.ts",
       },
       external: [
         "@arena/runtime/resolver",

@@ -551,24 +551,13 @@ declare module "@arena/runtime/bundler" {
   }) => Promise<void>;
 }
 
-declare module "@arena/runtime/moduleloader" {
-  type ModuleLoaderOptions = {
+declare module "@arena/runtime/filerouter" {
+  type FileLoaderOptions = {
     env?: Record<string, string>;
-  } & Arena.ResolverConfig;
-
-  type ModuleLoader = {
-    load: (path: string) => Promise<{
-      contentType: string;
-      code: string;
-    }>;
+    resolve?: Arena.ResolverConfig;
   };
 
-  export const createModuleLoader: (
-    options: ModuleLoaderOptions
-  ) => ModuleLoader;
-
-  export const createModuleRouter: (
-    options: ModuleLoaderOptions,
-    pathAlias?: Record<string, string>
-  ) => (req: { event: any; context: any }) => Promise<Response | undefined>;
+  export const createFileRouter: (
+    options: FileLoaderOptions
+  ) => (req: { event: any }) => Promise<Response | undefined>;
 }

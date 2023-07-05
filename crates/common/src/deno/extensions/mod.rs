@@ -1,8 +1,8 @@
 pub mod babel;
 pub mod bundler;
 pub mod env;
+pub mod filerouter;
 pub mod fs;
-pub mod moduleloader;
 pub mod node;
 pub mod postgres;
 pub mod resolver;
@@ -41,7 +41,7 @@ pub enum BuiltinModule {
   Babel,
   Rollup,
   Bundler,
-  ModuleLoader,
+  FileRouter,
   Postgres,
   HttpServer(HttpServerConfig),
   /// args: (specifier, code)
@@ -60,7 +60,7 @@ impl BuiltinModule {
       Self::Babel => self::babel::extension(),
       Self::Rollup => self::rollup::extension(),
       Self::Bundler => self::bundler::extension(),
-      Self::ModuleLoader => self::moduleloader::extension(),
+      Self::FileRouter => self::filerouter::extension(),
       Self::Postgres => self::postgres::extension(),
       Self::HttpServer(config) => self::server::extension(config.clone()),
       Self::CustomRuntimeModule(specifier, code) => BuiltinExtension {
@@ -88,7 +88,7 @@ impl BuiltinExtensions {
       BuiltinModule::Babel,
       BuiltinModule::Rollup,
       BuiltinModule::Bundler,
-      BuiltinModule::ModuleLoader,
+      BuiltinModule::FileRouter,
       BuiltinModule::HttpServer(HttpServerConfig::Tcp {
         address: "0.0.0.0".to_owned(),
         port: 0,

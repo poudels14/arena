@@ -180,7 +180,7 @@ impl WorkspaceServer {
       builtin_modules.extend(vec![
         BuiltinModule::Resolver(self.workspace.project_root()),
         BuiltinModule::Transpiler,
-        BuiltinModule::ModuleLoader,
+        BuiltinModule::FileRouter,
       ])
     }
 
