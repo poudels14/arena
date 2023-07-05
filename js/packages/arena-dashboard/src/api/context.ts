@@ -48,12 +48,16 @@ const getDbRepo = async () => {
 const parseUserIdFromCookies = (req: Request) => {
   const cookies = cookie.parse(req.headers.get("Cookie") || "");
   if (cookies.user) {
-    const { payload } = jwt.verify(
-      cookies.user,
-      "HS256",
-      process.env.JWT_SIGNINIG_SECRET
-    );
-    return payload.data.id;
+    try {
+      const { payload } = jwt.verify(
+        cookies.user,
+        "HS256",
+        process.env.JWT_SIGNINIG_SECRET
+      );
+      return payload.data.id;
+    } catch (_) {
+      return null;
+    }
   }
 };
 
