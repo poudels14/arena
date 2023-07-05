@@ -27,8 +27,10 @@ pub struct ArenaConfig {
   #[serde(skip_serializing_if = "Option::is_none")]
   pub javascript: Option<JavascriptConfig>,
 
+  #[serde(default = "Default::default")]
   pub server: ServerConfig,
 
+  #[serde(default = "Default::default")]
   pub client: ClientConfig,
 }
 
