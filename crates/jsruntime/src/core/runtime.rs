@@ -1,17 +1,18 @@
 use super::loaders;
 use anyhow::{anyhow, bail, Result};
-use common::config::ArenaConfig;
+use common::arena::ArenaConfig;
 use common::deno::extensions::BuiltinExtensions;
 use common::deno::permissions::PermissionsContainer;
 use common::deno::resolver::fs::FsModuleResolver;
 use common::deno::{self, RuntimeConfig};
 use deno_core::{
-  v8, ExtensionFileSource, ExtensionFileSourceCode, FastString, JsRealm,
-  ModuleLoader,
+  op, v8, ExtensionFileSource, ExtensionFileSourceCode, FastString, JsRealm,
+  ModuleLoader, OpState,
 };
 use deno_core::{Extension, JsRuntime, Snapshot};
 use deno_fetch::CreateHttpClientOptions;
 use derivative::Derivative;
+use serde_json::{json, Value};
 use std::cell::RefCell;
 use std::net::IpAddr;
 use std::path::PathBuf;
@@ -26,14 +27,14 @@ pub static RUNTIME_PROD_SNAPSHOT: &[u8] =
 #[derivative(Default)]
 pub struct RuntimeOptions {
   /// Project root must be passed
-  /// This should either be a directory where arena.config.toml is located
+  /// This should either be a directory where package.json is located
   /// or current directory
-  /// Use {@link has_file_in_file_tree(Some(&cwd), "arena.config.toml")}
-  /// to find the directory with arena.config.toml in file hierarchy
+  /// Use {@link has_file_in_file_tree(Some(&cwd), "package.json")}
+  /// to find the directory with package.json in file hierarchy
   pub project_root: Option<PathBuf>,
 
   /// Arena config to be used for the runtime
-  /// If None is passed, arena.config.toml is checked
+  /// If None is passed, package.json is checked
   /// in the current directory as well as up the directory tree
   #[derivative(Default(value = "Option::None"))]
   pub config: Option<ArenaConfig>,
@@ -175,7 +176,10 @@ impl IsolatedRuntime {
               options
                 .config
                 .as_ref()
-                .and_then(|c| c.javascript.as_ref())
+                // Note(sagar): use c.server.javascript since it is a merged
+                // copy of c.javascript and c.server.javascript and `c.server`
+                // is meant for server runtime anyways
+                .and_then(|c| c.server.javascript.as_ref())
                 .and_then(|j| j.resolve.clone())
                 .unwrap_or(Default::default()),
               builtin_modules,
@@ -302,6 +306,9 @@ impl IsolatedRuntime {
         r#"
         Arena.core = Deno.core;
         Arena.core.setMacrotaskCallback(globalThis.__bootstrap.handleTimerMacrotask);
+        Object.assign(globalThis.Arena, {
+          config: Arena.core.ops.op_load_arena_config()
+        });
       "#,
       ),
     });
@@ -326,6 +333,16 @@ impl IsolatedRuntime {
       ),
     });
 
-    Extension::builder("arena").js(js_files).build()
+    Extension::builder("arena")
+      .ops(vec![op_load_arena_config::decl()])
+      .js(js_files)
+      .force_op_registration()
+      .build()
   }
+}
+
+#[op]
+pub fn op_load_arena_config(state: &mut OpState) -> Result<Value> {
+  let config = state.borrow_mut::<ArenaConfig>();
+  Ok(json!(config))
 }

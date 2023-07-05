@@ -24,7 +24,7 @@ impl Command {
       .dir
       .as_ref()
       .map_or_else(
-        || has_file_in_file_tree(Some(&cwd), "workspace.config.toml"),
+        || has_file_in_file_tree(Some(&cwd), "package.json"),
         |p| Some(Path::new(&p).to_path_buf()),
       )
       .unwrap_or(cwd);

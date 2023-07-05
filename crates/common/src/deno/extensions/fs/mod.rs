@@ -37,7 +37,6 @@ deno_core::extension!(
     op_fs_read_file_sync,
     op_fs_read_file_async,
     op_fs_read_file_string_async,
-    op_fs_read_file_as_json_async,
     op_fs_write_file_sync,
   ],
   customizer = |ext: &mut deno_core::ExtensionBuilder| {
@@ -178,21 +177,6 @@ async fn op_fs_read_file_string_async(
   Ok(StringOrBuffer::String(
     tokio::fs::read_to_string(resolved_path).await?,
   ))
-}
-
-#[op]
-async fn op_fs_read_file_as_json_async(
-  state: Rc<RefCell<OpState>>,
-  path: String,
-) -> Result<String> {
-  let resolved_path = {
-    let mut state = state.borrow_mut();
-    resolve_read_path(&mut state, &Path::new(&path))
-  }?;
-
-  let content = tokio::fs::read_to_string(resolved_path).await?;
-  let json = toml::from_str::<Value>(&content).map_err(|e| anyhow!("{}", e))?;
-  Ok(serde_json::to_string(&json)?)
 }
 
 #[op(fast)]

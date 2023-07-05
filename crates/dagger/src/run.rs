@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use common::config::ArenaConfig;
+use common::arena::ArenaConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use deno_core::resolve_url_or_path;
 use jsruntime::permissions::{

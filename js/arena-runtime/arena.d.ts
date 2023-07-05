@@ -212,6 +212,19 @@ declare namespace Arena {
   }
 
   let core: Core;
+  /**
+   * Arena config loaded from "package.json" 's "arena" field
+   */
+  let config: {
+    name: string;
+    version: string;
+    env?: Record<string, string>;
+    javascript?: {
+      resolve?: ResolverConfig;
+    };
+    client?: Pick<typeof config, "env" | "javascript">;
+    server?: Pick<typeof config, "env" | "javascript">;
+  };
   let env: Env;
   let fs: FileSystem;
   let wasi: any;

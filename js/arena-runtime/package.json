@@ -13,6 +13,17 @@
   "files": [
     "arena.d.ts"
   ],
+  "arena": {
+    "javascript": {
+      "resolve": {
+        "conditions": [
+          "solid",
+          "server",
+          "node"
+        ]
+      }
+    }
+  },
   "dependencies": {
     "@arena/core": "workspace:^",
     "@arena/functions": "workspace:^",

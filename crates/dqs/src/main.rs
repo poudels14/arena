@@ -1,5 +1,5 @@
 use anyhow::Result;
-use common::config::ArenaConfig;
+use common::arena::ArenaConfig;
 use common::deno::extensions::server::HttpServerConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use jsruntime::{IsolatedRuntime, RuntimeOptions};

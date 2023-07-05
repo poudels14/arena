@@ -1,7 +1,7 @@
 pub mod plugins;
 
 use self::plugins::jsx_analyzer::JsxAnalyzer;
-use super::resolver::BuildConfig;
+use super::resolver::DefaultResolverConfig;
 use crate::deno::extensions::BuiltinExtension;
 use crate::deno::resolver;
 use crate::deno::resolver::fs::FsModuleResolver;
@@ -94,10 +94,10 @@ fn op_transpiler_new(
   state: &mut OpState,
   config: TranspilerConfig,
 ) -> Result<(ResourceId, String)> {
-  let build_config = state.borrow_mut::<BuildConfig>();
+  let build_config = state.borrow_mut::<DefaultResolverConfig>();
 
   let resolver_config = build_config
-    .resolver
+    .config
     .clone()
     .merge(config.resolver.clone().unwrap_or_default());
 

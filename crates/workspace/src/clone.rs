@@ -1,4 +1,3 @@
-use crate::WorkspaceConfig;
 use anyhow::{anyhow, bail, Result};
 use bytes::Buf;
 use common::node::Package;
@@ -28,7 +27,7 @@ pub async fn with_default_template(config: &Config) -> Result<()> {
   if workspace_dir.exists() {
     bail!("workspace directory already exists: {}", workspace_dir_str);
   } else if let Some(ancestor) =
-    has_file_in_file_tree(workspace_dir.parent(), "arena.config.yaml")
+    has_file_in_file_tree(workspace_dir.parent(), "package.json")
   {
     bail!("New workspace can't be created under another workspace, existing workspace at: {:?}", ancestor);
   }
@@ -62,16 +61,6 @@ impl Config {
   }
 
   fn add_template_files(&self) -> Result<()> {
-    debug!("Adding workspace.config.yaml");
-    let mut workspace_config: WorkspaceConfig = toml::from_str(include_str!(
-      "../../../js/templates/default/workspace.config.toml"
-    ))?;
-    workspace_config.name = self.name.clone();
-    self.create_file(
-      "workspace.config.toml",
-      toml::to_string(&workspace_config)?.as_bytes(),
-    )?;
-
     debug!("Adding package.json");
     let mut package: Package = serde_json::from_str(include_str!(
       "../../../js/templates/default/package.json"

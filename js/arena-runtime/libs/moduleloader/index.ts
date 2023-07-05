@@ -14,19 +14,13 @@ type ModuleLoaderOptions = {
  * files given the file path
  */
 const createModuleLoader = (options: ModuleLoaderOptions) => {
-  const env = merge(
-    Arena.env,
-    // @ts-ignore
-    Arena.Workspace?.config?.client?.env,
-    options.env
-  );
+  const env = merge(Arena.env, Arena.config?.client?.env, options.env);
 
   const resolverConfig = merge(
     {
       preserveSymlink: true,
     },
-    // @ts-expect-error
-    Arena.Workspace?.config?.client?.javascript?.resolve,
+    Arena.config?.client?.javascript?.resolve,
     pick(options || {}, "preserveSymlink", "alias", "conditions", "dedupe")
   );
 

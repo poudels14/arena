@@ -1,7 +1,7 @@
 use super::super::transpiler;
 use crate::{IsolatedRuntime, RuntimeOptions};
 use anyhow::{anyhow, bail, Error};
-use common::config::ArenaConfig;
+use common::arena::ArenaConfig;
 use common::deno::extensions::server::response::ParsedHttpResponse;
 use common::deno::extensions::server::{HttpRequest, HttpServerConfig};
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};

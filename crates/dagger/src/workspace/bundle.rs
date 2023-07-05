@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use common::config::ArenaConfig;
+use common::arena::ArenaConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use deno_core::resolve_url_or_path;
 use jsruntime::permissions::{FileSystemPermissions, PermissionsContainer};
@@ -23,7 +23,7 @@ impl Command {
     let project_root = ArenaConfig::find_project_root()?;
     let mut runtime = IsolatedRuntime::new(RuntimeOptions {
       project_root: Some(project_root.clone()),
-      config: Some(ArenaConfig::default()),
+      config: Some(ArenaConfig::load(&project_root).unwrap_or_default()),
       enable_console: true,
       transpile: true,
       builtin_extensions: BuiltinExtensions::with_modules(vec![
@@ -35,10 +35,6 @@ impl Command {
         BuiltinModule::Babel,
         BuiltinModule::Rollup,
         BuiltinModule::Bundler,
-        BuiltinModule::CustomRuntimeModule(
-          "dagger/bundler",
-          include_str!("bundler.js"),
-        ),
       ]),
       permissions: PermissionsContainer {
         fs: Some(FileSystemPermissions {
@@ -66,8 +62,7 @@ impl Command {
         &format!(
           r#"
         import bundler from "{0}";
-        import {{ loadConfig }} from "dagger/bundler";
-        loadConfig().then(config => bundler(config));
+        bundler(Arena.config);
         "#,
           config_file
         ),

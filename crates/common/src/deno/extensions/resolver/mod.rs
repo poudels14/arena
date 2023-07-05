@@ -1,4 +1,4 @@
-use crate::config::ArenaConfig;
+use crate::arena::ArenaConfig;
 use crate::deno;
 use crate::deno::extensions::BuiltinExtension;
 use crate::deno::resolver::fs::FsModuleResolver;
@@ -34,7 +34,7 @@ deno_core::extension!(
   ops = [op_resolver_new, op_resolver_resolve],
   options = { root: PathBuf },
   state = |state, options| {
-    let resolver = {
+    let resolve = {
       let config = state.borrow::<ArenaConfig>();
       config
         .javascript
@@ -42,9 +42,9 @@ deno_core::extension!(
         .and_then(|j| j.resolve.clone())
         .unwrap_or(Default::default())
     };
-    state.put::<BuildConfig>(BuildConfig {
+    state.put::<DefaultResolverConfig>(DefaultResolverConfig {
       root: options.root.to_owned(),
-      resolver,
+      config: resolve,
     });
   },
   customizer = |ext: &mut deno_core::ExtensionBuilder| {
@@ -53,9 +53,9 @@ deno_core::extension!(
 );
 
 #[derive(Clone)]
-pub struct BuildConfig {
+pub struct DefaultResolverConfig {
   pub root: PathBuf,
-  pub resolver: deno::resolver::Config,
+  pub config: deno::resolver::Config,
 }
 
 impl Resource for FsModuleResolver {
@@ -69,11 +69,11 @@ fn op_resolver_new(
   state: &mut OpState,
   config: Option<Config>,
 ) -> Result<(ResourceId, String)> {
-  let build_config = state.borrow_mut::<BuildConfig>();
-  let root = build_config.root.clone();
+  let default_config = state.borrow_mut::<DefaultResolverConfig>();
+  let root = default_config.root.clone();
   let resolver = FsModuleResolver::new(
     root.clone(),
-    config.unwrap_or(build_config.resolver.clone()),
+    config.unwrap_or(default_config.config.clone()),
     vec![],
   );
   let rid = state.resource_table.add(resolver);
@@ -95,8 +95,8 @@ fn op_resolver_resolve(
 ) -> Result<Option<String>> {
   let state = state.borrow_mut();
   let resolver = state.resource_table.get::<FsModuleResolver>(rid)?;
-  let build_config = state.borrow::<BuildConfig>();
-  resolve(&resolver, &build_config.root, &referrer, &specifier)
+  let default_config = state.borrow::<DefaultResolverConfig>();
+  resolve(&resolver, &default_config.root, &referrer, &specifier)
 }
 
 pub(crate) fn resolve(

@@ -13,7 +13,6 @@ pub fn main() {
   let mut paths = Vec::new();
 
   vec![
-    "../../js/templates/default/arena.config.toml",
     "../../js/templates/default/tsconfig.json",
     "../../js/templates/default/entry-server.tsx",
     "../../js/templates/default/entry-client.tsx",

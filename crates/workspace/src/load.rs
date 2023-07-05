@@ -1,7 +1,7 @@
 use super::Workspace;
 use crate::registry::Registry;
-use crate::WorkspaceConfig;
 use anyhow::{bail, Result};
+use common::arena::ArenaConfig;
 use std::path::PathBuf;
 
 #[derive(Default, Clone, Debug)]
@@ -23,7 +23,7 @@ pub struct Options {
 ///
 /// All workspace related files need to be loaded to local file system for
 /// editing or deployment.
-/// In deployment more, this only loads essential files in the beginning and
+/// In deployment mode, this only loads essential files in the beginning and
 /// lazy load other files as necessary
 pub async fn load(options: Options) -> Result<Workspace> {
   if !options.dir.is_absolute() {
@@ -33,9 +33,7 @@ pub async fn load(options: Options) -> Result<Workspace> {
     );
   }
 
-  let config =
-    WorkspaceConfig::from_path(&options.dir.join("workspace.config.toml"))?;
-
+  let config = ArenaConfig::load(&options.dir)?;
   Ok(Workspace {
     registry: options.registry.clone(),
     dir: options.dir.clone(),

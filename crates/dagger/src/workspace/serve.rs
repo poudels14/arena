@@ -1,7 +1,7 @@
 use anyhow::Result;
 use arena_workspace::server::ServerOptions;
-use arena_workspace::WorkspaceConfig;
 use clap::Parser;
+use common::arena::ArenaConfig;
 use std::env;
 use std::path::Path;
 use tracing::{info, Level};
@@ -19,9 +19,7 @@ pub struct Command {
 
 impl Command {
   pub async fn execute(&self) -> Result<()> {
-    let mut config = WorkspaceConfig::from_path(
-      &Path::new(&self.dir).join("workspace.config.toml"),
-    )?;
+    let mut config = ArenaConfig::load(&Path::new(&self.dir))?;
     // Note(sagar): just override the server entry
     config.server.entry = "./server/index.js".to_owned();
 

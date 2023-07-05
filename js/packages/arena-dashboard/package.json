@@ -1,6 +1,64 @@
 {
   "name": "arena-dashboard",
   "version": "0.0.1",
+  "arena": {
+    "env": {
+      "ARENA_SSR": "false"
+    },
+    "javascript": {
+      "resolve": {
+        "alias": {
+          "~": "./src"
+        },
+        "dedupe": [
+          "solid-js",
+          "solid-js/web",
+          "@solidjs/meta",
+          "@solidjs/router",
+          "@arena/solid-store",
+          "@arena/solid-dnd",
+          "@arena/uikit",
+          "@kobalte/core",
+          "@arena/components"
+        ]
+      }
+    },
+    "server": {
+      "entry": "./entry-server.tsx",
+      "env": {
+        "SSR": "true"
+      },
+      "javascript": {
+        "resolve": {
+          "conditions": [
+            "solid",
+            "server",
+            "deno",
+            "node"
+          ],
+          "external": [
+            "@arena/runtime/postgres",
+            "@arena/runtime/dqs",
+            "@arena/runtime/server",
+            "@arena/runtime/moduleloader",
+            "crypto"
+          ]
+        }
+      }
+    },
+    "client": {
+      "entry": "./entry-client.tsx",
+      "javascript": {
+        "resolve": {
+          "conditions": [
+            "browser",
+            "solid",
+            "development"
+          ]
+        }
+      }
+    }
+  },
   "dependencies": {
     "@arena/apps": "workspace:^",
     "@arena/cloud": "workspace:^",

@@ -1,3 +1,4 @@
+use crate::arena::ArenaConfig;
 use indexmap::map::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -18,6 +19,9 @@ pub struct Package {
 
   #[serde(skip_serializing_if = "Option::is_none")]
   pub module: Option<String>,
+
+  /// Config related to Arena. Only found in Arena app/workspace projects
+  pub arena: Option<ArenaConfig>,
 
   #[serde(skip_serializing_if = "Option::is_none")]
   pub dependencies: Option<IndexMap<String, String>>,

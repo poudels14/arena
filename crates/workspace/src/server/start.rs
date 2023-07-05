@@ -3,15 +3,12 @@ use crate::server::{
   ClientRequest, ServerHandle, ServerOptions, ServerRequest,
   WorkspaceServerHandle,
 };
-use crate::{Workspace, WorkspaceConfig};
+use crate::Workspace;
 use anyhow::{anyhow, bail, Result};
-use common::config::ArenaConfig;
+use common::arena::ArenaConfig;
 use common::deno::extensions::server::HttpServerConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use common::deno::permissions::{FileSystemPermissions, PermissionsContainer};
-use deno_core::{
-  op, Extension, ExtensionFileSource, ExtensionFileSourceCode, OpState,
-};
 use jsruntime::permissions::FetchPermissions;
 use jsruntime::{IsolatedRuntime, RuntimeOptions};
 use serde_json::{json, Value};
@@ -187,7 +184,6 @@ impl WorkspaceServer {
       ])
     }
 
-    let workspace_config = self.workspace.config.clone();
     let mut runtime = IsolatedRuntime::new(RuntimeOptions {
       // TODO(sagar): disabled this when running deployed workspace
       project_root: Some(self.workspace.project_root()),
@@ -210,25 +206,6 @@ impl WorkspaceServer {
         }),
         ..Default::default()
       },
-      extensions: vec![Extension::builder("arena/workspace-server/config")
-        .ops(vec![op_load_workspace_config::decl()])
-        .state(move |state| {
-          state.put::<WorkspaceConfig>(workspace_config.clone());
-        })
-        .js(vec![ExtensionFileSource {
-          specifier: "init",
-          code: ExtensionFileSourceCode::IncludedInBinary(
-            r#"
-              Object.assign(globalThis.Arena, {
-                Workspace: {
-                  config: Arena.core.ops.op_load_workspace_config()
-                }
-              });
-              "#,
-          ),
-        }])
-        .force_op_registration()
-        .build()],
       heap_limits: self.workspace.heap_limits,
       ..Default::default()
     })?;
@@ -271,10 +248,4 @@ impl WorkspaceServer {
       })
       .await
   }
-}
-
-#[op]
-pub fn op_load_workspace_config(state: &mut OpState) -> Result<Value> {
-  let config = state.borrow_mut::<WorkspaceConfig>();
-  Ok(json!(config))
 }

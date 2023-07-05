@@ -33,9 +33,6 @@
       readToString(...args) {
         return core.opAsync("op_fs_read_file_string_async", ...args);
       },
-      readAsJson(...args) {
-        return core.opAsync("op_fs_read_file_as_json_async", ...args);
-      },
       writeFileSync(path, data, options) {
         if (options) {
           throw new Error("options not supported yet");

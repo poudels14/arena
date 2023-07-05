@@ -1,5 +1,5 @@
 use super::BuiltinExtension;
-use crate::config::ArenaConfig;
+use crate::arena::ArenaConfig;
 use crate::deno::RuntimeConfig;
 use crate::dotenv;
 use anyhow::Result;
@@ -7,7 +7,6 @@ use deno_core::op;
 use deno_core::ExtensionFileSource;
 use deno_core::ExtensionFileSourceCode;
 use deno_core::OpState;
-use indexmap::IndexMap;
 use serde_json::json;
 use serde_json::Value;
 
@@ -35,20 +34,13 @@ deno_core::extension!(
 
 #[op]
 fn op_load_env(state: &mut OpState) -> Result<Value> {
-  let mut env_vars: IndexMap<String, String> = IndexMap::new();
-  let env = {
+  let mut env_vars = {
     state
       .try_borrow::<ArenaConfig>()
       .as_ref()
       .and_then(|c| c.env.clone())
       .unwrap_or_default()
   };
-
-  if let Some(envs) = env.0.as_object() {
-    envs.iter().for_each(|(key, value)| {
-      env_vars.insert(key.clone(), value.to_string());
-    })
-  }
 
   std::env::vars().for_each(|(key, value)| {
     if !env_vars.contains_key(&key) {
