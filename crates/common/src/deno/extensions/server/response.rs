@@ -99,7 +99,13 @@ impl ParsedHttpResponse {
             .into_response(),
         )
       }
-      _ => Err(errors::Error::ResponseBuilder),
+      None => Ok(
+        response_builder.body(
+          HyperBody::empty()
+            .map_err(|e| axum::Error::new(e))
+            .boxed_unsync(),
+        )?,
+      ),
     }
   }
 }
