@@ -14,6 +14,7 @@ pub enum ServerEvents {
   Terminated(Result<String>),
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum Command {
   Ping,
