@@ -34,7 +34,13 @@ const createRouter = <Context>(
   });
 
   return {
-    async route(request: Request, context: Context) {
+    async route(
+      request: Request,
+      meta: {
+        context?: Context;
+        env?: Record<string, string>;
+      } = {}
+    ) {
       const route = r.find(request.method as HTTPMethod, request.url, {
         host: config.host,
       });
@@ -90,7 +96,8 @@ const createRouter = <Context>(
         // @ts-expect-error
         const res: Response = await route.handler({
           req: request,
-          ctx: context,
+          env: meta.env || {},
+          ctx: meta.context || {},
           params: route.params,
           searchParams: route.searchParams,
           errors,

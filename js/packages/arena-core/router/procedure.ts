@@ -9,6 +9,7 @@ const isDev = () => {
 
 type ProcedureCallbackArgs<Context> = {
   req: Request;
+  env: Record<string, string>;
   ctx: Context;
   setCookie: (
     name: string,

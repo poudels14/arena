@@ -465,7 +465,10 @@ declare module "@arena/runtime/server" {
       routes: Record<string, Handler<Context>>;
     }
   ) => {
-    route(request: Request, context: Context): Promise<Response>;
+    route(
+      request: Request,
+      meta?: { env?: Record<string, string>; context?: Context }
+    ): Promise<Response>;
   };
 
   export const mergedRouter: <Context>(
