@@ -3,9 +3,9 @@ pub mod plugins;
 use self::plugins::jsx_analyzer::JsxAnalyzer;
 use super::resolver::DefaultResolverConfig;
 use crate::deno::extensions::BuiltinExtension;
-use crate::deno::resolver;
 use crate::deno::resolver::fs::FsModuleResolver;
 use crate::deno::utils::fs::resolve_read_path;
+use crate::node::ResolverConfig;
 use crate::resolve_from_root;
 use anyhow::anyhow;
 use anyhow::Result;
@@ -73,7 +73,7 @@ struct TranspilerConfig {
   resolve_import: bool,
 
   #[serde(default)]
-  resolver: Option<resolver::Config>,
+  resolver: Option<ResolverConfig>,
 
   #[serde(default)]
   source_map: Option<String>,

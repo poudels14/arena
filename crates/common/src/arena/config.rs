@@ -1,5 +1,4 @@
-use crate::deno::resolver;
-use crate::node::Package;
+use crate::node::{Package, ResolverConfig};
 use crate::utils::fs::has_file_in_file_tree;
 use anyhow::{anyhow, Result};
 use derivative::Derivative;
@@ -160,7 +159,7 @@ fn _default_client_entry() -> String {
 pub struct JavascriptConfig {
   /// Config related to Javascript and Typescript
   #[serde(skip_serializing_if = "Option::is_none")]
-  pub resolve: Option<resolver::Config>,
+  pub resolve: Option<ResolverConfig>,
 }
 
 mod tests {

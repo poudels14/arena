@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Derivative, Serialize, Deserialize)]
 #[derivative(Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct Config {
+pub struct ResolverConfig {
   /// to use pnpm, preserve_symlink should be false since packages
   /// are hoisted
   #[serde(skip_serializing_if = "Option::is_none")]
@@ -39,8 +39,8 @@ pub struct Config {
   pub dedupe: IndexSet<String>,
 }
 
-impl Config {
-  pub fn merge(self, other: Config) -> Self {
+impl ResolverConfig {
+  pub fn merge(self, other: ResolverConfig) -> Self {
     Self {
       preserve_symlink: other.preserve_symlink.or(self.preserve_symlink),
       alias: if !other.alias.is_empty() {

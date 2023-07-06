@@ -1,4 +1,4 @@
-use crate::node::Package;
+use crate::node::{Package, ResolverConfig};
 use anyhow::{anyhow, bail, Result};
 use deno_core::ModuleResolutionError::{
   InvalidBaseUrl, InvalidPath, InvalidUrl,
@@ -28,7 +28,7 @@ pub struct FsModuleResolver {
   /// The root directory of the project. It's usually where package.json is
   pub project_root: PathBuf,
 
-  pub(crate) config: super::Config,
+  pub(crate) config: ResolverConfig,
 
   pub(crate) cache: Rc<RefCell<ResolverCache>>,
 
@@ -38,7 +38,7 @@ pub struct FsModuleResolver {
 impl FsModuleResolver {
   pub fn new(
     project_root: PathBuf,
-    config: super::Config,
+    config: ResolverConfig,
     builtin_modules: Vec<String>,
   ) -> Self {
     Self {

@@ -2,7 +2,7 @@ use crate::arena::ArenaConfig;
 use crate::deno;
 use crate::deno::extensions::BuiltinExtension;
 use crate::deno::resolver::fs::FsModuleResolver;
-use crate::deno::resolver::Config;
+use crate::node::ResolverConfig;
 use crate::resolve_from_root;
 use anyhow::anyhow;
 use anyhow::bail;
@@ -55,7 +55,7 @@ deno_core::extension!(
 #[derive(Clone)]
 pub struct DefaultResolverConfig {
   pub root: PathBuf,
-  pub config: deno::resolver::Config,
+  pub config: ResolverConfig,
 }
 
 impl Resource for FsModuleResolver {
@@ -67,7 +67,7 @@ impl Resource for FsModuleResolver {
 #[op]
 fn op_resolver_new(
   state: &mut OpState,
-  config: Option<Config>,
+  config: Option<ResolverConfig>,
 ) -> Result<(ResourceId, String)> {
   let default_config = state.borrow_mut::<DefaultResolverConfig>();
   let root = default_config.root.clone();
