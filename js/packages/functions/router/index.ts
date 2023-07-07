@@ -28,10 +28,10 @@ const router = createRouter({
           execWidgetQueryBodySchema.parse(await req.json());
         try {
           const env = await import(
-            `~/apps/${appId}/widgets/${widgetId}/${field}/env`
+            `@/apps/${appId}/widgets/${widgetId}/${field}/env`
           );
           return await import(
-            `~/apps/${appId}/widgets/${widgetId}/${field}?updatedAt=${updatedAt}`
+            `@/apps/${appId}/widgets/${widgetId}/${field}?updatedAt=${updatedAt}`
           ).then(async (m) => {
             const result = await Promise.all([
               m.default({

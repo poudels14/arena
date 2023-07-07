@@ -44,7 +44,7 @@ impl ParsedSpecifier {
 
   fn parse_app_modules(input: &str) -> IResult<&str, Self> {
     let (input, (_, app_id)) =
-      tuple((tag("~/apps/"), take_until_slash_or_eof))(input)?;
+      tuple((tag("@/apps/"), take_until_slash_or_eof))(input)?;
 
     let specifier = Self::parse_widget_query_source(app_id, input)?;
     Ok(specifier)

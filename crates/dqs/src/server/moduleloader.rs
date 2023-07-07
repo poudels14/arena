@@ -58,9 +58,9 @@ impl ModuleLoader for AppkitModuleLoader {
       false if specifier.starts_with("@arena/functions/") => {
         format!("builtin:///{}", specifier)
       }
-      // modules that start with `~` are workspace modules and loaded
+      // modules that start with `@` are workspace modules and loaded
       // dynamically, normally from db/cache
-      false if specifier.starts_with("~") => {
+      false if specifier.starts_with("@") => {
         format!("workspace:///{}", specifier)
       }
       // relative specifiers are used to load env variables, etc
