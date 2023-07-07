@@ -24,26 +24,23 @@ const Flags = {
 
 const { ops, opAsync } = Arena.core;
 class Client {
-  /**
-   * @type {ConnectionConfig} config
-   */
-  config;
-  rid;
+  #rid;
+  #transactionDepth;
 
   constructor(config) {
-    this.config = config;
-    this.rid = ops.op_sqlite_create_connection({
-      ...this.config,
+    this.#rid = ops.op_sqlite_create_connection({
+      ...config,
       options: {
         camelCase: false,
       },
     });
+    this.#transactionDepth = 0;
   }
 
   async connect() {}
 
   async query(query, params, options) {
-    if (this.rid == undefined) {
+    if (this.#rid == undefined) {
       throw new Error("Connection not initialized");
     }
     /**
@@ -58,7 +55,7 @@ class Client {
 
     const { rows, columns } = await opAsync(
       "op_sqlite_execute_query",
-      this.rid,
+      this.#rid,
       sql,
       params || [],
       options
@@ -75,6 +72,20 @@ class Client {
     return {
       rows: mappedRows,
     };
+  }
+
+  async transaction(closure) {
+    this.#transactionDepth += 1;
+    this.query(`SAVEPOINT _arena_sqlite_sp_${this.#transactionDepth}`);
+    try {
+      return await Promise.resolve(closure());
+    } catch (err) {
+      this.query(`ROLLBACK TO _arena_sqlite_sp_${this.#transactionDepth}`);
+      throw err;
+    } finally {
+      this.query(`RELEASE _arena_sqlite_sp_${this.#transactionDepth}`);
+      this.#transactionDepth -= 1;
+    }
   }
 }
 

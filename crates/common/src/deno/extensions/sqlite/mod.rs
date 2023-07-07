@@ -32,6 +32,7 @@ fn init() -> Extension {
     .ops(vec![
       op_sqlite_create_connection::decl(),
       op_sqlite_execute_query::decl(),
+      op_sqlite_close_connection::decl(),
     ])
     .force_op_registration()
     .build()
@@ -70,15 +71,14 @@ pub struct Columns {
   values: Vec<String>,
 }
 
-#[derive(Clone, Debug)]
-pub struct SqliteConnectionResource {
-  pub connection: Rc<Connection>,
+#[derive(Debug)]
+pub struct SqliteConnection {
+  pub connection: RefCell<Option<Connection>>,
   options: QueryOptions,
 }
 
-impl Resource for SqliteConnectionResource {
+impl Resource for SqliteConnection {
   fn close(self: Rc<Self>) {
-    // TODO(sagar): properly close the connection
     drop(self);
   }
 }
@@ -90,12 +90,12 @@ fn op_sqlite_create_connection(
 ) -> Result<ResourceId> {
   let connection = sqlite::create_connection(&config.path, config.flags)?;
 
-  let rid = state.resource_table.add::<SqliteConnectionResource>(
-    SqliteConnectionResource {
-      connection: connection.into(),
+  let rid = state
+    .resource_table
+    .add::<SqliteConnection>(SqliteConnection {
+      connection: RefCell::new(Some(connection)),
       options: config.options.unwrap_or_default(),
-    },
-  );
+    });
   Ok(rid)
 }
 
@@ -107,14 +107,13 @@ async fn op_sqlite_execute_query(
   params: Vec<Param>,
   options: Option<QueryOptions>,
 ) -> Result<QueryResponse> {
-  let resource = state
-    .borrow_mut()
-    .resource_table
-    .get::<SqliteConnectionResource>(rid)?;
+  let resource = state.borrow().resource_table.get::<SqliteConnection>(rid)?;
+  let connection = resource.connection.borrow();
+  if connection.is_none() {
+    bail!("Connection is either not initialized or already closed");
+  };
 
-  let connection = &resource.connection;
-  let options = options.as_ref().unwrap_or(&resource.options);
-
+  let connection = connection.as_ref().unwrap();
   let mut stmt = connection.prepare_cached(&query)?;
   let cols_raw: Vec<String> = stmt
     .column_names()
@@ -122,6 +121,7 @@ async fn op_sqlite_execute_query(
     .map(|c| c.to_owned().to_owned())
     .collect::<Vec<String>>();
 
+  let options = options.as_ref().unwrap_or(&resource.options);
   let cols = cols_raw
     .iter()
     .map(|c| {
@@ -160,4 +160,32 @@ async fn op_sqlite_execute_query(
     },
     rows: rows_vec,
   })
+}
+
+#[op(fast)]
+async fn op_sqlite_close_connection(
+  state: Rc<RefCell<OpState>>,
+  rid: ResourceId,
+) -> Result<()> {
+  let resource =
+    { state.borrow().resource_table.get::<SqliteConnection>(rid)? };
+
+  let connection = &mut resource.connection.borrow_mut().take();
+  if connection.is_some() {
+    let c = std::mem::take(connection);
+
+    match c.unwrap().close() {
+      Ok(_) => {
+        let _ = state
+          .borrow_mut()
+          .resource_table
+          .take::<SqliteConnection>(rid);
+      }
+      Err(e) => {
+        resource.connection.borrow_mut().replace(e.0);
+        bail!("{:?}", e.1);
+      }
+    }
+  }
+  Ok(())
 }
