@@ -5,17 +5,14 @@ use anyhow::Error;
 use anyhow::Result;
 use bytes::BufMut;
 use bytes::BytesMut;
+use deno_core::serde_json::{json, Value};
 use futures::TryStreamExt;
-use heck::ToLowerCamelCase;
 use postgres::types::ToSql;
 use postgres::types::Type;
 use postgres::Socket;
 use rustls::{OwnedTrustAnchor, RootCertStore};
 use rustls_pemfile::read_all;
 use serde::Deserialize;
-use serde_json::json;
-use serde_json::Map;
-use serde_json::Value;
 use std::fmt::Write;
 use std::io::Cursor;
 use std::sync::Arc;
@@ -50,12 +47,15 @@ pub async fn create_connection(
   Ok((client, connection))
 }
 
+/**
+ * Returns a tuple of (columns, rows) where the order of the values
+ * in each row is same as the order of `columns`.
+ */
 pub async fn execute_query(
   client: &Client,
   query: &str,
   params: &Vec<Param>,
-  options: &QueryOptions,
-) -> Result<Vec<Map<String, Value>>, Error> {
+) -> Result<(Vec<String>, Vec<Vec<Value>>), Error> {
   // TODO(sagar): don't need this once JS prints the error properly
   let res: Vec<Row> = match client.query_raw(query, params).await {
     Ok(stream) => match stream.try_collect().await {
@@ -71,25 +71,21 @@ pub async fn execute_query(
     }
   }?;
 
-  let rows: Result<Vec<Map<String, Value>>, Error> = res
+  let mut cols = None;
+  let rows: Vec<Vec<Value>> = res
     .iter()
     .map(|r: &Row| {
+      if cols.is_none() {
+        cols = Some(r.columns().iter().map(|c| c.name().to_string()).collect());
+      }
       r.columns()
         .iter()
-        .map(|c| {
-          let name = if options.camel_case {
-            c.name().to_lower_camel_case()
-          } else {
-            c.name().to_string()
-          };
-          let value = get_json_value(c, r)?;
-          Ok((name, value))
-        })
-        .collect()
+        .map(|c| get_json_value(c, r))
+        .collect::<Result<Vec<Value>>>()
     })
-    .collect();
+    .collect::<Result<Vec<Vec<Value>>>>()?;
 
-  return rows;
+  return Ok((cols.unwrap_or_default(), rows));
 }
 
 macro_rules! convert_to_json_value {

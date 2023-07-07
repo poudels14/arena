@@ -12,11 +12,11 @@ use anyhow::bail;
 use anyhow::Result;
 use deno_core::op;
 use deno_core::serde::{Deserialize, Serialize};
+use deno_core::serde_json::Value;
 use deno_core::Extension;
 use deno_core::Resource;
 use deno_core::{OpState, ResourceId};
-use serde_json::Map;
-use serde_json::Value;
+use heck::ToLowerCamelCase;
 use std::cell::RefCell;
 use std::rc::Rc;
 use tokio::task::JoinHandle;
@@ -87,7 +87,27 @@ impl ConnectionCredential {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct QueryResponse {
-  rows: Vec<Map<String, Value>>,
+  columns: Columns,
+  /**
+   * Note(sagar): send data as array since sending as Object is almost
+   * 4x slower than sending as array and reducing the array as objects
+   * on JS side. Repeating column names for each row/col also probably
+   * added to the serialization cost
+   */
+  rows: Vec<Vec<Value>>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct Columns {
+  /**
+   * Raw name of the columns
+   */
+  raw: Vec<String>,
+  /**
+   * Formatted column names
+   * For example, these are CamedCased if `queryoptions.camel_case` is true
+   */
+  values: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -174,16 +194,31 @@ pub async fn op_postgres_execute_query(
     .resource_table
     .get::<PostgresConnectionResource>(rid)?;
 
-  let defaut_options = QueryOptions::default();
-  let rows = postgres::execute_query(
-    &resource.client,
-    &query,
-    &params,
-    options
-      .as_ref()
-      .unwrap_or(resource.options.as_ref().unwrap_or(&defaut_options)),
-  )
-  .await;
+  let (cols_raw, rows) =
+    postgres::execute_query(&resource.client, &query, &params).await?;
 
-  Ok(QueryResponse { rows: rows? })
+  let defaut_options = QueryOptions::default();
+  let camel_case = options
+    .as_ref()
+    .unwrap_or(resource.options.as_ref().unwrap_or(&defaut_options))
+    .camel_case;
+
+  let cols = cols_raw
+    .iter()
+    .map(|c| {
+      if camel_case {
+        c.to_lower_camel_case()
+      } else {
+        c.to_string()
+      }
+    })
+    .collect();
+
+  Ok(QueryResponse {
+    columns: Columns {
+      raw: cols_raw,
+      values: cols,
+    },
+    rows,
+  })
 }

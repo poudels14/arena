@@ -107,7 +107,6 @@ async fn op_sqlite_execute_query(
   params: Vec<Param>,
   options: Option<QueryOptions>,
 ) -> Result<QueryResponse> {
-  let now = std::time::Instant::now();
   let resource = state
     .borrow_mut()
     .resource_table
@@ -153,11 +152,6 @@ async fn op_sqlite_execute_query(
       Err(e) => bail!("{}", e),
     }
   }
-
-  println!(
-    "RUST TIME TAKEN = {}",
-    std::time::Instant::now().duration_since(now).as_millis()
-  );
 
   Ok(QueryResponse {
     columns: Columns {
