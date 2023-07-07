@@ -1,5 +1,4 @@
 use crate::arena::ArenaConfig;
-use crate::deno;
 use crate::deno::extensions::BuiltinExtension;
 use crate::deno::resolver::fs::FsModuleResolver;
 use crate::node::ResolverConfig;

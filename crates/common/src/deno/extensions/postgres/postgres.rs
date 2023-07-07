@@ -10,7 +10,6 @@ use heck::ToLowerCamelCase;
 use postgres::types::ToSql;
 use postgres::types::Type;
 use postgres::Socket;
-use rustls;
 use rustls::{OwnedTrustAnchor, RootCertStore};
 use rustls_pemfile::read_all;
 use serde::Deserialize;

@@ -8,6 +8,7 @@ pub mod postgres;
 pub mod resolver;
 pub mod rollup;
 pub mod server;
+pub mod sqlite;
 pub mod transpiler;
 pub mod wasi;
 
@@ -43,6 +44,7 @@ pub enum BuiltinModule {
   Bundler,
   FileRouter,
   Postgres,
+  Sqlite,
   HttpServer(HttpServerConfig),
   /// args: (specifier, code)
   CustomRuntimeModule(&'static str, &'static str),
@@ -62,6 +64,7 @@ impl BuiltinModule {
       Self::Bundler => self::bundler::extension(),
       Self::FileRouter => self::filerouter::extension(),
       Self::Postgres => self::postgres::extension(),
+      Self::Sqlite => self::sqlite::extension(),
       Self::HttpServer(config) => self::server::extension(config.clone()),
       Self::CustomRuntimeModule(specifier, code) => BuiltinExtension {
         runtime_modules: vec![(specifier, code)],
@@ -83,6 +86,7 @@ impl BuiltinExtensions {
       BuiltinModule::Fs,
       BuiltinModule::Node,
       BuiltinModule::Postgres,
+      BuiltinModule::Sqlite,
       BuiltinModule::Resolver(PathBuf::default()),
       BuiltinModule::Transpiler,
       BuiltinModule::Babel,

@@ -34,7 +34,9 @@ impl Command {
     let mut builtin_modules = vec![
       BuiltinModule::Fs,
       BuiltinModule::Node,
+      BuiltinModule::Env,
       BuiltinModule::Postgres,
+      BuiltinModule::Sqlite,
     ];
 
     if self.enable_build_tools {
