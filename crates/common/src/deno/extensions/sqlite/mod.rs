@@ -1,6 +1,7 @@
 use self::sqlite::Param;
 use self::sqlite::QueryOptions;
 use super::BuiltinExtension;
+use crate::deno::utils::fs;
 use crate::resolve_from_file;
 use anyhow::bail;
 use anyhow::Result;
@@ -10,8 +11,10 @@ use deno_core::{
 use heck::ToLowerCamelCase;
 use rusqlite::params_from_iter;
 use rusqlite::Connection;
+use rusqlite::OpenFlags;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
+use std::path::Path;
 use std::rc::Rc;
 pub mod sqlite;
 use self::sqlite::get_json_value;
@@ -42,7 +45,7 @@ fn init() -> Extension {
 #[serde(rename_all = "camelCase")]
 pub struct ConnectionConfig {
   path: String,
-  flags: i32,
+  flags: Option<i32>,
   options: Option<QueryOptions>,
 }
 
@@ -88,8 +91,24 @@ fn op_sqlite_create_connection(
   state: &mut OpState,
   config: ConnectionConfig,
 ) -> Result<ResourceId> {
-  let connection = sqlite::create_connection(&config.path, config.flags)?;
+  let flags = config
+    .flags
+    .and_then(|f| OpenFlags::from_bits(f))
+    .unwrap_or(OpenFlags::SQLITE_OPEN_READ_ONLY);
 
+  let path = Path::new(&config.path);
+  // Check access to db file
+  if (flags
+    & (OpenFlags::SQLITE_OPEN_CREATE | OpenFlags::SQLITE_OPEN_READ_WRITE))
+    .bits()
+    != 0
+  {
+    fs::resolve_write_path(state, path)?;
+  } else {
+    fs::resolve_read_path(state, path)?;
+  }
+
+  let connection = sqlite::create_connection(path, flags)?;
   let rid = state
     .resource_table
     .add::<SqliteConnection>(SqliteConnection {

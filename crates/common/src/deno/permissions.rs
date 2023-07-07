@@ -97,6 +97,10 @@ impl deno_web::TimersPermission for PermissionsContainer {
 
 impl PermissionsContainer {
   /// Checks read access to a file path
+  /// The path whose access is being checked should be absolute path
+  ///
+  /// Note(sagar): instead of using this directly,
+  /// use `crate::deno::utils::fs::resolve_read_path`.
   pub fn check_read(&mut self, path: &Path) -> Result<()> {
     match self.fs.as_ref() {
       Some(perms) => {
@@ -121,6 +125,10 @@ impl PermissionsContainer {
   }
 
   /// Checks write access to a file path
+  /// The path whose access is being checked should be absolute path
+  ///
+  /// Note(sagar): instead of using this directly,
+  /// use `crate::deno::utils::fs::resolve_write_path`.
   #[allow(dead_code)]
   pub fn check_write(&mut self, path: &Path) -> Result<()> {
     match self.fs.as_ref() {

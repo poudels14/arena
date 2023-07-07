@@ -15,13 +15,8 @@ pub struct QueryOptions {
   pub camel_case: bool,
 }
 
-pub fn create_connection(path: &str, flags: i32) -> Result<Connection> {
-  Connection::open_with_flags(
-    // TODO(sagar): check access to file
-    Path::new(path),
-    OpenFlags::from_bits(flags).unwrap_or(OpenFlags::SQLITE_OPEN_READ_ONLY),
-  )
-  .map_err(|e| anyhow!("{}", e))
+pub fn create_connection(path: &Path, flags: OpenFlags) -> Result<Connection> {
+  Connection::open_with_flags(path, flags).map_err(|e| anyhow!("{}", e))
 }
 
 #[derive(Clone, Debug, Deserialize)]
