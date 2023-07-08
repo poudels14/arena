@@ -40,7 +40,7 @@ pub(crate) async fn start_server(
       routing::get(handle_widget_get_query),
     )
     .route(
-      "/api/:appId/widgets/:widgetId/api/:field",
+      "/w/:appId/widgets/:widgetId/api/:field",
       routing::post(handle_widgets_mutate_query),
     )
     .with_state(cluster);
