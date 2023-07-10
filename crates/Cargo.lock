@@ -2829,6 +2829,7 @@ dependencies = [
  "axum",
  "bytes",
  "clap 4.2.4",
+ "colored",
  "common",
  "futures",
  "http",

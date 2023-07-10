@@ -1,6 +1,7 @@
 use crate::registry::Registry;
 use anyhow::Result;
 use cache::FileStorage;
+use colored::Colorize;
 use common::dotenv;
 use std::env;
 use std::path::Path;
@@ -45,7 +46,11 @@ async fn main() -> Result<()> {
     .unwrap_or(9000);
 
   let args = Args::parse();
-  print!("Using cache directory: {:?}", &args.cache);
+  println!(
+    "{} {}",
+    "Using cache directory:",
+    &args.cache.yellow().bold()
+  );
 
   let registry = Registry::with_cache(FileStorage::new(Path::new(&args.cache)));
   server::start(host, port, registry).await

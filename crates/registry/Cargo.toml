@@ -18,4 +18,5 @@ futures.workspace = true
 bytes.workspace = true
 mime.workspace = true
 mime_guess.workspace = true
+colored.workspace = true
 common = { path = "../common", features = ["dotenv"] }
