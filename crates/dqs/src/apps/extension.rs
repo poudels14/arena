@@ -6,6 +6,7 @@ use deno_core::op;
 use deno_core::Extension;
 use deno_core::OpState;
 
+#[allow(dead_code)]
 pub fn extension(app: App) -> BuiltinExtension {
   BuiltinExtension {
     extension: Some(

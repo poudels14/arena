@@ -2840,6 +2840,7 @@ dependencies = [
  "mime_guess",
  "nom",
  "tokio",
+ "tower",
  "tower-http 0.3.5",
  "tracing",
  "tracing-subscriber",

@@ -3,11 +3,13 @@ use crate::apps::App;
 use crate::server::entry::ServerEntry;
 use anyhow::{anyhow, bail, Context, Result};
 use axum::extract::{Path, Query, State};
+use axum::middleware;
 use axum::response::{IntoResponse, Response};
 use axum::{routing, Router};
 use axum_extra::extract::cookie::Cookie;
 use cloud::acl::{Access, AclEntity};
 use colored::Colorize;
+use common::axum::logger;
 use common::deno::extensions::server::response::ParsedHttpResponse;
 use common::deno::extensions::server::{errors, HttpRequest};
 use deno_core::{normalize_path, ZeroCopyBuf};
@@ -25,6 +27,7 @@ use std::net::Ipv4Addr;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use tokio::sync::oneshot;
+use tower::ServiceBuilder;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use url::Url;
@@ -35,12 +38,6 @@ pub(crate) async fn start_server(
   port: u16,
 ) -> Result<()> {
   let app = Router::new()
-    .layer(
-      CorsLayer::new()
-        .allow_methods([Method::GET])
-        .allow_origin(AllowOrigin::list(vec![])),
-    )
-    .layer(CompressionLayer::new())
     .route(
       "/w/:appId/widgets/:widgetId/api/:field",
       routing::get(handle_widget_get_query),
@@ -51,6 +48,16 @@ pub(crate) async fn start_server(
     )
     .route("/w/:appId/*path", routing::get(handle_app_routes))
     .route("/w/:appId/*path", routing::post(handle_app_routes))
+    .layer(
+      ServiceBuilder::new()
+        .layer(middleware::from_fn(logger::middleware))
+        .layer(CompressionLayer::new())
+        .layer(
+          CorsLayer::new()
+            .allow_methods([Method::GET])
+            .allow_origin(AllowOrigin::list(vec![])),
+        ),
+    )
     .with_state(cluster);
 
   let addr: SocketAddr = (Ipv4Addr::from_str(&address)?, port).into();

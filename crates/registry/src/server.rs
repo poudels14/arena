@@ -5,10 +5,12 @@ use axum::body::Body;
 use axum::body::HttpBody;
 use axum::extract::Query;
 use axum::extract::{Path, State};
+use axum::middleware;
 use axum::response;
 use axum::response::{IntoResponse, Response};
 use axum::{routing, Router};
 use bytes::Bytes;
+use common::axum::logger;
 use http::header::CONTENT_TYPE;
 use http::{HeaderValue, Method, StatusCode};
 use std::collections::HashMap;
@@ -16,6 +18,7 @@ use std::env;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
 use std::str::FromStr;
+use tower::ServiceBuilder;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tracing::debug;
@@ -30,13 +33,7 @@ pub(crate) async fn start(
   port: u16,
   registry: Registry,
 ) -> Result<()> {
-  let cors = CorsLayer::new()
-    .allow_methods([Method::GET])
-    .allow_origin(AllowOrigin::list(vec![]));
-
   let app = Router::new()
-    .layer(cors)
-    .layer(CompressionLayer::new())
     .route(
       "/static/templates/apps/*uri",
       routing::get(get_app_template_client_bundle),
@@ -45,6 +42,16 @@ pub(crate) async fn start(
     .route(
       "/server/templates/apps/*uri",
       routing::get(get_app_template_server_bundle),
+    )
+    .layer(
+      ServiceBuilder::new()
+        .layer(middleware::from_fn(logger::middleware))
+        .layer(CompressionLayer::new())
+        .layer(
+          CorsLayer::new()
+            .allow_methods([Method::GET])
+            .allow_origin(AllowOrigin::list(vec![])),
+        ),
     )
     .with_state(AppState {
       registry: registry.clone(),

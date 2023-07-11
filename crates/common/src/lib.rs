@@ -1,6 +1,7 @@
 pub mod arena;
 #[cfg(feature = "ast")]
 pub mod ast;
+pub mod axum;
 pub mod beam;
 #[cfg(feature = "deno")]
 pub mod deno;
