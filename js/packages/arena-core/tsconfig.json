@@ -10,6 +10,6 @@
     "jsxImportSource": "solid-js",
     "jsx": "preserve",
     "strict": true,
-    "types": ["@arena/runtime", "vitest/importMeta"]
+    "types": ["vitest/importMeta"]
   }
 }

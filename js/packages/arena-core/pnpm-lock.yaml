@@ -1,9 +1,6 @@
 lockfileVersion: '6.0'
 
 dependencies:
-  '@arena/runtime':
-    specifier: workspace:^0.1.0
-    version: link:../../arena-runtime
   '@arena/solid-store':
     specifier: workspace:^
     version: link:../solid-store

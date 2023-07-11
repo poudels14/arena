@@ -36,7 +36,7 @@ const router = (options: RouterOptions) => {
     }
 
     let res;
-    if ((res = await findMyRouter.route(event.request, context))) {
+    if ((res = await findMyRouter.route(event.request, { context }))) {
       return res;
     }
 
