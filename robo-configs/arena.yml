@@ -1,3 +1,17 @@
 db:
   summary: Create a new database migration schema
   exec: robo --config {{ .robo.path }}/db.yml
+dqs_cloud:
+  exec: "{{ .bin }}/dqs_cloud"
+  env:
+    [
+      "PORT=9002",
+      "REGISTRY_HOST=http://localhost:8000",
+      "REGISTRY_API_KEY=test",
+    ]
+registry:
+  exec: "{{ .bin }}/registry"
+  env: ["PORT=9000", "API_KEY=test"]
+
+variables:
+  bin: /home/sagar/Desktop/Projects/arena/crates/target/release/
