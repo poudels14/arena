@@ -27,7 +27,7 @@ pub struct FileSystemPermissions {
   pub root: PathBuf,
   // Note(sp): read paths are relative to the root
   pub allowed_read_paths: HashSet<String>,
-  // Note(sp): read paths are relative to the root
+  // Note(sp): write paths are relative to the root
   pub allowed_write_paths: HashSet<String>,
 }
 
@@ -104,12 +104,19 @@ impl PermissionsContainer {
   pub fn check_read(&mut self, path: &Path) -> Result<()> {
     match self.fs.as_ref() {
       Some(perms) => {
+        // Note(sagar): having permission to write to a path will also allow
+        // reading from the path
+        let allowed_read_paths = perms
+          .allowed_write_paths
+          .iter()
+          .chain(perms.allowed_read_paths.iter())
+          .collect::<Vec<&String>>();
         // TODO(sagar): cache the paths
         // TODO(sagar): write tests
         let root = perms.root.canonicalize()?;
         let path = normalize_path(path);
-        if perms
-          .allowed_read_paths
+
+        if allowed_read_paths
           .iter()
           .any(|p| path.starts_with(normalize_path(root.join(p))))
         {
