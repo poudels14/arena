@@ -7,6 +7,7 @@ type BuildConfig = {
       alias?: Record<string, string>;
       conditions?: string[];
       dedupe?: string[];
+      external?: string[];
     };
   };
 };
@@ -19,6 +20,7 @@ const buildServer = async (options: {
   input: string;
   output: any;
   javascript?: BuildConfig["javascript"];
+  replace: Record<string, any>;
   // rollup plugins
   plugins?: any[];
 }) => {
@@ -38,7 +40,9 @@ const buildServer = async (options: {
       plugins.arenaResolver({
         ...(options.javascript?.resolve || {}),
       }),
-      plugins.arenaLoader({}),
+      plugins.arenaLoader({
+        replace: options.replace,
+      }),
       ...options.plugins!,
     ],
   });
