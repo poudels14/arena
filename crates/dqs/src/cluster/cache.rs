@@ -1,7 +1,7 @@
 use crate::db::acl;
 use crate::db::acl::acls;
 use crate::db::app::{self, apps, App};
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use cloud::acl::{Access, Acl, AclEntity};
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
@@ -27,19 +27,18 @@ impl Cache {
     }
   }
 
-  pub async fn get_workspace_id(&self, app_id: &str) -> Option<String> {
+  pub async fn get_workspace_id(&self, app_id: &str) -> Result<Option<String>> {
     let workspace_id = {
       let map = self.workspace_apps.lock().await;
       map.get(app_id).map(|w| w.to_string())
     };
 
     match workspace_id {
-      Some(id) => Some(id),
+      Some(id) => Ok(Some(id)),
       None => self
         .fetch_and_cache_app(app_id)
         .await
-        .map(|a| a.workspace_id)
-        .ok(),
+        .map(|a| a.map(|a| a.workspace_id)),
     }
   }
 
@@ -58,22 +57,27 @@ impl Cache {
     }
   }
 
-  async fn fetch_and_cache_app(&self, app_id: &str) -> Result<App> {
+  async fn fetch_and_cache_app(&self, app_id: &str) -> Result<Option<App>> {
     let connection = &mut self
       .db_pool
       .clone()
       .ok_or(anyhow!("Db pool not set"))?
       .get()?;
 
-    let app = app::table
+    let res = app::table
       .filter(apps::id.eq(app_id.to_string()))
       .filter(apps::archived_at.is_null())
-      .first::<app::App>(connection)?;
+      .first::<app::App>(connection);
 
-    let mut map = self.workspace_apps.lock().await;
-    map.insert(app.id.clone(), app.workspace_id.clone());
-
-    Ok(app)
+    match res {
+      Ok(app) => {
+        let mut map = self.workspace_apps.lock().await;
+        map.insert(app.id.clone(), app.workspace_id.clone());
+        Ok(Some(app))
+      }
+      Err(e) if e == diesel::NotFound => Ok(None),
+      Err(e) => bail!("{}", e),
+    }
   }
 
   async fn fetch_and_cache_workspace_acls(

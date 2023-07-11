@@ -3,9 +3,11 @@ use common::arena::ArenaConfig;
 use common::deno::extensions::server::HttpServerConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use jsruntime::{IsolatedRuntime, RuntimeOptions};
+use std::rc::Rc;
 use tracing_subscriber::prelude::*;
 use tracing_tree::HierarchicalLayer;
 use url::Url;
+mod apps;
 mod config;
 mod db;
 mod extension;
@@ -35,7 +37,7 @@ async fn main() -> Result<()> {
         port: 8002,
         serve_dir: None,
       }),
-      BuiltinModule::Custom(crate::extension::extension),
+      BuiltinModule::Custom(Rc::new(crate::extension::extension)),
       BuiltinModule::CustomRuntimeModule(
         "@arena/runtime/dqs",
         include_str!("../../../js/arena-runtime/dist/dqs.js"),

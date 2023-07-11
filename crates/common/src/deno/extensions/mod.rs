@@ -17,6 +17,7 @@ use anyhow::{Context, Result};
 use deno_core::{Extension, JsRuntime, ModuleCode};
 use indexmap::IndexSet;
 use std::path::PathBuf;
+use std::rc::Rc;
 use tracing::debug;
 use url::Url;
 
@@ -36,7 +37,7 @@ pub struct BuiltinExtension {
 pub enum BuiltinModule {
   Fs,
   Env,
-  Node,
+  Node(Option<Vec<&'static str>>),
   Resolver(PathBuf),
   Transpiler,
   Babel,
@@ -48,7 +49,7 @@ pub enum BuiltinModule {
   HttpServer(HttpServerConfig),
   /// args: (specifier, code)
   CustomRuntimeModule(&'static str, &'static str),
-  Custom(fn() -> BuiltinExtension),
+  Custom(Rc<dyn Fn() -> BuiltinExtension>),
 }
 
 impl BuiltinModule {
@@ -56,7 +57,7 @@ impl BuiltinModule {
     match self {
       Self::Fs => self::fs::extension(),
       Self::Env => self::env::extension(),
-      Self::Node => self::node::extension(),
+      Self::Node(filter) => self::node::extension(filter.to_owned()),
       Self::Resolver(root) => self::resolver::extension(root.clone()),
       Self::Transpiler => self::transpiler::extension(),
       Self::Babel => self::babel::extension(),
@@ -84,7 +85,7 @@ impl BuiltinExtensions {
   pub fn with_all_modules() -> Self {
     let extensions = vec![
       BuiltinModule::Fs,
-      BuiltinModule::Node,
+      BuiltinModule::Node(None),
       BuiltinModule::Postgres,
       BuiltinModule::Sqlite,
       BuiltinModule::Resolver(PathBuf::default()),

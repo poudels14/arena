@@ -13,6 +13,7 @@ use jsruntime::permissions::FetchPermissions;
 use jsruntime::{IsolatedRuntime, RuntimeOptions};
 use serde_json::{json, Value};
 use std::collections::HashSet;
+use std::rc::Rc;
 use std::thread;
 use tracing::{debug, error, info};
 use url::Url;
@@ -162,7 +163,7 @@ impl WorkspaceServer {
     let mut builtin_modules = vec![
       BuiltinModule::Fs,
       BuiltinModule::Env,
-      BuiltinModule::Node,
+      BuiltinModule::Node(None),
       BuiltinModule::Postgres,
       BuiltinModule::HttpServer(HttpServerConfig::Tcp {
         address: self.address.clone(),
@@ -173,11 +174,12 @@ impl WorkspaceServer {
           Some(self.workspace.dir.clone())
         },
       }),
-      BuiltinModule::Custom(cloud::extension::extension),
+      BuiltinModule::Custom(Rc::new(cloud::extension::extension)),
     ];
 
     if self.dev_mode {
       builtin_modules.extend(vec![
+        BuiltinModule::Sqlite,
         BuiltinModule::Resolver(self.workspace.project_root()),
         BuiltinModule::Transpiler,
         BuiltinModule::FileRouter,
@@ -198,6 +200,11 @@ impl WorkspaceServer {
           root: self.workspace.dir.clone(),
           // Note(sp): only give read access to workspace directory
           allowed_read_paths: HashSet::from_iter(vec![".".to_owned()]),
+          allowed_write_paths: HashSet::from_iter(if self.dev_mode {
+            vec![".".to_owned()]
+          } else {
+            vec![]
+          }),
           ..Default::default()
         }),
         net: Some(FetchPermissions {

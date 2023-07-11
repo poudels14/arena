@@ -13,7 +13,15 @@ localhost:8000 {
 	}
 
 	route /static/* {
-		reverse_proxy localhost:9000
+		reverse_proxy localhost:9000 localhost:9001 {
+			lb_retries 5
+		}
+	}
+
+	route /server/* {
+		reverse_proxy localhost:9000 {
+			lb_retries 5
+		}
 	}
 
 	route /* {

@@ -14,7 +14,7 @@ pub struct Command {
   /// File to execute
   file: String,
 
-  /// Whether to auto-transpile code; default true
+  /// Whether to auto-transpile code; default is auto-transpile on
   #[arg(short, long)]
   disable_transpile: bool,
 
@@ -33,7 +33,7 @@ impl Command {
     let project_root = ArenaConfig::find_project_root()?;
     let mut builtin_modules = vec![
       BuiltinModule::Fs,
-      BuiltinModule::Node,
+      BuiltinModule::Node(None),
       BuiltinModule::Env,
       BuiltinModule::Postgres,
       BuiltinModule::Sqlite,

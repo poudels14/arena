@@ -52,16 +52,18 @@ fn generate_prod_snapshot(path: &Path) {
   let mut runtime = get_basic_runtime();
 
   BuiltinExtensions::with_modules(vec![
+    BuiltinModule::Node(Some(vec!["crypto"])),
+    BuiltinModule::Postgres,
+    BuiltinModule::Sqlite,
     // Note(sagar): load this here so that ESM modules are snapshotted
     // Even if TCP server is used here, we can use stream server during
     // runtime if needed
-    BuiltinModule::Postgres,
     BuiltinModule::HttpServer(HttpServerConfig::Tcp {
       address: "0.0.0.0".to_owned(),
       port: 0,
       serve_dir: None,
     }),
-    BuiltinModule::Custom(|| BuiltinExtension {
+    BuiltinModule::Custom(Rc::new(|| BuiltinExtension {
       snapshot_modules: vec![
         // Note(sagar): load this under @arena/dqs/router instead of
         // @arena/functions/router since we dont want user code to be able
@@ -77,7 +79,7 @@ fn generate_prod_snapshot(path: &Path) {
         dqs_function!("sql/postgres"),
       ],
       ..Default::default()
-    }),
+    })),
   ])
   .load_snapshot_modules(&mut runtime)
   .unwrap();

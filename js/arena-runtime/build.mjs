@@ -192,6 +192,20 @@ program.option("--minify").action(async (options, cmd) => {
       },
       external: ["@arena/runtime/postgres"],
     }),
+    build({
+      ...options,
+      entryPoints: {
+        "app-server": "./libs/apps/server.ts",
+      },
+      external: [
+        "path",
+        "crypto",
+        "@app/template",
+        "@arena/runtime/server",
+        "@arena/runtime/sqlite",
+        "~/setup/migrations",
+      ],
+    }),
   ]);
 });
 

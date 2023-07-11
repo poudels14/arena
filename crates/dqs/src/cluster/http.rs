@@ -1,20 +1,25 @@
-use super::DqsCluster;
+use super::{DqsCluster, DqsServerOptions};
+use crate::apps::App;
+use crate::server::entry::ServerEntry;
 use anyhow::{anyhow, bail, Context, Result};
 use axum::extract::{Path, Query, State};
 use axum::response::{IntoResponse, Response};
 use axum::{routing, Router};
 use axum_extra::extract::cookie::Cookie;
 use cloud::acl::{Access, AclEntity};
+use colored::Colorize;
 use common::deno::extensions::server::response::ParsedHttpResponse;
 use common::deno::extensions::server::{errors, HttpRequest};
-use deno_core::ZeroCopyBuf;
+use deno_core::{normalize_path, ZeroCopyBuf};
 use http::{Method, Request};
 use hyper::body::HttpBody;
 use hyper::Body;
+use indexmap::IndexMap;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation};
+use jsruntime::permissions::{FileSystemPermissions, PermissionsContainer};
 use serde::Deserialize;
 use serde_json::{json, Value};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
@@ -22,18 +27,19 @@ use std::str::FromStr;
 use tokio::sync::oneshot;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::{AllowOrigin, CorsLayer};
+use url::Url;
 
 pub(crate) async fn start_server(
   cluster: DqsCluster,
   address: String,
   port: u16,
 ) -> Result<()> {
-  let cors = CorsLayer::new()
-    .allow_methods([Method::GET])
-    .allow_origin(AllowOrigin::list(vec![]));
-
   let app = Router::new()
-    .layer(cors)
+    .layer(
+      CorsLayer::new()
+        .allow_methods([Method::GET])
+        .allow_origin(AllowOrigin::list(vec![])),
+    )
     .layer(CompressionLayer::new())
     .route(
       "/w/:appId/widgets/:widgetId/api/:field",
@@ -43,10 +49,13 @@ pub(crate) async fn start_server(
       "/w/:appId/widgets/:widgetId/api/:field",
       routing::post(handle_widgets_mutate_query),
     )
+    .route("/w/:appId/*path", routing::get(handle_app_routes))
+    .route("/w/:appId/*path", routing::post(handle_app_routes))
     .with_state(cluster);
 
   let addr: SocketAddr = (Ipv4Addr::from_str(&address)?, port).into();
-  println!("DQS cluster started");
+
+  println!("{}", "Starting DQS cluster...".yellow().bold());
   axum::Server::bind(&addr)
     .serve(app.into_make_service())
     .await
@@ -98,6 +107,103 @@ pub async fn handle_widgets_mutate_query(
   .await
 }
 
+pub async fn handle_app_routes(
+  Path((app_id, path)): Path<(String, String)>,
+  Query(search_params): Query<IndexMap<String, String>>,
+  State(cluster): State<DqsCluster>,
+  req: Request<Body>,
+) -> impl IntoResponse {
+  pipe_app_request(app_id, path, search_params, cluster, req).await
+}
+
+pub async fn pipe_app_request(
+  app_id: String,
+  path: String,
+  search_params: IndexMap<String, String>,
+  cluster: DqsCluster,
+  mut req: Request<Body>,
+) -> Result<Response, errors::Error> {
+  let workspace_id = cluster
+    .cache
+    .get_workspace_id(&app_id)
+    .await
+    .map_err(|e| {
+      tracing::error!("Error getting workspace id: {}", e);
+      errors::Error::AnyhowError(e.into())
+    })?
+    .ok_or(errors::Error::NotFound)?;
+
+  let app_root_path = cluster.data_dir.join(format!("./apps/{}", app_id));
+
+  let allowed_read_paths =
+    HashSet::from_iter(vec![normalize_path(&app_root_path)
+      .to_str()
+      .ok_or(anyhow!("Invalid app root path"))?
+      .to_owned()]);
+
+  let allowed_write_paths =
+    vec![normalize_path(app_root_path.join("./db/data/")).to_str()]
+      .iter()
+      .filter(|p| p.is_some())
+      .map(|p| p.map(|p| p.to_owned()))
+      .collect::<Option<HashSet<String>>>()
+      .unwrap_or_default();
+
+  let dqs_server = cluster
+    .get_or_spawn_dqs_server(DqsServerOptions {
+      id: format!("app/{}", app_id),
+      workspace_id,
+      entry: ServerEntry::AppServer,
+      app: Some(App {
+        id: app_id,
+        root: app_root_path.clone(),
+      }),
+      permissions: PermissionsContainer {
+        fs: Some(FileSystemPermissions {
+          root: app_root_path.clone(),
+          allowed_read_paths,
+          allowed_write_paths,
+          ..Default::default()
+        }),
+        ..Default::default()
+      },
+      ..Default::default()
+    })
+    .await?;
+
+  let url = {
+    let mut url = Url::parse(&format!("http://0.0.0.0/{path}")).unwrap();
+    {
+      let mut params = url.query_pairs_mut();
+      search_params.iter().for_each(|e| {
+        params.append_pair(e.0, e.1);
+      });
+    }
+    url
+  };
+
+  let body = body_to_buffer(&mut req).await;
+  let request = HttpRequest {
+    method: req.method().to_string(),
+    url: url.as_str().to_owned(),
+    // TODO(sagar): pass in headers
+    // don't pass in headers like `Cookie` that might contain
+    // user auth credentials
+    headers: vec![],
+    body,
+  };
+
+  let (tx, rx) = oneshot::channel::<ParsedHttpResponse>();
+  dqs_server
+    .http_channel
+    .send((request, tx))
+    .await
+    .map_err(|_| errors::Error::ResponseBuilder)?;
+
+  let res = rx.await.map_err(|_| errors::Error::ResponseBuilder)?;
+  res.into_response().await
+}
+
 pub async fn pipe_widget_query_request(
   cluster: &DqsCluster,
   trigger: &str, // "QUERY" | "MUTATION"
@@ -117,6 +223,10 @@ pub async fn pipe_widget_query_request(
     .cache
     .get_workspace_id(app_id)
     .await
+    .map_err(|e| {
+      tracing::error!("Error getting workspace id: {}", e);
+      errors::Error::AnyhowError(e.into())
+    })?
     .ok_or(errors::Error::NotFound)?;
 
   let acls = cluster
@@ -142,24 +252,14 @@ pub async fn pipe_widget_query_request(
   }
 
   let (tx, rx) = oneshot::channel::<ParsedHttpResponse>();
-  let body = {
-    match *req.method() {
-      // Note(sagar): Deno's Request doesn't support body in GET/HEAD
-      Method::GET | Method::HEAD => None,
-      _ => {
-        let b = req.body_mut().data().await;
-        b.and_then(|r| r.ok()).map(|r| {
-          <Box<[u8]> as Into<ZeroCopyBuf>>::into(r.to_vec().into_boxed_slice())
-        })
-      }
-    }
-  };
+  let body = body_to_buffer(&mut req).await;
 
   let props = params
     .props
     .map(|p| serde_json::from_str(&p))
     .unwrap_or(Ok(json!({})))
     .context("failed to parse props")?;
+
   let request = HttpRequest {
     method: "POST".to_owned(),
     url: format!("http://0.0.0.0/{app_id}/widgets/{widget_id}/api/{field}"),
@@ -181,7 +281,14 @@ pub async fn pipe_widget_query_request(
     ))),
   };
 
-  let dqs_server = cluster.get_or_spawn_workspace_server(&workspace_id).await?;
+  let dqs_server = cluster
+    .get_or_spawn_dqs_server(DqsServerOptions {
+      id: format!("workspace/{}", workspace_id),
+      workspace_id,
+      entry: ServerEntry::DqsServer,
+      ..Default::default()
+    })
+    .await?;
   dqs_server
     .http_channel
     .send((request, tx))
@@ -226,4 +333,17 @@ fn get_user_id_from_cookie(token: &str) -> Result<String> {
     .context("JWT verification error")?;
   }
   bail!("JWT signing key not found");
+}
+
+async fn body_to_buffer(req: &mut Request<Body>) -> Option<ZeroCopyBuf> {
+  match *req.method() {
+    // Note(sagar): Deno's Request doesn't support body in GET/HEAD
+    Method::GET | Method::HEAD => None,
+    _ => {
+      let b = req.body_mut().data().await;
+      b.and_then(|r| r.ok()).map(|r| {
+        <Box<[u8]> as Into<ZeroCopyBuf>>::into(r.to_vec().into_boxed_slice())
+      })
+    }
+  }
 }

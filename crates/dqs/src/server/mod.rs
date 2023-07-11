@@ -1,8 +1,8 @@
+pub(crate) mod entry;
 mod moduleloader;
 mod runtime;
-mod state;
-
 mod server;
+mod state;
 pub(crate) use server::start;
 
 pub use runtime::RuntimeOptions;

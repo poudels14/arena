@@ -1,5 +1,7 @@
 use super::moduleloader::AppkitModuleLoader;
 use super::state::RuntimeState;
+use crate::apps::App;
+use crate::loaders::registry::Registry;
 use anyhow::Result;
 use common::deno::extensions::server::HttpServerConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
@@ -11,8 +13,7 @@ use deno_core::{
 use deno_fetch::CreateHttpClientOptions;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
-use jsruntime::permissions::{FetchPermissions, PermissionsContainer};
-use std::collections::HashSet;
+use jsruntime::permissions::PermissionsContainer;
 use std::net::IpAddr;
 use std::rc::Rc;
 use tracing::error;
@@ -22,24 +23,26 @@ pub static WORKSPACE_DQS_SNAPSHOT: &[u8] =
 
 #[derive(Default, Clone)]
 pub struct RuntimeOptions {
+  /// Runtime id
+  pub id: String,
+  /// id of the workspace
   pub workspace_id: String,
-
   pub db_pool: Option<Pool<ConnectionManager<PgConnection>>>,
-
   pub server_config: HttpServerConfig,
-
   /// Name of the HTTP user_agent
   pub user_agent: Option<String>,
-
   pub permissions: PermissionsContainer,
-
   /// Heap limit tuple: (initial size, max hard limit) in bytes
   pub heap_limits: Option<(usize, usize)>,
-
   /// The local address to use for outgoing network request
   /// This is useful if we need to restrict the outgoing network
   /// request to a specific network device/address
   pub egress_address: Option<IpAddr>,
+  /// Builtin modules to be loaded to the runtime
+  pub modules: Vec<BuiltinModule>,
+  /// App info - only set if this runtime for an app
+  pub app: Option<App>,
+  pub registry: Option<Registry>,
 }
 
 pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
@@ -57,7 +60,7 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
     ),
     deno_fetch::deno_fetch::init_ops::<PermissionsContainer>(
       deno_fetch::Options {
-        user_agent: get_user_agent(&config.workspace_id),
+        user_agent: get_user_agent(&config.id),
         root_cert_store_provider: None,
         proxy: None,
         request_builder_hook: None,
@@ -69,15 +72,24 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
     self::build_extension(state.clone(), &config),
   ];
 
-  let mut builtin_extensions = BuiltinExtensions::with_modules(vec![
-    BuiltinModule::Postgres,
-    BuiltinModule::HttpServer(config.server_config),
-  ]);
+  let mut builtin_extensions = BuiltinExtensions::with_modules(
+    vec![
+      vec![
+        BuiltinModule::Node(Some(vec!["crypto"])),
+        BuiltinModule::Postgres,
+        BuiltinModule::Sqlite,
+        BuiltinModule::HttpServer(config.server_config),
+      ],
+      config.modules,
+    ]
+    .concat(),
+  );
   extensions.extend(builtin_extensions.deno_extensions());
 
   let create_params = config.heap_limits.map(|(initial, max)| {
     v8::Isolate::create_params().heap_limits(initial, max)
   });
+
   let mut runtime = JsRuntime::new(deno_core::RuntimeOptions {
     startup_snapshot: Some(Snapshot::Static(WORKSPACE_DQS_SNAPSHOT)),
     create_params,
@@ -85,6 +97,8 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
       workspace_id: config.workspace_id.clone(),
       pool: db_pool,
       state,
+      app: config.app,
+      registry: config.registry.expect("Registry not set"),
     })),
     extensions,
     ..Default::default()
@@ -108,8 +122,9 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
 }
 
 fn build_extension(state: RuntimeState, config: &RuntimeOptions) -> Extension {
-  let user_agent = get_user_agent(&config.workspace_id);
+  let user_agent = get_user_agent(&config.id);
   let egress_address = config.egress_address.clone();
+  let permissions = config.permissions.clone();
 
   Extension::builder("workspace/runtime")
       .js(vec![
@@ -132,14 +147,8 @@ fn build_extension(state: RuntimeState, config: &RuntimeOptions) -> Extension {
       .state(move |op_state| {
         op_state.put::<RuntimeState>(state.clone());
         op_state.put::<EnvironmentVariableStore>(state.env_variables.clone());
-        op_state.put::<PermissionsContainer>(PermissionsContainer {
-          // TODO(sagar): use workspace's allow/restrict list
-          net: Some(FetchPermissions {
-            restricted_urls: Some(HashSet::new()),
-            ..Default::default()
-          }),
-          ..Default::default()
-        });
+        op_state.put::<PermissionsContainer>(permissions);
+
         if let Some(egress_address) = egress_address {
           let mut client = common::deno::fetch::get_default_http_client_builder(
             &user_agent,
@@ -163,6 +172,6 @@ fn build_extension(state: RuntimeState, config: &RuntimeOptions) -> Extension {
       .build()
 }
 
-fn get_user_agent(workspace_id: &str) -> String {
-  format!("arena/dqs/{}", workspace_id)
+fn get_user_agent(id: &str) -> String {
+  format!("arena/{}", id)
 }

@@ -3,6 +3,7 @@ CREATE TABLE apps (
   name VARCHAR(100),
   description TEXT,
   workspace_id VARCHAR(50),
+  template JSONB DEFAULT NULL,
   config JSONB,
   created_by VARCHAR(50),
   created_at TIMESTAMPTZ DEFAULT NOW(),

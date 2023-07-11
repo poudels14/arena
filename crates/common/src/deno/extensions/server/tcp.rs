@@ -34,7 +34,6 @@ use tower_http::compression::{
 };
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::services::ServeDir;
-use tracing::info;
 
 #[op]
 pub(crate) async fn op_http_listen(state: Rc<RefCell<OpState>>) -> Result<()> {
@@ -91,7 +90,7 @@ pub(crate) async fn op_http_accept(
         <Result<Response, errors::Error>>::Ok(
           res
             .map(|res| {
-              info!(
+              println!(
                 "{} {:?} {} {}",
                 res.1.method,
                 res.1.path,

@@ -1,0 +1,12 @@
+{
+  "name": "@arena/sdk",
+  "version": "0.1.0",
+  "description": "Arena SDK to build widgets and apps on Arena",
+  "main": "index.ts",
+  "keywords": [],
+  "author": "Sagar Poudel",
+  "license": "MIT",
+  "dependencies": {
+    "@types/node": "^20.4.1"
+  }
+}

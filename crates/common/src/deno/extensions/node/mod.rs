@@ -6,23 +6,54 @@ use crate::resolve_from_root;
 use deno_core::Extension;
 use std::path::PathBuf;
 
-pub fn extension() -> BuiltinExtension {
+pub enum NodeModules {
+  Path,
+  Process,
+  Assert,
+  PerfHooks,
+  Buffer,
+  Crypto,
+  Events,
+  Fs,
+  Tty,
+  Util,
+}
+
+/// Initialize a node BuiltinExtension
+/// If the `None` filter is passed, all node modules are included
+/// If `Some(vec![...])` filter is passed, only the modules specified
+/// in the filter will be included.
+/// Note(sagar): `path`, `process` and `buffer` are always included even
+/// when the filter is passed
+pub fn extension(module_filter: Option<Vec<&'static str>>) -> BuiltinExtension {
+  let required_modules = vec!["path", "process", "buffer"];
+  let modules = vec![
+    "assert",
+    "perf_hooks",
+    "crypto",
+    "events",
+    "fs",
+    "fs/promises",
+    "tty",
+    "util",
+  ];
+
+  let module_filter = module_filter.unwrap_or(modules.clone());
   BuiltinExtension {
     extension: Some(self::init_ops()),
     runtime_modules: vec![("setup", include_str!("./node.js"))],
-    snapshot_modules: vec![
-      node_module("path"),
-      node_module("process"),
-      node_module("assert"),
-      node_module("perf_hooks"),
-      node_module("buffer"),
-      node_module("crypto"),
-      node_module("events"),
-      node_module("fs"),
-      node_module("fs/promises"),
-      node_module("tty"),
-      node_module("util"),
-    ],
+    snapshot_modules: [
+      required_modules,
+      modules
+        .iter()
+        .filter(|m| module_filter.contains(m))
+        .map(|m| m.to_owned())
+        .collect(),
+    ]
+    .concat()
+    .iter()
+    .map(|m| node_module(m))
+    .collect(),
   }
 }
 

@@ -281,6 +281,9 @@ declare var path: any;
 declare var process: any;
 declare var Buffer: any;
 
+declare module "node:path";
+declare module "node:crypto";
+
 declare module "@arena/runtime/resolver" {
   export class Resolver {
     constructor(config?: Arena.ResolverConfig);
@@ -398,7 +401,8 @@ declare module "@arena/runtime/sqlite" {
       sql: string;
       params: readonly any[];
     }): Promise<{ rows: T[] }>;
-    transaction<T>(closure: () => T | Promise<T>);
+    transaction<T>(closure: () => T | Promise<T>): Promise<void>;
+    close(): Promise<void>;
   };
 
   export const Client: new (config: ClientConfig) => Client;
@@ -431,6 +435,7 @@ declare module "@arena/runtime/server" {
 
   type ProcedureCallbackArgs<Context> = {
     req: Request;
+    env: any;
     ctx: Context;
     params: Record<string, string>;
     searchParams: Record<string, string>;

@@ -37,6 +37,9 @@ axum-extra.workspace = true
 jsonwebtoken.workspace = true
 reqwest.workspace = true
 clap.workspace = true
+indexmap.workspace = true
+simdutf8.workspace = true
+colored.workspace = true
 common = { path = "../common" }
 jsruntime = { path = "../jsruntime" }
 cloud = { path = "../cloud" }

@@ -1,5 +1,6 @@
 use self::handle::DqsServerHandle;
 use self::stream::RequestStreamSender;
+use crate::server::entry::ServerEntry;
 use crate::server::{self, RuntimeOptions, ServerEvents};
 use anyhow::anyhow;
 use anyhow::bail;
@@ -83,6 +84,7 @@ async fn op_dqs_start_tcp_server(
         ..Default::default()
       },
       tx,
+      ServerEntry::DqsServer.get_main_module()?,
     )
   });
 
@@ -110,6 +112,7 @@ async fn op_dqs_start_stream_server(
         ..Default::default()
       },
       tx,
+      ServerEntry::DqsServer.get_main_module()?,
     )
   });
 

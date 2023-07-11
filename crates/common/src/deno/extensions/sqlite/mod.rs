@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::path::Path;
 use std::rc::Rc;
+use tracing::debug;
 pub mod sqlite;
 use self::sqlite::get_json_value;
 
@@ -76,12 +77,14 @@ pub struct Columns {
 
 #[derive(Debug)]
 pub struct SqliteConnection {
+  db_path: String,
   pub connection: RefCell<Option<Connection>>,
   options: QueryOptions,
 }
 
 impl Resource for SqliteConnection {
   fn close(self: Rc<Self>) {
+    debug!("SqliteConnection dropped [db_path = {}]", self.db_path);
     drop(self);
   }
 }
@@ -109,13 +112,21 @@ fn op_sqlite_create_connection(
   }
 
   let connection = sqlite::create_connection(path, flags)?;
-  let rid = state
-    .resource_table
-    .add::<SqliteConnection>(SqliteConnection {
-      connection: RefCell::new(Some(connection)),
-      options: config.options.unwrap_or_default(),
-    });
-  Ok(rid)
+  let connection = SqliteConnection {
+    db_path: path
+      .canonicalize()
+      .ok()
+      .and_then(|p| p.to_str().map(|s| s.to_owned()))
+      .expect("Failed to get db path"),
+    connection: RefCell::new(Some(connection)),
+    options: config.options.unwrap_or_default(),
+  };
+
+  debug!(
+    "SqliteConnection created [db_path = {}]",
+    &connection.db_path
+  );
+  Ok(state.resource_table.add::<SqliteConnection>(connection))
 }
 
 #[op(fast)]

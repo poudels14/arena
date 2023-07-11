@@ -27,6 +27,7 @@
   "dependencies": {
     "@arena/core": "workspace:^",
     "@arena/functions": "workspace:^",
+    "@arena/sdk": "workspace:^",
     "@babel/core": "^7.21.3",
     "@babel/helper-plugin-utils": "^7.20.2",
     "@babel/standalone": "^7.20.14",
@@ -41,14 +42,14 @@
     "matcher": "^5.0.0",
     "mime": "^3.0.0",
     "path": "^0.12.7",
-    "postcss": "^8.4.21",
+    "postcss": "^8.4.25",
     "reserved-words": "^0.1.2",
     "rollup": "^3.17.3",
     "rollup-plugin-postcss": "^4.0.2",
     "rxjs": "^7.8.1",
     "solid-js": "^1.6.9",
     "terser": "^5.16.8",
-    "url": "^0.11.0",
+    "url": "^0.11.1",
     "util": "^0.12.5"
   },
   "devDependencies": {

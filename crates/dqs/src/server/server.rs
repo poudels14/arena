@@ -2,11 +2,10 @@ use super::runtime::{self, RuntimeOptions};
 use anyhow::{anyhow, Result};
 use common::beam;
 use deno_core::v8::IsolateHandle;
-use deno_core::JsRuntime;
+use deno_core::{JsRuntime, ModuleCode, ModuleSpecifier};
 use serde_json::Value;
 use tokio::sync::{mpsc, oneshot};
 use tracing::debug;
-use url::Url;
 
 #[derive(Debug)]
 pub enum ServerEvents {
@@ -24,6 +23,8 @@ pub enum Command {
 pub(crate) fn start(
   config: RuntimeOptions,
   tx: oneshot::Sender<mpsc::Receiver<ServerEvents>>,
+  // server entry module `(specifier, code)`
+  entry_module: (ModuleSpecifier, ModuleCode),
 ) -> Result<()> {
   let (events_tx, events_rx) = mpsc::channel(5);
   tx.send(events_rx).unwrap();
@@ -34,6 +35,12 @@ pub(crate) fn start(
     // TODO(sagar): optimize max blocking threads
     .max_blocking_threads(1)
     .build()?;
+
+  // TODO(sagar): security
+  // Do few things in prod to make sure file access is properly restricted:
+  // - use chroot to limit the files this process has access to
+  // - change process user and make make sure only that user has access to
+  //   given files and directories
 
   let local = tokio::task::LocalSet::new();
   let r = local.block_on(&rt, async {
@@ -56,7 +63,7 @@ pub(crate) fn start(
         res.map(|_| "Terminated by a termination command".to_owned()).map_err(|e| anyhow!("{}", e))
 
       },
-      res = run_dqs_server(runtime) => {
+      res = run_dqs_server(runtime, entry_module) => {
         res.map(|_| "Terminated due to event-loop completion".to_owned()).map_err(|e| anyhow!("{}", e))
       }
     };
@@ -75,7 +82,8 @@ pub(crate) fn start(
       local.block_on(&rt, async {
         events_tx
           .send(ServerEvents::Terminated(Err(anyhow!(
-            "Error running DQS server"
+            "Error running DQS server: {}",
+            e
           ))))
           .await
           .unwrap();
@@ -85,12 +93,12 @@ pub(crate) fn start(
   }
 }
 
-async fn run_dqs_server(mut runtime: JsRuntime) -> Result<()> {
+async fn run_dqs_server(
+  mut runtime: JsRuntime,
+  entry_module: (ModuleSpecifier, ModuleCode),
+) -> Result<()> {
   let mod_id = runtime
-    .load_main_module(
-      &Url::parse("file:///@arena/dqs/server")?,
-      Some(include_str!("./server.js").to_owned().into()),
-    )
+    .load_main_module(&entry_module.0, Some(entry_module.1))
     .await?;
 
   let rx = runtime.mod_evaluate(mod_id);
