@@ -428,9 +428,10 @@ declare module "@arena/runtime/server" {
     method: "GET" | "POST" | "PATCH";
   };
 
-  type RouterConfig = {
+  type RouterConfig<Context> = {
     host?: string;
     prefix?: string;
+    defaultHandler?: ProcedureCallback<Context>;
   };
 
   type ProcedureCallbackArgs<Context> = {
@@ -496,7 +497,7 @@ declare module "@arena/runtime/server" {
   export const procedure: <Context>() => Procedure<Context>;
 
   export const createRouter: <Context>(
-    config: RouterConfig & {
+    config: RouterConfig<Context> & {
       routes: Record<string, Handler<Context>>;
     }
   ) => {
@@ -507,7 +508,7 @@ declare module "@arena/runtime/server" {
   };
 
   export const mergedRouter: <Context>(
-    config: RouterConfig & {
+    config: RouterConfig<Context> & {
       prefix?: string;
       routers: ReturnType<typeof createRouter<Context>>[];
     }

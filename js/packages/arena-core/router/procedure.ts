@@ -143,4 +143,4 @@ const procedure = <Context>() => {
 };
 
 export { procedure };
-export type { Handler };
+export type { Handler, ProcedureCallback };

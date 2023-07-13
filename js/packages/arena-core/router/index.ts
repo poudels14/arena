@@ -6,16 +6,17 @@ import {
   CookieSerializeOptions,
   // @ts-expect-error
 } from "cookie";
-import { Handler } from "./procedure";
+import { Handler, ProcedureCallback } from "./procedure";
 import { errors } from "./errors";
 
-type RouterConfig = {
+type RouterConfig<Context> = {
   host?: string;
   prefix?: string;
+  defaultHandler?: ProcedureCallback<Context>;
 };
 
 const createRouter = <Context>(
-  config: RouterConfig & {
+  config: RouterConfig<Context> & {
     routes: Record<string, Handler<Context>>;
   }
 ) => {
@@ -45,7 +46,8 @@ const createRouter = <Context>(
         host: config.host,
       });
 
-      if (route && route.handler) {
+      let routeHandler = (route && route.handler) || config.defaultHandler;
+      if (routeHandler) {
         const _resInternal = {
           headers: [] as unknown as [string, string][],
           cookies: [] as unknown as [
@@ -94,12 +96,12 @@ const createRouter = <Context>(
         // @ts-expect-error
         request.cookies = parseCookie(request.headers.get("Cookie") || "");
         // @ts-expect-error
-        const res: Response = await route.handler({
+        const res: Response = await routeHandler({
           req: request,
           env: meta.env || {},
           ctx: meta.context || {},
-          params: route.params,
-          searchParams: route.searchParams,
+          params: route?.params || {},
+          searchParams: route?.searchParams || {},
           errors,
           setHeader,
           redirect,
@@ -127,8 +129,8 @@ const createRouter = <Context>(
   };
 };
 
-const mergedRouter = (
-  option: RouterConfig & {
+const mergedRouter = <Context>(
+  option: RouterConfig<Context> & {
     routers: ReturnType<typeof createRouter>[];
   }
 ) => {
