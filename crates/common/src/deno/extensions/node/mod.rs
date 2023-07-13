@@ -3,7 +3,7 @@ mod digest;
 
 use super::BuiltinExtension;
 use crate::resolve_from_root;
-use deno_core::Extension;
+use deno_core::{op, Extension};
 use std::path::PathBuf;
 
 pub enum NodeModules {
@@ -41,7 +41,15 @@ pub fn extension(module_filter: Option<Vec<&'static str>>) -> BuiltinExtension {
   let module_filter = module_filter.unwrap_or(modules.clone());
   BuiltinExtension {
     extension: Some(self::init_ops()),
-    runtime_modules: vec![("setup", include_str!("./node.js"))],
+    runtime_modules: vec![
+      // Note(sagar): load this during runtime because it depends on some ops
+      // that gets executed when loading the module
+      (
+        "url",
+        include_str!("../../../../../../js/arena-runtime/dist/node/url.js"),
+      ),
+      ("setup", include_str!("./node.js")),
+    ],
     snapshot_modules: [
       required_modules,
       modules
@@ -60,6 +68,7 @@ pub fn extension(module_filter: Option<Vec<&'static str>>) -> BuiltinExtension {
 pub fn init_ops() -> Extension {
   Extension::builder("arena/runtime/node")
     .ops(vec![
+      op_node_build_os::decl(),
       crypto::op_node_create_hash::decl(),
       crypto::op_node_hash_update::decl(),
       crypto::op_node_hash_update_str::decl(),
@@ -69,6 +78,11 @@ pub fn init_ops() -> Extension {
     ])
     .force_op_registration()
     .build()
+}
+
+#[op]
+fn op_node_build_os() -> String {
+  env!("TARGET").split('-').nth(2).unwrap().to_string()
 }
 
 fn node_module<'a>(name: &'a str) -> (&'a str, PathBuf) {

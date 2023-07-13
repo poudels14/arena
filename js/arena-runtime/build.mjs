@@ -64,6 +64,7 @@ program.option("--minify").action(async (options, cmd) => {
         events: "libs/node/events.ts",
         fs: "libs/node/fs.ts",
         "fs/promises": "libs/node/fs_promises.ts",
+        url: "libs/node/url.ts",
         path: "libs/node/path.ts",
         perf_hooks: "libs/node/perf_hooks.ts",
         process: "libs/node/process.ts",
