@@ -33,7 +33,7 @@ use tower_http::compression::{
   predicate::NotForContentType, CompressionLayer, DefaultPredicate, Predicate,
 };
 use tower_http::cors::{AllowOrigin, CorsLayer};
-use tower_http::services::ServeDir;
+use tower_http::services::ServeFile;
 
 #[op]
 pub(crate) async fn op_http_listen(state: Rc<RefCell<OpState>>) -> Result<()> {
@@ -168,14 +168,19 @@ pub async fn handle_request<'a>(
   };
 
   match options.serve_dir {
-    Some(base_dir) if req.uri().path().starts_with("/static") => {
-      let res = ServeDir::new(base_dir).oneshot(req).await;
-      return Ok((
-        res.map(|r| {
-          r.map(|body| body.map_err(|e| axum::Error::new(e)).boxed_unsync())
-        })?,
-        metadata,
-      ));
+    Some(base_dir) => {
+      // Note(sagar): remove `/` prefix from path
+      let file = base_dir.join(&metadata.path[1..]);
+      // TODO(sagar): do we need to check `../../` paths for security?
+      if file.exists() {
+        let res = ServeFile::new(file).oneshot(req).await;
+        return Ok((
+          res.map(|r| {
+            r.map(|body| body.map_err(|e| axum::Error::new(e)).boxed_unsync())
+          })?,
+          metadata,
+        ));
+      }
     }
     _ => {}
   }
