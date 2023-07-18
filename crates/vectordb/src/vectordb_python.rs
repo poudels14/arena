@@ -142,6 +142,11 @@ impl Database {
     Ok(pythonize(py, &result)?)
   }
 
+  fn compact_and_flush(&self) -> PyResult<()> {
+    self.get_db()?.compact_and_flush()?;
+    Ok(())
+  }
+
   fn close(&mut self) -> PyResult<()> {
     if self.db.is_some() {
       let mut db = self.db.take().unwrap();

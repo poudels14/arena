@@ -22,13 +22,13 @@ pub struct DocumentWithContent {
   pub content_length: u32,
   pub chunks_count: u32,
   pub content: Vec<u8>,
-  pub metadata: Option<Vec<u8>>,
+  pub metadata: Option<IndexMap<String, Value>>,
 }
 
 #[derive(Default, Deserialize)]
 pub struct AddDocumentQuery {
   pub content: Vec<u8>,
-  pub metadata: Option<Vec<u8>>,
+  pub metadata: Option<IndexMap<String, Value>>,
 }
 
 #[derive(Debug)]

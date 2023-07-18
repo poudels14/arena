@@ -2,6 +2,7 @@ use crate::db::rocks::cf::DatabaseColumnFamily;
 use crate::db::storage::embeddings::StoredEmbeddings;
 use crate::db::storage::{self, DocumentsHandle};
 use crate::db::{lock_error, VectorDatabase};
+use crate::utils;
 use crate::vectors::scoring::sortedscore::SortedSimilarityScores;
 use crate::vectors::scoring::{SimilarityScorerFactory, SimilarityType};
 use crate::vectors::VectorElement;
@@ -58,11 +59,12 @@ impl<'a> FsSearch<'a> {
     embeddings_cf
       .prefix_iterator(&collection.index.to_be_bytes())
       .map(|embedding| {
-        let (key, embedding) = embedding?;
-        let doc_index: usize = key[4..8].view_bits::<Msb0>().load_be();
-        let embedding = rmp_serde::from_slice::<StoredEmbeddings>(&embedding)?;
-
+        let (key, mut embedding) = embedding?;
+        let embedding =
+          utils::abomonation::decode::<StoredEmbeddings>(&mut embedding)?;
         let score = scorer.similarity(&query, &embedding.vectors);
+
+        let doc_index: usize = key[4..8].view_bits::<Msb0>().load_be();
         scores.push((score, (doc_index, embedding.start, embedding.end)));
 
         Ok(())

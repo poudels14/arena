@@ -12,6 +12,7 @@ use self::storage::{
   DocumentEmbeddingsHandle, DocumentsHandle,
 };
 use crate::db::rocks::cf::DatabaseColumnFamily;
+use crate::utils;
 use crate::utils::bytes::ToBeBytes;
 use anyhow::{anyhow, bail, Context, Result};
 use bitvec::field::BitField;
@@ -20,7 +21,7 @@ use bitvec::view::BitView;
 use bstr::{BStr, BString, ByteSlice};
 use indexmap::IndexMap;
 use rocksdb::{
-  DBCompressionType, IteratorMode, Options, ReadOptions,
+  DBCompressionType, FlushOptions, IteratorMode, Options, ReadOptions,
   WriteBatchWithTransaction, DB,
 };
 use std::sync::{Arc, Mutex};
@@ -261,7 +262,7 @@ impl<'d> VectorDatabase {
           &EmbeddingsSlice {
             start: embedding.start,
             end: embedding.end,
-            vectors: &embedding.vectors,
+            vectors: embedding.vectors.to_owned(),
           },
         )?;
         Ok(())
@@ -340,15 +341,18 @@ impl<'d> VectorDatabase {
     embeddings_cf
       .prefix_iterator(&collection.index.to_be_bytes())
       .map(|embedding| {
-        let (key, embedding) = embedding?;
+        let (key, mut embedding) = embedding?;
         let doc_index: usize = key[4..8].view_bits::<Msb0>().load_be();
-        let embedding = rmp_serde::from_slice::<StoredEmbeddings>(&embedding)?;
+        let embedding =
+          utils::abomonation::decode::<StoredEmbeddings>(&mut embedding)?;
 
         Ok(query::ChunkEmbedding {
           document_id: document_id_by_index[doc_index].clone(),
           start: embedding.start,
           end: embedding.end,
-          vectors: embedding.vectors,
+          // TODO(sagar): scanning takes ~15 times longer than dot product
+          // My guess is, it's because of this vector clone here :(
+          vectors: embedding.vectors.clone(),
         })
       })
       .collect()
@@ -365,20 +369,20 @@ impl<'d> VectorDatabase {
     unimplemented!()
   }
 
-  pub fn close(&mut self) -> Result<()> {
+  #[allow(dead_code)]
+  pub fn compact_and_flush(&self) -> Result<()> {
     // TODO(sagar)
     // IDK if this actually runs compaction
-    // self.db.compact_range(
-    //   None::<&[u8]>,
-    //   None::<&[u8]>,
-    // );
+    self.db.compact_range(None::<&[u8]>, None::<&[u8]>);
 
-    // let mut flush_opt = FlushOptions::default();
-    // flush_opt.set_wait(true);
-    // self.db.flush()?;
+    let mut flush_opt = FlushOptions::default();
+    flush_opt.set_wait(true);
+    self.db.flush()?;
+    Ok(())
+  }
 
+  pub fn close(&mut self) -> Result<()> {
     self.db.cancel_all_background_work(true);
-    drop(self);
     Ok(())
   }
 

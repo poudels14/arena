@@ -3,8 +3,10 @@ use crate::db::rocks::cf::{column_handle, DatabaseColumnFamily};
 use crate::utils::bytes::ToBeBytes;
 use anyhow::{Context, Result};
 use bstr::{BStr, BString};
+use indexmap::IndexMap;
 use rocksdb::{ColumnFamily, WriteBatchWithTransaction, DB};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 pub static DOCUMENTS_CF: &'static str = "documents";
 
@@ -22,7 +24,7 @@ pub struct Document {
   pub index: i32,
   pub content_length: u32,
   pub chunks_count: u32,
-  pub metadata: Option<Vec<u8>>,
+  pub metadata: Option<IndexMap<String, Value>>,
 }
 
 pub struct DocumentsHandle<'d> {

@@ -1,6 +1,7 @@
 use super::collections::Collection;
 use super::Document;
 use crate::db::rocks::cf::{column_handle, DatabaseColumnFamily};
+use crate::utils;
 use crate::utils::bytes::ToBeBytes;
 use anyhow::bail;
 use anyhow::Result;
@@ -27,16 +28,16 @@ pub fn get_db_options() -> Options {
   opt
 }
 
-#[derive(Debug, Serialize)]
-pub struct EmbeddingsSlice<'a> {
+#[derive(Debug, Serialize, abomonation_derive::Abomonation)]
+pub struct EmbeddingsSlice {
   /// start index of the chunk
   pub start: u32,
   /// end index of the chunk
   pub end: u32,
-  pub vectors: &'a [f32],
+  pub vectors: Vec<f32>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, abomonation_derive::Abomonation)]
 pub struct StoredEmbeddings {
   /// start index of the chunk
   pub start: u32,
@@ -81,9 +82,8 @@ impl<'d> DocumentEmbeddingsHandle<'d> {
 
     let chunk_id =
       (self.collection.index, self.document.index, index).to_be_bytes();
-    self
-      .handle
-      .batch_put(batch, &chunk_id, &rmp_serde::to_vec(embedding)?);
+    let encoded_embeddings = utils::abomonation::encode(embedding)?;
+    self.handle.batch_put(batch, &chunk_id, &encoded_embeddings);
     Ok(())
   }
 }
