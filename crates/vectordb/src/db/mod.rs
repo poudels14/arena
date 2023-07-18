@@ -4,15 +4,12 @@ pub(crate) mod storage;
 use self::storage::collections::COLLECTIONS_CF;
 use self::storage::contents::DOC_CONTENTS_CF;
 use self::storage::documents::DOCUMENTS_CF;
-use self::storage::embeddings::{
-  EmbeddingsSlice, StoredEmbeddings, DOC_EMBEDDINGS_CF,
-};
+use self::storage::embeddings::{StoredEmbeddings, DOC_EMBEDDINGS_CF};
 use self::storage::{
   Collection, CollectionsHandle, Document, DocumentContentsHandle,
   DocumentEmbeddingsHandle, DocumentsHandle,
 };
 use crate::db::rocks::cf::DatabaseColumnFamily;
-use crate::utils;
 use crate::utils::bytes::ToBeBytes;
 use anyhow::{anyhow, bail, Context, Result};
 use bitvec::field::BitField;
@@ -259,7 +256,7 @@ impl<'d> VectorDatabase {
         embeddings_h.batch_put(
           &mut batch,
           index as u32,
-          &EmbeddingsSlice {
+          &StoredEmbeddings {
             start: embedding.start,
             end: embedding.end,
             vectors: embedding.vectors.to_owned(),
@@ -343,8 +340,7 @@ impl<'d> VectorDatabase {
       .map(|embedding| {
         let (key, mut embedding) = embedding?;
         let doc_index: usize = key[4..8].view_bits::<Msb0>().load_be();
-        let embedding =
-          utils::abomonation::decode::<StoredEmbeddings>(&mut embedding)?;
+        let embedding = StoredEmbeddings::decode_unsafe(&mut embedding);
 
         Ok(query::ChunkEmbedding {
           document_id: document_id_by_index[doc_index].clone(),
@@ -352,7 +348,7 @@ impl<'d> VectorDatabase {
           end: embedding.end,
           // TODO(sagar): scanning takes ~15 times longer than dot product
           // My guess is, it's because of this vector clone here :(
-          vectors: embedding.vectors.clone(),
+          vectors: embedding.vectors.to_vec(),
         })
       })
       .collect()

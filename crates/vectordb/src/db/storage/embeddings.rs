@@ -1,14 +1,13 @@
 use super::collections::Collection;
 use super::Document;
 use crate::db::rocks::cf::{column_handle, DatabaseColumnFamily};
-use crate::utils;
 use crate::utils::bytes::ToBeBytes;
 use anyhow::bail;
 use anyhow::Result;
+use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 use rocksdb::{
   ColumnFamily, DBCompressionType, Options, WriteBatchWithTransaction, DB,
 };
-use serde::{Deserialize, Serialize};
 
 pub static DOC_EMBEDDINGS_CF: &'static str = "document-embeddings";
 
@@ -28,8 +27,8 @@ pub fn get_db_options() -> Options {
   opt
 }
 
-#[derive(Debug, Serialize, abomonation_derive::Abomonation)]
-pub struct EmbeddingsSlice {
+#[derive(Debug, Archive, Serialize, Deserialize)]
+pub struct StoredEmbeddings {
   /// start index of the chunk
   pub start: u32,
   /// end index of the chunk
@@ -37,13 +36,17 @@ pub struct EmbeddingsSlice {
   pub vectors: Vec<f32>,
 }
 
-#[derive(Debug, Serialize, Deserialize, abomonation_derive::Abomonation)]
-pub struct StoredEmbeddings {
-  /// start index of the chunk
-  pub start: u32,
-  /// end index of the chunk
-  pub end: u32,
-  pub vectors: Vec<f32>,
+impl StoredEmbeddings {
+  pub fn decode_unsafe<'a>(
+    bytes: &'a mut [u8],
+  ) -> &'a ArchivedStoredEmbeddings {
+    unsafe { rkyv::archived_root::<StoredEmbeddings>(bytes) }
+  }
+
+  pub fn encode(embedding: &StoredEmbeddings) -> Result<AlignedVec> {
+    let bytes = rkyv::to_bytes::<_, 1800>(embedding)?;
+    Ok(bytes)
+  }
 }
 
 #[allow(dead_code)]
@@ -71,7 +74,7 @@ impl<'d> DocumentEmbeddingsHandle<'d> {
     &self,
     batch: &mut WriteBatchWithTransaction<false>,
     index: u32,
-    embedding: &EmbeddingsSlice,
+    embedding: &StoredEmbeddings,
   ) -> Result<()> {
     if embedding.vectors.len() as u16 != self.collection.dimension {
       bail!(
@@ -82,7 +85,7 @@ impl<'d> DocumentEmbeddingsHandle<'d> {
 
     let chunk_id =
       (self.collection.index, self.document.index, index).to_be_bytes();
-    let encoded_embeddings = utils::abomonation::encode(embedding)?;
+    let encoded_embeddings = StoredEmbeddings::encode(embedding)?;
     self.handle.batch_put(batch, &chunk_id, &encoded_embeddings);
     Ok(())
   }
