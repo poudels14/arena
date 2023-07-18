@@ -34,7 +34,11 @@ pub trait DatabaseColumnFamily<'a> {
 
   fn iterator(&self, mode: IteratorMode) -> RowsIterator;
 
-  fn iterator_opt(&self, options: ReadOptions, mode: IteratorMode) -> RowsIterator;
+  fn iterator_opt(
+    &self,
+    options: ReadOptions,
+    mode: IteratorMode,
+  ) -> RowsIterator;
 
   fn prefix_iterator(&self, prefix: &[u8]) -> RowsIterator;
 }
@@ -72,7 +76,11 @@ impl<'a> DatabaseColumnFamily<'a> for (&'a DB, &'a ColumnFamily) {
     self.0.iterator_cf(self.1, mode)
   }
 
-  fn iterator_opt(&self, options: ReadOptions, mode: IteratorMode) -> RowsIterator {
+  fn iterator_opt(
+    &self,
+    options: ReadOptions,
+    mode: IteratorMode,
+  ) -> RowsIterator {
     self.0.iterator_cf_opt(self.1, options, mode)
   }
 

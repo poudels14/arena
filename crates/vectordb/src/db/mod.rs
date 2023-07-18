@@ -106,6 +106,10 @@ impl<'d> VectorDatabase {
       .try_into()
       .map_err(|e| anyhow!("Error creating index: {}", e))?;
 
+    if col.dimension % 4 != 0 {
+      bail!("Dimension should be a multiple of 4");
+    }
+
     let stored_collection = storage::Collection {
       index: collection_count,
       documents_count: 0,
@@ -337,7 +341,7 @@ impl<'d> VectorDatabase {
       .prefix_iterator(&collection.index.to_be_bytes())
       .map(|embedding| {
         let (key, embedding) = embedding?;
-        let doc_index: usize = key[3..8].view_bits::<Msb0>().load_be();
+        let doc_index: usize = key[4..8].view_bits::<Msb0>().load_be();
         let embedding = rmp_serde::from_slice::<StoredEmbeddings>(&embedding)?;
 
         Ok(query::ChunkEmbedding {
@@ -349,11 +353,6 @@ impl<'d> VectorDatabase {
       })
       .collect()
   }
-
-  // #[allow(dead_code)]
-  // pub fn search(&self, _query: &[VectorElement]) -> Result<query::QueryResult> {
-  //   bail!("not implemented");
-  // }
 
   #[allow(dead_code)]
   pub fn delete_document(&mut self, document_id: &[u8]) -> Result<()> {

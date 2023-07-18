@@ -9,9 +9,9 @@ static FLOAT_MARGIN: f32 = 0.00000005;
 struct ScoreWithIndex<T>(f32, #[derivative(PartialEq = "ignore")] T);
 
 /// SortedSimilarityScores sorts and retains top-k scores and its index.
-/// Since, higher similarity score mean the vectors are less similar, this
-/// uses max-heap to store the top-k (index, score) and will remove highest
-/// scores as new score is being inserted to maintain a list of most similar
+/// Since, higher similarity score mean the vectors are more similar, this
+/// uses min-heap to store the top-k (index, score) and will remove lowest
+/// scores when a new score is inserted to maintain a list of most similar
 /// vector index and their similarity score
 pub struct SortedSimilarityScores<T> {
   k: usize,
@@ -22,7 +22,7 @@ impl<T> SortedSimilarityScores<T> {
   pub fn new(k: usize) -> Self {
     Self {
       k,
-      heap: BinaryHeap::with_capacity(2 * k + 2),
+      heap: BinaryHeap::with_capacity(k + 2),
     }
   }
 
@@ -56,9 +56,9 @@ impl<T> std::cmp::Eq for ScoreWithIndex<T> {}
 impl<T> PartialOrd for ScoreWithIndex<T> {
   fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
     let diff = self.0 - other.0;
-    if diff < FLOAT_MARGIN {
+    if diff > FLOAT_MARGIN {
       Some(Ordering::Less)
-    } else if diff > FLOAT_MARGIN {
+    } else if diff < FLOAT_MARGIN {
       Some(Ordering::Greater)
     } else {
       Some(Ordering::Equal)
@@ -78,7 +78,7 @@ mod sortedscore_tests {
     list.push((6.0, 3));
     list.push((2.0, 4));
 
-    assert_eq!(list.as_vec(), vec![(1., 2), (2., 4)]);
+    assert_eq!(list.as_vec(), vec![(6., 3), (5., 1)]);
   }
 }
 
@@ -87,17 +87,17 @@ mod reverseitem_tests {
   use super::ScoreWithIndex;
 
   #[test]
-  fn test_score_with_smaller_score_smaller() {
+  fn test_score_with_smaller_score_is_bigger() {
     let item1 = ScoreWithIndex(1.0, 1);
     let item2 = ScoreWithIndex(4.0, 2);
-    assert!(item1 < item2, "Item with smaller score should be smaller");
+    assert!(item1 > item2, "Item with smaller score should be bigger");
   }
 
   #[test]
-  fn test_reverse_item_with_higher_score_higher() {
+  fn test_reverse_item_with_higher_score_lower() {
     let item1 = ScoreWithIndex(4.0, 1);
     let item2 = ScoreWithIndex(1.0, 1);
-    assert!(item1 > item2, "Item with higher score should be higher");
+    assert!(item1 < item2, "Item with higher score should be smaller");
   }
 
   #[test]

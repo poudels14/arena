@@ -5,7 +5,7 @@ use crate::db::{lock_error, VectorDatabase};
 use crate::vectors::scoring::sortedscore::SortedSimilarityScores;
 use crate::vectors::scoring::{SimilarityScorerFactory, SimilarityType};
 use crate::vectors::VectorElement;
-use anyhow::Result;
+use anyhow::{bail, Result};
 use bitvec::field::BitField;
 use bitvec::prelude::Msb0;
 use bitvec::view::BitView;
@@ -31,6 +31,13 @@ impl<'a> FsSearch<'a> {
     let collection = self.db.get_internal_collection(collection_id)?;
     let collection = collection.lock().map_err(lock_error)?;
 
+    let query_len = query.len();
+    if query_len != collection.dimension as usize {
+      bail!("Query vector dimension not same as document embedding dimension")
+    } else if query_len % 4 != 0 {
+      bail!("Query vector dimension should be a multiple of 4")
+    }
+
     let mut document_id_by_index: Vec<BString> =
       vec![b"".into(); collection.documents_count as usize];
     let document_h = DocumentsHandle::new(&self.db.db, &collection)?;
@@ -52,7 +59,7 @@ impl<'a> FsSearch<'a> {
       .prefix_iterator(&collection.index.to_be_bytes())
       .map(|embedding| {
         let (key, embedding) = embedding?;
-        let doc_index: usize = key[3..8].view_bits::<Msb0>().load_be();
+        let doc_index: usize = key[4..8].view_bits::<Msb0>().load_be();
         let embedding = rmp_serde::from_slice::<StoredEmbeddings>(&embedding)?;
 
         let score = scorer.similarity(&query, &embedding.vectors);
