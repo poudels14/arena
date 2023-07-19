@@ -1,7 +1,7 @@
 use super::PinnableSlice;
 use anyhow::{anyhow, Result};
 use rocksdb::{
-  ColumnFamily, DBIteratorWithThreadMode, IteratorMode, ReadOptions,
+  ColumnFamily, DBIteratorWithThreadMode, Direction, IteratorMode, ReadOptions,
   WriteBatchWithTransaction, DB,
 };
 
@@ -41,6 +41,15 @@ pub trait DatabaseColumnFamily<'a> {
   ) -> RowsIterator;
 
   fn prefix_iterator(&self, prefix: &[u8]) -> RowsIterator;
+
+  #[allow(unused_variables)]
+  fn prefix_iterator_opt(
+    &self,
+    prefix: &[u8],
+    options: ReadOptions,
+  ) -> RowsIterator {
+    unimplemented!()
+  }
 }
 
 impl<'a> DatabaseColumnFamily<'a> for (&'a DB, &'a ColumnFamily) {
@@ -86,5 +95,17 @@ impl<'a> DatabaseColumnFamily<'a> for (&'a DB, &'a ColumnFamily) {
 
   fn prefix_iterator(&self, prefix: &[u8]) -> RowsIterator {
     self.0.prefix_iterator_cf(self.1, prefix)
+  }
+
+  fn prefix_iterator_opt(
+    &self,
+    prefix: &[u8],
+    options: ReadOptions,
+  ) -> RowsIterator {
+    self.0.iterator_cf_opt(
+      self.1,
+      options,
+      IteratorMode::From(prefix.as_ref(), Direction::Forward),
+    )
   }
 }
