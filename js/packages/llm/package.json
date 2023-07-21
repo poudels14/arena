@@ -1,0 +1,15 @@
+{
+  "name": "@arena/llm",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "",
+  "main": "index.ts",
+  "scripts": {},
+  "keywords": [],
+  "author": "Sagar Poudel",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "mdast-util-from-markdown": "^2.0.0",
+    "mdast-util-to-markdown": "^2.1.0"
+  }
+}
