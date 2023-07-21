@@ -175,6 +175,7 @@ impl WorkspaceServer {
         },
       }),
       BuiltinModule::Custom(Rc::new(cloud::extension::extension)),
+      BuiltinModule::Custom(Rc::new(cloud::llm::extension)),
     ];
 
     if self.dev_mode {

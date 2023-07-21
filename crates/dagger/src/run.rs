@@ -8,6 +8,7 @@ use jsruntime::permissions::{
 };
 use jsruntime::{IsolatedRuntime, RuntimeOptions};
 use std::collections::HashSet;
+use std::rc::Rc;
 
 #[derive(Parser, Debug)]
 pub struct Command {
@@ -21,6 +22,10 @@ pub struct Command {
   /// Whether to enable build tools in main runtime; default false
   #[arg(short('b'), long)]
   enable_build_tools: bool,
+
+  /// Enable cloud extension
+  #[arg(long)]
+  enable_cloud_ext: bool,
 
   /// The network address to use for outgoing network requests from JS runtime
   #[arg(long)]
@@ -46,6 +51,11 @@ impl Command {
         BuiltinModule::Babel,
         BuiltinModule::Rollup,
       ])
+    }
+
+    if self.enable_cloud_ext {
+      builtin_modules
+        .extend(vec![BuiltinModule::Custom(Rc::new(cloud::llm::extension))]);
     }
 
     let egress_addr = self

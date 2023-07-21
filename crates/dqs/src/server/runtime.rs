@@ -79,6 +79,7 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
         BuiltinModule::Postgres,
         BuiltinModule::Sqlite,
         BuiltinModule::HttpServer(config.server_config),
+        BuiltinModule::Custom(Rc::new(cloud::llm::extension)),
       ],
       config.modules,
     ]

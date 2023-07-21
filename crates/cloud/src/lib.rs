@@ -1,4 +1,5 @@
 pub mod acl;
 pub mod extension;
-mod jwt;
-mod transpile;
+pub mod jwt;
+pub mod llm;
+pub mod transpile;

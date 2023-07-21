@@ -20,5 +20,6 @@ tracing-tree.workspace = true
 deno_core.workspace = true
 colored.workspace = true
 jsruntime = { path = "../jsruntime" }
-common = { path = "../common", features = ["dotenv"]}
+common = { path = "../common", features = ["dotenv"] }
+cloud = { path = "../cloud" }
 arena_workspace = { path = "../workspace" }
