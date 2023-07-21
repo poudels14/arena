@@ -23,7 +23,7 @@ pub struct Command {
   #[arg(short('b'), long)]
   enable_build_tools: bool,
 
-  /// Enable cloud extension
+  /// Enable @arena/cloud extension
   #[arg(long)]
   enable_cloud_ext: bool,
 
