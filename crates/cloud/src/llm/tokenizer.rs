@@ -1,5 +1,5 @@
 use anyhow::{anyhow, bail, Result};
-use deno_core::{op, OpState, Resource, ResourceId};
+use deno_core::{op, OpState, Resource, ResourceId, StringOrBuffer};
 use http::{HeaderMap, HeaderValue};
 use serde_json::{json, Value};
 use std::cell::RefCell;
@@ -42,10 +42,10 @@ async fn op_cloud_llm_hf_new_pretrained_tokenizer(
 }
 
 #[op]
-async fn op_cloud_llm_hf_encode(
+async fn op_cloud_llm_hf_encode<'a>(
   state: Rc<RefCell<OpState>>,
   tokenizer_id: ResourceId,
-  text: String,
+  text: StringOrBuffer,
 ) -> Result<Value> {
   let tokenizer = state
     .borrow()
@@ -53,9 +53,16 @@ async fn op_cloud_llm_hf_encode(
     .get::<TokenizerResource>(tokenizer_id)?
     .clone();
 
+  let text_str = match text {
+    StringOrBuffer::String(t) => t,
+    StringOrBuffer::Buffer(buf) => {
+      simdutf8::basic::from_utf8(&buf)?.to_string()
+    }
+  };
+
   let encoding = tokenizer
     .tokenizer
-    .encode(text, false)
+    .encode(text_str, false)
     .map_err(|e| anyhow!("{:?}", e))?;
 
   Ok(json!({

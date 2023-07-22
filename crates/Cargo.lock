@@ -738,6 +738,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "simdutf8",
  "tokenizers",
  "v8 0.74.2",
 ]
