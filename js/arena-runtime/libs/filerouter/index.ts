@@ -1,5 +1,4 @@
 import { getType } from "mime";
-// @ts-expect-error
 import path from "node:path";
 import { pick, merge } from "lodash-es";
 import { Resolver } from "@arena/runtime/resolver";

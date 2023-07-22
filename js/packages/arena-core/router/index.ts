@@ -8,6 +8,7 @@ import {
 } from "cookie";
 import { Handler, ProcedureCallback } from "./procedure";
 import { errors } from "./errors";
+import { parseFormData } from "./formdata";
 
 type RouterConfig<Context> = {
   host?: string;
@@ -107,6 +108,9 @@ const createRouter = <Context>(
           redirect,
           setCookie,
           clearCookie,
+          form: {
+            multipart: parseFormData,
+          },
         });
 
         _resInternal.headers.forEach((h) => {
@@ -146,3 +150,4 @@ const mergedRouter = <Context>(
 
 export { createRouter, mergedRouter };
 export { procedure } from "./procedure";
+export { parseFormData } from "./formdata";

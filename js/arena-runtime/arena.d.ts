@@ -268,6 +268,7 @@ interface ImportMeta {
   /**
    * Return the resolved absolute path of the given path/module
    */
+  // @ts-expect-error
   resolve: (path: string) => string;
 }
 
@@ -442,10 +443,10 @@ declare module "@arena/runtime/server" {
     searchParams: Record<string, string>;
     cookies: Record<string, string>;
     errors: {
-      notFound(): void;
-      badRequest(): void;
-      forbidden(): void;
-      internalServerError(): void;
+      notFound(message?: string): void;
+      badRequest(message?: string): void;
+      forbidden(message?: string): void;
+      internalServerError(message?: string): void;
     };
     setHeader: (name: string, value: string) => void;
     setCookie(
@@ -479,6 +480,19 @@ declare module "@arena/runtime/server" {
       }
     ): void;
     clearCookie: (name: string) => void;
+    form: {
+      /**
+       * Parse request for multipart form data
+       */
+      multipart: (req: Request) => Promise<
+        {
+          filename: string;
+          type: string;
+          name: string;
+          data: Buffer;
+        }[]
+      >;
+    };
     redirect: (path: string) => void;
     next: (args: Partial<ProcedureCallbackArgs<Context>>) => void;
   };

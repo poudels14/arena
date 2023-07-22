@@ -4,17 +4,17 @@ const error = (status: number, message: string) =>
   });
 
 const errors = {
-  notFound() {
-    return error(404, "404 Not found");
+  notFound(message?: string) {
+    return error(404, message || "404 Not found");
   },
-  badRequest() {
-    return error(400, "400 Bad request");
+  badRequest(message?: string) {
+    return error(400, message || "400 Bad request");
   },
-  forbidden() {
-    return error(403, "403 Forbidden");
+  forbidden(message?: string) {
+    return error(403, message || "403 Forbidden");
   },
-  internalServerError() {
-    return error(500, "500 Internal Server Error");
+  internalServerError(message?: string) {
+    return error(500, message || "500 Internal Server Error");
   },
 };
 
