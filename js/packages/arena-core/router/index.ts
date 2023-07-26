@@ -13,7 +13,15 @@ import { parseFormData } from "./formdata";
 type RouterConfig<Context> = {
   host?: string;
   prefix?: string;
-  defaultHandler?: ProcedureCallback<Context>;
+  defaultHandler?: Handler<Context>;
+
+  /**
+   * A middleware similar to procedure middleware but applies to
+   * all routes under this router. This can be used to setup higher level
+   * middleware if the router doesn't have access to route level procedures
+   * or has sub-routers with different procedures
+   */
+  middleware?: ProcedureCallback<Context>;
 };
 
 const createRouter = <Context>(
@@ -47,7 +55,9 @@ const createRouter = <Context>(
         host: config.host,
       });
 
-      let routeHandler = (route && route.handler) || config.defaultHandler;
+      let routeHandler =
+        ((route && route.handler) as Omit<Handler<Context>, "method">) ||
+        config.defaultHandler;
       if (routeHandler) {
         const _resInternal = {
           headers: [] as unknown as [string, string][],
@@ -97,21 +107,26 @@ const createRouter = <Context>(
         // @ts-expect-error
         request.cookies = parseCookie(request.headers.get("Cookie") || "");
         // @ts-expect-error
-        const res: Response = await routeHandler({
-          req: request,
-          env: meta.env || {},
-          ctx: meta.context || {},
-          params: route?.params || {},
-          searchParams: route?.searchParams || {},
-          errors,
-          setHeader,
-          redirect,
-          setCookie,
-          clearCookie,
-          form: {
-            multipart: parseFormData,
+        const res: Response = await routeHandler(
+          {
+            req: request,
+            env: meta.env || {},
+            ctx: meta.context || {},
+            params: route?.params || {},
+            searchParams: route?.searchParams || {},
+            errors,
+            setHeader,
+            redirect,
+            setCookie,
+            clearCookie,
+            form: {
+              multipart: parseFormData,
+            },
           },
-        });
+          {
+            middlewares: config.middleware ? [config.middleware] : null,
+          }
+        );
 
         _resInternal.headers.forEach((h) => {
           res.headers.set(h[0], h[1]);
@@ -135,7 +150,7 @@ const createRouter = <Context>(
 
 const mergedRouter = <Context>(
   option: RouterConfig<Context> & {
-    routers: ReturnType<typeof createRouter>[];
+    routers: ReturnType<typeof createRouter<Context>>[];
   }
 ) => {
   const routes = Object.fromEntries(

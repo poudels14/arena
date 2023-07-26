@@ -433,6 +433,14 @@ declare module "@arena/runtime/server" {
     host?: string;
     prefix?: string;
     defaultHandler?: ProcedureCallback<Context>;
+
+    /**
+     * A middleware similar to procedure middleware but applies to
+     * all routes under this router. This can be used to setup higher level
+     * middleware if the router doesn't have access to route level procedures
+     * or has sub-routers with different procedures
+     */
+    middleware?: ProcedureCallback<Context>;
   };
 
   type ProcedureCallbackArgs<Context> = {

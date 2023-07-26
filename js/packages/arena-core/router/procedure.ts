@@ -7,7 +7,7 @@ const isDev = () => {
   return env["NODE_ENV"] == "development";
 };
 
-type ProcedureCallbackArgs<Context> = {
+type RequestEvent<Context> = {
   req: Request;
   env: Record<string, string>;
   ctx: Context;
@@ -35,29 +35,39 @@ type ProcedureCallbackArgs<Context> = {
   setHeader: (name: string, value: string) => void;
   clearCookie: (name: string) => void;
   redirect: (path: string) => void;
-  next: (args: Partial<ProcedureCallbackArgs<Context>>) => void;
+  next: (event: Partial<RequestEvent<Context>>) => void;
 };
 
 type ProcedureCallback<Context> = (
-  args: ProcedureCallbackArgs<Context>
+  event: RequestEvent<Context>
 ) => Promise<any> | any;
 
+type HandleOptions<Context> = {
+  middlewares: ProcedureCallback<Context>[];
+};
+
 type Handler<Context> = {
-  (args: Omit<ProcedureCallbackArgs<Context>, "next">): Promise<Response>;
+  (
+    event: Omit<RequestEvent<Context>, "next">,
+    options?: HandleOptions<Context>
+  ): Promise<Response>;
   method: "GET" | "POST" | "PATCH";
 };
 
-const createHandler =
-  <Context>(fns: ProcedureCallback<Context>[]) =>
-  async (reqArgs: ProcedureCallbackArgs<Context>) => {
+const createHandler = <Context>(
+  fns: ProcedureCallback<Context>[]
+): Omit<Handler<Context>, "method"> => {
+  return async (
+    event: RequestEvent<Context>,
+    options: HandleOptions<Context>
+  ) => {
+    fns = options?.middlewares ? [...options.middlewares, ...fns] : fns;
     const generateNextFn = (currIdx: number) => {
-      return (
-        nextArgs: Partial<Omit<ProcedureCallbackArgs<Context>, "next">>
-      ) =>
+      return (nextArgs: Partial<Omit<RequestEvent<Context>, "next">>) =>
         fns[currIdx + 1]({
-          ...reqArgs,
+          ...event,
           ctx: {
-            ...reqArgs.ctx,
+            ...event.ctx,
             ...(nextArgs.ctx || {}),
           },
           next: generateNextFn(currIdx + 1),
@@ -66,7 +76,7 @@ const createHandler =
 
     let response;
     try {
-      response = fns[0]({ ...reqArgs, next: generateNextFn(0) });
+      response = fns[0]({ ...event, next: generateNextFn(0) });
     } catch (e) {
       response = e;
     }
@@ -78,29 +88,39 @@ const createHandler =
     }
     return generateResponse(response);
   };
-
-const createProcedure = <Context>(fns: ProcedureCallback<Context>[]) => {
-  return {
-    use(cb: ProcedureCallback<Context>) {
-      return createProcedure([...fns, cb]);
-    },
-    query(cb: ProcedureCallback<Context>) {
-      return Object.assign(createHandler([...fns, cb]), {
-        method: "GET" as const,
-      }) as Handler<Context>;
-    },
-    mutate(cb: ProcedureCallback<Context>) {
-      return Object.assign(createHandler([...fns, cb]), {
-        method: "POST" as const,
-      }) as Handler<Context>;
-    },
-    patch(cb: ProcedureCallback<Context>) {
-      return Object.assign(createHandler([...fns, cb]), {
-        method: "PATCH" as const,
-      }) as Handler<Context>;
-    },
-  };
 };
+
+class Procedure<Context> {
+  fns: ProcedureCallback<Context>[];
+  constructor(fns: ProcedureCallback<Context>[]) {
+    this.fns = fns;
+  }
+
+  use(cb: ProcedureCallback<Context>) {
+    return new Procedure([...this.fns, cb]);
+  }
+
+  query(cb: ProcedureCallback<Context>) {
+    return this.handle("GET", cb);
+  }
+
+  mutate(cb: ProcedureCallback<Context>) {
+    return this.handle("POST", cb);
+  }
+
+  patch(cb: ProcedureCallback<Context>) {
+    return this.handle("PATCH", cb);
+  }
+
+  private handle(
+    method: "GET" | "POST" | "PATCH",
+    cb: ProcedureCallback<Context>
+  ) {
+    return Object.assign(createHandler([...this.fns, cb]), {
+      method,
+    }) as Handler<Context>;
+  }
+}
 
 const generateResponse = (response: any) => {
   if (response instanceof Response) {
@@ -139,7 +159,7 @@ const jsonResponse = (status: number, response: any) => {
 };
 
 const procedure = <Context>() => {
-  return createProcedure<Context>([]);
+  return new Procedure<Context>([]);
 };
 
 export { procedure };
