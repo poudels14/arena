@@ -4,7 +4,9 @@ use common::arena::ArenaConfig;
 use common::deno::extensions::server::HttpServerConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use deno_core::resolve_url_or_path;
-use jsruntime::permissions::{FileSystemPermissions, PermissionsContainer};
+use jsruntime::permissions::{
+  FetchPermissions, FileSystemPermissions, PermissionsContainer,
+};
 use jsruntime::{IsolatedRuntime, RuntimeOptions};
 use std::collections::HashSet;
 use std::env::current_dir;
@@ -79,8 +81,10 @@ impl Command {
     }
 
     if self.enable_cloud_ext {
-      builtin_modules
-        .extend(vec![BuiltinModule::Custom(Rc::new(cloud::llm::extension))]);
+      builtin_modules.extend(vec![
+        BuiltinModule::Custom(Rc::new(cloud::llm::extension)),
+        BuiltinModule::Custom(Rc::new(cloud::vectordb::extension)),
+      ]);
     }
 
     let mut runtime = IsolatedRuntime::new(RuntimeOptions {
@@ -100,6 +104,10 @@ impl Command {
             // allow all files in current directory
             cwd.to_string(),
           ]),
+          ..Default::default()
+        }),
+        net: Some(FetchPermissions {
+          restricted_urls: Some(HashSet::new()),
           ..Default::default()
         }),
         ..Default::default()

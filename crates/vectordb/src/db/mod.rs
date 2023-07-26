@@ -1,4 +1,5 @@
-pub(crate) mod query;
+mod errors;
+pub mod query;
 pub(crate) mod rocks;
 pub(crate) mod storage;
 use self::storage::collections::COLLECTIONS_CF;
@@ -16,6 +17,7 @@ use bitvec::field::BitField;
 use bitvec::prelude::Msb0;
 use bitvec::view::BitView;
 use bstr::{BStr, BString, ByteSlice};
+use errors::Error;
 use indexmap::IndexMap;
 use rocksdb::{
   DBCompressionType, FlushOptions, IteratorMode, Options, ReadOptions,
@@ -126,16 +128,20 @@ impl<'d> VectorDatabase {
 
   /// Get collection info by id
   #[allow(dead_code)]
-  pub fn get_collection(&self, id: &BStr) -> Result<Collection> {
-    self
-      .get_internal_collection(id)
-      .and_then(|col| col.lock().map(|c| c.clone()).map_err(lock_error))
+  pub fn get_collection(&self, id: &BStr) -> Result<Option<Collection>> {
+    let res = self.get_internal_collection(id);
+
+    match res {
+      Ok(col) => col.lock().map(|c| Some(c.clone())).map_err(lock_error),
+      Err(Error::NotFound(_)) => Ok(None),
+      Err(e) => Err(e.into()),
+    }
   }
 
   /// Lists all the collections
   /// This reads the collections from the database and don't use caching
   #[allow(dead_code)]
-  pub fn list_collections(&self) -> Result<IndexMap<BString, Collection>> {
+  pub fn list_collections(&self) -> Result<Vec<(BString, Collection)>> {
     let collections_cf = storage::collections::cf(&self.db)?;
     let iter = collections_cf.iterator(IteratorMode::Start);
     Ok(
@@ -146,8 +152,15 @@ impl<'d> VectorDatabase {
             rmp_serde::from_slice::<storage::Collection>(&col.1)?;
           Ok((col.0.as_ref().as_bstr().to_owned(), collection.clone()))
         })
-        .collect::<Result<IndexMap<BString, Collection>>>()?,
+        .collect::<Result<Vec<(BString, Collection)>>>()?,
     )
+  }
+
+  #[allow(dead_code)]
+  pub fn delete_collection(&self) -> Result<()> {
+    // TODO(sagar): delete all the documents/embeddings in the collection
+    // and delete the collection
+    bail!("not implemented");
   }
 
   /// Note(sagar): Since the chunks associated will be outdated when updating
@@ -158,7 +171,7 @@ impl<'d> VectorDatabase {
     &mut self,
     collection_id: &BStr,
     doc_id: &BStr,
-    query: query::AddDocumentQuery,
+    query: query::Document,
   ) -> Result<()> {
     let collection = self.get_internal_collection(collection_id)?;
     let mut collection = collection.lock().map_err(lock_error)?;
@@ -216,13 +229,13 @@ impl<'d> VectorDatabase {
   pub fn list_documents(
     &self,
     col_id: &BStr,
-  ) -> Result<IndexMap<BString, Document>> {
+  ) -> Result<Vec<(BString, Document)>> {
     let collection = self.get_internal_collection(col_id)?;
     let collection = collection.lock().map_err(lock_error)?;
     let documents_h = DocumentsHandle::new(&self.db, &collection)?;
     documents_h
       .iterator()
-      .collect::<Result<IndexMap<BString, Document>>>()
+      .collect::<Result<Vec<(BString, Document)>>>()
   }
 
   // TODO(sagar): make it so that chunks can only be added one time
@@ -253,6 +266,9 @@ impl<'d> VectorDatabase {
       .iter()
       .enumerate()
       .map(|(index, embedding)| {
+        if embedding.end < embedding.start {
+          bail!("Embedding start index can't be smaller than end index");
+        }
         embeddings_h.batch_put(
           &mut batch,
           index as u32,
@@ -403,7 +419,7 @@ impl<'d> VectorDatabase {
   pub(crate) fn get_internal_collection(
     &'d self,
     id: &BStr,
-  ) -> Result<Arc<Mutex<storage::Collection>>> {
+  ) -> Result<Arc<Mutex<storage::Collection>>, errors::Error> {
     let mut collections_cache =
       self.collections_cache.lock().map_err(lock_error)?;
     let collection = collections_cache.get(id).map(|c| c.clone());
@@ -415,7 +431,7 @@ impl<'d> VectorDatabase {
         let stored_collection = Arc::new(Mutex::new(
           collections_h
             .get(id)?
-            .ok_or(anyhow!("Collection not found"))?,
+            .ok_or(Error::NotFound("Collection"))?,
         ));
         collections_cache.insert(id.to_owned(), stored_collection.clone());
         Ok(stored_collection)

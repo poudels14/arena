@@ -10,14 +10,6 @@ pub struct Collection {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct Document {
-  pub id: BString,
-  pub content_length: u32,
-  pub chunks: Vec<(u32, u32)>,
-  pub metadata: Option<Vec<u8>>,
-}
-
-#[derive(Default, Serialize, Deserialize)]
 pub struct DocumentWithContent {
   pub content_length: u32,
   pub chunks_count: u32,
@@ -26,7 +18,7 @@ pub struct DocumentWithContent {
 }
 
 #[derive(Default, Deserialize)]
-pub struct AddDocumentQuery {
+pub struct Document {
   pub content: Vec<u8>,
   pub metadata: Option<IndexMap<String, Value>>,
 }
