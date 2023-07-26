@@ -1,4 +1,6 @@
 // credit: deno
+import { randomFillSync } from "./randomFill";
+
 // This is very basic crypto module and may not work properly in all cases
 const { ops } = Arena.core;
 
@@ -67,11 +69,12 @@ export class Hash {
   }
 }
 
-export function createHash(algorithm: string) {
+function createHash(algorithm: string) {
   return new Hash(algorithm);
 }
 
 export default {
   createHash,
+  randomFillSync,
 };
-export { randomFillSync } from "./randomFill";
+export { createHash, randomFillSync };
