@@ -63,7 +63,7 @@ impl ModuleLoader for AppkitModuleLoader {
       bail!("Unsupported module specifier: {:?}", specifier);
     }
 
-    let specifier = if specifier == "@app/template" {
+    let specifier = if specifier == "@dqs/app/template" {
       format!("app:///{}", specifier)
     } else if referrer_url
       .map(|r| r.scheme() == "builtin")
@@ -113,7 +113,8 @@ impl ModuleLoader for AppkitModuleLoader {
     let maybe_referrer = maybe_referrer.cloned();
 
     async move {
-      if specifier.scheme() == "app" && specifier.path() == "/@app/template" {
+      if specifier.scheme() == "app" && specifier.path() == "/@dqs/app/template"
+      {
         return Ok(ModuleSource::new(
           ModuleType::JavaScript,
           loader.load_app_template_code().await?.into(),
