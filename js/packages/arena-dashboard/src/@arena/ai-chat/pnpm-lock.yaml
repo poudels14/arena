@@ -1,0 +1,126 @@
+lockfileVersion: '6.0'
+
+dependencies:
+  '@arena/cloud':
+    specifier: workspace:^
+    version: link:../../../../cloud
+  '@arena/core':
+    specifier: workspace:^
+    version: link:../../../../arena-core
+  '@arena/llm':
+    specifier: workspace:^
+    version: link:../../../../llm
+  '@arena/runtime':
+    specifier: workspace:^
+    version: link:../../../../../arena-runtime
+  '@arena/sdk':
+    specifier: workspace:^
+    version: link:../../../../sdk
+  '@arena/solid-store':
+    specifier: workspace:^
+    version: link:../../../../solid-store
+  '@arena/uikit':
+    specifier: workspace:^
+    version: link:../../../../uikit
+  '@twind/preset-radix-ui':
+    specifier: ^1.0.7
+    version: 1.0.7(@twind/core@1.1.3)
+  '@twind/preset-tailwind':
+    specifier: ^1.1.4
+    version: 1.1.4(@twind/core@1.1.3)
+  ky:
+    specifier: ^0.33.3
+    version: 0.33.3
+  lodash-es:
+    specifier: ^4.17.21
+    version: 4.17.21
+  solid-js:
+    specifier: ^1.7.7
+    version: 1.7.7
+  style-inject:
+    specifier: ^0.3.0
+    version: 0.3.0
+
+devDependencies:
+  '@types/lodash-es':
+    specifier: ^4.17.7
+    version: 4.17.8
+
+packages:
+
+  /@twind/core@1.1.3:
+    resolution: {integrity: sha512-/B/aNFerMb2IeyjSJy3SJxqVxhrT77gBDknLMiZqXIRr4vNJqiuhx7KqUSRzDCwUmyGuogkamz+aOLzN6MeSLw==}
+    engines: {node: '>=14.15.0'}
+    peerDependencies:
+      typescript: ^4.8.4
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+    dependencies:
+      csstype: 3.1.2
+    dev: false
+
+  /@twind/preset-radix-ui@1.0.7(@twind/core@1.1.3):
+    resolution: {integrity: sha512-EyQtZ/PqTA4Cf5qOc8Gjy56ZwZMd5Nk+Zsm4ZRE8b7fdiMhH3FbCSXjCUeFluSgaIhdMbaVHV2AOa6Z0RBSkBQ==}
+    engines: {node: '>=14.15.0'}
+    peerDependencies:
+      '@twind/core': ^1.1.0
+      typescript: ^4.8.4
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+    dependencies:
+      '@twind/core': 1.1.3
+    dev: false
+
+  /@twind/preset-tailwind@1.1.4(@twind/core@1.1.3):
+    resolution: {integrity: sha512-zv85wrP/DW4AxgWrLfH7kyGn/KJF3K04FMLVl2AjoxZGYdCaoZDkL8ma3hzaKQ+WGgBFRubuB/Ku2Rtv/wjzVw==}
+    engines: {node: '>=14.15.0'}
+    peerDependencies:
+      '@twind/core': ^1.1.0
+      typescript: ^4.8.4
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+    dependencies:
+      '@twind/core': 1.1.3
+    dev: false
+
+  /@types/lodash-es@4.17.8:
+    resolution: {integrity: sha512-euY3XQcZmIzSy7YH5+Unb3b2X12Wtk54YWINBvvGQ5SmMvwb11JQskGsfkH/5HXK77Kr8GF0wkVDIxzAisWtog==}
+    dependencies:
+      '@types/lodash': 4.14.196
+    dev: true
+
+  /@types/lodash@4.14.196:
+    resolution: {integrity: sha512-22y3o88f4a94mKljsZcanlNWPzO0uBsBdzLAngf2tp533LzZcQzb6+eZPJ+vCTt+bqF2XnvT9gejTLsAcJAJyQ==}
+    dev: true
+
+  /csstype@3.1.2:
+    resolution: {integrity: sha512-I7K1Uu0MBPzaFKg4nI5Q7Vs2t+3gWWW648spaF+Rg7pI9ds18Ugn+lvg4SHczUdKlHI5LWBXyqfS8+DufyBsgQ==}
+    dev: false
+
+  /ky@0.33.3:
+    resolution: {integrity: sha512-CasD9OCEQSFIam2U8efFK81Yeg8vNMTBUqtMOHlrcWQHqUX3HeCl9Dr31u4toV7emlH8Mymk5+9p0lL6mKb/Xw==}
+    engines: {node: '>=14.16'}
+    dev: false
+
+  /lodash-es@4.17.21:
+    resolution: {integrity: sha512-mKnC+QJ9pWVzv+C4/U3rRsHapFfHvQFoFB92e52xeyGMcX6/OlIl78je1u8vePzYZSkkogMPJ2yjxxsb89cxyw==}
+    dev: false
+
+  /seroval@0.5.1:
+    resolution: {integrity: sha512-ZfhQVB59hmIauJG5Ydynupy8KHyr5imGNtdDhbZG68Ufh1Ynkv9KOYOAABf71oVbQxJ8VkWnMHAjEHE7fWkH5g==}
+    engines: {node: '>=10'}
+    dev: false
+
+  /solid-js@1.7.7:
+    resolution: {integrity: sha512-SPdYVke/Z6Za24PBTbULyQYPrhGO1ZbPany76atO2zF2dmYn2pCotbsw1JtlgWnr9dK2JbwPGnA3ODTGPLhZNw==}
+    dependencies:
+      csstype: 3.1.2
+      seroval: 0.5.1
+    dev: false
+
+  /style-inject@0.3.0:
+    resolution: {integrity: sha512-IezA2qp+vcdlhJaVm5SOdPPTUu0FCEqfNSli2vRuSIBbu5Nq5UvygTk/VzeCqfLz2Atj3dVII5QBKGZRZ0edzw==}
+    dev: false

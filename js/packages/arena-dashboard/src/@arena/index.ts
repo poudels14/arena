@@ -1,4 +1,4 @@
-import type { Metadata } from "@arena/apps/metadata";
+import type { Metadata } from "@arena/sdk/app";
 
 const BUILTIN_APPS: Metadata[] = [
   {

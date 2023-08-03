@@ -1,0 +1,77 @@
+{
+  "name": "@arena/ai-chat",
+  "version": "0.0.1",
+  "description": "",
+  "arena": {
+    "env": {
+      "ARENA_SSR": "false",
+      "ARENA_ENTRY_CLIENT": "entry-client.tsx"
+    },
+    "javascript": {
+      "resolve": {
+        "alias": {
+          "~": "./src"
+        },
+        "dedupe": [
+          "solid-js",
+          "@arena/core"
+        ]
+      }
+    },
+    "server": {
+      "env": {
+        "SSR": "true"
+      },
+      "javascript": {
+        "resolve": {
+          "alias": {
+            "~": "./src",
+            "@arena/core/router": "@arena/runtime/server"
+          },
+          "conditions": [
+            "solid",
+            "server",
+            "deno",
+            "node"
+          ]
+        }
+      }
+    },
+    "client": {
+      "javascript": {
+        "resolve": {
+          "conditions": [
+            "solid",
+            "browser"
+          ]
+        }
+      }
+    }
+  },
+  "main": "index.tsx",
+  "exports": {
+    "component": "./src/app/index.tsx",
+    "api": "./src/api/index.ts"
+  },
+  "keywords": [],
+  "author": "Sagar Poudel",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@arena/cloud": "workspace:^",
+    "@arena/core": "workspace:^",
+    "@arena/llm": "workspace:^",
+    "@arena/runtime": "workspace:^",
+    "@arena/sdk": "workspace:^",
+    "@arena/solid-store": "workspace:^",
+    "@arena/uikit": "workspace:^",
+    "@twind/preset-radix-ui": "^1.0.7",
+    "@twind/preset-tailwind": "^1.1.4",
+    "ky": "^0.33.3",
+    "lodash-es": "^4.17.21",
+    "solid-js": "^1.7.7",
+    "style-inject": "^0.3.0"
+  },
+  "devDependencies": {
+    "@types/lodash-es": "^4.17.7"
+  }
+}
