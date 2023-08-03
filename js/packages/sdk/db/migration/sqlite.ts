@@ -1,19 +1,24 @@
-import type { DatabaseClient, DbMigration, MigrationQuery } from "../../db";
 import { createHash } from "crypto";
+import { SqlDatabaseClient, SqliteDatabaseConfig } from "../sqlite";
+import { DbMigration } from "../common";
 
 class SqliteMigrator {
-  #client: DatabaseClient;
-  constructor(client: DatabaseClient) {
+  #client: SqlDatabaseClient;
+  constructor(client: SqlDatabaseClient) {
     this.#client = client;
   }
 
-  async migrate(migrationQueries: MigrationQuery[]) {
+  async migrate(config: SqliteDatabaseConfig) {
     const { rows: existingMigrations } = await this.#getExistingMigrations({
       retry: 0,
     });
 
     const self = this;
-    const createMigrationClient = (migrationIndex: number) => {
+    const createMigrationClient = (
+      dbName: SqliteDatabaseConfig["name"],
+      dbType: SqliteDatabaseConfig["type"],
+      migrationIndex: number
+    ) => {
       return {
         async query<T>(sql: string, params?: any[]) {
           const hasher = createHash("sha256");
@@ -23,10 +28,23 @@ class SqliteMigrator {
            * were updated
            */
           if (migrationIndex < existingMigrations.length) {
-            if (existingMigrations[migrationIndex].hash != hash) {
+            let migrationAtIdx = existingMigrations[migrationIndex];
+            if (migrationAtIdx.hash != hash) {
               throw new Error(
                 `Updating migration that already ran isn't allowed:\n` +
                   `Changed query: ${sql}`
+              );
+            }
+            if (migrationAtIdx.database != dbName) {
+              throw new Error(
+                `Database name can't be changed.\n` +
+                  `Old: ${migrationAtIdx.database}, Updated: ${dbName}`
+              );
+            }
+            if (migrationAtIdx.type != dbType) {
+              throw new Error(
+                `Database type can't be changed.\n` +
+                  `Old: ${migrationAtIdx.type}, Updated: ${dbType}`
               );
             }
             console.log(
@@ -38,18 +56,18 @@ class SqliteMigrator {
           console.log("[setup] Running migration:", migrationIndex);
           const res = await self.#client.query<T>(sql, params);
           await self.#client.query(
-            `INSERT INTO _arena_schema_migrations (id, hash) VALUES (?, ?)`,
-            [migrationIndex, hash]
+            `INSERT INTO _arena_schema_migrations (id, database, type, hash) VALUES (?, ?, ?, ?)`,
+            [migrationIndex, dbName, dbType, hash]
           );
           return res;
         },
-      } as Pick<DatabaseClient, "query">;
+      } as Pick<SqlDatabaseClient, "query">;
     };
 
     this.#client.transaction(async () => {
       await Promise.all(
-        migrationQueries.map(async (m, idx) => {
-          m.up(createMigrationClient(idx));
+        config.migrations.map(async (m, idx) => {
+          await m.up(createMigrationClient(config.name, config.type, idx));
         })
       );
     });
@@ -60,12 +78,14 @@ class SqliteMigrator {
       await this.#client.query(`
         CREATE TABLE _arena_schema_migrations (
           id    INTEGER PRIMARY KEY,
+          database TEXT NOT NULL,
+          type TEXT NOT NULL,
           hash  TEXT NOT NULL
         )`);
 
       await this.#client.query(`
         CREATE UNIQUE INDEX _arena_schema_migrations_unique_idx
-          ON _arena_schema_migrations(id, hash);
+          ON _arena_schema_migrations(id, database, hash);
         )`);
     });
   }

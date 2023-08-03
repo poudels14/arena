@@ -7,6 +7,7 @@
   "author": "Sagar Poudel",
   "license": "MIT",
   "dependencies": {
-    "@types/node": "^20.4.1"
+    "@types/node": "^20.4.1",
+    "nanoid": "^4.0.2"
   }
 }
