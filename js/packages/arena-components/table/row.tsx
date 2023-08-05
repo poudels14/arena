@@ -1,7 +1,9 @@
 import { $RAW, Store } from "@arena/solid-store";
-import { children } from "solid-js";
+import { Match, Switch, children } from "solid-js";
+import CheckIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/small-tick";
 import { ColumnDef } from "./column";
 import { TableState } from "./types";
+import { InlineIcon } from "../InlineIcon";
 
 type State = Store<TableState<any>>;
 
@@ -18,9 +20,21 @@ class Cell<T> {
   }
 
   getComponent() {
-    return this.columnDef.cell
-      ? children(() => this.columnDef.cell!(this.getValue()))
-      : this.getValue();
+    const value = this.getValue();
+    return this.columnDef.cell ? (
+      children(() => this.columnDef.cell!(value))
+    ) : (
+      <Switch>
+        <Match when={typeof value == "boolean"}>
+          <div class="flex justify-center">
+            <InlineIcon size="18px">
+              <path d={CheckIcon[0]} />
+            </InlineIcon>
+          </div>
+        </Match>
+        <Match when={true}>{value as string}</Match>
+      </Switch>
+    );
   }
 }
 

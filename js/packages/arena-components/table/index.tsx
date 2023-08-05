@@ -101,7 +101,11 @@ function createBaseTable<S, M, R>(config: BaseConfig<R>) {
     Tr: (props: JSX.HTMLElementTags["tr"]) => <tr {...props} />,
     Td: (props: JSX.HTMLElementTags["td"] & { cell: Cell<any> }) => {
       const [_, rest] = splitProps(props, ["cell", "children"]);
-      return <td {...rest}>{props.children || props.cell.getComponent()}</td>;
+      return (
+        <td {...rest} data-col={props.cell.columnDef.key}>
+          {props.children || props.cell.getComponent()}
+        </td>
+      );
     },
   };
 
