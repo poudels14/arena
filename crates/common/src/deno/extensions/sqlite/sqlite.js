@@ -58,7 +58,9 @@ class Client {
       this.#rid,
       sql,
       params || [],
-      options
+      options || {
+        camelCase: true,
+      }
     );
 
     let cols = columns.values;
