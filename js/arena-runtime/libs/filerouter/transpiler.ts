@@ -16,11 +16,8 @@ class Transpiler {
       resolveImport: true,
       resolver: resolverConfig,
       replace: Object.fromEntries(
-        Object.entries(env).flatMap(([k, v]) => {
-          return [
-            [`Arena.env.${k}`, JSON.stringify(v)],
-            [`process.env.${k}`, JSON.stringify(v)],
-          ];
+        Object.entries(env).map(([k, v]) => {
+          return [`process.env.${k}`, JSON.stringify(v)];
         })
       ),
     });

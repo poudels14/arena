@@ -238,7 +238,6 @@ impl WorkspaceServer {
                 // transpiled properly
 
                 // Note(sagar): since this is running in server, set SSR = true
-                Arena.env.SSR = "true";
                 process.env.SSR = "true";
                 await import("file://{}").then(async ({{ default: m }}) => {{
                   serve(m);

@@ -14,7 +14,7 @@ type FileLoaderOptions = {
  * files given the file path
  */
 const createFileLoader = (options: FileLoaderOptions) => {
-  const env = merge(Arena.env, Arena.config?.client?.env, options.env);
+  const env = merge(process.env, Arena.config?.client?.env, options.env);
 
   const resolverConfig = merge(
     {

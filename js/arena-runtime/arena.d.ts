@@ -525,7 +525,7 @@ declare module "@arena/runtime/server" {
   ) => {
     route(
       request: Request,
-      meta?: { env?: Record<string, string>; context?: Context }
+      meta?: { env?: Record<string, string | undefined>; context?: Context }
     ): Promise<Response>;
   };
 

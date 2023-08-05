@@ -25,7 +25,9 @@ deno_core::extension!(
     ext.js(vec![ExtensionFileSource {
       specifier: "setup",
       code: ExtensionFileSourceCode::IncludedInBinary(
-        "Arena.env = Object.assign({}, Arena.core.ops.op_load_env());\nObject.assign(globalThis.process.env, Arena.env);",
+        r#"
+        Object.assign(globalThis.process.env, Arena.core.ops.op_load_env());
+        "#,
       ),
     }]);
     ext.force_op_registration();
@@ -48,14 +50,16 @@ fn op_load_env(state: &mut OpState) -> Result<Value> {
     }
   });
 
-  // load env variables from .env files
-  let config = state.borrow::<RuntimeConfig>().project_root.clone();
-  dotenv::load_env(env_vars.get("MODE").unwrap_or(&String::from("")), &config)
-    .unwrap_or(vec![])
-    .iter()
-    .for_each(|(key, value)| {
-      env_vars.insert(key.to_owned(), value.to_owned());
-    });
+  let mode = std::env::var("MODE").ok().or(env_vars.get("MODE").cloned());
+  if let Some(config) = state.try_borrow::<RuntimeConfig>() {
+    // load env variables from .env files
+    dotenv::load_env(&mode.unwrap_or_default(), &config.project_root)
+      .unwrap_or(vec![])
+      .iter()
+      .for_each(|(key, value)| {
+        env_vars.insert(key.to_owned(), value.to_owned());
+      });
+  }
 
   Ok(json!(env_vars))
 }

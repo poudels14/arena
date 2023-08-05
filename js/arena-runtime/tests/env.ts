@@ -1,1 +1,1 @@
-console.log(Arena.env);
+console.log(process.env);

@@ -71,11 +71,8 @@ const buildClient = async (options: {
 
   const { entries, fromEntries } = Object;
   const envReplace = fromEntries(
-    entries(options.env!).flatMap(([k, v]) => {
-      return [
-        [`Arena.env.${k}`, JSON.stringify(v)],
-        [`process.env.${k}`, JSON.stringify(v)],
-      ];
+    entries(options.env!).map(([k, v]) => {
+      return [`process.env.${k}`, JSON.stringify(v)];
     })
   );
 
