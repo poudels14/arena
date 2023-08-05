@@ -8,8 +8,11 @@ const client = new Client({
 await client.query(`CREATE TABLE IF NOT EXISTS person (
   id    INTEGER PRIMARY KEY,
   name  TEXT NOT NULL,
-  data  BLOB
+  data  TEXT
 )`);
+
+let rows = await client.query(`SELECT * FROM person;`);
+console.log(rows);
 
 await client
   .transaction(async () => {
@@ -17,12 +20,10 @@ await client
       "my name",
       "I am FINALLY lost!",
     ]);
-
-    throw new Error("Transaction will be rolled back because of error");
   })
   .catch((e) => {
     console.error(e);
   });
 
-const rows = await client.query(`SELECT * FROM person;`);
+rows = await client.query(`SELECT * FROM person;`);
 console.log(rows);
