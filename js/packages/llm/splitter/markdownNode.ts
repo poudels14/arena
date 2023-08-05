@@ -1,4 +1,4 @@
-import { toMarkdown } from "mdast-util-to-markdown";
+import { Parent as ParentNode } from "mdast";
 
 type SplitterOptions = {
   tokens: {
@@ -12,8 +12,8 @@ type SplitterOptions = {
   textSplitOverlap: number;
 };
 
-const visitChildren = function (visitor) {
-  return function* (node, options: SplitterOptions) {
+const visitChildren = function (visitor: any) {
+  return function* (node: ParentNode, options: SplitterOptions) {
     let tokens = {
       ...options.tokens,
     };
@@ -46,9 +46,7 @@ const visitChildren = function (visitor) {
         const gen = visitor(child, i, node, finalOptions);
         let nextIndex;
         for (const [idx, chunk] of gen) {
-          if (chunk.text.trim().length > 0) {
-            yield { value: chunk, done: false };
-          }
+          yield { value: chunk, done: false };
           nextIndex = idx;
         }
 
@@ -60,11 +58,15 @@ const visitChildren = function (visitor) {
   };
 };
 
-const getNodeAtIndex = (parent, index) => {
+const getNodeAtIndex = (parent: ParentNode, index: number) => {
   return index < parent.children.length ? parent.children[index] : null;
 };
 
-const dotTokenIndex = (startIndex, endIndex, options: SplitterOptions) => {
+const dotTokenIndex = (
+  startIndex: number,
+  endIndex: number,
+  options: SplitterOptions
+) => {
   let dotIndex = endIndex;
   while (dotIndex > startIndex) {
     if (options.tokens.inputIds[dotIndex] == options.specialTokens.dot) {
@@ -75,7 +77,11 @@ const dotTokenIndex = (startIndex, endIndex, options: SplitterOptions) => {
   return endIndex;
 };
 
-const getChunkTokens = (options: SplitterOptions, startOffset, endOffset) => {
+const getChunkTokens = (
+  options: SplitterOptions,
+  startOffset: number,
+  endOffset: number
+) => {
   const { offsetMapping } = options.tokens;
   let startIdx = offsetMapping.findIndex((o) => o[0] == startOffset);
   const endIdx = offsetMapping.findIndex((o) => o[1] == endOffset);
@@ -101,24 +107,24 @@ const getStartTokenIndexByOffset = (
  *    token. If the dot token isn't found in a chunk of
  *    length <= maxTokenLength, it splits at the maxTokenLength.
  */
+// TODO(sagar): I think this is generic enough to be used even for HTML
 const markdownNodeSplitter = visitChildren(function* (
-  node,
-  index,
-  parent,
+  node: ParentNode,
+  index: number,
+  parent: ParentNode,
   options: SplitterOptions
 ) {
   const {
-    position: {
-      start: nodeStart,
-      end: nodeEnd,
-      // overlap is set when splitting the text node
-      overlap,
-    },
-  } = node;
+    start: nodeStart,
+    end: nodeEnd,
+    // overlap is set when splitting the text node
+    // @ts-expect-error
+    overlap,
+  } = node.position!;
   const { tokens, maxTokenLength, textSplitOverlap } = options;
   const windowStartTokenIndex = getStartTokenIndexByOffset(
     options,
-    nodeStart.offset
+    nodeStart.offset!
   );
   let splitChunkTokens;
   const splitChunks: any[] = [];
@@ -131,7 +137,7 @@ const markdownNodeSplitter = visitChildren(function* (
   );
 
   const maxEndOffset = tokens.offsetMapping[maxTokenIndex][1];
-  if (nodeEnd.offset > maxEndOffset) {
+  if (nodeEnd.offset! > maxEndOffset) {
     if (node.type == "text") {
       let cutoffTokenIndex = dotTokenIndex(
         windowStartTokenIndex,
@@ -149,11 +155,19 @@ const markdownNodeSplitter = visitChildren(function* (
 
       splitChunks.push({
         type: "text",
-        value: node.value.substring(0, cutoffOffset - nodeStart.offset),
+        // @ts-expect-error
+        value: node.value.substring(0, cutoffOffset - nodeStart.offset!),
+        position: {
+          start: node.position?.start,
+          end: {
+            ...node.position?.end,
+            offset: cutoffOffset,
+          },
+        },
       });
       splitChunkTokens = getChunkTokens(
         options,
-        nodeStart.offset,
+        nodeStart.offset!,
         cutoffOffset
       );
 
@@ -176,7 +190,7 @@ const markdownNodeSplitter = visitChildren(function* (
           nextChunkStartTokenIndex = startIdx;
         }
         let nextChunkStart =
-          tokens.offsetMapping[nextChunkStartTokenIndex][0] - nodeStart.offset;
+          tokens.offsetMapping[nextChunkStartTokenIndex][0] - nodeStart.offset!;
 
         parent.children.splice(
           index,
@@ -184,14 +198,16 @@ const markdownNodeSplitter = visitChildren(function* (
           { type: "text", value: "<CHUNKED>" },
           {
             type: "text",
+            // @ts-expect-error
             value: node.value.substring(nextChunkStart),
             position: {
               start: {
                 line: nodeStart.line,
                 column: nodeStart.column,
-                offset: nodeStart.offset + nextChunkStart,
+                offset: nodeStart.offset! + nextChunkStart,
               },
               end: nodeEnd,
+              // @ts-expect-error
               overlap: {
                 tokenLength: overlappedTokenCount,
               },
@@ -215,6 +231,7 @@ const markdownNodeSplitter = visitChildren(function* (
     // next node
     while (
       (currNode = getNodeAtIndex(parent, nodeIndex)) &&
+      // @ts-expect-error
       (currNodeEndOffset = currNode?.position.end.offset) &&
       currNodeEndOffset <= maxEndOffset
     ) {
@@ -225,24 +242,35 @@ const markdownNodeSplitter = visitChildren(function* (
 
     splitChunkTokens = getChunkTokens(
       options,
-      nodeStart.offset,
-      lastNode.position.end.offset
+      nodeStart.offset!,
+      lastNode!.position!.end.offset!
     );
   }
 
-  yield [
-    index + splitChunks.length,
-    {
-      text: toMarkdown({
-        type: "root",
-        children: splitChunks,
-      }),
-      // TODO(sagar): there seems to be some bug when calculating tokenLength
-      // and tokenOverlap
-      tokens: splitChunkTokens,
-      tokenOverlap: overlap?.tokenLength || 0,
+  const offsets = splitChunks.reduce(
+    (agg, chunk) => {
+      agg.start = Math.min(chunk.position.start.offset, agg.start);
+      agg.end = Math.max(chunk.position.end.offset, agg.end);
+      return agg;
     },
-  ];
+    { start: Infinity, end: 0 }
+  );
+
+  if (splitChunks.length > 0) {
+    yield [
+      index + splitChunks.length,
+      {
+        position: {
+          start: offsets.start,
+          end: offsets.end,
+        },
+        // TODO(sagar): there seems to be some bug when calculating tokenLength
+        // and tokenOverlap
+        tokens: splitChunkTokens,
+        tokenOverlap: overlap?.tokenLength || 0,
+      },
+    ];
+  }
 });
 
 export { markdownNodeSplitter };

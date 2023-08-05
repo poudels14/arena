@@ -9,7 +9,6 @@
   "author": "Sagar Poudel",
   "license": "UNLICENSED",
   "dependencies": {
-    "mdast-util-from-markdown": "^2.0.0",
-    "mdast-util-to-markdown": "^2.1.0"
+    "mdast-util-from-markdown": "^2.0.0"
   }
 }
