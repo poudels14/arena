@@ -1,7 +1,6 @@
 use super::state::RuntimeState;
-use crate::apps::{App, Template};
+use crate::apps::App;
 use crate::config::{DataConfig, SourceConfig, WidgetConfig};
-use crate::db::app::{self, apps};
 use crate::db::widget::{self, widgets};
 use crate::loaders;
 use crate::loaders::registry::Registry;
@@ -16,7 +15,6 @@ use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
 use loaders::ResourceLoader;
-use serde_json::{json, Value};
 use std::pin::Pin;
 use tracing::info;
 use url::Url;
@@ -206,21 +204,7 @@ impl AppkitModuleLoader {
     _app_id: &str,
     _widget_id: &str,
   ) -> Result<String> {
-    let variables = self
-      .state
-      .env_variables
-      .0
-      .iter()
-      .map(|(tmp_id, env)| {
-        json!({
-          "id": env.id,
-          "secretId": tmp_id,
-          "key": env.key,
-          "isSecret": env.is_secret,
-          "value": if env.is_secret { None } else { Some(env.value.clone()) }
-        })
-      })
-      .collect::<Vec<Value>>();
+    let variables = self.state.env_variables.filter(None, None);
     loaders::env::to_esm_module(variables)
   }
 
@@ -231,20 +215,10 @@ impl AppkitModuleLoader {
   )]
   async fn load_app_template_code(&self) -> Result<String> {
     if let Some(app) = &self.app {
-      let connection = &mut self.pool.clone().get()?;
-
-      let app = app::table
-        .filter(apps::id.eq(app.id.to_string()))
-        .filter(apps::archived_at.is_null())
-        .first::<app::App>(connection);
-
-      if let Some(template) = app.ok().and_then(|a| a.template) {
-        let template: Template = template.try_into()?;
-        return self
-          .registry
-          .fetch_app_template(&template.id, &template.version)
-          .await;
-      }
+      return self
+        .registry
+        .fetch_app_template(&app.template.id, &app.template.version)
+        .await;
     }
     bail!("Failed to load app template");
   }
@@ -255,6 +229,7 @@ impl AppkitModuleLoader {
 fn is_allowed_builtin_module(specifier: &str) -> bool {
   specifier == "path"
     || specifier == "process"
+    || specifier == "crypto"
     || specifier == "@arena/runtime/server"
     || specifier.starts_with("@arena/functions/")
 }

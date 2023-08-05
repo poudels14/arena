@@ -8,6 +8,8 @@ pub struct Resource {
   pub id: String,
   pub workspace_id: String,
   pub name: String,
+  pub app_template_id: Option<String>,
+  pub app_id: Option<String>,
   pub key: String,
   pub value: Value,
   pub ttype: String,
@@ -21,6 +23,8 @@ diesel::table! {
     id -> Varchar,
     workspace_id -> Varchar,
     name -> Varchar,
+    app_template_id -> Nullable<Varchar>,
+    app_id -> Nullable<Varchar>,
     key -> Varchar,
     value -> Jsonb,
     #[sql_name = "type"]

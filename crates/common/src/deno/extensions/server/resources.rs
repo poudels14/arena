@@ -1,6 +1,7 @@
 use super::request::HttpRequest;
 use super::response::ParsedHttpResponse;
 use deno_core::Resource;
+use derivative::Derivative;
 use futures::future::{RemoteHandle, Shared};
 use std::borrow::Cow;
 use std::cell::RefCell;
@@ -10,7 +11,8 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::{mpsc, oneshot};
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Derivative)]
+#[derivative(Debug)]
 pub enum HttpServerConfig {
   Tcp {
     address: String,
@@ -18,6 +20,7 @@ pub enum HttpServerConfig {
     serve_dir: Option<PathBuf>,
   },
   Stream(
+    #[derivative(Debug = "ignore")]
     Rc<
       RefCell<
         mpsc::Receiver<(HttpRequest, oneshot::Sender<ParsedHttpResponse>)>,

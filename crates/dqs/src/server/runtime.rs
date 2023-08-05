@@ -21,7 +21,7 @@ use tracing::error;
 pub static WORKSPACE_DQS_SNAPSHOT: &[u8] =
   include_bytes!(concat!(env!("OUT_DIR"), "/WORKSPACE_DQS_SNAPSHOT.bin"));
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct RuntimeOptions {
   /// Runtime id
   pub id: String,
@@ -79,7 +79,6 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
         BuiltinModule::Postgres,
         BuiltinModule::Sqlite,
         BuiltinModule::HttpServer(config.server_config),
-        BuiltinModule::Custom(Rc::new(cloud::llm::extension)),
       ],
       config.modules,
     ]

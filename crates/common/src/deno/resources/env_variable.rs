@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use deno_core::{OpState, Resource};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -40,6 +40,8 @@ impl EnvironmentVariable {
 pub struct EnvVar {
   /// same as db row id
   pub id: String,
+  pub app_template_id: Option<String>,
+  pub app_id: Option<String>,
   pub key: String,
   pub value: Value,
   pub is_secret: bool,
@@ -48,7 +50,7 @@ pub struct EnvVar {
 #[derive(Clone, Debug)]
 pub struct EnvironmentVariableStore(
   /// Map of temporary secret id to environemnt variable
-  pub Rc<HashMap<String, EnvVar>>,
+  Rc<HashMap<String, EnvVar>>,
 );
 
 impl Resource for EnvironmentVariableStore {
@@ -56,6 +58,44 @@ impl Resource for EnvironmentVariableStore {
 }
 
 impl EnvironmentVariableStore {
+  pub fn new(vars: HashMap<String, EnvVar>) -> Self {
+    Self(vars.into())
+  }
+
+  /// Return env variables matching `app_template_id` and `app_id`
+  /// if they are set. Else, return env variables with
+  /// env.app_id/app_template_id null
+  pub fn filter(
+    &self,
+    app_id: Option<String>,
+    app_template_id: Option<String>,
+  ) -> Vec<Value> {
+    self
+      .0
+      .iter()
+      .filter(|ev| {
+        app_template_id == ev.1.app_template_id && app_id == ev.1.app_id
+      })
+      .map(|(tmp_id, env)| {
+        let app = match env.app_id.is_some() || env.app_template_id.is_some() {
+          true => Some(json!({
+              "id": env.app_id,
+              "templateId": env.app_template_id,})),
+          false => None,
+        };
+
+        json!({
+          "id": env.id,
+          "secretId": tmp_id,
+          "app": app,
+          "key": env.key,
+          "isSecret": env.is_secret,
+          "value": if env.is_secret { None } else { Some(env.value.clone()) }
+        })
+      })
+      .collect::<Vec<Value>>()
+  }
+
   pub fn get(&self, id: &str) -> Option<EnvVar> {
     self.0.get(id).and_then(|v| v.clone().into())
   }

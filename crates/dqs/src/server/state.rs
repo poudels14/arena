@@ -32,7 +32,7 @@ impl RuntimeState {
     pool: &Pool<ConnectionManager<PgConnection>>,
   ) -> Result<EnvironmentVariableStore> {
     let connection = &mut pool.get()?;
-    Ok(EnvironmentVariableStore(
+    Ok(EnvironmentVariableStore::new(
       resource::table
         .filter(resources::workspace_id.eq(workspace_id.to_string()))
         .filter(resources::archived_at.is_null())
@@ -43,14 +43,15 @@ impl RuntimeState {
             Uuid::new_v4().to_string(),
             EnvVar {
               id: v.id.clone(),
+              app_template_id: None,
+              app_id: None,
               key: v.key.clone(),
               value: v.value.clone(),
               is_secret: v.secret,
             },
           )
         })
-        .collect::<HashMap<String, EnvVar>>()
-        .into(),
+        .collect::<HashMap<String, EnvVar>>(),
     ))
   }
 }

@@ -15,6 +15,7 @@ pub mod wasi;
 use self::server::HttpServerConfig;
 use anyhow::{Context, Result};
 use deno_core::{Extension, JsRuntime, ModuleCode};
+use derivative::Derivative;
 use indexmap::IndexSet;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -33,7 +34,8 @@ pub struct BuiltinExtension {
   pub runtime_modules: Vec<(&'static str, &'static str)>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Derivative)]
+#[derivative(Debug)]
 pub enum BuiltinModule {
   Fs,
   Env,
@@ -49,7 +51,7 @@ pub enum BuiltinModule {
   HttpServer(HttpServerConfig),
   /// args: (specifier, code)
   CustomRuntimeModule(&'static str, &'static str),
-  Custom(Rc<dyn Fn() -> BuiltinExtension>),
+  Custom(#[derivative(Debug = "ignore")] Rc<dyn Fn() -> BuiltinExtension>),
 }
 
 impl BuiltinModule {

@@ -42,7 +42,7 @@ pub struct DqsClusterOptions {
 
 #[derive(Clone)]
 pub struct DqsCluster {
-  options: DqsClusterOptions,
+  pub options: DqsClusterOptions,
   pub id: String,
   pub data_dir: PathBuf,
   /// DqsServer by server id
@@ -102,9 +102,13 @@ impl DqsCluster {
       let app_modules = match options_clone.app.clone() {
         Some(app) => {
           let ext = RefCell::new(Some(apps::extension(app)));
-          vec![BuiltinModule::Custom(Rc::new(move || {
-            ext.borrow_mut().take().unwrap()
-          }))]
+          vec![
+            BuiltinModule::Custom(Rc::new(move || {
+              ext.borrow_mut().take().unwrap()
+            })),
+            BuiltinModule::Custom(Rc::new(cloud::llm::extension)),
+            BuiltinModule::Custom(Rc::new(cloud::vectordb::extension)),
+          ]
         }
         None => vec![],
       };

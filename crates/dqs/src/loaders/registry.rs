@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use http::StatusCode;
 use std::time::Duration;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Registry {
   pub host: String,
   pub api_key: String,

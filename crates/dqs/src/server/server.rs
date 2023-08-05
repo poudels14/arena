@@ -5,7 +5,7 @@ use deno_core::v8::IsolateHandle;
 use deno_core::{JsRuntime, ModuleCode, ModuleSpecifier};
 use serde_json::Value;
 use tokio::sync::{mpsc, oneshot};
-use tracing::debug;
+use tracing::{debug, info};
 
 #[derive(Debug)]
 pub enum ServerEvents {
@@ -29,6 +29,7 @@ pub(crate) fn start(
   let (events_tx, events_rx) = mpsc::channel(5);
   tx.send(events_rx).unwrap();
   let rt = tokio::runtime::Builder::new_current_thread()
+    .thread_name(config.id.clone())
     .enable_io()
     .enable_time()
     .worker_threads(1)
@@ -44,7 +45,7 @@ pub(crate) fn start(
 
   let local = tokio::task::LocalSet::new();
   let r = local.block_on(&rt, async {
-    let mut runtime = runtime::new(config).await?;
+    let mut runtime = runtime::new(config.clone()).await?;
     let (sender, receiver) = beam::channel(10);
     let (terminate_tx, terminate_rx) = oneshot::channel::<()>();
 
@@ -57,7 +58,9 @@ pub(crate) fn start(
     local
       .spawn_local(async { listen_to_commands(receiver, terminate_tx).await });
 
-    debug!("DQS server started...");
+    info!("----------------- DQS server started -----------------");
+    info!("Config = {:#?}", config);
+    info!("-------------------------------------------------------");
     let res = tokio::select! {
       res = terminate_rx => {
         res.map(|_| "Terminated by a termination command".to_owned()).map_err(|e| anyhow!("{}", e))
@@ -67,7 +70,7 @@ pub(crate) fn start(
         res.map(|_| "Terminated due to event-loop completion".to_owned()).map_err(|e| anyhow!("{}", e))
       }
     };
-    debug!("DQS server stopped");
+    info!("DQS server stopped");
     events_tx
       .send(ServerEvents::Terminated(res))
       .await?;
