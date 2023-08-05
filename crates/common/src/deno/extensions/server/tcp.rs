@@ -172,7 +172,7 @@ pub async fn handle_request<'a>(
       // Note(sagar): remove `/` prefix from path
       let file = base_dir.join(&metadata.path[1..]);
       // TODO(sagar): do we need to check `../../` paths for security?
-      if file.exists() {
+      if file.is_file() {
         let res = ServeFile::new(file).oneshot(req).await;
         return Ok((
           res.map(|r| {
