@@ -1,3 +1,8 @@
+:root {
+  --uikit-scrollbar-w: 5px;
+  --uikit-scrollbar-track-bg: rgb(220, 220, 220);
+  --uikit-scrollbar-track-thumb: rgb(190, 190, 190);
+}
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -9,13 +14,13 @@
 
 * {
   ::-webkit-scrollbar {
-    width: 5px;
+    width: var(--uikit-scrollbar-w);
   }
   ::-webkit-scrollbar-track {
-    background: rgb(220, 220, 220);
+    background: var(--uikit-scrollbar-track-bg);
   }
   ::-webkit-scrollbar-thumb {
-    background: rgb(200, 200, 200);
+    background: var(--uikit-scrollbar-track-thumb);
   }
   ::-webkit-scrollbar-thumb:hover {
     background: #555;
