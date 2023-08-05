@@ -28,6 +28,7 @@ impl Command {
       transpile: true,
       builtin_extensions: BuiltinExtensions::with_modules(vec![
         BuiltinModule::Fs,
+        BuiltinModule::Env,
         BuiltinModule::Node(None),
         BuiltinModule::Postgres,
         BuiltinModule::Transpiler,
