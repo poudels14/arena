@@ -1,11 +1,12 @@
 import { merge, pick } from "lodash-es";
 import { z } from "zod";
 import { App, MutationResponse } from "@arena/studio";
-import { procedure, router as trpcRouter } from "../trpc";
-import { notFound } from "../utils/errors";
-import { uniqueId } from "@arena/uikit/uniqueId";
+import { uniqueId } from "@arena/sdk/utils/uniqueId";
 // @ts-expect-error
 import randomColor from "randomcolor";
+import { procedure, router as trpcRouter } from "../trpc";
+import { notFound } from "../utils/errors";
+import { BUILTIN_APPS } from "~/BUILTIN_APPS";
 import { checkAppAccess, checkWorkspaceAccess } from "../middlewares/idor";
 
 const appsRouter = trpcRouter({
@@ -46,7 +47,9 @@ const appsRouter = trpcRouter({
       return {
         apps: {
           created: [
-            pick(newApp, "id", "name", "template", "description", "config"),
+            merge(pick(newApp, "id", "name", "description", "config"), {
+              template: getTemplateManifest(newApp.template),
+            }),
           ],
         },
       };
@@ -59,7 +62,10 @@ const appsRouter = trpcRouter({
     )
     .use(checkWorkspaceAccess((input) => input.workspaceId, "member"))
     .query(
-      async ({ ctx, input }): Promise<Omit<App, "widgets" | "resources">[]> => {
+      async ({
+        ctx,
+        input,
+      }): Promise<Omit<App, "widgets" | "resources" | "template">[]> => {
         const apps = await ctx.acl.filterAppsByAccess(
           await ctx.repo.apps.listApps({
             workspaceId: input.workspaceId,
@@ -68,7 +74,7 @@ const appsRouter = trpcRouter({
         );
 
         return apps.map((app) => {
-          return pick(app, "id", "name", "template", "description", "config");
+          return pick(app, "id", "name", "description", "config");
         });
       }
     ),
@@ -87,33 +93,32 @@ const appsRouter = trpcRouter({
         }),
         "view-entity"
       );
-      return merge(
-        pick(app, "id", "name", "template", "description", "config"),
-        {
-          widgets: widgets.reduce((widgetsById, widget) => {
-            widgetsById[widget.id] = {
-              ...widget,
-              template: {
-                id: widget.templateId,
-                // TODO
-                name: "",
-                url: "",
-              },
-            };
-            return widgetsById;
-          }, {} as App["widgets"]),
-          resources: resources.reduce((resourcesById, resource) => {
-            resourcesById[resource.id!] = pick(
-              resource as App["resources"][""],
-              "id",
-              "name",
-              "description",
-              "type"
-            );
-            return resourcesById;
-          }, {} as App["resources"]),
-        }
-      );
+
+      return merge(pick(app, "id", "name", "description", "config"), {
+        template: getTemplateManifest(app.template),
+        widgets: widgets.reduce((widgetsById, widget) => {
+          widgetsById[widget.id] = {
+            ...widget,
+            template: {
+              id: widget.templateId,
+              // TODO
+              name: "",
+              url: "",
+            },
+          };
+          return widgetsById;
+        }, {} as App["widgets"]),
+        resources: resources.reduce((resourcesById, resource) => {
+          resourcesById[resource.id!] = pick(
+            resource as App["resources"][""],
+            "id",
+            "name",
+            "description",
+            "type"
+          );
+          return resourcesById;
+        }, {} as App["resources"]),
+      });
     }),
   update: procedure
     .input(
@@ -145,10 +150,10 @@ const appsRouter = trpcRouter({
       return {
         apps: {
           deleted: [
-            merge(
-              pick(app, "id", "name", "template", "description", "config"),
-              archivedAt
-            ),
+            merge(pick(app, "id", "name", "description", "config"), {
+              template: getTemplateManifest(app.template),
+              archivedAt,
+            }),
           ],
         },
       };
@@ -174,6 +179,19 @@ const createNewAppThumbnail = () => {
       ""
     )}] to-[${gradientTo.replaceAll(" ", "")}]`,
   };
+};
+
+const getTemplateManifest = (
+  template: { id: string; version: string } | null | undefined
+) => {
+  if (!template) {
+    return null;
+  }
+  return (
+    BUILTIN_APPS.find(
+      (bt) => bt.id == template.id && bt.version == template.version
+    ) || null
+  );
 };
 
 export { appsRouter };

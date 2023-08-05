@@ -10,7 +10,7 @@ import {
 } from "@arena/db/pg";
 import { Context } from "./context";
 import { AccessType } from "../auth";
-import { uniqueId } from "@arena/uikit/uniqueId";
+import { uniqueId } from "@arena/sdk/utils/uniqueId";
 
 export const acls = pgTable("acls", {
   id: varchar("id").notNull(),

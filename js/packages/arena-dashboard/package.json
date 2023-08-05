@@ -9,7 +9,8 @@
     "javascript": {
       "resolve": {
         "alias": {
-          "~": "./src"
+          "~": "./src",
+          "@arena/core/router": "@arena/runtime/server"
         },
         "dedupe": [
           "solid-js",
@@ -19,6 +20,7 @@
           "@arena/solid-store",
           "@arena/solid-dnd",
           "@arena/uikit",
+          "@arena/sdk",
           "@kobalte/core",
           "@arena/components"
         ]
@@ -48,6 +50,9 @@
       }
     },
     "client": {
+      "env": {
+        "SSR": "false"
+      },
       "entry": "./entry-client.tsx",
       "javascript": {
         "resolve": {
@@ -61,13 +66,13 @@
     }
   },
   "dependencies": {
-    "@arena/apps": "workspace:^",
     "@arena/cloud": "workspace:^",
     "@arena/components": "workspace:^0.1.0",
     "@arena/core": "^0.1.0",
     "@arena/db": "workspace:^",
     "@arena/email": "workspace:^",
     "@arena/runtime": "workspace:^",
+    "@arena/sdk": "workspace:^",
     "@arena/solid-dnd": "workspace:^",
     "@arena/solid-store": "workspace:^0.1.0",
     "@arena/studio": "workspace:^",

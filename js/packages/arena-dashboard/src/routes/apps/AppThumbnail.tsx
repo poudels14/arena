@@ -1,4 +1,4 @@
-import { For, createSignal } from "solid-js";
+import { createSignal } from "solid-js";
 import { A } from "@solidjs/router";
 import { InlineIcon } from "@arena/components";
 import { DropdownMenu } from "@kobalte/core";

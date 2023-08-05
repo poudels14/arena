@@ -1,18 +1,17 @@
+import { JSX } from "solid-js";
 import { MetaProvider } from "@solidjs/meta";
 import { Router, RouterProps } from "@solidjs/router";
-// @ts-ignore
-import Root from "~/root";
 import { ServerContextProvider } from "./context";
 
-const ArenaRouter = (props: RouterProps) => {
+const ArenaRouter = (props: RouterProps & { Root: () => JSX.Element }) => {
   return (
     <Router {...props}>
-      <Root />
+      <props.Root />
     </Router>
   );
 };
 
-const ClientRoot = () => {
+const ClientRoot = (props: { Root: () => JSX.Element }) => {
   return (
     <ServerContextProvider
       value={{
@@ -25,6 +24,7 @@ const ClientRoot = () => {
           data={(args: any) => {
             // TODO(sagar): dataFn
           }}
+          Root={props.Root}
         >
           {/* <Root /> //Note(sagar): idk why putting Root here crashes fontend */}
         </ArenaRouter>

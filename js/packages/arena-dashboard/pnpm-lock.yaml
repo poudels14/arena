@@ -1,9 +1,6 @@
 lockfileVersion: '6.0'
 
 dependencies:
-  '@arena/apps':
-    specifier: workspace:^
-    version: link:../apps
   '@arena/cloud':
     specifier: workspace:^
     version: link:../cloud
@@ -22,6 +19,9 @@ dependencies:
   '@arena/runtime':
     specifier: workspace:^
     version: link:../../arena-runtime
+  '@arena/sdk':
+    specifier: workspace:^
+    version: link:../sdk
   '@arena/solid-dnd':
     specifier: workspace:^
     version: link:../dnd

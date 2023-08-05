@@ -1,5 +1,5 @@
 import { For } from "solid-js";
-import { BUILTIN_APPS } from "~/@arena";
+import { BUILTIN_APPS } from "~/BUILTIN_APPS";
 
 const SelectTemplate = (props: any) => {
   const tempaltes = BUILTIN_APPS;
@@ -18,7 +18,7 @@ const SelectTemplate = (props: any) => {
                 }}
               >
                 <div class="absolute bottom-0 p-2 w-full text-center font-medium text-brand-12">
-                  {template.title}
+                  {template.name}
                 </div>
               </div>
             );

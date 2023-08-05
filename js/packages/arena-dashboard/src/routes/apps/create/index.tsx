@@ -24,10 +24,7 @@ const CreateNewApp = (props: { onCreate: () => void }) => {
           />
         </Step>
         <Step id="configure" next={null}>
-          <ConfigureApp
-            onCreate={workflow.next}
-            name={workflow.stack[0].title}
-          />
+          <ConfigureApp onCreate={workflow.next} template={workflow.stack[0]} />
         </Step>
       </Workflow>
     </div>

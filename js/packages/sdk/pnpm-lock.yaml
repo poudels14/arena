@@ -7,6 +7,9 @@ dependencies:
   solid-js:
     specifier: ^1.7.6
     version: 1.7.8
+  url-join:
+    specifier: ^5.0.0
+    version: 5.0.0
 
 packages:
 
@@ -30,4 +33,9 @@ packages:
     dependencies:
       csstype: 3.1.2
       seroval: 0.5.1
+    dev: false
+
+  /url-join@5.0.0:
+    resolution: {integrity: sha512-n2huDr9h9yzd6exQVnH/jU5mr+Pfx08LRXXZhkLLetAMESRj+anQsTAh940iMrIetKAmry9coFuZQ2jY8/p3WA==}
+    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
     dev: false

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { procedure, router as trpcRouter } from "../trpc";
 import { MutationResponse } from "@arena/studio";
-import { uniqueId } from "@arena/uikit/uniqueId";
+import { uniqueId } from "@arena/sdk/utils/uniqueId";
 import { merge, snakeCase } from "lodash-es";
 import { badRequest, notFound } from "../utils/errors";
 import { checkResourceAccess, checkWorkspaceAccess } from "../middlewares/idor";

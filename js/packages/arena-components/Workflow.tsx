@@ -91,14 +91,14 @@ function createWorkflow(options: CreateWorkflowProps) {
         const currentStep = getCurrentStep();
         const [_, nextStep] = steps.find((s) => s[0] == currentStep) || null!;
 
-        setStepsData((prev: any) => {
-          return [data, ...prev];
-        });
-
         // if nextStep is null, complete the workflow
         if (nextStep == null) {
           return options.onComplete(data);
         }
+
+        setStepsData((prev: any) => {
+          return [data, ...prev];
+        });
 
         if (options.onNext) {
           options.onNext({

@@ -7,10 +7,10 @@ import {
   timestamp,
   varchar,
 } from "@arena/db/pg";
+import { uniqueId } from "@arena/sdk/utils/uniqueId";
+import { pick } from "lodash-es";
 import { Context } from "./context";
 import { WorkspaceAccessType } from "../auth/acl";
-import { uniqueId } from "@arena/uikit/uniqueId";
-import { pick } from "lodash-es";
 
 const workspaces = pgTable("workspaces", {
   id: varchar("id").notNull(),

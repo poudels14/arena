@@ -38,7 +38,7 @@ export async function createContext({
 const getDbRepo = async () => {
   if (!client || !client?.isConnected()) {
     client = new Client({
-      credential: Arena.env.DATABASE_URL,
+      credential: process.env.DATABASE_URL,
     });
     await client.connect();
   }

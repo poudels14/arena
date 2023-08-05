@@ -4,6 +4,9 @@ dependencies:
   '@arena/components':
     specifier: workspace:^0.1.0
     version: link:../arena-components
+  '@arena/sdk':
+    specifier: workspace:^
+    version: link:../sdk
   '@arena/solid-dnd':
     specifier: workspace:^
     version: link:../dnd

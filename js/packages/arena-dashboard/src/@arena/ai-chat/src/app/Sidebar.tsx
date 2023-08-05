@@ -16,7 +16,7 @@ const Sidebar = (props: SidebarProps) => {
   const isTabActive = createSelector(state.tab.selected);
 
   return (
-    <div class="w-52 h-screen text-sm bg-accent-2">
+    <div class="w-52 h-screen text-sm bg-accent-1">
       <div class="p-2">
         <SidebarTabs
           isTabActive={isTabActive}
@@ -27,12 +27,12 @@ const Sidebar = (props: SidebarProps) => {
         <Show when={isTabActive("Chat")}>
           <div class="space-y-4">
             <div>
-              <div class="py-1 px-2 font-medium rounded cursor-pointer bg-brand-12/20 text-brand-12">
+              <div class="py-1 px-2 font-medium rounded cursor-pointer bg-brand-11/20 text-accent-12/80">
                 Chat
               </div>
             </div>
             <div class="space-y-2">
-              <div class="px-2 text-base font-medium text-gray-800">
+              <div class="px-2 text-sm font-medium text-gray-800">
                 Linked Documents
               </div>
               <div>
@@ -55,7 +55,7 @@ const SidebarTabs = (props: {
   setSelected: (id: string) => void;
 }) => {
   return (
-    <div class="flex p-[3px] text-center rounded-lg space-x-2 text-xs bg-brand-12/60">
+    <div class="flex p-[3px] text-center rounded-lg space-x-2 text-xs bg-brand-11/20">
       <SidebarTab
         name="Chat"
         selected={props.isTabActive("Chat")}
@@ -80,7 +80,7 @@ const SidebarTab = (props: {
       class="flex-1 py-0.5 text-center cursor-pointer"
       classList={{
         "rounded-md text-accent-12/80 bg-white": props.selected,
-        "text-white": !props.selected,
+        "text-accent-11": !props.selected,
       }}
       onClick={() => props.setSelected(props.name)}
     >
@@ -104,7 +104,7 @@ const Document = (props: { id: string; name: string; active?: boolean }) => {
         </div> */}
       </div>
       <div
-        class="flex-1 py-0.5 px-2 rounded cursor-pointer text-accent-12/90 hover:bg-accent-4"
+        class="flex-1 py-0.5 px-2 rounded cursor-pointer text-accent-12/80 hover:bg-accent-4"
         classList={
           {
             // "text-accent-9": !props.active,

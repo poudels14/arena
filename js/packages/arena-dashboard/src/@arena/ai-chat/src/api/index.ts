@@ -1,7 +1,8 @@
+// @ts-expect-error
+import { createHash } from "crypto";
 import { createRouter, procedure } from "@arena/runtime/server";
 import { pick } from "lodash-es";
 import { Splitter } from "@arena/llm/splitter";
-import { createHash } from "node:crypto";
 import { DatabaseClients } from "@arena/sdk/db";
 import { uniqueId as generateUniqueId } from "@arena/sdk/utils/uniqueId";
 import { databases } from "../../server";

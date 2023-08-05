@@ -11,7 +11,7 @@ import { Store, StoreSetter, createSyncedStore } from "@arena/solid-store";
 import isEqual from "fast-deep-equal/es6";
 // @ts-expect-error
 import delve from "dlv";
-import { uniqueId } from "@arena/uikit";
+import { uniqueId } from "@arena/sdk/utils/uniqueId";
 import cleanSet from "clean-set";
 import { App, Resource } from "../types/app";
 import { Plugin } from "./plugins/types";
@@ -22,6 +22,7 @@ import { MutationResponse } from "../types";
 import { AnyInternalEditor } from "./plugins/types";
 
 type EditorStateContext = {
+  isEditable: Accessor<boolean>;
   isViewOnly: Accessor<boolean>;
   setViewOnly: (viewOnly: boolean) => void;
   useWidgetById: (id: string) => Store<Widget>;
@@ -184,6 +185,10 @@ const withEditorState: Plugin<
     };
 
     Object.assign(context, {
+      isEditable() {
+        let editable = core.state.app.template.editor!.editable!();
+        return editable == undefined ? true : editable;
+      },
       isViewOnly() {
         return syncedStore.viewOnly();
       },

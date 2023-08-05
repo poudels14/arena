@@ -31,7 +31,7 @@ export default function Root() {
           </script>
         </Show>
       </Head>
-      <Body>
+      <Body class="antialiased">
         <Switch>
           <Match when={!getUser().id}>
             <Homepage />

@@ -16,6 +16,7 @@ import { createFileRouter } from "@arena/runtime/filerouter";
 import { router } from "~/api";
 import { databases } from "./server";
 import { VectorDatabase } from "@arena/cloud/vectordb";
+import Root from "~/root";
 
 const dbs: any = {
   default: null,
@@ -63,7 +64,7 @@ const handler = chainMiddlewares<{ event: PageEvent }>(
     : null,
   async ({ event }) => {
     return await router.route(event.request, {
-      env: process.env,
+      env: event.env,
       context: {
         user: null,
         dbs,
@@ -71,7 +72,7 @@ const handler = chainMiddlewares<{ event: PageEvent }>(
     });
   },
   renderAsync(({ event }) => {
-    return <ServerRoot event={event} />;
+    return <ServerRoot event={event} Root={Root} />;
   })
 );
 

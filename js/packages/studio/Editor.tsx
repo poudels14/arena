@@ -1,4 +1,11 @@
+import { Match, Show, Switch, createMemo, lazy } from "solid-js";
 import { Title } from "@solidjs/meta";
+import {
+  DragDropProvider,
+  DragEndEvent,
+  DragOverlay,
+  useDragDropContext,
+} from "@arena/solid-dnd";
 import {
   EditorStateConfig,
   TemplateStoreContext,
@@ -14,13 +21,6 @@ import {
 } from "./editor";
 import { Canvas } from "./Canvas";
 import { Toolbar } from "./toolbar";
-import {
-  DragDropProvider,
-  DragEndEvent,
-  DragOverlay,
-  useDragDropContext,
-} from "@arena/solid-dnd";
-import { Match, Switch, createMemo, lazy } from "solid-js";
 import { Widget } from "./Widget";
 import { Slot } from "./Slot";
 import { TEMPLATES } from "./templates";
@@ -32,6 +32,7 @@ const Editor = (props: EditorProps) => {
   const AppEditorProvider = createEditorWithPlugins(
     withEditorState({
       appId: props.appId,
+      viewOnly: props.viewOnly,
     }),
     withWidgetProps(),
     withComponentTree(),
@@ -58,9 +59,15 @@ const Editor = (props: EditorProps) => {
   );
 };
 
-const AppEditor = () => {
-  const { state, addWidget, updateWidget, useChildren, isViewOnly } =
-    useEditorContext<TemplateStoreContext & ComponentTreeContext>();
+const AppEditor = (props: any) => {
+  const {
+    state,
+    addWidget,
+    updateWidget,
+    useChildren,
+    isEditable,
+    isViewOnly,
+  } = useEditorContext<TemplateStoreContext & ComponentTreeContext>();
   const { attachDragEndHandler } = useDragDropContext();
 
   const getRootWidget = createMemo(() => useChildren(null)[0]);
@@ -95,7 +102,9 @@ const AppEditor = () => {
       }
     }
   };
+
   attachDragEndHandler(onDragEnd);
+
   return (
     <>
       <Title>{state.app.name()}</Title>
@@ -114,7 +123,9 @@ const AppEditor = () => {
           </Switch>
         </Canvas>
       </div>
-      <Toolbar />
+      <Show when={isEditable()}>
+        <Toolbar />
+      </Show>
     </>
   );
 };

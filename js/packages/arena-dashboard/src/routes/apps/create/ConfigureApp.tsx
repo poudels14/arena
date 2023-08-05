@@ -2,16 +2,22 @@ import { createSignal, Show } from "solid-js";
 import { Input } from "@arena/components/form";
 import { Form, Textarea } from "@arena/components/form";
 import { createMutationQuery } from "@arena/uikit/solid";
+import type { TemplateManifest } from "@arena/sdk/app";
 import { useDashboardContext } from "~/context";
 
-const ConfigureApp = (props: { name?: string; onCreate: () => void }) => {
+const ConfigureApp = (props: {
+  template: TemplateManifest;
+  onCreate: () => void;
+}) => {
   const { client, workspace } = useDashboardContext();
   const [error, setError] = createSignal<any | undefined>(undefined);
   const createNewApp = createMutationQuery<any>(
     async (value) => {
       await client.apps.add.mutate({
-        ...value,
         workspaceId: workspace.id,
+        name: value.name,
+        description: value.description,
+        template: props.template,
       });
       props.onCreate();
     },
@@ -32,7 +38,7 @@ const ConfigureApp = (props: { name?: string; onCreate: () => void }) => {
           name="name"
           class="w-full"
           placeholder="Name"
-          value={props.name}
+          value={props.template.name}
         />
       </div>
 

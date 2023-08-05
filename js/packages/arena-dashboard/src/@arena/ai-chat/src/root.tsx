@@ -4,7 +4,7 @@ import { Body, Html } from "@arena/core/solid";
 export default function Root() {
   return (
     <Html lang="en">
-      <Body>
+      <Body class="antialiased">
         <App />
       </Body>
     </Html>

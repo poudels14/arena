@@ -1,4 +1,5 @@
 import { Editor, ApiContextProvider, ApiRoutes } from "@arena/studio";
+import { AppContextProvider } from "@arena/sdk/app";
 import { useDashboardContext } from "~/context";
 
 const App = (props: { id: string }) => {
@@ -38,7 +39,9 @@ const App = (props: { id: string }) => {
         });
       }}
     >
-      <Editor appId={props.id} />
+      <AppContextProvider urlPrefix={`/w/${props.id}/`}>
+        <Editor appId={props.id} />
+      </AppContextProvider>
     </ApiContextProvider>
   );
 };

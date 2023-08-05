@@ -8,6 +8,7 @@ import {
   red as tailwindRed,
   blue as tailwindBlue,
 } from "@twind/preset-tailwind/colors";
+import Root from "./src/root";
 
 if (process.env.MODE === "development") {
   setupTwind({
@@ -40,7 +41,7 @@ if (process.env.MODE === "development") {
 mount(
   () => (
     <AppContextProvider>
-      <ClientRoot />
+      <ClientRoot Root={Root} />
     </AppContextProvider>
   ),
   document

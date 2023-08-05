@@ -9,8 +9,9 @@ import { ServerRoot } from "@arena/core/solid/server";
 import { pick } from "lodash-es";
 import { router } from "~/api";
 import { Context, createContext } from "~/api/context";
+import Root from "~/root";
 
-const fileRouter = createFileRouter({
+const fileRouter = /*#__PURE__*/ createFileRouter({
   env: {
     SSR: "false",
   },
@@ -36,6 +37,7 @@ const handler = chainMiddlewares<{ event: PageEvent; context: Context }>(
             pick(w, "id", "name", "access")
           ),
         }}
+        Root={Root}
       />
     );
   })

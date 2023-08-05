@@ -1,4 +1,5 @@
 import { Widget } from "@arena/widgets";
+import type { TemplateManifest } from "@arena/sdk/app";
 
 type App = {
   id: string;
@@ -7,10 +8,7 @@ type App = {
 
   description?: string;
 
-  template: {
-    id: string;
-    version: string;
-  } | null;
+  template: TemplateManifest | null;
 
   config: {
     ui?: {

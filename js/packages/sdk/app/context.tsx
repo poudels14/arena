@@ -1,3 +1,4 @@
+import urlJoin from "url-join";
 import { createContext, useContext } from "solid-js";
 
 type AppContext = {
@@ -12,16 +13,20 @@ type Router = {
 const AppContext = createContext<AppContext>();
 const useAppContext = () => useContext(AppContext)!;
 
-const AppContextProvider = (props: any) => {
+type AppContextProviderProps = {
+  urlPrefix?: string;
+  children: any;
+};
+
+const AppContextProvider = (props: AppContextProviderProps) => {
   const useApiRoute = (path: string) => {
     return path;
   };
 
   const router = {
-    async query<T>(path: string) {
-      const data = await fetch(path);
-      return data.json();
-      // return null as T;
+    async query(path: string) {
+      const data = await fetch(urlJoin(props.urlPrefix || "", path));
+      return await data.json();
     },
   };
 

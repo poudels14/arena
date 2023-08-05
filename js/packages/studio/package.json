@@ -9,6 +9,7 @@
   "license": "UNLICENSED",
   "dependencies": {
     "@arena/components": "workspace:^0.1.0",
+    "@arena/sdk": "workspace:^",
     "@arena/solid-dnd": "workspace:^",
     "@arena/solid-store": "workspace:^0.1.0",
     "@arena/uikit": "workspace:^0.1.0",
