@@ -1,6 +1,6 @@
 import { AbstractDatabaseConfig } from "./common";
 
-export type SqlDatabaseClient = {
+export type SqliteDatabaseClient = {
   query<T>(sql: string, parameters?: any[]): Promise<{ rows: T[] }>;
   transaction<T>(closure: () => T | Promise<T>): Promise<void>;
 };
@@ -12,5 +12,5 @@ export type SqliteDatabaseConfig = AbstractDatabaseConfig<
      */
     type: "sqlite";
   },
-  Pick<SqlDatabaseClient, "query">
+  Pick<SqliteDatabaseClient, "query">
 >;

@@ -1,4 +1,8 @@
-import { ArenaVectorDatabase, SqliteDatabaseConfig } from "@arena/sdk/db";
+import {
+  ArenaVectorDatabase,
+  SqliteDatabaseConfig,
+  SqliteDatabaseClient,
+} from "@arena/sdk/db";
 
 /**
  * Migrations for main database
@@ -8,7 +12,7 @@ const main: SqliteDatabaseConfig = {
   type: "sqlite",
   migrations: [
     {
-      async up(mainDb: any) {
+      async up(mainDb: SqliteDatabaseClient) {
         await mainDb.query(`CREATE TABLE chat_history (
         id          TEXT NOT NULL,
         session_id  TEXT NOT NULL,
@@ -19,7 +23,7 @@ const main: SqliteDatabaseConfig = {
       },
     },
     {
-      async up(mainDb: any) {
+      async up(mainDb: SqliteDatabaseClient) {
         await mainDb.query(`CREATE TABLE uploads (
         id            TEXT NOT NULL,
         name          TEXT,
@@ -39,9 +43,7 @@ const vectordb: ArenaVectorDatabase.Config = {
   migrations: [
     {
       async up(db: any) {
-        await db.createCollection("uploads", {
-          dimension: 384,
-        });
+        await db.query(`CREATE TABLE uploads (dimension vector(384))`);
       },
     },
   ],

@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use bstr::ByteSlice;
 use common::deno::extensions::BuiltinExtension;
+use common::deno::utils;
 use deno_core::{
   op, Extension, OpState, Resource, ResourceId, StringOrBuffer, ZeroCopyBuf,
 };
@@ -8,9 +9,10 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::cell::RefCell;
+use std::path::Path;
 use std::rc::Rc;
 use vectordb::query::DocumentWithContent;
-use vectordb::{query, DatabaseOptions, VectorDatabase};
+use vectordb::{query, sql, DatabaseOptions, VectorDatabase};
 
 pub fn extension() -> BuiltinExtension {
   BuiltinExtension {
@@ -24,6 +26,7 @@ pub(crate) fn init() -> Extension {
   Extension::builder("arena/cloud/vectordb")
     .ops(vec![
       op_cloud_vectordb_open::decl(),
+      op_cloud_vectordb_execute_query::decl(),
       op_cloud_vectordb_create_collection::decl(),
       op_cloud_vectordb_list_collections::decl(),
       op_cloud_vectordb_get_collection::decl(),
@@ -79,24 +82,50 @@ pub struct Document {
 #[op]
 async fn op_cloud_vectordb_open(
   state: Rc<RefCell<OpState>>,
-  path: String,
+  path_str: String,
 ) -> Result<ResourceId> {
+  let mut state = state.borrow_mut();
+  let path = Path::new(&path_str);
+
+  // Check access to db file
+  // Check write access since `VectorDatabase` will create a new db if it
+  // doesn't already exist
+  utils::fs::resolve_write_path(&mut state, path)?;
+  path
+    .parent()
+    .map(|dir| {
+      if !dir.exists() {
+        std::fs::create_dir_all(dir)?;
+      }
+      Ok::<(), anyhow::Error>(())
+    })
+    .transpose()?;
+
   let db = Rc::new(RefCell::new(VectorDatabase::open(
-    &path,
+    &path_str,
     DatabaseOptions {
       enable_statistics: true,
     },
   )?));
 
-  Ok(
-    state
-      .borrow_mut()
-      .resource_table
-      .add(VectorDatabaseResource {
-        path: path.to_string(),
-        db,
-      }),
-  )
+  Ok(state.resource_table.add(VectorDatabaseResource {
+    path: path_str.to_string(),
+    db,
+  }))
+}
+
+#[op]
+async fn op_cloud_vectordb_execute_query(
+  state: Rc<RefCell<OpState>>,
+  rid: ResourceId,
+  sql: String,
+) -> Result<()> {
+  let resource = get_db_resource(state, rid)?;
+  let mut db = resource.db.borrow_mut();
+  let mut client = sql::Client::new(&mut db);
+  client.execute(&sql)?;
+
+  Ok(())
 }
 
 #[op]

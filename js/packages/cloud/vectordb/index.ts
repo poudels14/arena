@@ -20,6 +20,10 @@ class VectorDatabase implements Client {
     return new VectorDatabase(rid, path);
   }
 
+  async query(sql: string) {
+    return await opAsync("op_cloud_vectordb_execute_query", this.#rid, sql);
+  }
+
   async createCollection(collectionId: string, config: CollectionConfig) {
     assert.notNil(collectionId, "Collection id");
     return await opAsync(

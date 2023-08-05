@@ -1,6 +1,6 @@
 pub mod acl;
 pub mod extension;
-pub mod jwt;
+pub(crate) mod jwt;
 pub mod llm;
-pub mod transpile;
+pub(crate) mod transpile;
 pub mod vectordb;

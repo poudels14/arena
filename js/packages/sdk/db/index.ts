@@ -1,36 +1,52 @@
-import { SqlDatabaseClient, SqliteDatabaseConfig } from "./sqlite";
+import { SqliteDatabaseClient, SqliteDatabaseConfig } from "./sqlite";
 import * as ArenaVectorDatabase from "./vectordb";
 import { SqliteMigrator } from "./migration/sqlite";
+import { DatabaseMigrator } from "./migration/migrator";
 
 type DatabaseConfig = SqliteDatabaseConfig | ArenaVectorDatabase.Config;
 
 type DatabaseClients<Configs extends Record<string, DatabaseConfig>> = {
   [K in keyof Configs]: Configs[K]["type"] extends "sqlite"
-    ? SqlDatabaseClient
+    ? SqliteDatabaseClient
     : Configs[K]["type"] extends "arena-vectordb"
     ? ArenaVectorDatabase.Client
     : null;
 };
 
-const setupSqliteDatabase = async (options: {
-  client: SqlDatabaseClient;
-  config: SqliteDatabaseConfig;
-}) => {
-  console.log("[setup] Running sqlite database migrations...");
-  await new SqliteMigrator(options.client).migrate(options.config);
+const setupDatabase = async (
+  auditClient: SqliteDatabaseClient,
+  client: SqliteDatabaseClient | ArenaVectorDatabase.Client,
+  config: DatabaseConfig
+) => {
+  const migrator = await DatabaseMigrator.init(
+    auditClient,
+    config.name,
+    config.type
+  );
+
+  if (config.type == "sqlite") {
+    (client as SqliteDatabaseClient).transaction(async () => {
+      for (let idx = 0; idx < config.migrations.length; idx++) {
+        const migration = config.migrations[idx];
+        await migration.up(migrator.getMigrationClient(client, idx));
+      }
+    });
+  } else if (config.type == "arena-vectordb") {
+    // TODO(sagar): add support for transactions in vector db?
+    for (let idx = 0; idx < config.migrations.length; idx++) {
+      const migration = config.migrations[idx];
+      // @ts-expect-error
+      await migration.up(migrator.getMigrationClient(client, idx));
+    }
+  } else {
+    throw new Error("Unsupported database type: " + (config as any).type);
+  }
 };
 
-const setupArenaVectorDatabase = async (options: {
-  client: ArenaVectorDatabase.Client;
-  config: ArenaVectorDatabase.Config;
-}) => {
-  throw new Error("Arena vector database migration not yet supported");
-};
-
-export { setupSqliteDatabase, setupArenaVectorDatabase, SqliteMigrator };
+export { setupDatabase, SqliteMigrator };
 export type {
   SqliteDatabaseConfig,
-  SqlDatabaseClient,
+  SqliteDatabaseClient,
   ArenaVectorDatabase,
   DatabaseConfig,
   DatabaseClients,

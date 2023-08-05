@@ -40,6 +40,11 @@ export type Config = AbstractDatabaseConfig<
 >;
 
 export type Client = {
+  /**
+   * Execute SQL query on the vector database
+   */
+  query(sql: string): Promise<any>;
+
   createCollection(
     collectionId: string,
     config: CollectionConfig

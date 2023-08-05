@@ -10,7 +10,7 @@ import {
 } from "@arena/core/server";
 import type { PageEvent } from "@arena/core/server";
 import { ServerRoot } from "@arena/core/solid/server";
-import { setupSqliteDatabase } from "@arena/sdk/db";
+import { setupDatabase } from "@arena/sdk/db";
 import { Flags, Client } from "@arena/runtime/sqlite";
 import { createFileRouter } from "@arena/runtime/filerouter";
 import { router } from "~/api";
@@ -31,10 +31,7 @@ if (process.env.MODE == "development") {
 
   const vectordb = await VectorDatabase.open("./test-arena-cloud-vectordb");
 
-  await setupSqliteDatabase({
-    client: mainDb,
-    config: databases.default,
-  });
+  await setupDatabase(mainDb, mainDb, databases.default);
 
   let uploadsCollection = await vectordb.getCollection("uploads");
   if (!uploadsCollection || uploadsCollection.id != "uploads") {

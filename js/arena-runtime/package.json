@@ -25,6 +25,7 @@
     }
   },
   "dependencies": {
+    "@arena/cloud": "workspace:^",
     "@arena/core": "workspace:^",
     "@arena/functions": "workspace:^",
     "@arena/sdk": "workspace:^",

@@ -201,7 +201,7 @@ program.option("--minify").action(async (options, cmd) => {
       external: [
         "path",
         "crypto",
-        "@app/template",
+        "@dqs/app/template",
         "@arena/runtime/server",
         "@arena/runtime/sqlite",
         "~/setup/migrations",
