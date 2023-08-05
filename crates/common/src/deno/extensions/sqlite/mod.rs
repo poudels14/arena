@@ -107,6 +107,15 @@ fn op_sqlite_create_connection(
     != 0
   {
     fs::resolve_write_path(state, path)?;
+    path
+      .parent()
+      .map(|dir| {
+        if !dir.exists() {
+          std::fs::create_dir_all(dir)?;
+        }
+        Ok::<(), anyhow::Error>(())
+      })
+      .transpose()?;
   } else {
     fs::resolve_read_path(state, path)?;
   }
