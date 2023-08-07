@@ -1,3 +1,4 @@
+use anyhow::Context;
 use anyhow::Result;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
@@ -7,7 +8,8 @@ use std::time::Duration;
 
 pub fn create_connection_pool() -> Result<Pool<ConnectionManager<PgConnection>>>
 {
-  let database_url = env::var("DATABASE_URL")?;
+  let database_url =
+    env::var("DATABASE_URL").context("Missing env variable: DATABASE_URL")?;
 
   let manager = ConnectionManager::<PgConnection>::new(database_url);
   Ok(
