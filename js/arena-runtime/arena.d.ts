@@ -514,6 +514,7 @@ declare module "@arena/runtime/server" {
     query(cb: ProcedureCallback<Context>): Handler<Context>;
     mutate(cb: ProcedureCallback<Context>): Handler<Context>;
     patch(cb: ProcedureCallback<Context>): Handler<Context>;
+    delete(cb: ProcedureCallback<Context>): Handler<Context>;
   };
 
   export const procedure: <Context>() => Procedure<Context>;

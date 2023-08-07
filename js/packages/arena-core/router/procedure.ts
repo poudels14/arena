@@ -112,8 +112,12 @@ class Procedure<Context> {
     return this.handle("PATCH", cb);
   }
 
+  delete(cb: ProcedureCallback<Context>) {
+    return this.handle("DELETE", cb);
+  }
+
   private handle(
-    method: "GET" | "POST" | "PATCH",
+    method: "GET" | "POST" | "PATCH" | "DELETE",
     cb: ProcedureCallback<Context>
   ) {
     return Object.assign(createHandler([...this.fns, cb]), {
