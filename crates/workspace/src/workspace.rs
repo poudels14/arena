@@ -1,5 +1,7 @@
 use crate::registry::Registry;
+use anyhow::{anyhow, Result};
 use common::arena::ArenaConfig;
+use deno_core::normalize_path;
 use std::path::PathBuf;
 
 #[derive(Clone, Debug)]
@@ -24,11 +26,15 @@ impl Workspace {
   }
 
   /// Returns the entry file of the workspace
-  pub fn server_entry(&self) -> PathBuf {
-    self
-      .dir
-      .join(&self.config.server.entry)
-      .canonicalize()
-      .unwrap()
+  pub fn server_entry(&self) -> Result<PathBuf> {
+    let path = self.dir.join(&self.config.server.entry);
+
+    path.canonicalize().map_err(|e| {
+      anyhow!(
+        "Error locating server entry {:?}. {}",
+        normalize_path(path),
+        e
+      )
+    })
   }
 }

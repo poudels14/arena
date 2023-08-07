@@ -218,7 +218,7 @@ impl WorkspaceServer {
       ..Default::default()
     })?;
 
-    let server_entry = self.workspace.server_entry();
+    let server_entry = self.workspace.server_entry()?;
     let server_entry = server_entry
       .to_str()
       .ok_or(anyhow!("Unable to get workspace entry file"))?;
