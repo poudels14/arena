@@ -46,7 +46,7 @@ const ChatContextProvider = (props: any) => {
   });
 
   const listMessages = async (sessionId: string) => {
-    return (await router.get(`/chat/${sessionId}/history`)).data;
+    return (await router.get(`/chat/${sessionId}/messages`)).data;
   };
 
   listMessages("1").then((messages: any[]) => {
@@ -81,7 +81,8 @@ const ChatContextProvider = (props: any) => {
       const res = await router.post(
         `/chat/${sessionId}/send`,
         {
-          message: { id: messageId, message },
+          id: messageId,
+          message,
         },
         {
           responseType: "stream",

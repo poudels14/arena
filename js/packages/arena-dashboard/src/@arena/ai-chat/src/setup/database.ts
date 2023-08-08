@@ -13,7 +13,16 @@ const main: SqliteDatabaseConfig = {
   migrations: [
     {
       async up(mainDb: SqliteDatabaseClient) {
-        await mainDb.query(`CREATE TABLE chat_history (
+        await mainDb.query(`CREATE TABLE chat_sessions (
+        -- session id
+        id          TEXT NOT NULL,
+        title       TEXT
+      )`);
+      },
+    },
+    {
+      async up(mainDb: SqliteDatabaseClient) {
+        await mainDb.query(`CREATE TABLE chat_messages (
         id          TEXT NOT NULL,
         session_id  TEXT NOT NULL,
         thread_id   TEXT,

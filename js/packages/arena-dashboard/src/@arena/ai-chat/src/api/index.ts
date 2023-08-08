@@ -22,34 +22,41 @@ const router = createRouter({
   },
   routes: {
     "/chat/:sessionId/send": p.mutate(async ({ ctx, params, req, errors }) => {
-      const db = ctx.dbs.vectordb;
-      let body;
+      let request: {
+        id: string;
+        message: string;
+      };
       try {
-        body = await req.json();
+        request = await req.json();
       } catch (e) {
         return "Error parsing request body";
       }
 
       const sessionId = params.sessionId;
-      const { message } = body as {
-        message: {
-          id: string;
-          message: string;
-        };
-      };
-      if (!message) {
+      if (!request.message) {
         errors.badRequest("Message can't be empty");
       }
 
-      message.id = message.id || uniqueId();
+      request.id = request.id || uniqueId();
+
+      const { rows: sessions } = await ctx.dbs.default.query(
+        `SELECT * FROM chat_sessions WHERE id = ?`,
+        [sessionId]
+      );
+      if (sessions.length == 0) {
+        await ctx.dbs.default.query(
+          `INSERT INTO chat_sessions(id) VALUES (?)`,
+          [sessionId]
+        );
+      }
 
       await ctx.dbs.default.query(
-        `INSERT INTO chat_history(id, session_id, role, message, timestamp) VALUES (?,?,?,?,?)`,
+        `INSERT INTO chat_messages(id, session_id, role, message, timestamp) VALUES (?,?,?,?,?)`,
         [
-          message.id,
+          request.id,
           sessionId,
           ctx.user?.id || "user",
-          message.message,
+          request.message,
           new Date().getTime(),
         ]
       );
@@ -109,13 +116,13 @@ const router = createRouter({
             },
             async complete() {
               await ctx.dbs.default.query(
-                `INSERT INTO chat_history
+                `INSERT INTO chat_messages
                   (id, session_id, parent_id, role, message, timestamp)
                 VALUES (?,?,?,?,?,?)`,
                 [
                   aiResponseId,
                   sessionId,
-                  message.id,
+                  request.id,
                   "ai",
                   aiResponse,
                   aiResponseTime.getTime(),
@@ -132,16 +139,22 @@ const router = createRouter({
         headers: [["content-type", "text/event-stream"]],
       });
     }),
-    "/chat/:sessionId/history": p.query(async ({ ctx, params }) => {
+    "/chat/sessions": p.query(async ({ ctx }) => {
       const { rows } = await ctx.dbs.default.query(
-        `SELECT * FROM chat_history where session_id = ? ORDER BY timestamp`,
+        `SELECT * FROM chat_sessions`
+      );
+      return rows;
+    }),
+    "/chat/:sessionId/messages": p.query(async ({ ctx, params }) => {
+      const { rows } = await ctx.dbs.default.query(
+        `SELECT * FROM chat_messages where session_id = ? ORDER BY timestamp`,
         [params.sessionId]
       );
       return rows;
     }),
-    "/chat/:sessionId/history/:id": p.delete(async ({ ctx, params }) => {
+    "/chat/:sessionId/messages/:id": p.delete(async ({ ctx, params }) => {
       await ctx.dbs.default.query(
-        `DELETE FROM chat_history where id = ? AND session_id = ?`,
+        `DELETE FROM chat_messages where id = ? AND session_id = ?`,
         [params.id, params.sessionId]
       );
       return { success: true };
