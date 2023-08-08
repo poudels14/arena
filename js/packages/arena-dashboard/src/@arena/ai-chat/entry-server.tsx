@@ -28,17 +28,10 @@ if (process.env.MODE == "development") {
     path: path.join("./data/db.sqlite"),
     flags: Flags.SQLITE_OPEN_CREATE | Flags.SQLITE_OPEN_READ_WRITE,
   });
-
   const vectordb = await VectorDatabase.open("./test-arena-cloud-vectordb");
 
   await setupDatabase(mainDb, mainDb, databases.default);
-
-  let uploadsCollection = await vectordb.getCollection("uploads");
-  if (!uploadsCollection || uploadsCollection.id != "uploads") {
-    await vectordb.createCollection("uploads", {
-      dimension: 384,
-    });
-  }
+  await setupDatabase(mainDb, vectordb, databases.vectordb);
 
   dbs.default = mainDb;
   dbs.vectordb = vectordb;
