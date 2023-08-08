@@ -27,7 +27,7 @@ const Sidebar = (props: SidebarProps) => {
         <Show when={isTabActive("Chat")}>
           <div class="space-y-4">
             <div>
-              <div class="py-1 px-2 font-medium rounded cursor-pointer bg-brand-11/20 text-accent-12/80">
+              <div class="py-1 px-2 font-medium rounded cursor-pointer bg-brand-10/20 text-accent-12/70">
                 Chat
               </div>
             </div>

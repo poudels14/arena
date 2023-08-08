@@ -1,12 +1,15 @@
 import {
   Index,
+  Show,
   createComputed,
   createEffect,
   createSignal,
+  onMount,
   useContext,
 } from "solid-js";
 import { InlineIcon } from "@arena/components";
 import SendIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/send-message";
+import AddIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/plus";
 import { ChatContext } from "./ChatContext";
 
 const Chat = () => {
@@ -66,6 +69,16 @@ const Chat = () => {
       </div>
       <div class="chatbox-container absolute bottom-2 w-full flex justify-center">
         <div class="flex-1 px-5 max-w-[560px]">
+          <div class="py-2 flex flex-row text-accent-11">
+            <Show when={state.activeSession.messages().length > 0}>
+              <div class="new-chat flex pr-2 text-xs font-normal border rounded align-middle cursor-pointer select-none bg-white">
+                <InlineIcon size="24px" class="py-1.5">
+                  <path d={AddIcon[0]} />
+                </InlineIcon>
+                <div class="leading-6">New chat</div>
+              </div>
+            </Show>
+          </div>
           <Chatbox isGeneratingResponse={state.isGeneratingResponse} />
         </div>
       </div>
@@ -83,6 +96,10 @@ const Chatbox = (props: any) => {
   // TODO(sagar): move this to @arena/components Textarea
   let textareaRef: any;
   let textareaTextRef: any;
+  onMount(() => {
+    textareaRef.focus();
+  });
+
   createComputed(() => {
     const msg = getMessage();
     if (!textareaTextRef) return;
