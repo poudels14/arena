@@ -1,5 +1,6 @@
 // @ts-expect-error
 import { createHash } from "crypto";
+import { interval, map, take } from "rxjs";
 import { createRouter, procedure } from "@arena/runtime/server";
 import { pick } from "lodash-es";
 import { Splitter } from "@arena/llm/splitter";
@@ -20,14 +21,133 @@ const router = createRouter({
     }
   },
   routes: {
-    "/chat-history": p.query(async ({ ctx }) => {
+    "/chat/:sessionId/send": p.mutate(async ({ ctx, params, req, errors }) => {
+      const db = ctx.dbs.vectordb;
+      let body;
+      try {
+        body = await req.json();
+      } catch (e) {
+        return "Error parsing request body";
+      }
+
+      const sessionId = params.sessionId;
+      const { message } = body as {
+        message: {
+          id: string;
+          message: string;
+        };
+      };
+      if (!message) {
+        errors.badRequest("Message can't be empty");
+      }
+
+      message.id = message.id || uniqueId();
+
+      await ctx.dbs.default.query(
+        `INSERT INTO chat_history(id, session_id, role, message, timestamp) VALUES (?,?,?,?,?)`,
+        [
+          message.id,
+          sessionId,
+          ctx.user?.id || "user",
+          message.message,
+          new Date().getTime(),
+        ]
+      );
+
+      // TODO(sagar)
+      // const generator = new DocumentEmbeddingsGenerator();
+      // const embeddings = await generator.getTextEmbeddings([message.message]);
+      // const queryResult = await db.searchCollection(
+      //   "uploads",
+      //   embeddings[0],
+      //   10,
+      //   {
+      //     includeChunkContent: true,
+      //     contentEncoding: "utf-8",
+      //   }
+      // );
+
+      const aiResponseTime = new Date();
+      const aiResponseId = uniqueId();
+      const data = [
+        { id: aiResponseId, timestamp: aiResponseTime.getTime() },
+        { text: "this" },
+        { text: "is" },
+        { text: "a" },
+        { text: "response" },
+        { text: "from" },
+        { text: "my" },
+        { text: "ai" },
+        { text: "agent" },
+        { text: "." },
+        { text: "This" },
+        { text: "is" },
+        { text: "gonna" },
+        { text: "be" },
+        { text: "so" },
+        { text: "fucking" },
+        { text: "cool" },
+        { text: "." },
+      ];
+
+      const observable = interval(1_00)
+        .pipe(take(data.length))
+        .pipe(map((i) => data[i]));
+
+      let aiResponse = "";
+      const stream = new ReadableStream({
+        async start(controller) {
+          observable.subscribe({
+            next(value) {
+              if (value.text) {
+                aiResponse += value.text + " ";
+              }
+              controller.enqueue(JSON.stringify(value));
+            },
+            error(error) {
+              controller.error(error);
+            },
+            async complete() {
+              await ctx.dbs.default.query(
+                `INSERT INTO chat_history
+                  (id, session_id, parent_id, role, message, timestamp)
+                VALUES (?,?,?,?,?,?)`,
+                [
+                  aiResponseId,
+                  sessionId,
+                  message.id,
+                  "ai",
+                  aiResponse,
+                  aiResponseTime.getTime(),
+                ]
+              );
+              controller.close();
+            },
+          });
+        },
+      });
+
+      return new Response(stream, {
+        status: 200,
+        headers: [["content-type", "text/event-stream"]],
+      });
+    }),
+    "/chat/:sessionId/history": p.query(async ({ ctx, params }) => {
       const { rows } = await ctx.dbs.default.query(
-        `SELECT * FROM chat_history`
+        `SELECT * FROM chat_history where session_id = ? ORDER BY timestamp`,
+        [params.sessionId]
       );
       return rows;
     }),
+    "/chat/:sessionId/history/:id": p.delete(async ({ ctx, params }) => {
+      await ctx.dbs.default.query(
+        `DELETE FROM chat_history where id = ? AND session_id = ?`,
+        [params.id, params.sessionId]
+      );
+      return { success: true };
+    }),
     "/documents": p.query(async ({ ctx }) => {
-      const { default: sql, vectordb } = ctx.dbs;
+      const { default: sql } = ctx.dbs;
       const { rows: documents } = await sql.query<any>(`SELECT * FROM uploads`);
       return documents.map((doc) => {
         return {

@@ -16,8 +16,12 @@ const main: SqliteDatabaseConfig = {
         await mainDb.query(`CREATE TABLE chat_history (
         id          TEXT NOT NULL,
         session_id  TEXT NOT NULL,
+        thread_id   TEXT,
+        -- parent message id; this is set for AI response to a message
+        parent_id   TEXT,
         role        TEXT NOT NULL,
-        query       TEXT NOT NULL,
+        user_id     TEXT,
+        message     TEXT NOT NULL,
         timestamp   INTEGER
       )`);
       },
