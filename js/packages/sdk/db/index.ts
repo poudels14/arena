@@ -1,6 +1,5 @@
 import { SqliteDatabaseClient, SqliteDatabaseConfig } from "./sqlite";
 import * as ArenaVectorDatabase from "./vectordb";
-import { SqliteMigrator } from "./migration/sqlite";
 import { DatabaseMigrator } from "./migration/migrator";
 
 type DatabaseConfig = SqliteDatabaseConfig | ArenaVectorDatabase.Config;
@@ -43,7 +42,7 @@ const setupDatabase = async (
   }
 };
 
-export { setupDatabase, SqliteMigrator };
+export { setupDatabase };
 export type {
   SqliteDatabaseConfig,
   SqliteDatabaseClient,

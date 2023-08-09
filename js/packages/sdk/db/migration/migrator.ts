@@ -30,7 +30,10 @@ class DatabaseMigrator {
     const { rows: existingMigrations } =
       await DatabaseMigrator.#getExistingMigrations(auditClient, {
         retry: 0,
+        dbName,
+        dbType,
       });
+
     return new DatabaseMigrator(
       auditClient,
       dbName,
@@ -73,12 +76,18 @@ class DatabaseMigrator {
             );
           }
           console.log(
-            `[setup] Skipping migration ${migrationIndex} [reason='ran already']`
+            `[setup] Skipping migration [db: ${
+              self.#dbName
+            }, index: ${migrationIndex}, reason: 'ran already']`
           );
           return;
         }
 
-        console.log("[setup] Running migration:", migrationIndex);
+        console.log(
+          `[setup] Running migration [db: ${self.#dbName}, type: ${
+            self.#dbType
+          }], index: ${migrationIndex}`
+        );
         const res = await client.query<T>(sql, params);
         await self.#auditClient.query(
           `INSERT INTO _arena_schema_migrations (idx, database, type, hash) VALUES (?, ?, ?, ?)`,
@@ -109,11 +118,16 @@ class DatabaseMigrator {
   static async #getExistingMigrations(
     auditClient: SqliteDatabaseClient,
     options: {
+      dbName: string;
+      dbType: string;
       retry: number;
     }
   ): Promise<{ rows: DbMigration[] }> {
     return await auditClient
-      .query<DbMigration>(`SELECT * FROM _arena_schema_migrations`)
+      .query<DbMigration>(
+        `SELECT * FROM _arena_schema_migrations WHERE database = ? AND type = ?`,
+        [options.dbName, options.dbType]
+      )
       .catch(async (e: any) => {
         if (options.retry >= 1) {
           throw e;
@@ -121,6 +135,7 @@ class DatabaseMigrator {
         if (e.message.includes("no such table")) {
           await DatabaseMigrator.#createTable(auditClient);
           return await DatabaseMigrator.#getExistingMigrations(auditClient, {
+            ...options,
             retry: options.retry + 1,
           });
         }
