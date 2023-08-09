@@ -4,6 +4,9 @@ dependencies:
   nanoid:
     specifier: ^4.0.2
     version: 4.0.2
+  redaxios:
+    specifier: ^0.5.1
+    version: 0.5.1
   solid-js:
     specifier: ^1.7.6
     version: 1.7.8
@@ -21,6 +24,10 @@ packages:
     resolution: {integrity: sha512-7ZtY5KTCNheRGfEFxnedV5zFiORN1+Y1N6zvPTnHQd8ENUvfaDBeuJDZb2bN/oXwXxu3qkTXDzy57W5vAmDTBw==}
     engines: {node: ^14 || ^16 || >=18}
     hasBin: true
+    dev: false
+
+  /redaxios@0.5.1:
+    resolution: {integrity: sha512-FSD2AmfdbkYwl7KDExYQlVvIrFz6Yd83pGfaGjBzM9F6rpq8g652Q4Yq5QD4c+nf4g2AgeElv1y+8ajUPiOYMg==}
     dev: false
 
   /seroval@0.5.1:

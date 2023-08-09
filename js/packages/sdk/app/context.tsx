@@ -1,14 +1,13 @@
-import urlJoin from "url-join";
 import { createContext, useContext } from "solid-js";
+import urlJoin from "url-join";
+import axios from "redaxios";
 
 type AppContext = {
   useApiRoute: (path: string) => string;
   router: Router;
 };
 
-type Router = {
-  query<T>(path: string): Promise<T>;
-};
+type Router = typeof axios;
 
 const AppContext = createContext<AppContext>();
 const useAppContext = () => useContext(AppContext)!;
@@ -23,12 +22,16 @@ const AppContextProvider = (props: AppContextProviderProps) => {
     return path;
   };
 
-  const router = {
-    async query(path: string) {
-      const data = await fetch(urlJoin(props.urlPrefix || "", path));
-      return await data.json();
+  const router = axios.create({
+    fetch: (req: RequestInfo | URL, init?: RequestInit) => {
+      if (typeof req !== "string") {
+        throw new Error(
+          "@arena/sdk fetch only supports URL string in the first argument"
+        );
+      }
+      return fetch(urlJoin(props.urlPrefix || "", req as string), init);
     },
-  };
+  });
 
   return (
     <AppContext.Provider value={{ useApiRoute, router }}>
