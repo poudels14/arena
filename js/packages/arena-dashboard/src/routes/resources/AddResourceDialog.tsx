@@ -13,13 +13,15 @@ const AddResourceDialog = (props: {
 }) => {
   const { client, workspace } = useDashboardContext();
   const [resourceType, setResourceType] = createSignal<string>();
-  const addNewResource = createMutationQuery<any>(async (value) => {
-    await client.resources.add.mutate({
-      ...value,
-      workspaceId: workspace.id,
-    });
-    props.closeDialog();
-  });
+  const addNewResource = createMutationQuery<(value: any) => Promise<void>>(
+    async (value) => {
+      await client.resources.add.mutate({
+        ...value,
+        workspaceId: workspace.id,
+      });
+      props.closeDialog();
+    }
+  );
 
   return (
     <Dialog

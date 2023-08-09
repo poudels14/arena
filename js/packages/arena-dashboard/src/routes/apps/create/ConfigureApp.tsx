@@ -11,7 +11,7 @@ const ConfigureApp = (props: {
 }) => {
   const { client, workspace } = useDashboardContext();
   const [error, setError] = createSignal<any | undefined>(undefined);
-  const createNewApp = createMutationQuery<any>(
+  const createNewApp = createMutationQuery<(value: any) => Promise<void>>(
     async (value) => {
       await client.apps.add.mutate({
         workspaceId: workspace.id,
