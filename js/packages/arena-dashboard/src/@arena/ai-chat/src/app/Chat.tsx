@@ -3,15 +3,17 @@ import {
   Show,
   createComputed,
   createEffect,
+  createMemo,
   createSignal,
   onMount,
   useContext,
 } from "solid-js";
 import { InlineIcon } from "@arena/components";
+import { Markdown } from "@arena/components/markdown";
+import { Marked } from "marked";
 import SendIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/send-message";
 import AddIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/plus";
 import { ChatContext } from "./ChatContext";
-import { Markdown } from "./Markdown";
 
 const Chat = () => {
   const { state } = useContext(ChatContext)!;
@@ -36,6 +38,7 @@ const Chat = () => {
                 const m = state.activeSession.messages[index];
                 if (index == state.activeSession.messages().length - 1) {
                   createEffect(() => {
+                    void m.message();
                     // Note(sagar): scroll to the bottom. Need to do it after
                     // the last message is rendered
                     const containerHeight = parseFloat(
@@ -43,23 +46,29 @@ const Chat = () => {
                     );
                     chatMessagesContainerRef.scrollTo(
                       0,
-                      containerHeight + 10_000
+                      containerHeight + 100_000
                     );
                   });
                 }
+
+                const marked = new Marked({});
+                const tokens = createMemo(() => marked.lexer(m.message()));
 
                 return (
                   <div
                     class="px-3 py-1 rounded-sm"
                     classList={{
-                      "bg-brand-11/20": m.role() == "user",
+                      "bg-blue-100": m.role() == "user",
                       "bg-brand-3": m.role() == "ai",
                       "border border-red-700": m.streaming(),
                     }}
                     data-message-id={m.id()}
                   >
-                    <div class="message min-h-[10px]">
-                      <Markdown content={m.message()} />
+                    <div
+                      class="message"
+                      style={"letter-spacing: 0.1px; word-spacing: 1px"}
+                    >
+                      <Markdown tokens={tokens()} />
                     </div>
                   </div>
                 );
@@ -68,15 +77,15 @@ const Chat = () => {
           </div>
         </div>
       </div>
-      <div class="chatbox-container absolute bottom-2 w-full flex justify-center">
-        <div class="flex-1 px-5 max-w-[560px]">
-          <div class="py-2 flex flex-row text-accent-11">
+      <div class="chatbox-container absolute bottom-2 w-full flex justify-center pointer-events-none">
+        <div class="flex-1 max-w-[560px] rounded-lg pointer-events-auto backdrop-blur-xl">
+          <div class="flex p-2 flex-row text-accent-11">
             <Show when={state.activeSession.messages().length > 0}>
-              <div class="new-chat flex pr-2 text-xs font-normal border rounded align-middle cursor-pointer select-none bg-white">
-                <InlineIcon size="24px" class="py-1.5">
+              <div class="new-chat flex pr-2 text-xs font-normal text-brand-12/80 border border-brand-12/50 rounded align-middle cursor-pointer select-none bg-white shadow-2xl">
+                <InlineIcon size="20px" class="py-1">
                   <path d={AddIcon[0]} />
                 </InlineIcon>
-                <div class="leading-6">New chat</div>
+                <div class="leading-5">New chat</div>
               </div>
             </Show>
           </div>
