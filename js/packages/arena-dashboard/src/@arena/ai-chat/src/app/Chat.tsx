@@ -11,6 +11,7 @@ import { InlineIcon } from "@arena/components";
 import SendIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/send-message";
 import AddIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/plus";
 import { ChatContext } from "./ChatContext";
+import { Markdown } from "./Markdown";
 
 const Chat = () => {
   const { state } = useContext(ChatContext)!;
@@ -46,19 +47,19 @@ const Chat = () => {
                     );
                   });
                 }
+
                 return (
                   <div
                     class="px-3 py-1 rounded-sm"
                     classList={{
-                      "bg-brand-11/20": m.role() == "ai",
-                      "bg-brand-3": m.role() == "user",
+                      "bg-brand-11/20": m.role() == "user",
+                      "bg-brand-3": m.role() == "ai",
                       "border border-red-700": m.streaming(),
                     }}
                     data-message-id={m.id()}
                   >
-                    <div class="message whitespace-break-spaces">
-                      {m.message()}
-                      <span>&nbsp;</span>
+                    <div class="message min-h-[10px]">
+                      <Markdown content={m.message()} />
                     </div>
                   </div>
                 );

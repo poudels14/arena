@@ -40,12 +40,12 @@ dependencies:
   lodash-es:
     specifier: ^4.17.21
     version: 4.17.21
+  marked:
+    specifier: ^7.0.1
+    version: 7.0.1
   redaxios:
     specifier: ^0.5.1
     version: 0.5.1
-  rxjs:
-    specifier: ^7.8.1
-    version: 7.8.1
   solid-js:
     specifier: ^1.7.7
     version: 1.7.7
@@ -193,6 +193,12 @@ packages:
       tslib: 2.5.3
     dev: false
 
+  /marked@7.0.1:
+    resolution: {integrity: sha512-m8Aze620Ts62yaciz2DghZGUkUfdgvSNRicS2/XtQkStMNoce3NWjOD2b/jWF32+XXK6udM6pRhv2dKNlneAFA==}
+    engines: {node: '>= 16'}
+    hasBin: true
+    dev: false
+
   /no-case@3.0.4:
     resolution: {integrity: sha512-fgAN3jGAh+RoxUGZHTSOLJIqUc2wmoBwGR4tbpNAKmmovFoWq0OdRkb0VkldReO2a2iBT/OEulG9XSUc10r3zg==}
     dependencies:
@@ -223,12 +229,6 @@ packages:
 
   /redaxios@0.5.1:
     resolution: {integrity: sha512-FSD2AmfdbkYwl7KDExYQlVvIrFz6Yd83pGfaGjBzM9F6rpq8g652Q4Yq5QD4c+nf4g2AgeElv1y+8ajUPiOYMg==}
-    dev: false
-
-  /rxjs@7.8.1:
-    resolution: {integrity: sha512-AA3TVj+0A2iuIoQkWEK/tqFjBq2j+6PO6Y0zJcvzLAFhEFIO3HL0vls9hWLncZbAAbK0mar7oZ4V079I/qPMxg==}
-    dependencies:
-      tslib: 2.5.3
     dev: false
 
   /sentence-case@3.0.4:

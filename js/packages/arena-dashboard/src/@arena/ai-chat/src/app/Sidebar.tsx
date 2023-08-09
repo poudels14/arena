@@ -1,5 +1,7 @@
 import { For, Show, createSelector } from "solid-js";
 import { createStore } from "@arena/solid-store";
+import { InlineIcon } from "@arena/components";
+import AddIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/plus";
 import { Document } from "./types";
 
 type SidebarProps = {
@@ -32,8 +34,9 @@ const Sidebar = (props: SidebarProps) => {
               </div>
             </div>
             <div class="space-y-2">
-              <div class="px-2 text-sm font-medium text-gray-800">
-                Linked Documents
+              <div class="flex px-2 text-sm font-medium text-gray-800">
+                <div class="flex-1 leading-6">Linked Documents</div>
+                <LinkNewDocument />
               </div>
               <div>
                 <For each={props.documents}>
@@ -85,6 +88,19 @@ const SidebarTab = (props: {
       onClick={() => props.setSelected(props.name)}
     >
       {props.name}
+    </div>
+  );
+};
+
+const LinkNewDocument = () => {
+  return (
+    <div>
+      <InlineIcon
+        size="24px"
+        class="py-1.5 rounded cursor-pointer hover:bg-brand-11/20"
+      >
+        <path d={AddIcon[0]} />
+      </InlineIcon>
     </div>
   );
 };

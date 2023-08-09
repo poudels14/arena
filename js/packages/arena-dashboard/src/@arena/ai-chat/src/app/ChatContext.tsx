@@ -3,6 +3,7 @@ import { useAppContext } from "@arena/sdk/app";
 import { Store, StoreSetter, createStore } from "@arena/solid-store";
 import { MutationQuery, createMutationQuery } from "@arena/uikit/solid";
 import { uniqueId } from "@arena/sdk/utils/uniqueId";
+import { jsonStreamToAsyncIterator } from "@arena/sdk/utils/stream";
 
 type SendMessageQuery = (message: string) => Promise<void>;
 type Message = {
@@ -104,10 +105,10 @@ const readMessageStream = async (
   res: any,
   setState: StoreSetter<State>
 ) => {
-  const stream = responseStreamGenerator(res.body);
+  const stream = jsonStreamToAsyncIterator(res.body);
   let streamMsgIdx: number;
-  let messageId: string;
-  for await (const chunk of stream) {
+  let messageId: string | undefined;
+  for await (const { json: chunk } of stream) {
     if (chunk.id) {
       messageId = chunk.id;
       setState("activeSession", "messages", (prev: any[]) => {
@@ -129,6 +130,7 @@ const readMessageStream = async (
         ];
       });
     }
+
     if (chunk.text) {
       setState("activeSession", "messages", streamMsgIdx!, (prev: any) => {
         if (prev.id !== messageId) {
@@ -138,9 +140,14 @@ const readMessageStream = async (
         }
         return {
           ...prev,
-          message: prev.message + chunk.text + " ",
+          message: prev.message + chunk.text,
         };
       });
+    }
+
+    if (!messageId) {
+      // Note(sagar): message id must be sent in the fist message
+      throw new Error("Expected to received message id in the first chunk");
     }
   }
   setState("activeSession", "messages", streamMsgIdx!, (prev: any) => {
@@ -156,18 +163,5 @@ const readMessageStream = async (
   });
   setState("isGeneratingResponse", false);
 };
-
-async function* responseStreamGenerator(body: Response["body"]) {
-  const reader = body?.getReader();
-  let data = await reader?.read();
-  var enc = new TextDecoder("utf-8");
-  while (data && !data.done) {
-    const text = enc.decode(data?.value);
-    if (text.startsWith("data:")) {
-      yield JSON.parse(text.substring(5));
-    }
-    data = await reader?.read();
-  }
-}
 
 export { ChatContext, ChatContextProvider };

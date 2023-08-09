@@ -69,8 +69,8 @@
     "@twind/preset-tailwind": "^1.1.4",
     "ky": "^0.33.3",
     "lodash-es": "^4.17.21",
+    "marked": "^7.0.1",
     "redaxios": "^0.5.1",
-    "rxjs": "^7.8.1",
     "solid-js": "^1.7.7",
     "style-inject": "^0.3.0"
   },

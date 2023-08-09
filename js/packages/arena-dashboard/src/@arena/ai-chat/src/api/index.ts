@@ -1,6 +1,5 @@
 // @ts-expect-error
 import { createHash } from "crypto";
-import { interval, map, take } from "rxjs";
 import { createRouter, procedure } from "@arena/runtime/server";
 import { pick } from "lodash-es";
 import { Splitter } from "@arena/llm/splitter";
@@ -8,9 +7,16 @@ import { DatabaseClients } from "@arena/sdk/db";
 import { uniqueId as generateUniqueId } from "@arena/sdk/utils/uniqueId";
 import { databases } from "../../server";
 import { DocumentEmbeddingsGenerator } from "./EmbeddingsGenerator";
+import { chatCompletion } from "./OpenAI";
 
 const uniqueId = () => generateUniqueId(25);
-const p = procedure<{ user: any; dbs: DatabaseClients<typeof databases> }>();
+const p = procedure<{
+  user: any;
+  dbs: DatabaseClients<typeof databases>;
+}>().use(async ({ ctx, next }) => {
+  return await next({ ctx });
+  // TODO(sagar): do auth
+});
 const router = createRouter({
   async middleware({ ctx, next }) {
     try {
@@ -76,61 +82,62 @@ const router = createRouter({
 
       const aiResponseTime = new Date();
       const aiResponseId = uniqueId();
-      const data = [
-        { id: aiResponseId, timestamp: aiResponseTime.getTime() },
-        { text: "this" },
-        { text: "is" },
-        { text: "a" },
-        { text: "response" },
-        { text: "from" },
-        { text: "my" },
-        { text: "ai" },
-        { text: "agent" },
-        { text: "." },
-        { text: "This" },
-        { text: "is" },
-        { text: "gonna" },
-        { text: "be" },
-        { text: "so" },
-        { text: "fucking" },
-        { text: "cool" },
-        { text: "." },
-      ];
 
-      const observable = interval(1_00)
-        .pipe(take(data.length))
-        .pipe(map((i) => data[i]));
+      const openAiUserId = encodeToBase64(
+        Buffer.from(JSON.stringify({ queryId: request.id }))
+      );
+
+      const aiResponseStream = await chatCompletion({
+        userId: openAiUserId,
+        message: {
+          system: {
+            content:
+              "You are an AI assistant. You should answer the question asked by the user as accurately as possible",
+          },
+          query: request.message,
+        },
+      });
 
       let aiResponse = "";
       const stream = new ReadableStream({
         async start(controller) {
-          observable.subscribe({
-            next(value) {
-              if (value.text) {
-                aiResponse += value.text + " ";
+          controller.enqueue(
+            JSON.stringify({
+              id: aiResponseId,
+              timestamp: aiResponseTime.getTime(),
+            })
+          );
+          try {
+            for await (const data of aiResponseStream) {
+              if (data.json) {
+                const { content } = data.json.choices[0].delta;
+                if (content) {
+                  controller.enqueue(
+                    JSON.stringify({
+                      text: content,
+                    })
+                  );
+                  aiResponse += content;
+                }
               }
-              controller.enqueue(JSON.stringify(value));
-            },
-            error(error) {
-              controller.error(error);
-            },
-            async complete() {
-              await ctx.dbs.default.query(
-                `INSERT INTO chat_messages
-                  (id, session_id, parent_id, role, message, timestamp)
-                VALUES (?,?,?,?,?,?)`,
-                [
-                  aiResponseId,
-                  sessionId,
-                  request.id,
-                  "ai",
-                  aiResponse,
-                  aiResponseTime.getTime(),
-                ]
-              );
-              controller.close();
-            },
-          });
+            }
+            await ctx.dbs.default.query(
+              `INSERT INTO chat_messages
+              (id, session_id, parent_id, role, message, timestamp)
+            VALUES (?,?,?,?,?,?)`,
+              [
+                aiResponseId,
+                sessionId,
+                request.id,
+                "ai",
+                aiResponse,
+                aiResponseTime.getTime(),
+              ]
+            );
+          } catch (e) {
+            controller.error(e);
+          }
+          controller.close();
         },
       });
 

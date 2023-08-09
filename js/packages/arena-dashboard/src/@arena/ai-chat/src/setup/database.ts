@@ -31,6 +31,10 @@ const main: SqliteDatabaseConfig = {
         role        TEXT NOT NULL,
         user_id     TEXT,
         message     TEXT NOT NULL,
+        -- ai model name; only set if the role is 'ai'
+        model       TEXT,
+        -- in JSON format
+        metadata    TEXT,
         timestamp   INTEGER
       )`);
       },
