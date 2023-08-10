@@ -108,7 +108,7 @@ const getStartTokenIndexByOffset = (
  *    length <= maxTokenLength, it splits at the maxTokenLength.
  */
 // TODO(sagar): I think this is generic enough to be used even for HTML
-const markdownNodeSplitter = visitChildren(function* (
+const splitMarkdownNodes = visitChildren(function* (
   node: ParentNode,
   index: number,
   parent: ParentNode,
@@ -126,6 +126,15 @@ const markdownNodeSplitter = visitChildren(function* (
     options,
     nodeStart.offset!
   );
+
+  if (windowStartTokenIndex == -1) {
+    throw new Error(
+      "Couldn't find token start index in token offsetMapping\n" +
+        "This usually happens when different encoding is used by " +
+        "markdown parser and tokenizer"
+    );
+  }
+
   let splitChunkTokens;
   const splitChunks: any[] = [];
 
@@ -171,7 +180,7 @@ const markdownNodeSplitter = visitChildren(function* (
         cutoffOffset
       );
 
-      if (cutoffTokenIndex < tokens.offsetMapping.length) {
+      if (cutoffTokenIndex < tokens.offsetMapping.length - 1) {
         let nextChunkStartTokenIndex =
           cutoffTokenIndex + 1 - tokensOverlapCount;
 
@@ -179,7 +188,6 @@ const markdownNodeSplitter = visitChildren(function* (
         // it is the last chunk of the node, make it overlap with previous chunk
         // so that it has max token length. This is to make sure that last chunks
         // aren't just a few tokens long
-
         let overlappedTokenCount;
         if (
           nextChunkStartTokenIndex + maxTokenLength >
@@ -189,6 +197,7 @@ const markdownNodeSplitter = visitChildren(function* (
           overlappedTokenCount = nextChunkStartTokenIndex - startIdx;
           nextChunkStartTokenIndex = startIdx;
         }
+
         let nextChunkStart =
           tokens.offsetMapping[nextChunkStartTokenIndex][0] - nodeStart.offset!;
 
@@ -216,7 +225,7 @@ const markdownNodeSplitter = visitChildren(function* (
         );
       }
     } else {
-      for (const v of markdownNodeSplitter(node, options)) {
+      for (const v of splitMarkdownNodes(node, options)) {
         yield [index + splitChunks.length, v.value];
       }
     }
@@ -273,4 +282,4 @@ const markdownNodeSplitter = visitChildren(function* (
   }
 });
 
-export { markdownNodeSplitter };
+export { splitMarkdownNodes };

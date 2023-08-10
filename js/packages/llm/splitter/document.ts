@@ -1,5 +1,5 @@
 import { fromMarkdown } from "mdast-util-from-markdown";
-import { markdownNodeSplitter } from "./markdownNode";
+import { splitMarkdownNodes } from "./markdownNode";
 
 namespace Splitter {
   export type Options = {
@@ -37,8 +37,9 @@ const createDocumentSplitter = (options: Splitter.Options) => {
     switch (document.type) {
       case "markdown": {
         const tokens = await options.tokenize(document.content);
+
         const nodes = fromMarkdown(document.content);
-        const splitter = markdownNodeSplitter(nodes, {
+        const chunks = splitMarkdownNodes(nodes, {
           tokens: {
             inputIds: tokens.ids,
             offsetMapping: tokens.offsetMapping,
@@ -48,7 +49,7 @@ const createDocumentSplitter = (options: Splitter.Options) => {
           specialTokens: options.specialTokens,
         });
 
-        return Array.from(splitter).map((c) => {
+        return Array.from(chunks).map((c) => {
           const { position } = c.value;
           const { content } = document;
           return {

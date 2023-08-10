@@ -3,7 +3,6 @@
     "noEmit": true,
     "strict": true,
     "esModuleInterop": true,
-    "lib": ["ES2020"],
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "node",
