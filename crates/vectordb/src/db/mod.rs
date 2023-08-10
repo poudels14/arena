@@ -267,7 +267,7 @@ impl<'d> VectorDatabase {
       .enumerate()
       .map(|(index, embedding)| {
         if embedding.end < embedding.start {
-          bail!("Embedding start index can't be smaller than end index");
+          bail!("Embedding end index must be greater than start index");
         }
         embeddings_h.batch_put(
           &mut batch,
