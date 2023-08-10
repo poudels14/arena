@@ -1,6 +1,8 @@
 import {
   Index,
+  Match,
   Show,
+  Switch,
   createComputed,
   createEffect,
   createMemo,
@@ -11,9 +13,23 @@ import {
 import { InlineIcon } from "@arena/components";
 import { Markdown } from "@arena/components/markdown";
 import { Marked } from "marked";
+import hljs from "highlight.js/lib/core";
+import "highlight.js/styles/atom-one-dark";
+import jsGrammar from "highlight.js/lib/languages/javascript";
+import cssGrammar from "highlight.js/lib/languages/css";
+import xmlGrammar from "highlight.js/lib/languages/xml";
+import pythonGrammar from "highlight.js/lib/languages/python";
+import rustGrammar from "highlight.js/lib/languages/rust";
 import SendIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/send-message";
 import AddIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/plus";
 import { ChatContext } from "./ChatContext";
+
+hljs.registerLanguage("javascript", jsGrammar);
+hljs.registerLanguage("css", cssGrammar);
+hljs.registerLanguage("html", xmlGrammar);
+hljs.registerLanguage("xml", xmlGrammar);
+hljs.registerLanguage("python", pythonGrammar);
+hljs.registerLanguage("rust", rustGrammar);
 
 const Chat = () => {
   const { state } = useContext(ChatContext)!;
@@ -55,20 +71,48 @@ const Chat = () => {
                 const tokens = createMemo(() => marked.lexer(m.message()));
 
                 return (
-                  <div
-                    class="px-3 py-1 rounded-sm"
-                    classList={{
-                      "bg-blue-100": m.role() == "user",
-                      "bg-brand-3": m.role() == "ai",
-                      "border border-red-700": m.streaming(),
-                    }}
-                    data-message-id={m.id()}
-                  >
+                  <div class="flex flex-row w-full space-x-2">
+                    <div class="mt-2 flex py-2 w-8 h-8 text-xs bg-green-200 rounded-lg justify-center">
+                      <Switch>
+                        <Match when={m.role() == "ai"}>
+                          <div>AI</div>
+                        </Match>
+                        <Match when={m.role() == "user"}>
+                          <div>User</div>
+                        </Match>
+                      </Switch>
+                    </div>
                     <div
-                      class="message"
-                      style={"letter-spacing: 0.1px; word-spacing: 1px"}
+                      class="px-3 py-1 flex-1 rounded-sm"
+                      classList={{
+                        "bg-blue-100": m.role() == "user",
+                        "bg-brand-3": m.role() == "ai",
+                        "border border-red-700": m.streaming(),
+                      }}
+                      data-message-id={m.id()}
                     >
-                      <Markdown tokens={tokens()} />
+                      <div
+                        class="message"
+                        style={"letter-spacing: 0.1px; word-spacing: 1px"}
+                      >
+                        <Markdown
+                          tokens={tokens()}
+                          renderer={{
+                            code(props) {
+                              return (
+                                <code
+                                  class="block my-2 px-4 py-4 rounded bg-gray-800 text-white"
+                                  innerHTML={
+                                    hljs.highlight(props.text, {
+                                      language: props.lang,
+                                    }).value
+                                  }
+                                />
+                              );
+                            },
+                          }}
+                        />
+                      </div>
                     </div>
                   </div>
                 );
@@ -78,6 +122,7 @@ const Chat = () => {
         </div>
       </div>
       <div class="chatbox-container absolute bottom-2 w-full flex justify-center pointer-events-none">
+        <div class="w-8"></div>
         <div class="flex-1 max-w-[560px] rounded-lg pointer-events-auto backdrop-blur-xl">
           <div class="flex p-2 flex-row text-accent-11">
             <Show when={state.activeSession.messages().length > 0}>

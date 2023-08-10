@@ -67,6 +67,7 @@
     "@blueprintjs/icons": "^4.14.3",
     "@twind/preset-radix-ui": "^1.0.7",
     "@twind/preset-tailwind": "^1.1.4",
+    "highlight.js": "^11.8.0",
     "ky": "^0.33.3",
     "lodash-es": "^4.17.21",
     "marked": "^7.0.1",

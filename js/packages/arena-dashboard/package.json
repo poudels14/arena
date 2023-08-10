@@ -22,7 +22,8 @@
           "@arena/uikit",
           "@arena/sdk",
           "@kobalte/core",
-          "@arena/components"
+          "@arena/components",
+          "highlight.js"
         ]
       }
     },
@@ -89,6 +90,7 @@
     "camelcase": "^7.0.1",
     "cookie": "^0.5.0",
     "debounce": "^1.2.1",
+    "highlight.js": "^11.8.0",
     "ky": "^0.33.3",
     "lodash-es": "^4.17.21",
     "ms": "^2.1.3",
