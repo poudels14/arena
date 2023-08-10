@@ -1,13 +1,14 @@
 use anyhow::{anyhow, bail, Result};
 use deno_core::{op, OpState, Resource, ResourceId, StringOrBuffer};
 use http::{HeaderMap, HeaderValue};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 use std::rc::Rc;
-use tokenizers::{FromPretrainedParameters, Tokenizer};
+use tokenizers::{FromPretrainedParameters, Tokenizer, TruncationParams};
 
 struct TokenizerResource {
   tokenizer: Rc<Tokenizer>,
@@ -19,10 +20,18 @@ impl Resource for TokenizerResource {
   }
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TokenizerOptions {
+  truncate: Option<bool>,
+  max_length: Option<usize>,
+}
+
 #[op]
 async fn op_cloud_llm_hf_new_pretrained_tokenizer(
   state: Rc<RefCell<OpState>>,
   model_name: String,
+  options: TokenizerOptions,
 ) -> Result<ResourceId> {
   let mut tokenizer = Tokenizer::from_file(
     from_pretrained(
@@ -34,7 +43,21 @@ async fn op_cloud_llm_hf_new_pretrained_tokenizer(
     .await?,
   )
   .map_err(|e| anyhow!("{:?}", e))?;
+
   tokenizer.with_padding(None);
+
+  if let Some(max_length) = options.max_length {
+    tokenizer.with_truncation(Some(TruncationParams {
+      max_length,
+      ..Default::default()
+    }));
+  }
+  match options.truncate {
+    Some(truncate) if !truncate => {
+      tokenizer.with_truncation(None);
+    }
+    _ => {}
+  }
 
   Ok(state.borrow_mut().resource_table.add(TokenizerResource {
     tokenizer: Rc::new(tokenizer),

@@ -14,10 +14,19 @@ class HFTokenizer {
    *
    * @returns
    */
-  public static async init(modelName?: string) {
+  public static async init(options?: {
+    modelName?: string;
+    // whether to truncate the input text after max length
+    truncate?: boolean;
+    // max length to tokenize. Input text beyond this length will be
+    // truncated unless `truncate` is set to true
+    // Defaults to model max length
+    maxLength?: number;
+  }) {
     const id = await opAsync(
       "op_cloud_llm_hf_new_pretrained_tokenizer",
-      modelName || "sentence-transformers/all-MiniLM-L6-v2"
+      options?.modelName || "sentence-transformers/all-MiniLM-L6-v2",
+      options || {}
     );
     return new HFTokenizer(id);
   }
