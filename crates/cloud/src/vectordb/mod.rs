@@ -288,9 +288,11 @@ pub struct SearchCollectionOptions {
 }
 
 #[derive(Default, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SearchCollectionResult {
   pub score: f32,
   pub document_id: String,
+  pub chunk_index: usize,
   pub start: usize,
   pub end: usize,
   #[serde(skip_serializing_if = "Option::is_none")]
@@ -319,8 +321,9 @@ async fn op_cloud_vectordb_search_collection(
       let document_id = std::str::from_utf8(&m.0)
         .context("document name should be utf-8")
         .map(|s| s.to_owned())?;
-      let start = m.1 as usize;
-      let end = m.2 as usize;
+      let chunk_index = m.1 as usize;
+      let start = m.2 as usize;
+      let end = m.3 as usize;
 
       let content = match options.include_chunk_content {
         true => {
@@ -355,6 +358,7 @@ async fn op_cloud_vectordb_search_collection(
         document_id: std::str::from_utf8(&m.0)
           .context("document name should be utf-8")
           .map(|s| s.to_owned())?,
+        chunk_index,
         start,
         end,
         content,

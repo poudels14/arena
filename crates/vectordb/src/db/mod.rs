@@ -271,7 +271,7 @@ impl<'d> VectorDatabase {
         }
         embeddings_h.batch_put(
           &mut batch,
-          index as u32,
+          index as i32,
           &StoredEmbeddings {
             start: embedding.start,
             end: embedding.end,

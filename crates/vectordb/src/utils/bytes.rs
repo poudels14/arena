@@ -17,7 +17,7 @@ impl ToBeBytes for (i32, &BStr) {
   }
 }
 
-impl ToBeBytes for (i32, i32, u32) {
+impl ToBeBytes for (i32, i32, i32) {
   fn to_be_bytes(&self) -> Vec<u8> {
     [
       self.0.to_be_bytes(),

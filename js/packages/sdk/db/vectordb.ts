@@ -86,11 +86,14 @@ export type Client = {
     queryVector: number[],
     k: number,
     options?: {}
-  ): Promise<{
-    score: number;
-    document_id: string;
-    start: number;
-    end: number;
-    content: string;
-  }>;
+  ): Promise<
+    {
+      score: number;
+      documentId: string;
+      chunkIndex: number;
+      start: number;
+      end: number;
+      content: string;
+    }[]
+  >;
 };

@@ -73,7 +73,7 @@ impl<'d> DocumentEmbeddingsHandle<'d> {
   pub fn batch_put(
     &self,
     batch: &mut WriteBatchWithTransaction<false>,
-    index: u32,
+    index: i32,
     embedding: &StoredEmbeddings,
   ) -> Result<()> {
     if embedding.vectors.len() as u16 != self.collection.dimension {

@@ -27,7 +27,7 @@ impl<'a> FsSearch<'a> {
     collection_id: &BStr,
     query: &[VectorElement],
     k: usize,
-  ) -> Result<Vec<(f32, (BString, u32, u32))>> {
+  ) -> Result<Vec<(f32, (BString, i32, u32, u32))>> {
     let collection = self.db.get_internal_collection(collection_id)?;
     let collection = collection.lock().map_err(lock_error)?;
 
@@ -63,8 +63,13 @@ impl<'a> FsSearch<'a> {
           unsafe { rkyv::archived_root::<StoredEmbeddings>(&embedding) };
         let score = scorer.similarity(&query, &embedding.vectors);
 
-        let doc_index: usize = key[4..8].view_bits::<Msb0>().load_be();
-        scores.push((score, (doc_index, embedding.start, embedding.end)));
+        // Note(sagar): decode these as i32 since they are stored as i32
+        let doc_index: i32 = key[4..8].view_bits::<Msb0>().load_be();
+        let chunk_index: i32 = key[8..12].view_bits::<Msb0>().load_be();
+        scores.push((
+          score,
+          (doc_index, chunk_index, embedding.start, embedding.end),
+        ));
 
         Ok(())
       })
@@ -77,7 +82,12 @@ impl<'a> FsSearch<'a> {
         .map(|(score, info)| {
           (
             score.to_owned(),
-            (document_id_by_index[info.0].clone(), info.1, info.2),
+            (
+              document_id_by_index[info.0 as usize].clone(),
+              info.1,
+              info.2,
+              info.3,
+            ),
           )
         })
         .collect(),
