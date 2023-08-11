@@ -9,6 +9,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::rc::Rc;
 use tokenizers::{FromPretrainedParameters, Tokenizer, TruncationParams};
+use tracing::debug;
 
 struct TokenizerResource {
   tokenizer: Rc<Tokenizer>,
@@ -154,8 +155,11 @@ pub async fn from_pretrained<S: AsRef<str>>(
     identifier, revision,
   );
 
+  debug!("Downloading tokenizer model from: {:?}", url_to_download);
+
   let response = download_client.build()?.get(url_to_download).send().await?;
   let mut file = File::create(filepath.clone())?;
+  debug!("Writing tokenizer model to: {:?}", file);
   file.write_all(&response.bytes().await?)?;
 
   Ok(filepath)

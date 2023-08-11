@@ -741,6 +741,7 @@ dependencies = [
  "serde_json",
  "simdutf8",
  "tokenizers",
+ "tracing",
  "v8 0.74.2",
  "vectordb",
 ]
