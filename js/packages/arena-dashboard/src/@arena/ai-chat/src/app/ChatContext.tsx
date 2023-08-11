@@ -47,7 +47,7 @@ const ChatContextProvider = (props: any) => {
   });
 
   const listMessages = async (sessionId: string) => {
-    return (await router.get(`/chat/${sessionId}/messages`)).data;
+    return (await router.get(`/api/chat/${sessionId}/messages`)).data;
   };
 
   listMessages("1").then((messages: any[]) => {
@@ -80,7 +80,7 @@ const ChatContextProvider = (props: any) => {
       });
 
       const res = await router.post(
-        `/chat/${sessionId}/send`,
+        `/api/chat/${sessionId}/send`,
         {
           id: messageId,
           message,

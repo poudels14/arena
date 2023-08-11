@@ -1,6 +1,6 @@
 import { Show, createResource } from "solid-js";
 import { useAppContext } from "@arena/sdk/app";
-import { Sidebar } from "./Sidebar";
+import { Sidebar } from "./sidebar";
 import { Document } from "./types";
 import { Chat } from "./Chat";
 import { ChatContextProvider } from "./ChatContext";
@@ -8,7 +8,7 @@ import { ChatContextProvider } from "./ChatContext";
 const App = (props: any) => {
   const { router } = useAppContext();
   const [getDocuments] = createResource(
-    async () => (await router.get<Document[]>("/documents")).data
+    async () => (await router.get<Document[]>("/api/documents")).data
   );
 
   return (

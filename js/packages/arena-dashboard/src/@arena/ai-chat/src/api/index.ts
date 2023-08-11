@@ -8,6 +8,7 @@ import { uniqueId as generateUniqueId } from "@arena/sdk/utils/uniqueId";
 import { databases } from "../../server";
 import { DocumentEmbeddingsGenerator } from "./EmbeddingsGenerator";
 import { chatCompletion } from "./OpenAI";
+import { generateSystemPrompt } from "./prompt";
 
 const uniqueId = () => generateUniqueId(25);
 const p = procedure<{
@@ -18,6 +19,7 @@ const p = procedure<{
   // TODO(sagar): do auth
 });
 const router = createRouter({
+  prefix: "/api",
   async middleware({ ctx, next }) {
     try {
       return await next({ ctx });
@@ -68,17 +70,17 @@ const router = createRouter({
       );
 
       // TODO(sagar)
-      // const generator = new DocumentEmbeddingsGenerator();
-      // const embeddings = await generator.getTextEmbeddings([message.message]);
-      // const queryResult = await db.searchCollection(
-      //   "uploads",
-      //   embeddings[0],
-      //   10,
-      //   {
-      //     includeChunkContent: true,
-      //     contentEncoding: "utf-8",
-      //   }
-      // );
+      const generator = new DocumentEmbeddingsGenerator();
+      const embeddings = await generator.getTextEmbeddings([request.message]);
+      const vectorSearchResult = await ctx.dbs.vectordb.searchCollection(
+        "uploads",
+        embeddings[0],
+        4,
+        {
+          includeChunkContent: true,
+          contentEncoding: "utf-8",
+        }
+      );
 
       const aiResponseTime = new Date();
       const aiResponseId = uniqueId();
@@ -87,16 +89,44 @@ const router = createRouter({
         Buffer.from(JSON.stringify({ queryId: request.id }))
       );
 
-      const aiResponseStream = await chatCompletion({
+      const [llmQueryRequest, aiResponseStream] = await chatCompletion({
         userId: openAiUserId,
         message: {
           system: {
-            content:
-              "You are an AI assistant. You should answer the question asked by the user as accurately as possible",
+            content: generateSystemPrompt({
+              documents: vectorSearchResult,
+            }),
           },
           query: request.message,
         },
       });
+
+      // async function* a() {
+      //   const { rows } = await ctx.dbs.default.query<any>(
+      //     `SELECT * FROM chat_messages`
+      //   );
+
+      //   const content = rows[0].message;
+      //   for (let i = 0; i < content.length; i += 4) {
+      //     await new Promise((r) => {
+      //       setTimeout(() => r(null), 100);
+      //     });
+
+      //     yield {
+      //       json: {
+      //         choices: [
+      //           {
+      //             delta: {
+      //               content: content.substring(i, i + 4),
+      //             },
+      //           },
+      //         ],
+      //       },
+      //     };
+      //   }
+      // }
+
+      // const aiResponseStream = a();
 
       let aiResponse = "";
       const stream = new ReadableStream({
@@ -123,7 +153,7 @@ const router = createRouter({
             }
             await ctx.dbs.default.query(
               `INSERT INTO chat_messages
-              (id, session_id, parent_id, role, message, timestamp)
+              (id, session_id, parent_id, role, message, model, metadata, timestamp)
             VALUES (?,?,?,?,?,?)`,
               [
                 aiResponseId,
@@ -131,6 +161,12 @@ const router = createRouter({
                 request.id,
                 "ai",
                 aiResponse,
+                llmQueryRequest.model,
+                JSON.stringify({
+                  documents: vectorSearchResult.map((r) =>
+                    pick(r, "score", "documentId", "chunkId")
+                  ),
+                }),
                 aiResponseTime.getTime(),
               ]
             );
@@ -171,7 +207,8 @@ const router = createRouter({
       const { rows: documents } = await sql.query<any>(`SELECT * FROM uploads`);
       return documents.map((doc) => {
         return {
-          ...doc,
+          ...pick(doc, "id", "contentType"),
+          name: doc.name || doc.filename,
           uploadedAt: new Date(doc.uploadedAt).toISOString(),
         };
       });
@@ -219,7 +256,11 @@ const router = createRouter({
         }))
         .filter((d) => d.type == "markdown")
         .map(({ type, document }) => {
-          const content = document.data.toString("utf-8");
+          // NOTE(sagar): need to use ASCII encoding here since tokenizer uses
+          // byte pair encoding and doesn't recognize utf-8. So, using utf-8
+          // here causes the token position offset to not match with the
+          // markdown nodes offsets
+          const content = document.data.toString("ascii");
           const contentHash = createHash("sha256")
             .update(content)
             .digest("hex");
@@ -250,31 +291,33 @@ const router = createRouter({
 
             const embeddings = await generator.getChunkEmbeddings(chunks);
             const documentId = uniqueId();
-            await mainDb.query(
-              `INSERT INTO uploads (
-                    id, name, content_hash,
-                    content_type, filename, uploaded_at
-                  )
-                  VALUES(?, ?, ?, ?, ?, ?)`,
-              [
+            await mainDb.transaction(async () => {
+              await mainDb.query(
+                `INSERT INTO uploads (
+                      id, name, content_hash,
+                      content_type, filename, uploaded_at
+                    )
+                    VALUES(?, ?, ?, ?, ?, ?)`,
+                [
+                  documentId,
+                  document.filename,
+                  contentHash,
+                  type,
+                  document.filename,
+                  new Date().getTime(),
+                ]
+              );
+
+              await vectordb.addDocument("uploads", documentId, {
+                content,
+              });
+
+              await vectordb.setDocumentEmbeddings(
+                "uploads",
                 documentId,
-                document.name,
-                contentHash,
-                type,
-                document.filename,
-                new Date().getTime(),
-              ]
-            );
-
-            await vectordb.addDocument("uploads", documentId, {
-              content,
+                embeddings
+              );
             });
-
-            await vectordb.setDocumentEmbeddings(
-              "uploads",
-              documentId,
-              embeddings
-            );
 
             return {
               name: document.name,

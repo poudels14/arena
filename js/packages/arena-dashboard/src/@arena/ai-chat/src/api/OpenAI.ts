@@ -12,13 +12,17 @@ type ChatCompletionRequest = {
     system: {
       content: string;
     };
-    documents?: {
-      content: string;
-    }[];
   };
 };
 
-async function chatCompletion(request: ChatCompletionRequest) {
+type ChatCompletionResponse = [
+  ChatCompletionRequest,
+  ReturnType<typeof jsonStreamToAsyncIterator>
+];
+
+async function chatCompletion(
+  request: ChatCompletionRequest
+): Promise<ChatCompletionResponse> {
   request = merge(
     {
       model: "gpt-3.5-turbo",
@@ -51,7 +55,7 @@ async function chatCompletion(request: ChatCompletionRequest) {
     }
   );
 
-  return jsonStreamToAsyncIterator(res.body!);
+  return [request, jsonStreamToAsyncIterator(res.body!)];
 }
 
 export { chatCompletion };

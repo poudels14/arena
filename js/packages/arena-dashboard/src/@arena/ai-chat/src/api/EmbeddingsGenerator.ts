@@ -5,14 +5,21 @@ import { createDocumentSplitter } from "@arena/llm/splitter";
 import type { Splitter } from "@arena/llm/splitter";
 
 // token for `.` in `all-MiniLM-L6-v2` model
+// TODO(sagar): maybe use special token mask instead?
 const DOT_TOKEN = 1012;
-const EMBEDDINGS_MODEL = "all-MiniLM-L6-v2";
+const EMBEDDINGS_MODEL = "thenlper/gte-small";
 const MAX_TOKEN_LENGTH = 200;
 
 class DocumentEmbeddingsGenerator {
   getDocumentSplitter: () => ReturnType<typeof createDocumentSplitter>;
   constructor() {
-    const getTokenizer = once(async () => await HFTokenizer.init());
+    const getTokenizer = once(
+      async () =>
+        await HFTokenizer.init({
+          modelName: EMBEDDINGS_MODEL,
+          truncate: false,
+        })
+    );
     this.getDocumentSplitter = once(() => {
       return createDocumentSplitter({
         async tokenize(content) {

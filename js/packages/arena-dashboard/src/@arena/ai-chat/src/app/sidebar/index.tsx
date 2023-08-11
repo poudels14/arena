@@ -1,8 +1,7 @@
-import { For, Show, createSelector } from "solid-js";
+import { Show, createSelector } from "solid-js";
 import { createStore } from "@arena/solid-store";
-import { InlineIcon } from "@arena/components";
-import AddIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/plus";
-import { Document } from "./types";
+import { Document } from "../types";
+import { Documents } from "./Documents";
 
 type SidebarProps = {
   documents: Document[];
@@ -34,17 +33,7 @@ const Sidebar = (props: SidebarProps) => {
               </div>
             </div>
             <div class="space-y-2">
-              <div class="flex px-2 text-sm font-medium text-gray-800">
-                <div class="flex-1 leading-6">Linked Documents</div>
-                <LinkNewDocument />
-              </div>
-              <div>
-                <For each={props.documents}>
-                  {(document) => (
-                    <Document id={document.id} name={document.filename} />
-                  )}
-                </For>
-              </div>
+              <Documents documents={props.documents} />
             </div>
           </div>
         </Show>
@@ -89,47 +78,6 @@ const SidebarTab = (props: {
     >
       {props.name}
     </div>
-  );
-};
-
-const LinkNewDocument = () => {
-  return (
-    <div>
-      <InlineIcon
-        size="24px"
-        class="py-1.5 rounded cursor-pointer hover:bg-brand-11/20"
-      >
-        <path d={AddIcon[0]} />
-      </InlineIcon>
-    </div>
-  );
-};
-
-const Document = (props: { id: string; name: string; active?: boolean }) => {
-  return (
-    <label class="flex align-middle items-center">
-      <div class="group relative">
-        {/* <input
-          type="checkbox"
-          checked={props.active}
-          disabled
-          class="peer/check w-5 h-5 opacity-0 hidden cursor-pointer border border-red-200"
-        /> */}
-        {/* <div class="relative w-3 h-3 rounded bg-brand-5 peer-checked/check:bg-brand-11">
-          <div class="absolute top-px left-1 w-1 h-2 border-gray-100 border-l-0 border-t-0 border-b-2 border-r-2 rotate-45"></div>
-        </div> */}
-      </div>
-      <div
-        class="flex-1 py-0.5 px-2 rounded cursor-pointer text-accent-12/80 hover:bg-accent-4"
-        classList={
-          {
-            // "text-accent-9": !props.active,
-          }
-        }
-      >
-        {props.name}
-      </div>
-    </label>
   );
 };
 
