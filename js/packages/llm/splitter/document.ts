@@ -8,13 +8,19 @@ namespace Splitter {
     ) => Promise<{ ids: number[]; offsetMapping: number[][] }>;
     maxTokenLength: number;
     textSplitOverlap?: number;
-    specialTokens: {
-      /**
-       * Token number of `.`. This is used to split text if the text
-       * is longer than maxTokenLength
-       */
-      dot: number;
-    };
+    /**
+     * List of node types where the chunk's context window should terminate.
+     * For example, if we want to split the following text into two nodes at
+     * heading, even if the entire text fits into the content length, pass
+     * "heading" as termination node;
+     * `
+     * # heading1
+     * some text
+     * # heading 2
+     * some text for heading two
+     * `
+     */
+    windowTerminationNodes?: string[];
   };
   export type Document = {
     type: "markdown";
@@ -46,7 +52,7 @@ const createDocumentSplitter = (options: Splitter.Options) => {
           },
           maxTokenLength: options.maxTokenLength,
           textSplitOverlap: options.textSplitOverlap || 0,
-          specialTokens: options.specialTokens,
+          windowTerminationNodes: options.windowTerminationNodes || [],
         });
 
         return Array.from(chunks).map((c) => {

@@ -6,10 +6,20 @@ type SplitterOptions = {
     offsetMapping: number[][];
   };
   maxTokenLength: number;
-  specialTokens: {
-    dot: number;
-  };
   textSplitOverlap: number;
+  /**
+   * List of node types where the chunk's context window should terminate.
+   * For example, if we want to split the following text into two nodes at
+   * heading, even if the entire text fits into the content length, pass
+   * "heading" as termination node;
+   * `
+   * # heading1
+   * some text
+   * # heading 2
+   * some text for heading two
+   * `
+   */
+  windowTerminationNodes: string[];
 };
 
 const visitChildren = function (visitor: any) {
@@ -62,38 +72,21 @@ const getNodeAtIndex = (parent: ParentNode, index: number) => {
   return index < parent.children.length ? parent.children[index] : null;
 };
 
-const dotTokenIndex = (
-  startIndex: number,
-  endIndex: number,
-  options: SplitterOptions
-) => {
-  let dotIndex = endIndex;
-  while (dotIndex > startIndex) {
-    if (options.tokens.inputIds[dotIndex] == options.specialTokens.dot) {
-      return dotIndex;
-    }
-    dotIndex -= 1;
-  }
-  return endIndex;
-};
-
-const getChunkTokens = (
-  options: SplitterOptions,
-  startOffset: number,
-  endOffset: number
-) => {
-  const { offsetMapping } = options.tokens;
-  let startIdx = offsetMapping.findIndex((o) => o[0] == startOffset);
-  const endIdx = offsetMapping.findIndex((o) => o[1] == endOffset);
-  // Since end index is exclusize for `[].slice` add 1
-  return offsetMapping.slice(startIdx, endIdx + 1);
-};
-
 const getStartTokenIndexByOffset = (
   options: SplitterOptions,
   offset: number
 ) => {
-  return options.tokens.offsetMapping.findIndex((o) => o[0] == offset);
+  return options.tokens.offsetMapping.findIndex(
+    (o) =>
+      o[0] == offset ||
+      /**
+       * Note(sagar): sometimes, probably due to encoding issues,
+       * the llm tokenizer tokens' offset doesn't match with markdown
+       * tokens' offset. In that case, just use the first offset greater
+       * than the one that we are looking for
+       */
+      o[0] > offset
+  );
 };
 
 /**
@@ -108,6 +101,7 @@ const getStartTokenIndexByOffset = (
  *    length <= maxTokenLength, it splits at the maxTokenLength.
  */
 // TODO(sagar): I think this is generic enough to be used even for HTML
+// TODO(sagar): write tests coz this is janky af
 const splitMarkdownNodes = visitChildren(function* (
   node: ParentNode,
   index: number,
@@ -135,7 +129,6 @@ const splitMarkdownNodes = visitChildren(function* (
     );
   }
 
-  let splitChunkTokens;
   const splitChunks: any[] = [];
 
   let maxTokenIndex = Math.min(
@@ -148,11 +141,7 @@ const splitMarkdownNodes = visitChildren(function* (
   const maxEndOffset = tokens.offsetMapping[maxTokenIndex][1];
   if (nodeEnd.offset! > maxEndOffset) {
     if (node.type == "text") {
-      let cutoffTokenIndex = dotTokenIndex(
-        windowStartTokenIndex,
-        maxTokenIndex,
-        options
-      );
+      let cutoffTokenIndex = maxTokenIndex;
       /**
        * Note(sagar): If the text was split where the dot/period token is,
        * then no need to overlap the split chunks.
@@ -174,11 +163,6 @@ const splitMarkdownNodes = visitChildren(function* (
           },
         },
       });
-      splitChunkTokens = getChunkTokens(
-        options,
-        nodeStart.offset!,
-        cutoffOffset
-      );
 
       if (cutoffTokenIndex < tokens.offsetMapping.length - 1) {
         let nextChunkStartTokenIndex =
@@ -231,7 +215,6 @@ const splitMarkdownNodes = visitChildren(function* (
     }
   } else {
     let currNode;
-    let lastNode;
     let currNodeEndOffset;
     let nodeIndex = index;
 
@@ -240,20 +223,17 @@ const splitMarkdownNodes = visitChildren(function* (
     // next node
     while (
       (currNode = getNodeAtIndex(parent, nodeIndex)) &&
+      // Note: only check against the termination node if the chunking window
+      // already has at least one node
+      (nodeIndex == index ||
+        !options.windowTerminationNodes.includes(currNode.type)) &&
       // @ts-expect-error
       (currNodeEndOffset = currNode?.position.end.offset) &&
       currNodeEndOffset <= maxEndOffset
     ) {
       splitChunks.push(currNode);
       nodeIndex += 1;
-      lastNode = currNode;
     }
-
-    splitChunkTokens = getChunkTokens(
-      options,
-      nodeStart.offset!,
-      lastNode!.position!.end.offset!
-    );
   }
 
   const offsets = splitChunks.reduce(
@@ -273,9 +253,6 @@ const splitMarkdownNodes = visitChildren(function* (
           start: offsets.start,
           end: offsets.end,
         },
-        // TODO(sagar): there seems to be some bug when calculating tokenLength
-        // and tokenOverlap
-        tokens: splitChunkTokens,
         tokenOverlap: overlap?.tokenLength || 0,
       },
     ];

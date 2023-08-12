@@ -4,11 +4,9 @@ import { HFTokenizer } from "@arena/cloud/llm/tokenizer";
 import { createDocumentSplitter } from "@arena/llm/splitter";
 import type { Splitter } from "@arena/llm/splitter";
 
-// token for `.` in `all-MiniLM-L6-v2` model
-// TODO(sagar): maybe use special token mask instead?
-const DOT_TOKEN = 1012;
 const EMBEDDINGS_MODEL = "thenlper/gte-small";
-const MAX_TOKEN_LENGTH = 200;
+// Note: get-small support upto 512 tokens but leave some buffer :shrug:
+const MAX_TOKEN_LENGTH = 400;
 
 class DocumentEmbeddingsGenerator {
   getDocumentSplitter: () => ReturnType<typeof createDocumentSplitter>;
@@ -27,9 +25,9 @@ class DocumentEmbeddingsGenerator {
           return await tokenizer.tokenize(content);
         },
         maxTokenLength: MAX_TOKEN_LENGTH,
-        specialTokens: {
-          dot: DOT_TOKEN,
-        },
+        // TODO(sagar): use the chunk before and after since the following
+        // termination nodes are used
+        windowTerminationNodes: ["heading", "table", "code"],
       });
     });
   }
