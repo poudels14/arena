@@ -12,6 +12,7 @@ use std::cell::RefCell;
 use std::path::Path;
 use std::rc::Rc;
 use vectordb::query::DocumentWithContent;
+use vectordb::search::SearchOptions;
 use vectordb::{query, sql, DatabaseOptions, VectorDatabase};
 
 pub fn extension() -> BuiltinExtension {
@@ -285,6 +286,10 @@ pub struct SearchCollectionOptions {
   pub include_chunk_content: bool,
   #[serde(default)]
   pub content_encoding: Option<String>,
+  /// if set, only the chunks with score greater or equal to this score
+  /// will be returned
+  #[serde(default)]
+  pub min_score: Option<f32>,
   /// number of bytes before the matched chunks to include in the response
   #[serde(default)]
   pub before_context: Option<usize>,
@@ -319,7 +324,14 @@ async fn op_cloud_vectordb_search_collection(
   let resource = get_db_resource(state, rid)?;
   let db = resource.db.borrow();
   let searcher = vectordb::search::FsSearch::using(&db);
-  let result = searcher.top_k(collection_id.as_str().into(), &query, k)?;
+  let result = searcher.top_k(
+    collection_id.as_str().into(),
+    &query,
+    k,
+    SearchOptions {
+      min_score: options.min_score,
+    },
+  )?;
 
   let mut documents: IndexMap<String, DocumentWithContent> = IndexMap::new();
 

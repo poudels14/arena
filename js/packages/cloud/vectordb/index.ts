@@ -3,6 +3,8 @@ import {
   Client,
   CollectionConfig,
   DocumentEmbeddings,
+  SearchCollectionOptions,
+  SearchCollectionResult,
 } from "@arena/sdk/db/vectordb";
 import { assert } from "@arena/sdk/utils/assert";
 
@@ -109,19 +111,12 @@ class VectorDatabase implements Client {
     );
   }
 
-  /**
-   * Search embeddings in a collection by the given query vector
-   *
-   * @param collectionId collection id
-   * @param queryVector the vector of the query
-   * @param k The number of document chunks to return
-   */
   async searchCollection(
     collectionId: string,
     queryVector: number[],
     k: number,
-    options?: {}
-  ) {
+    options?: SearchCollectionOptions
+  ): Promise<SearchCollectionResult[]> {
     assert.notNil(collectionId, "Collection id");
     return await opAsync(
       "op_cloud_vectordb_search_collection",

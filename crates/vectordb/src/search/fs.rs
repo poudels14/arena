@@ -1,3 +1,4 @@
+use super::SearchOptions;
 use crate::db::rocks::cf::DatabaseColumnFamily;
 use crate::db::storage::embeddings::StoredEmbeddings;
 use crate::db::storage::{self, DocumentsHandle};
@@ -27,6 +28,7 @@ impl<'a> FsSearch<'a> {
     collection_id: &BStr,
     query: &[VectorElement],
     k: usize,
+    options: SearchOptions,
   ) -> Result<Vec<(f32, (BString, i32, u32, u32))>> {
     let collection = self.db.get_internal_collection(collection_id)?;
     let collection = collection.lock().map_err(lock_error)?;
@@ -54,6 +56,7 @@ impl<'a> FsSearch<'a> {
 
     let scorer = SimilarityScorerFactory::get_default(SimilarityType::Dot);
     let mut scores = SortedSimilarityScores::new(k);
+    let min_score = options.min_score.unwrap_or(0.0);
 
     embeddings_cf
       .prefix_iterator(&collection.index.to_be_bytes())
@@ -63,13 +66,15 @@ impl<'a> FsSearch<'a> {
           unsafe { rkyv::archived_root::<StoredEmbeddings>(&embedding) };
         let score = scorer.similarity(&query, &embedding.vectors);
 
-        // Note(sagar): decode these as i32 since they are stored as i32
-        let doc_index: i32 = key[4..8].view_bits::<Msb0>().load_be();
-        let chunk_index: i32 = key[8..12].view_bits::<Msb0>().load_be();
-        scores.push((
-          score,
-          (doc_index, chunk_index, embedding.start, embedding.end),
-        ));
+        if score >= min_score {
+          // Note(sagar): decode these as i32 since they are stored as i32
+          let doc_index: i32 = key[4..8].view_bits::<Msb0>().load_be();
+          let chunk_index: i32 = key[8..12].view_bits::<Msb0>().load_be();
+          scores.push((
+            score,
+            (doc_index, chunk_index, embedding.start, embedding.end),
+          ));
+        }
 
         Ok(())
       })

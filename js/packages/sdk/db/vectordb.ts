@@ -29,6 +29,25 @@ export type Document = {
   content: any;
 };
 
+export type SearchCollectionOptions = {
+  includeChunkContent: boolean;
+  contentEncoding?: string;
+  minScore?: number;
+  // number of bytes before the matched chunks to include in the response
+  beforeContext?: number;
+  // number of bytes after the matched chunks to include in the response
+  afterContext?: number;
+};
+
+export type SearchCollectionResult = {
+  score: number;
+  documentId: string;
+  chunkIndex: number;
+  start: number;
+  end: number;
+  content: string;
+};
+
 export type Config = AbstractDatabaseConfig<
   {
     /**
@@ -85,22 +104,6 @@ export type Client = {
     collectionId: string,
     queryVector: number[],
     k: number,
-    options?: {
-      includeChunkContent: boolean;
-      contentEncoding?: string;
-      // number of bytes before the matched chunks to include in the response
-      beforeContext?: number;
-      // number of bytes after the matched chunks to include in the response
-      afterContext?: number;
-    }
-  ): Promise<
-    {
-      score: number;
-      documentId: string;
-      chunkIndex: number;
-      start: number;
-      end: number;
-      content: string;
-    }[]
-  >;
+    options?: SearchCollectionOptions
+  ): Promise<SearchCollectionResult[]>;
 };
