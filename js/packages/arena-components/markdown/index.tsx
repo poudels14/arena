@@ -167,7 +167,8 @@ const DEFAULT_RENDERER: MarkdownProps["renderer"] = {
     return (
       <RenderTokens
         tokens={props.tokens}
-        fallback={props.text}
+        // Note(sagar): render text raw since props.text seems escaped
+        fallback={props.raw}
         renderer={renderer}
       />
     );
@@ -181,11 +182,7 @@ const RenderTokens = (props: {
 }) => {
   return (
     <Switch>
-      <Match when={props.tokens}>
-        {/* TODO(sagar): pass in custom renderer */}
-        {/* <Markdown tokens={props.tokens} /> */}
-        {renderMarkdown(props, props.renderer)}
-      </Match>
+      <Match when={props.tokens}>{renderMarkdown(props, props.renderer)}</Match>
       <Match when={true}>{props.fallback}</Match>
     </Switch>
   );
