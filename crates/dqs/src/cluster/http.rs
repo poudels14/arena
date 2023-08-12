@@ -12,12 +12,12 @@ use axum_extra::extract::cookie::Cookie;
 use cloud::acl::{Access, AclEntity};
 use colored::Colorize;
 use common::axum::logger;
+use common::deno::extensions::server::request::read_htt_body_to_buffer;
 use common::deno::extensions::server::response::ParsedHttpResponse;
 use common::deno::extensions::server::{errors, HttpRequest};
 use deno_core::{normalize_path, ZeroCopyBuf};
 use diesel::prelude::*;
 use http::{Method, Request};
-use hyper::body::HttpBody;
 use hyper::Body;
 use indexmap::IndexMap;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation};
@@ -221,7 +221,7 @@ pub async fn pipe_app_request(
     url
   };
 
-  let body = body_to_buffer(&mut req).await;
+  let body = read_htt_body_to_buffer(&mut req).await?;
   let request = HttpRequest {
     method: req.method().to_string(),
     url: url.as_str().to_owned(),
@@ -291,7 +291,7 @@ pub async fn pipe_widget_query_request(
   }
 
   let (tx, rx) = oneshot::channel::<ParsedHttpResponse>();
-  let body = body_to_buffer(&mut req).await;
+  let body = read_htt_body_to_buffer(&mut req).await?;
 
   let props = params
     .props
@@ -372,17 +372,4 @@ fn get_user_id_from_cookie(token: &str) -> Result<String> {
     .context("JWT verification error")?;
   }
   bail!("JWT signing key not found");
-}
-
-async fn body_to_buffer(req: &mut Request<Body>) -> Option<ZeroCopyBuf> {
-  match *req.method() {
-    // Note(sagar): Deno's Request doesn't support body in GET/HEAD
-    Method::GET | Method::HEAD => None,
-    _ => {
-      let b = req.body_mut().data().await;
-      b.and_then(|r| r.ok()).map(|r| {
-        <Box<[u8]> as Into<ZeroCopyBuf>>::into(r.to_vec().into_boxed_slice())
-      })
-    }
-  }
 }

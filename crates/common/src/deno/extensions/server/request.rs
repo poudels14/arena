@@ -37,19 +37,7 @@ pub async fn pipe_request<'a>(
 ) -> Result<Response, errors::Error> {
   let (tx, rx) = oneshot::channel::<ParsedHttpResponse>();
 
-  let body = {
-    match *req.method() {
-      // Note(sagar): Deno's Request doesn't support body in GET/HEAD
-      Method::GET | Method::HEAD => None,
-      _ => {
-        let b = req.body_mut().data().await;
-        b.and_then(|r| r.ok()).map(|r| {
-          <Box<[u8]> as Into<ZeroCopyBuf>>::into(r.to_vec().into_boxed_slice())
-        })
-      }
-    }
-  };
-
+  let body = read_htt_body_to_buffer(&mut req).await?;
   let request = HttpRequest {
     method: req.method().as_str().to_string(),
     url: format!("http://0.0.0.0{}", req.uri().to_string()),
@@ -106,6 +94,38 @@ impl From<(Method, &str)> for HttpRequest {
       body: Some(ZeroCopyBuf::ToV8(Some(
         body.to_owned().as_bytes().to_vec().into(),
       ))),
+    }
+  }
+}
+
+pub async fn read_htt_body_to_buffer(
+  req: &mut Request<Body>,
+) -> Result<Option<ZeroCopyBuf>> {
+  match *req.method() {
+    // Note(sagar): Deno's Request doesn't support body in GET/HEAD
+    Method::GET | Method::HEAD => Ok(None),
+    _ => {
+      // TODO(sagar): read body only if it's read from JS
+      // it can be done by passing readable stream
+      let mut has_body = false;
+      let mut body = Vec::with_capacity(4 * 1024); // start with 4kb buffer
+      loop {
+        match req.body_mut().data().await {
+          Some(b) => {
+            has_body = true;
+            body.extend(b?);
+          }
+          None => {
+            break;
+          }
+        }
+      }
+
+      if has_body {
+        Ok(Some(ZeroCopyBuf::ToV8(Some(body.into_boxed_slice()))))
+      } else {
+        Ok(None)
+      }
     }
   }
 }
