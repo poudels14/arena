@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{bail, Context, Result};
 use bstr::ByteSlice;
 use common::deno::extensions::BuiltinExtension;
 use common::deno::utils;
@@ -285,6 +285,12 @@ pub struct SearchCollectionOptions {
   pub include_chunk_content: bool,
   #[serde(default)]
   pub content_encoding: Option<String>,
+  /// number of bytes before the matched chunks to include in the response
+  #[serde(default)]
+  pub before_context: Option<usize>,
+  /// number of bytes after the matched chunks to include in the response
+  #[serde(default)]
+  pub after_context: Option<usize>,
 }
 
 #[derive(Default, Serialize)]
@@ -297,6 +303,8 @@ pub struct SearchCollectionResult {
   pub end: usize,
   #[serde(skip_serializing_if = "Option::is_none")]
   pub content: Option<StringOrBuffer>,
+  /// Only set if before/after_context is non-zero
+  pub context: (Option<StringOrBuffer>, Option<StringOrBuffer>),
 }
 
 #[op]
@@ -325,32 +333,54 @@ async fn op_cloud_vectordb_search_collection(
       let start = m.2 as usize;
       let end = m.3 as usize;
 
-      let content = match options.include_chunk_content {
+      let (content, context) = match options.include_chunk_content {
         true => {
-          let doc = documents.get(&document_id);
-          let doc = match doc {
-            Some(doc) => encoded_buffer(
-              doc.content[start..end].to_vec().into_boxed_slice(),
-              options.content_encoding.clone(),
-            )?,
-            None => {
-              let doc = db
-                .get_document(
-                  collection_id.as_str().into(),
-                  document_id.as_str().into(),
-                )?
-                .ok_or(anyhow!("Document in search result not found"))?;
-              let buf = encoded_buffer(
-                doc.content[start..end].to_vec().into_boxed_slice(),
-                options.content_encoding.clone(),
-              )?;
-              documents.insert(document_id.clone(), doc);
-              buf
+          if documents.get(&document_id).is_none() {
+            let doc = db.get_document(
+              collection_id.as_str().into(),
+              document_id.as_str().into(),
+            )?;
+            if doc.is_none() {
+              bail!("Document in search result not found");
             }
+            documents.insert(document_id.clone(), doc.unwrap());
           };
-          Some(doc)
+          let doc = documents.get(&document_id).unwrap();
+
+          let chunk = encoded_buffer(
+            doc.content[start..end].to_vec().into_boxed_slice(),
+            options.content_encoding.clone(),
+          )?;
+
+          let before_ctx = options
+            .before_context
+            .and_then(|size| {
+              if start > 0 {
+                Some(encoded_buffer(
+                  doc.content[0.max(start - size)..start]
+                    .to_vec()
+                    .into_boxed_slice(),
+                  options.content_encoding.clone(),
+                ))
+              } else {
+                None
+              }
+            })
+            .transpose()?;
+          let after_ctx = options
+            .after_context
+            .map(|size| {
+              encoded_buffer(
+                doc.content[end..(end + size).min(doc.content.len())]
+                  .to_vec()
+                  .into_boxed_slice(),
+                options.content_encoding.clone(),
+              )
+            })
+            .transpose()?;
+          (Some(chunk), (before_ctx, after_ctx))
         }
-        false => None,
+        false => (None, (None, None)),
       };
 
       Ok(SearchCollectionResult {
@@ -362,6 +392,7 @@ async fn op_cloud_vectordb_search_collection(
         start,
         end,
         content,
+        context,
       })
     })
     .collect::<Result<Vec<SearchCollectionResult>>>()

@@ -85,7 +85,14 @@ export type Client = {
     collectionId: string,
     queryVector: number[],
     k: number,
-    options?: {}
+    options?: {
+      includeChunkContent: boolean;
+      contentEncoding?: string;
+      // number of bytes before the matched chunks to include in the response
+      beforeContext?: number;
+      // number of bytes after the matched chunks to include in the response
+      afterContext?: number;
+    }
   ): Promise<
     {
       score: number;
