@@ -1,7 +1,7 @@
 // @ts-expect-error
 import { createHash } from "crypto";
 import { createRouter, procedure } from "@arena/runtime/server";
-import { pick } from "lodash-es";
+import { omit, pick } from "lodash-es";
 import { Splitter } from "@arena/llm/splitter";
 import { DatabaseClients } from "@arena/sdk/db";
 import { uniqueId as generateUniqueId } from "@arena/sdk/utils/uniqueId";
@@ -153,8 +153,8 @@ const router = createRouter({
             }
             await ctx.dbs.default.query(
               `INSERT INTO chat_messages
-              (id, session_id, parent_id, role, message, model, metadata, timestamp)
-            VALUES (?,?,?,?,?,?)`,
+                (id, session_id, parent_id, role, message, model, metadata, timestamp)
+                VALUES (?,?,?,?,?,?,?,?)`,
               [
                 aiResponseId,
                 sessionId,
@@ -164,7 +164,7 @@ const router = createRouter({
                 llmQueryRequest.model,
                 JSON.stringify({
                   documents: vectorSearchResult.map((r) =>
-                    pick(r, "score", "documentId", "chunkId")
+                    omit(r, "content", "context")
                   ),
                 }),
                 aiResponseTime.getTime(),
