@@ -7,7 +7,7 @@ use self::storage::contents::DOC_CONTENTS_CF;
 use self::storage::documents::DOCUMENTS_CF;
 use self::storage::embeddings::{StoredEmbeddings, DOC_EMBEDDINGS_CF};
 use self::storage::{
-  Collection, CollectionsHandle, Document, DocumentContentsHandle,
+  Collection, CollectionsHandle, Database, Document, DocumentContentsHandle,
   DocumentEmbeddingsHandle, DocumentsHandle,
 };
 use crate::db::rocks::cf::DatabaseColumnFamily;
@@ -20,8 +20,8 @@ use bstr::{BStr, BString, ByteSlice};
 use errors::Error;
 use indexmap::IndexMap;
 use rocksdb::{
-  DBCompressionType, FlushOptions, IteratorMode, Options, ReadOptions,
-  WriteBatchWithTransaction, DB,
+  ColumnFamilyDescriptor, DBCompressionType, FlushOptions, IteratorMode,
+  OptimisticTransactionDB, Options, ReadOptions,
 };
 use std::sync::{Arc, Mutex};
 
@@ -41,7 +41,7 @@ pub struct DatabaseOptions {
 pub struct VectorDatabase {
   pub(crate) path: String,
   pub(crate) opts: Options,
-  pub(crate) db: DB,
+  pub(crate) db: Database,
   doc_read_options: ReadOptions,
   pub(crate) collections_cache:
     Arc<Mutex<IndexMap<BString, Arc<Mutex<storage::Collection>>>>>,
@@ -65,14 +65,21 @@ impl<'d> VectorDatabase {
       opts.enable_statistics();
     }
 
-    let db = DB::open_cf_with_opts(
+    let db: Database = OptimisticTransactionDB::open_cf_descriptors(
       &opts,
       path,
       vec![
-        (COLLECTIONS_CF, Options::default()),
-        (DOCUMENTS_CF, Options::default()),
-        (DOC_CONTENTS_CF, storage::contents::get_db_options()),
-        (DOC_EMBEDDINGS_CF, storage::embeddings::get_db_options()),
+        ColumnFamilyDescriptor::new(COLLECTIONS_CF, Options::default()),
+        ColumnFamilyDescriptor::new(COLLECTIONS_CF, Options::default()),
+        ColumnFamilyDescriptor::new(DOCUMENTS_CF, Options::default()),
+        ColumnFamilyDescriptor::new(
+          DOC_CONTENTS_CF,
+          storage::contents::get_db_options(),
+        ),
+        ColumnFamilyDescriptor::new(
+          DOC_EMBEDDINGS_CF,
+          storage::embeddings::get_db_options(),
+        ),
       ],
     )?;
 
@@ -100,7 +107,8 @@ impl<'d> VectorDatabase {
 
     let collections_h = CollectionsHandle::new(&self.db)?;
     // TODO(sagar): store collection counter on default column?
-    let collection_count: i32 = collections_h
+    // and use transaction
+    let collection_count: u32 = collections_h
       .iterator(IteratorMode::Start)
       .count()
       .try_into()
@@ -113,6 +121,7 @@ impl<'d> VectorDatabase {
     let stored_collection = storage::Collection {
       index: collection_count,
       documents_count: 0,
+      next_doc_index: 0,
       dimension: col.dimension,
       metadata: col.metadata,
     };
@@ -176,6 +185,12 @@ impl<'d> VectorDatabase {
     let collection = self.get_internal_collection(collection_id)?;
     let mut collection = collection.lock().map_err(lock_error)?;
     let documents_cf = storage::documents::cf(&self.db)?;
+    if collection.next_doc_index >= u32::MAX {
+      bail!(
+        "A single collection can't have more than {} documents",
+        u32::MAX
+      );
+    }
 
     // Note(sagar): prefix the doc id with 2 bytes (u16) collection index
     let storage_doc_id: Vec<u8> = (collection.index, doc_id).to_be_bytes();
@@ -187,14 +202,16 @@ impl<'d> VectorDatabase {
     }
 
     let document = storage::Document {
-      index: collection.documents_count as i32,
+      index: collection.next_doc_index,
       content_length: query.content.len() as u32,
       chunks_count: 0,
       metadata: query.metadata,
     };
 
     let contents_cf = storage::contents::cf(&self.db)?;
-    let mut batch = WriteBatchWithTransaction::<false>::default();
+    let txn = self.db.transaction();
+    let mut batch = txn.get_writebatch();
+
     documents_cf.batch_put(
       &mut batch,
       &storage_doc_id,
@@ -204,12 +221,16 @@ impl<'d> VectorDatabase {
 
     let collections_h = CollectionsHandle::new(&self.db)?;
     collection.documents_count += 1;
+    collection.next_doc_index += 1;
     collections_h.batch_put(&mut batch, collection_id, &collection)?;
 
     self
       .db
       .write(batch)
-      .map_err(|e| anyhow!("Failed to commit transaction: {}", e))
+      .map_err(|e| anyhow!("Failed to commit transaction: {}", e))?;
+
+    txn.commit()?;
+    Ok(())
   }
 
   /// This will index the given document using ANN to make the search within
@@ -252,7 +273,7 @@ impl<'d> VectorDatabase {
     let collection = collection.lock().map_err(lock_error)?;
 
     let documents_h = DocumentsHandle::new(&self.db, &collection)?;
-    let document = documents_h
+    let mut document = documents_h
       .get(&doc_id)?
       .context(format!("Couldn't find document with id = {}", doc_id))?;
     if document.chunks_count > 0 {
@@ -261,7 +282,8 @@ impl<'d> VectorDatabase {
 
     let embeddings_h =
       DocumentEmbeddingsHandle::new(&self.db, &collection, &document)?;
-    let mut batch = WriteBatchWithTransaction::<false>::default();
+    let txn = self.db.transaction();
+    let mut batch = txn.get_writebatch();
     embeddings
       .iter()
       .enumerate()
@@ -271,7 +293,7 @@ impl<'d> VectorDatabase {
         }
         embeddings_h.batch_put(
           &mut batch,
-          index as i32,
+          index as u32,
           &StoredEmbeddings {
             start: embedding.start,
             end: embedding.end,
@@ -281,6 +303,8 @@ impl<'d> VectorDatabase {
         Ok(())
       })
       .collect::<Result<()>>()?;
+
+    document.chunks_count = embeddings.len() as u32;
     documents_h.batch_put(&mut batch, &doc_id, &document)?;
 
     self
@@ -288,6 +312,7 @@ impl<'d> VectorDatabase {
       .write(batch)
       .map_err(|e| anyhow!("Error writing chunks: {}", e))?;
 
+    txn.commit()?;
     Ok(())
   }
 
@@ -329,6 +354,7 @@ impl<'d> VectorDatabase {
   }
 
   /// Returns all the embeddings in a collection
+  /// Warning: Only to be used for debug/test
   #[allow(dead_code)]
   pub fn scan_embeddings(
     &self,
@@ -338,7 +364,7 @@ impl<'d> VectorDatabase {
     let collection = collection.lock().map_err(lock_error)?;
 
     let mut document_id_by_index: Vec<BString> =
-      vec![b"".into(); collection.documents_count as usize];
+      vec![b"".into(); collection.next_doc_index as usize];
     let document_h = DocumentsHandle::new(&self.db, &collection)?;
 
     document_h.iterator().for_each(|item| {
@@ -371,14 +397,42 @@ impl<'d> VectorDatabase {
   }
 
   #[allow(dead_code)]
-  pub fn delete_document(&mut self, document_id: &[u8]) -> Result<()> {
-    self.db.delete(document_id)?;
-    Ok(())
-  }
+  pub fn delete_document(
+    &mut self,
+    collection_id: &BStr,
+    doc_id: &BStr,
+  ) -> Result<()> {
+    let collection = self.get_internal_collection(collection_id)?;
+    let mut collection = collection.lock().map_err(lock_error)?;
 
-  #[allow(dead_code)]
-  pub fn delete_chunks(&self, _doc_id: &BStr) -> Result<()> {
-    unimplemented!()
+    let collections_h = CollectionsHandle::new(&self.db)?;
+    let documents_h = DocumentsHandle::new(&self.db, &collection)?;
+    let document = documents_h
+      .get(doc_id)?
+      .ok_or(anyhow!("Document not found"))?;
+
+    let txn = self.db.transaction();
+    let mut batch = txn.get_writebatch();
+
+    collection.documents_count -= 1;
+    collections_h.batch_put(&mut batch, collection_id, &collection)?;
+
+    let document_cf = storage::documents::cf(&self.db)?;
+    let contents_cf = storage::contents::cf(&self.db)?;
+
+    let storage_doc_id: Vec<u8> = (collection.index, doc_id).to_be_bytes();
+    document_cf.batch_delete(&mut batch, &storage_doc_id);
+    contents_cf.batch_delete(&mut batch, &storage_doc_id);
+
+    let embeddings_h =
+      DocumentEmbeddingsHandle::new(&self.db, &collection, &document)?;
+    (0..document.chunks_count).for_each(|idx| {
+      embeddings_h.batch_delete(&mut batch, idx as u32);
+    });
+
+    self.db.write(batch)?;
+    txn.commit()?;
+    Ok(())
   }
 
   #[allow(dead_code)]
@@ -407,7 +461,7 @@ impl<'d> VectorDatabase {
 
   #[allow(dead_code)]
   pub fn destroy(path: &str) -> Result<()> {
-    DB::destroy(&Options::default(), path).map_err(|e| {
+    Database::destroy(&Options::default(), path).map_err(|e| {
       anyhow!("{}. Make sure all database instances are closed.", e)
     })
   }

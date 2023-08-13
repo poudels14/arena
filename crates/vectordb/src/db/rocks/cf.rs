@@ -1,13 +1,17 @@
 use super::PinnableSlice;
+use crate::storage::Database;
 use anyhow::{anyhow, Result};
 use rocksdb::{
   ColumnFamily, DBIteratorWithThreadMode, Direction, IteratorMode, ReadOptions,
-  WriteBatchWithTransaction, DB,
+  WriteBatchWithTransaction,
 };
 
-pub type RowsIterator<'a> = DBIteratorWithThreadMode<'a, DB>;
+pub type RowsIterator<'a> = DBIteratorWithThreadMode<'a, Database>;
 
-pub fn column_handle<'a>(db: &'a DB, name: &str) -> Result<&'a ColumnFamily> {
+pub fn column_handle<'a>(
+  db: &'a Database,
+  name: &str,
+) -> Result<&'a ColumnFamily> {
   db.cf_handle(name)
     .ok_or(anyhow!("Failed to get handle for column: {}", name))
 }
@@ -27,9 +31,15 @@ pub trait DatabaseColumnFamily<'a> {
 
   fn batch_put(
     &self,
-    batch: &mut WriteBatchWithTransaction<false>,
+    batch: &mut WriteBatchWithTransaction<true>,
     key: &[u8],
     value: &[u8],
+  );
+
+  fn batch_delete(
+    &self,
+    batch: &mut WriteBatchWithTransaction<true>,
+    key: &[u8],
   );
 
   fn iterator(&self, mode: IteratorMode) -> RowsIterator;
@@ -52,7 +62,7 @@ pub trait DatabaseColumnFamily<'a> {
   }
 }
 
-impl<'a> DatabaseColumnFamily<'a> for (&'a DB, &'a ColumnFamily) {
+impl<'a> DatabaseColumnFamily<'a> for (&'a Database, &'a ColumnFamily) {
   fn get_pinned(&self, key: &[u8]) -> Result<Option<PinnableSlice>> {
     Ok(self.0.get_pinned_cf(self.1, key)?)
   }
@@ -74,11 +84,19 @@ impl<'a> DatabaseColumnFamily<'a> for (&'a DB, &'a ColumnFamily) {
 
   fn batch_put(
     &self,
-    batch: &mut WriteBatchWithTransaction<false>,
+    batch: &mut WriteBatchWithTransaction<true>,
     key: &[u8],
     value: &[u8],
   ) {
     batch.put_cf(self.1, &key, value);
+  }
+
+  fn batch_delete(
+    &self,
+    batch: &mut WriteBatchWithTransaction<true>,
+    key: &[u8],
+  ) {
+    batch.delete_cf(self.1, key);
   }
 
   fn iterator(&self, mode: IteratorMode) -> RowsIterator {

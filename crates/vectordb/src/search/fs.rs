@@ -41,7 +41,7 @@ impl<'a> FsSearch<'a> {
     }
 
     let mut document_id_by_index: Vec<BString> =
-      vec![b"".into(); collection.documents_count as usize];
+      vec![b"".into(); collection.next_doc_index as usize];
     let document_h = DocumentsHandle::new(&self.db.db, &collection)?;
 
     document_h.iterator().for_each(|item| {

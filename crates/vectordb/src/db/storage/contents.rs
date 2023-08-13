@@ -1,14 +1,15 @@
 use super::collections::Collection;
+use super::Database;
 use crate::db::rocks::cf::{column_handle, DatabaseColumnFamily};
 use crate::db::rocks::PinnableSlice;
 use crate::utils::bytes::ToBeBytes;
 use anyhow::Result;
 use bstr::BStr;
-use rocksdb::{ColumnFamily, DBCompressionType, Options, ReadOptions, DB};
+use rocksdb::{ColumnFamily, DBCompressionType, Options, ReadOptions};
 
 pub static DOC_CONTENTS_CF: &'static str = "document-contents";
 
-pub fn cf<'a>(db: &'a DB) -> Result<impl DatabaseColumnFamily> {
+pub fn cf<'a>(db: &'a Database) -> Result<impl DatabaseColumnFamily> {
   Ok((db, column_handle(db, DOC_CONTENTS_CF)?))
 }
 
@@ -26,13 +27,13 @@ pub fn get_db_options() -> Options {
 
 #[allow(dead_code)]
 pub struct DocumentContentsHandle<'d> {
-  collection_index: i32,
-  handle: (&'d DB, &'d ColumnFamily),
+  collection_index: u32,
+  handle: (&'d Database, &'d ColumnFamily),
 }
 
 #[allow(dead_code)]
 impl<'d> DocumentContentsHandle<'d> {
-  pub fn new(db: &'d DB, collection: &Collection) -> Result<Self> {
+  pub fn new(db: &'d Database, collection: &Collection) -> Result<Self> {
     Ok(Self {
       collection_index: collection.index,
       handle: (db, column_handle(db, DOC_CONTENTS_CF)?),

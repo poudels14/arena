@@ -1,17 +1,17 @@
 use super::collections::Collection;
-use super::Document;
+use super::{Database, Document};
 use crate::db::rocks::cf::{column_handle, DatabaseColumnFamily};
 use crate::utils::bytes::ToBeBytes;
 use anyhow::bail;
 use anyhow::Result;
 use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 use rocksdb::{
-  ColumnFamily, DBCompressionType, Options, WriteBatchWithTransaction, DB,
+  ColumnFamily, DBCompressionType, Options, WriteBatchWithTransaction,
 };
 
 pub static DOC_EMBEDDINGS_CF: &'static str = "document-embeddings";
 
-pub fn cf<'a>(db: &'a DB) -> Result<impl DatabaseColumnFamily> {
+pub fn cf<'a>(db: &'a Database) -> Result<impl DatabaseColumnFamily> {
   Ok((db, column_handle(db, DOC_EMBEDDINGS_CF)?))
 }
 
@@ -53,13 +53,13 @@ impl StoredEmbeddings {
 pub struct DocumentEmbeddingsHandle<'d> {
   collection: &'d Collection,
   document: &'d Document,
-  handle: (&'d DB, &'d ColumnFamily),
+  handle: (&'d Database, &'d ColumnFamily),
 }
 
 #[allow(dead_code)]
 impl<'d> DocumentEmbeddingsHandle<'d> {
   pub fn new(
-    db: &'d DB,
+    db: &'d Database,
     collection: &'d Collection,
     document: &'d Document,
   ) -> Result<Self> {
@@ -72,8 +72,8 @@ impl<'d> DocumentEmbeddingsHandle<'d> {
 
   pub fn batch_put(
     &self,
-    batch: &mut WriteBatchWithTransaction<false>,
-    index: i32,
+    batch: &mut WriteBatchWithTransaction<true>,
+    index: u32,
     embedding: &StoredEmbeddings,
   ) -> Result<()> {
     if embedding.vectors.len() as u16 != self.collection.dimension {
@@ -88,5 +88,15 @@ impl<'d> DocumentEmbeddingsHandle<'d> {
     let encoded_embeddings = StoredEmbeddings::encode(embedding)?;
     self.handle.batch_put(batch, &chunk_id, &encoded_embeddings);
     Ok(())
+  }
+
+  pub fn batch_delete(
+    &self,
+    batch: &mut WriteBatchWithTransaction<true>,
+    index: u32,
+  ) {
+    let chunk_id =
+      (self.collection.index, self.document.index, index).to_be_bytes();
+    self.handle.batch_delete(batch, &chunk_id);
   }
 }

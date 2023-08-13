@@ -93,6 +93,8 @@ export type Client = {
 
   listDocuments(collectionId: string): Promise<Document[]>;
 
+  deleteDocument(collectionId: string, documentId: string): Promise<void>;
+
   /**
    * Search embeddings in a collection by the given query vector
    *

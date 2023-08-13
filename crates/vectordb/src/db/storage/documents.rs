@@ -1,39 +1,38 @@
 use super::collections::Collection;
+use super::Database;
 use crate::db::rocks::cf::{column_handle, DatabaseColumnFamily};
 use crate::utils::bytes::ToBeBytes;
 use anyhow::{Context, Result};
 use bstr::{BStr, BString};
 use indexmap::IndexMap;
-use rocksdb::{ColumnFamily, WriteBatchWithTransaction, DB};
+use rocksdb::{ColumnFamily, WriteBatchWithTransaction};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 pub static DOCUMENTS_CF: &'static str = "documents";
 
-pub fn cf(db: &DB) -> Result<impl DatabaseColumnFamily> {
+pub fn cf(db: &Database) -> Result<impl DatabaseColumnFamily> {
   Ok((db, column_handle(db, DOCUMENTS_CF)?))
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Document {
-  /// use i32 just in case we wanna use negative index for sth like marking
-  /// deletion, etc
-  /// It's very very unlikely that we will ever store more than 2 billion
-  /// documents in a single collection. So, using i32 saves half the space
-  /// as compared to i64
-  pub index: i32,
+  /// It's very very unlikely that we will ever store more than 4 billion
+  /// documents in a single collection. So, using u32 saves half the space
+  /// as compared to u64
+  pub index: u32,
   pub content_length: u32,
   pub chunks_count: u32,
   pub metadata: Option<IndexMap<String, Value>>,
 }
 
 pub struct DocumentsHandle<'d> {
-  collection_index: i32,
-  handle: (&'d DB, &'d ColumnFamily),
+  collection_index: u32,
+  handle: (&'d Database, &'d ColumnFamily),
 }
 
 impl<'d> DocumentsHandle<'d> {
-  pub fn new(db: &'d DB, collection: &Collection) -> Result<Self> {
+  pub fn new(db: &'d Database, collection: &Collection) -> Result<Self> {
     Ok(Self {
       collection_index: collection.index,
       handle: (db, column_handle(db, DOCUMENTS_CF)?),
@@ -56,7 +55,7 @@ impl<'d> DocumentsHandle<'d> {
 
   pub fn batch_put(
     &self,
-    batch: &mut WriteBatchWithTransaction<false>,
+    batch: &mut WriteBatchWithTransaction<true>,
     // without collection index prefix
     document_id: &BStr,
     document: &Document,

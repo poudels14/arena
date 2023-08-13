@@ -35,7 +35,9 @@ pub(crate) fn init() -> Extension {
       op_cloud_vectordb_list_documents::decl(),
       op_cloud_vectordb_get_document::decl(),
       op_cloud_vectordb_set_document_embeddings::decl(),
+      op_cloud_vectordb_delete_document::decl(),
       op_cloud_vectordb_search_collection::decl(),
+      op_cloud_vectordb_compact_and_flush::decl(),
     ])
     .force_op_registration()
     .build()
@@ -279,6 +281,21 @@ async fn op_cloud_vectordb_set_document_embeddings(
   Ok(())
 }
 
+#[op]
+async fn op_cloud_vectordb_delete_document(
+  state: Rc<RefCell<OpState>>,
+  rid: ResourceId,
+  collection_id: String,
+  doc_id: String,
+) -> Result<()> {
+  let resource = get_db_resource(state, rid)?;
+  resource
+    .db
+    .borrow_mut()
+    .delete_document(collection_id.as_str().into(), doc_id.as_str().into())?;
+  Ok(())
+}
+
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchCollectionOptions {
@@ -410,13 +427,15 @@ async fn op_cloud_vectordb_search_collection(
     .collect::<Result<Vec<SearchCollectionResult>>>()
 }
 
-// #[op]
-// async fn op_cloud_vectordb_compact_and_flush(
-//   state: Rc<RefCell<OpState>>,
-//   rid: ResourceId,
-// ) -> Result<ResourceId> {
-//   Ok(0)
-// }
+#[op]
+async fn op_cloud_vectordb_compact_and_flush(
+  state: Rc<RefCell<OpState>>,
+  rid: ResourceId,
+) -> Result<()> {
+  let resource = get_db_resource(state, rid)?;
+  resource.db.borrow().compact_and_flush()?;
+  Ok(())
+}
 
 // #[op]
 // async fn op_cloud_vectordb_destroy(

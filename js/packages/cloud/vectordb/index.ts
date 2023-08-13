@@ -102,6 +102,17 @@ class VectorDatabase implements Client {
     );
   }
 
+  async deleteDocument(collectionId: string, documentId: string) {
+    assert.notNil(collectionId, "Collection id");
+    assert.notNil(documentId, "Document id");
+    return await opAsync(
+      "op_cloud_vectordb_delete_document",
+      this.#rid,
+      collectionId,
+      documentId
+    );
+  }
+
   async listDocuments(collectionId: string) {
     assert.notNil(collectionId, "Collection id");
     return await opAsync(
@@ -126,6 +137,10 @@ class VectorDatabase implements Client {
       k,
       options || {}
     );
+  }
+
+  async compactAndFlush() {
+    return await opAsync("op_cloud_vectordb_compact_and_flush", this.#rid);
   }
 }
 
