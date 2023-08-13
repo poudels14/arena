@@ -1,20 +1,17 @@
-import { Show, createSelector } from "solid-js";
+import { Show, createSelector, useContext } from "solid-js";
 import { createStore } from "@arena/solid-store";
-import { Document } from "../types";
 import { Documents } from "./Documents";
+import { ChatContext } from "../ChatContext";
 
-type SidebarProps = {
-  documents: Document[];
-};
-
-const Sidebar = (props: SidebarProps) => {
-  const [state, setState] = createStore({
+const Sidebar = () => {
+  const { state } = useContext(ChatContext)!;
+  const [sidebarState, setState] = createStore({
     tab: {
       selected: "Chat",
     },
   });
 
-  const isTabActive = createSelector(state.tab.selected);
+  const isTabActive = createSelector(sidebarState.tab.selected);
 
   return (
     <div class="w-52 h-screen text-sm bg-accent-1">
@@ -33,7 +30,9 @@ const Sidebar = (props: SidebarProps) => {
               </div>
             </div>
             <div class="space-y-2">
-              <Documents documents={props.documents} />
+              <Show when={state.documents()}>
+                <Documents documents={state.documents()!} />
+              </Show>
             </div>
           </div>
         </Show>

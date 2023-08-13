@@ -4,6 +4,7 @@ import { Store, StoreSetter, createStore } from "@arena/solid-store";
 import { MutationQuery, createMutationQuery } from "@arena/uikit/solid";
 import { uniqueId } from "@arena/sdk/utils/uniqueId";
 import { jsonStreamToAsyncIterator } from "@arena/sdk/utils/stream";
+import { Document } from "./types";
 
 type SendMessageQuery = (message: string) => Promise<void>;
 type Message = {
@@ -21,6 +22,7 @@ type Message = {
 };
 
 type State = {
+  documents: null | Document[];
   activeSession: {
     id: string;
     messages: Message[];
@@ -30,6 +32,7 @@ type State = {
 
 type ChatContext = {
   state: Store<State>;
+  setState: StoreSetter<State>;
   sendNewMessage: MutationQuery<SendMessageQuery>;
 };
 
@@ -39,6 +42,7 @@ const ChatContextProvider = (props: any) => {
   const { router } = useAppContext();
 
   const [state, setState] = createStore<State>({
+    documents: null,
     activeSession: {
       id: "1",
       messages: [],
@@ -50,6 +54,11 @@ const ChatContextProvider = (props: any) => {
     return (await router.get(`/api/chat/${sessionId}/messages`)).data;
   };
 
+  const fetchDocuments = async () => {
+    return (await router.get<Document[]>("/api/documents")).data;
+  };
+
+  fetchDocuments().then((documents) => setState("documents", documents));
   listMessages("1").then((messages: any[]) => {
     const m: Message[] = messages.map((m) => {
       return {
@@ -94,7 +103,7 @@ const ChatContextProvider = (props: any) => {
   );
 
   return (
-    <ChatContext.Provider value={{ state, sendNewMessage }}>
+    <ChatContext.Provider value={{ state, setState, sendNewMessage }}>
       {props.children}
     </ChatContext.Provider>
   );

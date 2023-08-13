@@ -1,9 +1,11 @@
-import { For } from "solid-js";
+import { For, useContext } from "solid-js";
+import { useAppContext } from "@arena/sdk/app";
+import { createMutationQuery } from "@arena/uikit/solid";
 import { InlineIcon } from "@arena/components";
 import LinkIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/link";
 import UploadIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/cloud-upload";
 import { Document } from "../types";
-import { useAppContext } from "@arena/sdk/app";
+import { ChatContext } from "../ChatContext";
 
 const SUPPORTED_FILE_TYPES = [
   ".md",
@@ -74,17 +76,31 @@ const LinkNewDocument = () => {
 
 const DocumentUploader = (props: { ref: any }) => {
   const { router } = useAppContext();
+  const { state, setState } = useContext(ChatContext)!;
 
   let formRef: any;
-  const uploadDocument = () => {
-    throw new Error("not implemented");
-    // const formData = new FormData(formRef);
-    // router.post("", formData, {
-    //   headers: {
-    //     "Content-Type": "multipart/form-data",
-    //   },
-    // });
-  };
+  const uploadDocument = createMutationQuery(async () => {
+    const formData = new FormData(formRef);
+    const res = await router.post("/api/documents/upload", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    setState("documents", (prev) => {
+      const { existing: existingDocs, new: newDocs } = res.data;
+      const all = [...(prev || []), ...existingDocs, ...newDocs];
+      const unique: Document[] = [];
+      all.forEach((d) => {
+        if (!unique.find((u) => u.id === d.id)) {
+          unique.push(d);
+        }
+      });
+      return unique;
+    });
+
+    formRef.reset();
+  });
 
   return (
     <form

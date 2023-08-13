@@ -79,6 +79,7 @@ const router = createRouter({
         {
           includeChunkContent: true,
           contentEncoding: "utf-8",
+          minScore: 0.7,
         }
       );
 
@@ -94,6 +95,8 @@ const router = createRouter({
         message: {
           system: {
             content: generateSystemPrompt({
+              // TODO(sagar): aggregate all chunks of the same document
+              // into one section in the prompt
               documents: vectorSearchResult,
             }),
           },
@@ -231,6 +234,25 @@ const router = createRouter({
         content: doc.content,
       };
     }),
+    "/documents/:documentId/edit": p.mutate(
+      async ({ ctx, req, params, errors }) => {
+        const { default: mainDb } = ctx.dbs;
+        const { rows: documents } = await mainDb.query<any>(
+          `SELECT * FROM uploads WHERE id = ?`,
+          [params.documentId]
+        );
+        if (documents.length == 0) {
+          return errors.notFound();
+        }
+
+        const body = await req.json();
+        await mainDb.query(`UPDATE uploads SET name = ? WHERE id = ?`, [
+          body.name,
+          params.documentId,
+        ]);
+        return { success: true };
+      }
+    ),
     "/documents/search": p.query(async ({ ctx, searchParams }) => {
       const db = ctx.dbs.vectordb;
 
@@ -241,6 +263,7 @@ const router = createRouter({
       return await db.searchCollection("uploads", embeddings[0], 10, {
         includeChunkContent: true,
         contentEncoding: "utf-8",
+        minScore: 0.7,
       });
     }),
     "/documents/upload": p.mutate(async ({ req, ctx, form }) => {
@@ -291,6 +314,7 @@ const router = createRouter({
 
             const embeddings = await generator.getChunkEmbeddings(chunks);
             const documentId = uniqueId();
+            const uploadedAt = new Date();
             await mainDb.transaction(async () => {
               await mainDb.query(
                 `INSERT INTO uploads (
@@ -304,7 +328,7 @@ const router = createRouter({
                   contentHash,
                   type,
                   document.filename,
-                  new Date().getTime(),
+                  uploadedAt.getTime(),
                 ]
               );
 
@@ -320,17 +344,32 @@ const router = createRouter({
             });
 
             return {
-              name: document.name,
+              id: documentId,
+              name: document.filename,
               filename: document.filename,
+              contentType: document.type,
               contentHash,
               chunks,
               embeddings,
+              uploadedAt,
             };
           })
       );
       return {
-        existing: existingDocs.map((d) => pick(d, "filename", "contentHash")),
-        new: newDocuments.map((d) => pick(d, "filename", "contentHash")),
+        existing: existingDocs.map((d: any) => {
+          return {
+            ...pick(d, "id", "contentType"),
+            name: d.name || d.filename,
+            uploadedAt: new Date(d.uploadedAt).toISOString(),
+          };
+        }),
+        new: newDocuments.map((d) => {
+          return {
+            ...pick(d, "id", "contentType"),
+            name: d.name || d.filename,
+            uploadedAt: d.uploadedAt.toISOString(),
+          };
+        }),
       };
     }),
   },
