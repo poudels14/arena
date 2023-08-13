@@ -253,6 +253,16 @@ const router = createRouter({
         return { success: true };
       }
     ),
+    "/documents/:documentId/delete": p.delete(async ({ ctx, params }) => {
+      const { default: mainDb, vectordb } = ctx.dbs;
+      await mainDb.transaction(async () => {
+        await vectordb.deleteDocument("uploads", params.documentId);
+        await mainDb.query<any>(`DELETE FROM uploads WHERE id = ?`, [
+          params.documentId,
+        ]);
+      });
+      return { success: true };
+    }),
     "/documents/search": p.query(async ({ ctx, searchParams }) => {
       const db = ctx.dbs.vectordb;
 

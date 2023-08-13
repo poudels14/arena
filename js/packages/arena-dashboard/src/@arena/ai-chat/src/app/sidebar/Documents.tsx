@@ -5,6 +5,7 @@ import { InlineIcon } from "@arena/components";
 import LinkIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/link";
 import UploadIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/cloud-upload";
 import EditIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/edit";
+import DeleteIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/trash";
 import { Document } from "../types";
 import { ChatContext } from "../ChatContext";
 
@@ -52,6 +53,14 @@ const Documents = () => {
         updateDocumentName(id, oldName);
       });
   };
+
+  const deleteDocument = async (id: string) => {
+    setState("documents", (prev) => {
+      return prev!.filter((d) => d.id !== id);
+    });
+    await router.delete(`/api/documents/${id}/delete`);
+  };
+
   return (
     <Show when={state.documents()}>
       <div class="flex px-2 text-sm font-medium text-gray-800">
@@ -62,7 +71,11 @@ const Documents = () => {
         <For each={state.documents()}>
           {(document) => {
             return (
-              <DocumentTab {...document} renameDocument={renameDocument} />
+              <DocumentTab
+                {...document}
+                renameDocument={renameDocument}
+                deleteDocument={deleteDocument}
+              />
             );
           }}
         </For>
@@ -176,6 +189,7 @@ const DocumentTab = (props: {
   isNew?: boolean;
   active?: boolean;
   renameDocument: (id: string, oldName: string, newName: string) => void;
+  deleteDocument: (id: string) => void;
 }) => {
   const [isEditMode, setEditMode] = createSignal(false);
   const renameDocument = (e: any) => {
@@ -215,7 +229,7 @@ const DocumentTab = (props: {
       <Show when={props.isNew}>
         <div class="w-1.5 h-1.5 bg-green-500 rounded-full" />
       </Show>
-      <div>
+      <div class="flex flex-row">
         <Show when={!isEditMode()}>
           <InlineIcon
             size="18px"
@@ -223,6 +237,13 @@ const DocumentTab = (props: {
             onClick={() => setEditMode(true)}
           >
             <path d={EditIcon[0]} />
+          </InlineIcon>
+          <InlineIcon
+            size="18px"
+            class="hidden group-hover:block p-1 rounded cursor-pointer hover:bg-brand-11/10 text-brand-12/80"
+            onClick={() => props.deleteDocument(props.id)}
+          >
+            <path d={DeleteIcon[0]} />
           </InlineIcon>
         </Show>
       </div>
