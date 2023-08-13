@@ -15,6 +15,9 @@ type Message = {
   role: string;
   timestamp: Date;
   userId: string | null;
+  metadata: {
+    documents?: { documentId: string; score: number }[];
+  } | null;
   /**
    * Set to true if this message is currently being streamed
    */
@@ -131,9 +134,10 @@ const readMessageStream = async (
             id: messageId,
             message: "",
             role: "ai",
+            userId: null,
             sessionId,
             timestamp: chunk.timestamp,
-            userId: null,
+            metadata: chunk.metadata,
             streaming: true,
           },
         ];

@@ -1,7 +1,7 @@
 // @ts-expect-error
 import { createHash } from "crypto";
 import { createRouter, procedure } from "@arena/runtime/server";
-import { omit, pick } from "lodash-es";
+import { omit, pick, uniqBy } from "lodash-es";
 import { Splitter } from "@arena/llm/splitter";
 import { DatabaseClients } from "@arena/sdk/db";
 import { uniqueId as generateUniqueId } from "@arena/sdk/utils/uniqueId";
@@ -138,6 +138,11 @@ const router = createRouter({
             JSON.stringify({
               id: aiResponseId,
               timestamp: aiResponseTime.getTime(),
+              metadata: {
+                documents: vectorSearchResult.map((r) =>
+                  pick(r, "documentId", "score")
+                ),
+              },
             })
           );
           try {
@@ -192,11 +197,31 @@ const router = createRouter({
       return rows;
     }),
     "/chat/:sessionId/messages": p.query(async ({ ctx, params }) => {
-      const { rows } = await ctx.dbs.default.query(
+      const { rows: messages } = await ctx.dbs.default.query(
         `SELECT * FROM chat_messages where session_id = ? ORDER BY timestamp`,
         [params.sessionId]
       );
-      return rows;
+      return messages.map((m: any) => {
+        const metadata = JSON.parse(m.metadata);
+        return {
+          ...pick(
+            m,
+            "id",
+            "threadId",
+            "parentId",
+            "role",
+            "userId",
+            "message",
+            "model",
+            "timestamp"
+          ),
+          metadata: {
+            documents: metadata?.documents.map((d: any) =>
+              pick(d, "documentId", "score")
+            ),
+          },
+        };
+      });
     }),
     "/chat/:sessionId/messages/:id": p.delete(async ({ ctx, params }) => {
       await ctx.dbs.default.query(

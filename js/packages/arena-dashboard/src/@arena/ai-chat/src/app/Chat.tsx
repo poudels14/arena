@@ -1,4 +1,5 @@
 import {
+  For,
   Index,
   Match,
   Show,
@@ -69,6 +70,23 @@ const Chat = () => {
 
                 const marked = new Marked({});
                 const tokens = createMemo(() => marked.lexer(m.message()));
+                const uniqueDocuments = createMemo(() => {
+                  const allDocs = state.documents() || [];
+                  const docs = m.metadata.documents!() || [];
+                  const uniqueDocs: any[] = [];
+                  docs.forEach((d: any) => {
+                    if (!uniqueDocs.find((ud) => ud.id == d.documentId)) {
+                      const document = allDocs.find(
+                        (ad) => ad.id == d.documentId
+                      );
+                      uniqueDocs.push({
+                        id: d.documentId,
+                        name: document?.name,
+                      });
+                    }
+                  });
+                  return uniqueDocs;
+                });
 
                 return (
                   <div class="flex flex-row w-full space-x-2">
@@ -83,16 +101,16 @@ const Chat = () => {
                       </Switch>
                     </div>
                     <div
-                      class="px-3 py-1 flex-1 rounded-sm"
-                      classList={{
-                        "bg-blue-100": m.role() == "user",
-                        "bg-brand-3": m.role() == "ai",
-                        "border border-red-700": m.streaming(),
-                      }}
+                      class="flex-1 rounded-sm space-y-2"
                       data-message-id={m.id()}
                     >
                       <div
-                        class="message"
+                        class="message px-3 py-1"
+                        classList={{
+                          "bg-blue-100": m.role() == "user",
+                          "bg-brand-3": m.role() == "ai",
+                          "border border-red-700": m.streaming(),
+                        }}
                         style={"letter-spacing: 0.1px; word-spacing: 1px"}
                       >
                         <Markdown
@@ -103,9 +121,11 @@ const Chat = () => {
                                 <code
                                   class="block my-2 px-4 py-4 rounded bg-gray-800 text-white"
                                   innerHTML={
-                                    hljs.highlight(props.text, {
-                                      language: props.lang,
-                                    }).value
+                                    props.lang
+                                      ? hljs.highlight(props.text, {
+                                          language: props.lang,
+                                        }).value
+                                      : props.text
                                   }
                                 />
                               );
@@ -113,6 +133,37 @@ const Chat = () => {
                           }}
                         />
                       </div>
+                      <Show when={uniqueDocuments().length > 0}>
+                        <div class="matched-documents px-2 space-y-2">
+                          <div class="font-medium">Documents</div>
+                          <div class="px-2 space-y-1">
+                            <For each={uniqueDocuments()}>
+                              {(doc) => {
+                                return (
+                                  <div
+                                    class=""
+                                    classList={{
+                                      "text-accent-9": !doc.name,
+                                    }}
+                                  >
+                                    <div class="inline px-2 py-1 bg-brand-10/10 rounded-sm">
+                                      {doc.name ? (
+                                        <span class="cursor-pointer">
+                                          {doc.name}
+                                        </span>
+                                      ) : (
+                                        <span class="line-through">
+                                          Document has been deleted
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              }}
+                            </For>
+                          </div>
+                        </div>
+                      </Show>
                     </div>
                   </div>
                 );
