@@ -1,9 +1,10 @@
-import { For, useContext } from "solid-js";
+import { For, Match, Show, Switch, createSignal, useContext } from "solid-js";
 import { useAppContext } from "@arena/sdk/app";
 import { createMutationQuery } from "@arena/uikit/solid";
 import { InlineIcon } from "@arena/components";
 import LinkIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/link";
 import UploadIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/cloud-upload";
+import EditIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/edit";
 import { Document } from "../types";
 import { ChatContext } from "../ChatContext";
 
@@ -20,19 +21,53 @@ const SUPPORTED_FILE_TYPES = [
   ".json",
 ];
 
-const Documents = (props: { documents: Document[] }) => {
+const Documents = () => {
+  const { state, setState } = useContext(ChatContext)!;
+  const { router } = useAppContext();
+
+  const updateDocumentName = (id: string, name: string) =>
+    setState("documents", (prev) => {
+      return prev!.map((d) => {
+        if (d.id == id) {
+          return {
+            ...d,
+            name,
+          };
+        }
+        return d;
+      });
+    });
+
+  const renameDocument = async (
+    id: string,
+    oldName: string,
+    newName: string
+  ) => {
+    updateDocumentName(id, newName);
+    await router
+      .post(`/api/documents/${id}/edit`, {
+        name: newName,
+      })
+      .catch((_) => {
+        updateDocumentName(id, oldName);
+      });
+  };
   return (
-    <>
+    <Show when={state.documents()}>
       <div class="flex px-2 text-sm font-medium text-gray-800">
         <div class="flex-1 leading-6">Documents</div>
         <LinkNewDocument />
       </div>
       <div>
-        <For each={props.documents}>
-          {(document) => <Document id={document.id} name={document.name} />}
+        <For each={state.documents()}>
+          {(document) => {
+            return (
+              <DocumentTab {...document} renameDocument={renameDocument} />
+            );
+          }}
         </For>
       </div>
-    </>
+    </Show>
   );
 };
 
@@ -76,7 +111,7 @@ const LinkNewDocument = () => {
 
 const DocumentUploader = (props: { ref: any }) => {
   const { router } = useAppContext();
-  const { state, setState } = useContext(ChatContext)!;
+  const { setState } = useContext(ChatContext)!;
 
   let formRef: any;
   const uploadDocument = createMutationQuery(async () => {
@@ -89,11 +124,18 @@ const DocumentUploader = (props: { ref: any }) => {
 
     setState("documents", (prev) => {
       const { existing: existingDocs, new: newDocs } = res.data;
-      const all = [...(prev || []), ...existingDocs, ...newDocs];
-      const unique: Document[] = [];
-      all.forEach((d) => {
+      const unique: Document[] = [...(prev || [])];
+      existingDocs.forEach((d: Document) => {
         if (!unique.find((u) => u.id === d.id)) {
           unique.push(d);
+        }
+      });
+      newDocs.forEach((d: Document) => {
+        if (!unique.find((u) => u.id === d.id)) {
+          unique.push({
+            ...d,
+            isNew: true,
+          });
         }
       });
       return unique;
@@ -128,9 +170,20 @@ const DocumentUploader = (props: { ref: any }) => {
   );
 };
 
-const Document = (props: { id: string; name: string; active?: boolean }) => {
+const DocumentTab = (props: {
+  id: string;
+  name: string;
+  isNew?: boolean;
+  active?: boolean;
+  renameDocument: (id: string, oldName: string, newName: string) => void;
+}) => {
+  const [isEditMode, setEditMode] = createSignal(false);
+  const renameDocument = (e: any) => {
+    props.renameDocument(props.id, props.name, e.target.value);
+    setEditMode(false);
+  };
   return (
-    <label class="flex align-middle items-center">
+    <label class="group flex align-middle items-center">
       <div class="group relative">
         {/* <input
           type="checkbox"
@@ -144,13 +197,34 @@ const Document = (props: { id: string; name: string; active?: boolean }) => {
       </div>
       <div
         class="flex-1 py-0.5 px-2 rounded cursor-pointer text-accent-12/80 hover:bg-accent-4"
-        classList={
-          {
-            // "text-accent-9": !props.active,
-          }
-        }
+        classList={{
+          "bg-brand-12/10": isEditMode(),
+        }}
       >
-        {props.name}
+        <Switch>
+          <Match when={isEditMode()}>
+            <input
+              class="w-full bg-transparent outline-none"
+              value={props.name}
+              onChange={renameDocument}
+            />
+          </Match>
+          <Match when={true}>{props.name}</Match>
+        </Switch>
+      </div>
+      <Show when={props.isNew}>
+        <div class="w-1.5 h-1.5 bg-green-500 rounded-full" />
+      </Show>
+      <div>
+        <Show when={!isEditMode()}>
+          <InlineIcon
+            size="18px"
+            class="hidden group-hover:block p-1 rounded cursor-pointer hover:bg-brand-11/10 text-brand-12/80"
+            onClick={() => setEditMode(true)}
+          >
+            <path d={EditIcon[0]} />
+          </InlineIcon>
+        </Show>
       </div>
     </label>
   );

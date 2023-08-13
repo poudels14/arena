@@ -1,10 +1,8 @@
-import { Show, createSelector, useContext } from "solid-js";
+import { Show, createSelector } from "solid-js";
 import { createStore } from "@arena/solid-store";
 import { Documents } from "./Documents";
-import { ChatContext } from "../ChatContext";
 
 const Sidebar = () => {
-  const { state } = useContext(ChatContext)!;
   const [sidebarState, setState] = createStore({
     tab: {
       selected: "Chat",
@@ -30,9 +28,7 @@ const Sidebar = () => {
               </div>
             </div>
             <div class="space-y-2">
-              <Show when={state.documents()}>
-                <Documents documents={state.documents()!} />
-              </Show>
+              <Documents />
             </div>
           </div>
         </Show>
