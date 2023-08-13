@@ -1,9 +1,7 @@
 import {
   For,
   Index,
-  Match,
   Show,
-  Switch,
   createComputed,
   createEffect,
   createMemo,
@@ -48,12 +46,12 @@ const Chat = () => {
             ref={chatMessagesRef}
             class="chat-messages pb-24 py-2 space-y-5 text-sm text-accent-12/80"
           >
-            <Index each={state.activeSession.messages()}>
+            <Index each={state.activeChannel.messages()}>
               {(_, index) => {
                 // Note(sagar): use state directly to only update message
                 // content element when streaming
-                const m = state.activeSession.messages[index];
-                if (index == state.activeSession.messages().length - 1) {
+                const m = state.activeChannel.messages[index];
+                if (index == state.activeChannel.messages().length - 1) {
                   createEffect(() => {
                     void m.message();
                     // Note(sagar): scroll to the bottom. Need to do it after
@@ -89,16 +87,15 @@ const Chat = () => {
                 });
 
                 return (
-                  <div class="flex flex-row w-full space-x-2">
-                    <div class="mt-2 flex py-2 w-8 h-8 text-xs bg-green-200 rounded-lg justify-center">
-                      <Switch>
-                        <Match when={m.role() == "ai"}>
-                          <div>AI</div>
-                        </Match>
-                        <Match when={m.role() == "user"}>
-                          <div>User</div>
-                        </Match>
-                      </Switch>
+                  <div class="flex flex-row w-full space-x-3">
+                    <div
+                      class="mt-2 w-8 h-8 text-[0.6rem] font-medium leading-8 rounded-lg border select-none text-center"
+                      classList={{
+                        "bg-blue-100": m.role() == "user",
+                        "bg-brand-3": m.role() == "ai",
+                      }}
+                    >
+                      {m.role() == "ai" ? "AI" : "User"}
                     </div>
                     <div
                       class="flex-1 rounded-sm space-y-2"
@@ -176,12 +173,12 @@ const Chat = () => {
         <div class="w-8"></div>
         <div class="flex-1 max-w-[560px] rounded-lg pointer-events-auto backdrop-blur-xl">
           <div class="flex p-2 flex-row text-accent-11">
-            <Show when={state.activeSession.messages().length > 0}>
+            <Show when={state.activeChannel.messages().length > 0}>
               <div class="new-chat flex pr-2 text-xs font-normal text-brand-12/80 border border-brand-12/50 rounded align-middle cursor-pointer select-none bg-white shadow-2xl">
                 <InlineIcon size="20px" class="py-1">
                   <path d={AddIcon[0]} />
                 </InlineIcon>
-                <div class="leading-5">New chat</div>
+                <div class="leading-5">New thread</div>
               </div>
             </Show>
           </div>

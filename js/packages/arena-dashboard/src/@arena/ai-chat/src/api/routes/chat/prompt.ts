@@ -16,7 +16,9 @@ const generatePomptWithContext = (documents: ChatContext["documents"]) => {
   
   Context:
   
-  ${documents.map((d) => d.content).join("\n\n")}`;
+  ${documents
+    .map((d, idx) => `document ${idx}: \n\n ${d.content}`)
+    .join("\n\n")}`;
 };
 
 export { generateSystemPrompt };

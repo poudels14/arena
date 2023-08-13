@@ -13,18 +13,25 @@ const main: SqliteDatabaseConfig = {
   migrations: [
     {
       async up(mainDb: SqliteDatabaseClient) {
-        await mainDb.query(`CREATE TABLE chat_sessions (
-        -- session id
+        await mainDb.query(`CREATE TABLE chat_channels (
+        -- channel id
         id          TEXT NOT NULL,
-        title       TEXT
+        name        TEXT
       )`);
+      },
+    },
+    {
+      async up(mainDb: SqliteDatabaseClient) {
+        await mainDb.query(
+          `INSERT INTO chat_channels (id, name) VALUES ('default', 'Default')`
+        );
       },
     },
     {
       async up(mainDb: SqliteDatabaseClient) {
         await mainDb.query(`CREATE TABLE chat_messages (
         id          TEXT NOT NULL,
-        session_id  TEXT NOT NULL,
+        channel_id  TEXT NOT NULL,
         thread_id   TEXT,
         -- parent message id; this is set for AI response to a message
         parent_id   TEXT,

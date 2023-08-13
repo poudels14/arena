@@ -9,7 +9,7 @@ import { Document } from "./types";
 type SendMessageQuery = (message: string) => Promise<void>;
 type Message = {
   id: string;
-  sessionId: string;
+  channelId: string;
   threadId: string | null;
   message: string;
   role: string;
@@ -26,7 +26,7 @@ type Message = {
 
 type State = {
   documents: null | Document[];
-  activeSession: {
+  activeChannel: {
     id: string;
     messages: Message[];
   };
@@ -46,15 +46,15 @@ const ChatContextProvider = (props: any) => {
 
   const [state, setState] = createStore<State>({
     documents: null,
-    activeSession: {
+    activeChannel: {
       id: "1",
       messages: [],
     },
     isGeneratingResponse: false,
   });
 
-  const listMessages = async (sessionId: string) => {
-    return (await router.get(`/api/chat/${sessionId}/messages`)).data;
+  const listMessages = async (channelId: string) => {
+    return (await router.get(`/api/chat/${channelId}/messages`)).data;
   };
 
   const fetchDocuments = async () => {
@@ -69,22 +69,22 @@ const ChatContextProvider = (props: any) => {
         timestamp: new Date(m.timestamp),
       };
     });
-    setState("activeSession", "messages", m as any);
+    setState("activeChannel", "messages", m as any);
   });
 
   const sendNewMessage = createMutationQuery<SendMessageQuery>(
     async (message) => {
       const messageId = uniqueId();
-      const sessionId = state.activeSession.id();
+      const channelId = state.activeChannel.id();
       setState("isGeneratingResponse", true);
-      setState("activeSession", "messages", (prev: any) => {
+      setState("activeChannel", "messages", (prev: any) => {
         return [
           ...prev,
           {
             id: messageId,
             message,
             role: "user",
-            sessionId,
+            channelId,
             timestamp: new Date().getTime(),
             userId: null,
           },
@@ -92,7 +92,7 @@ const ChatContextProvider = (props: any) => {
       });
 
       const res = await router.post(
-        `/api/chat/${sessionId}/send`,
+        `/api/chat/${channelId}/send`,
         {
           id: messageId,
           message,
@@ -101,7 +101,7 @@ const ChatContextProvider = (props: any) => {
           responseType: "stream",
         }
       );
-      readMessageStream(sessionId, res, setState);
+      readMessageStream(channelId, res, setState);
     }
   );
 
@@ -113,7 +113,7 @@ const ChatContextProvider = (props: any) => {
 };
 
 const readMessageStream = async (
-  sessionId: string,
+  channelId: string,
   res: any,
   setState: StoreSetter<State>
 ) => {
@@ -123,7 +123,7 @@ const readMessageStream = async (
   for await (const { json: chunk } of stream) {
     if (chunk.id) {
       messageId = chunk.id;
-      setState("activeSession", "messages", (prev: any[]) => {
+      setState("activeChannel", "messages", (prev: any[]) => {
         if (prev.find((m) => m.id == chunk.id)) {
           throw new Error("Duplicate messages found");
         }
@@ -135,7 +135,7 @@ const readMessageStream = async (
             message: "",
             role: "ai",
             userId: null,
-            sessionId,
+            channelId,
             timestamp: chunk.timestamp,
             metadata: chunk.metadata,
             streaming: true,
@@ -145,7 +145,7 @@ const readMessageStream = async (
     }
 
     if (chunk.text) {
-      setState("activeSession", "messages", streamMsgIdx!, (prev: any) => {
+      setState("activeChannel", "messages", streamMsgIdx!, (prev: any) => {
         if (prev.id !== messageId) {
           // TODO(sagar): instead of throwing error here,
           // find the new index
@@ -163,7 +163,7 @@ const readMessageStream = async (
       throw new Error("Expected to received message id in the first chunk");
     }
   }
-  setState("activeSession", "messages", streamMsgIdx!, (prev: any) => {
+  setState("activeChannel", "messages", streamMsgIdx!, (prev: any) => {
     if (prev.id !== messageId) {
       // TODO(sagar): instead of throwing error here,
       // find the new index
