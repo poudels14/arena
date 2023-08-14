@@ -5,6 +5,7 @@ import {
   createComputed,
   createEffect,
   createMemo,
+  createResource,
   createSignal,
   onMount,
   useContext,
@@ -22,6 +23,8 @@ import rustGrammar from "highlight.js/lib/languages/rust";
 import SendIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/send-message";
 import AddIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/plus";
 import { ChatContext } from "./ChatContext";
+import { SlidingDrawer } from "@arena/components/SlidingDrawer";
+import { useAppContext } from "@arena/sdk/app";
 
 hljs.registerLanguage("javascript", jsGrammar);
 hljs.registerLanguage("css", cssGrammar);
@@ -30,17 +33,26 @@ hljs.registerLanguage("xml", xmlGrammar);
 hljs.registerLanguage("python", pythonGrammar);
 hljs.registerLanguage("rust", rustGrammar);
 
+const marked = new Marked({});
+
 const Chat = () => {
   const { state } = useContext(ChatContext)!;
   let chatMessagesContainerRef: any;
   let chatMessagesRef: any;
 
+  const [drawerDocument, setDrawerDocument] = createSignal<any>(null);
   return (
     <div class="chat relative h-full">
       <div
         ref={chatMessagesContainerRef}
         class="flex justify-center h-full overflow-y-auto"
       >
+        <Show when={drawerDocument()}>
+          <DocumentViewer
+            document={drawerDocument()}
+            onClose={() => setDrawerDocument(null)}
+          />
+        </Show>
         <div class="flex-1 max-w-[650px]">
           <div
             ref={chatMessagesRef}
@@ -66,7 +78,6 @@ const Chat = () => {
                   });
                 }
 
-                const marked = new Marked({});
                 const tokens = createMemo(() => marked.lexer(m.message()));
                 const uniqueDocuments = createMemo(() => {
                   const allDocs = state.documents() || [];
@@ -116,9 +127,10 @@ const Chat = () => {
                             code(props) {
                               return (
                                 <code
-                                  class="block my-2 px-4 py-4 rounded bg-gray-800 text-white"
+                                  class="block my-2 px-4 py-4 rounded bg-gray-800 text-white overflow-auto"
                                   innerHTML={
-                                    props.lang
+                                    props.lang &&
+                                    hljs.listLanguages().includes(props.lang)
                                       ? hljs.highlight(props.text, {
                                           language: props.lang,
                                         }).value
@@ -145,7 +157,10 @@ const Chat = () => {
                                   >
                                     <div class="inline px-2 py-1 bg-brand-10/10 rounded-sm">
                                       {doc.name ? (
-                                        <span class="cursor-pointer">
+                                        <span
+                                          class="cursor-pointer"
+                                          onClick={() => setDrawerDocument(doc)}
+                                        >
                                           {doc.name}
                                         </span>
                                       ) : (
@@ -283,6 +298,32 @@ const Chatbox = (props: any) => {
         </div>
       </form>
     </div>
+  );
+};
+
+const DocumentViewer = (props: { document: any; onClose: () => void }) => {
+  const { router } = useAppContext();
+
+  const [document] = createResource(
+    () => props.document,
+    (doc) => {
+      return router.get(`/api/documents/${doc.id}`).then((r) => r.data);
+    }
+  );
+
+  return (
+    <SlidingDrawer
+      onClose={() => props.onClose()}
+      contentClass="text-sm text-accent-12/80 overflow-y-auto"
+    >
+      {/* TODO(sagar): show loading UI */}
+      <Show when={document()}>
+        <div class="px-5 py-3 text-lg font-medium text-accent-12 bg-brand-3">
+          {document().name}
+        </div>
+        <div innerHTML={document().html} class="px-5 py-3"></div>
+      </Show>
+    </SlidingDrawer>
   );
 };
 

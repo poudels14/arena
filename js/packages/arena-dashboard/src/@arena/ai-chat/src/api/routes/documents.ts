@@ -1,10 +1,13 @@
 // @ts-expect-error
 import { createHash } from "crypto";
 import { pick } from "lodash-es";
+import { renderToStringAsync } from "solid-js/web";
 import { Splitter } from "@arena/llm/splitter";
 import { p } from "../procedure";
 import { DocumentEmbeddingsGenerator } from "../EmbeddingsGenerator";
 import { uniqueId } from "../utils";
+import Document from "./RenderDocument";
+import { createComponent } from "solid-js";
 
 const listDocuments = p.query(async ({ ctx }) => {
   const { default: sql } = ctx.dbs;
@@ -31,9 +34,13 @@ const getDocument = p.query(async ({ ctx, params, errors }) => {
   const document = documents[0];
   const doc = await vectordb.getDocument("uploads", document.id, "utf-8");
   return {
-    ...document,
-    uploadedAt: new Date(document.uploadedAt).toISOString(),
+    ...pick(document, "id", "name", "contentType", "uploadedAt"),
     content: doc.content,
+    html: await renderToStringAsync(() =>
+      createComponent(Document, {
+        content: doc.content,
+      })
+    ),
   };
 });
 
@@ -165,16 +172,14 @@ const uploadDocuments = p.mutate(async ({ req, ctx, form }) => {
   return {
     existing: existingDocs.map((d: any) => {
       return {
-        ...pick(d, "id", "contentType"),
+        ...pick(d, "id", "contentType", "uploadedAt"),
         name: d.name || d.filename,
-        uploadedAt: new Date(d.uploadedAt).toISOString(),
       };
     }),
     new: newDocuments.map((d) => {
       return {
-        ...pick(d, "id", "contentType"),
+        ...pick(d, "id", "contentType", "uploadedAt"),
         name: d.name || d.filename,
-        uploadedAt: d.uploadedAt.toISOString(),
       };
     }),
   };

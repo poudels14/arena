@@ -4,6 +4,7 @@
   "description": "",
   "arena": {
     "env": {
+      "NODE_ENV": "development",
       "ARENA_SSR": "false",
       "ARENA_ENTRY_CLIENT": "entry-client.tsx"
     },
