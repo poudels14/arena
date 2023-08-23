@@ -57,6 +57,7 @@ impl Command {
       builtin_modules.extend(vec![
         BuiltinModule::Custom(Rc::new(cloud::llm::extension)),
         BuiltinModule::Custom(Rc::new(cloud::pdf::extension)),
+        BuiltinModule::Custom(Rc::new(cloud::html::extension)),
       ]);
     }
 

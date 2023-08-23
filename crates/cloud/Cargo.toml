@@ -18,6 +18,7 @@ bstr.workspace = true
 simdutf8.workspace = true
 indexmap.workspace = true
 pdfium-render = { version = "0.8.8", features = ["thread_safe"] }
+html5ever = "0.26.0"
 tokenizers = { version = "0.13.3" }
 common = { path = "../common", features = ["data_query"] }
 jsruntime = { path = "../jsruntime" }
