@@ -54,8 +54,10 @@ impl Command {
     }
 
     if self.enable_cloud_ext {
-      builtin_modules
-        .extend(vec![BuiltinModule::Custom(Rc::new(cloud::llm::extension))]);
+      builtin_modules.extend(vec![
+        BuiltinModule::Custom(Rc::new(cloud::llm::extension)),
+        BuiltinModule::Custom(Rc::new(cloud::pdf::extension)),
+      ]);
     }
 
     let egress_addr = self
