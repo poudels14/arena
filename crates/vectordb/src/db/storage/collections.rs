@@ -9,6 +9,7 @@ use rocksdb::IteratorMode;
 use rocksdb::{ColumnFamily, WriteBatchWithTransaction};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashSet;
 
 pub static COLLECTIONS_CF: &'static str = "collections";
 
@@ -23,6 +24,10 @@ pub struct Collection {
   pub next_doc_index: u32,
   pub dimension: u16,
   pub metadata: Option<IndexMap<String, Value>>,
+  /// List of blob keys that are used in this collection
+  /// Keeping track of blob keys here allows us to delete all the blobs
+  /// when deleting the document
+  pub blobs: HashSet<String>,
 }
 
 pub fn cf(db: &Database) -> Result<impl DatabaseColumnFamily> {

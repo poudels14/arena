@@ -13,14 +13,19 @@ pub struct Collection {
 pub struct DocumentWithContent {
   pub content_length: u32,
   pub chunks_count: u32,
-  pub content: Vec<u8>,
   pub metadata: Option<IndexMap<String, Value>>,
+  pub content: Vec<u8>,
 }
 
 #[derive(Default, Deserialize)]
 pub struct Document {
-  pub content: Vec<u8>,
   pub metadata: Option<IndexMap<String, Value>>,
+  pub content: Vec<u8>,
+  /// A pair of blob key and value
+  /// This field can be used to store arbitary files corresponding to
+  /// the document like raw file and html content
+  #[serde(default)]
+  pub blobs: Vec<(String, Vec<u8>)>,
 }
 
 #[derive(Debug)]

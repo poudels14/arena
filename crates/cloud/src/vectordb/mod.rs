@@ -9,6 +9,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::path::Path;
 use std::rc::Rc;
 use vectordb::query::DocumentWithContent;
@@ -34,6 +35,7 @@ pub(crate) fn init() -> Extension {
       op_cloud_vectordb_add_document::decl(),
       op_cloud_vectordb_list_documents::decl(),
       op_cloud_vectordb_get_document::decl(),
+      op_cloud_vectordb_get_document_blobs::decl(),
       op_cloud_vectordb_set_document_embeddings::decl(),
       op_cloud_vectordb_delete_document::decl(),
       op_cloud_vectordb_search_collection::decl(),
@@ -66,8 +68,10 @@ pub struct Collection {
 
 #[derive(Deserialize)]
 pub struct NewDocument {
-  pub content: StringOrBuffer,
   pub metadata: Option<IndexMap<String, Value>>,
+  pub content: StringOrBuffer,
+  #[serde(default)]
+  pub blobs: IndexMap<String, StringOrBuffer>,
 }
 
 #[derive(Serialize)]
@@ -199,8 +203,13 @@ async fn op_cloud_vectordb_add_document(
     collection_id.as_str().into(),
     doc_id.as_str().into(),
     query::Document {
-      content: document.content.as_bytes().to_vec().into(),
       metadata: document.metadata,
+      content: document.content.as_bytes().to_vec(),
+      blobs: document
+        .blobs
+        .iter()
+        .map(|(k, v)| (k.as_str().into(), v.as_bytes().to_vec()))
+        .collect(),
     },
   )?;
   Ok(())
@@ -262,6 +271,28 @@ async fn op_cloud_vectordb_get_document(
       })
     })
     .transpose()
+}
+
+#[op]
+async fn op_cloud_vectordb_get_document_blobs(
+  state: Rc<RefCell<OpState>>,
+  rid: ResourceId,
+  collection_id: String,
+  doc_id: String,
+  blob_keys: Vec<String>,
+) -> Result<HashMap<String, Vec<u8>>> {
+  let resource = get_db_resource(state, rid)?;
+  let blobs = resource.db.borrow().get_document_blobs(
+    collection_id.as_str().into(),
+    doc_id.as_str().into(),
+    blob_keys.iter().map(|k| k.as_str().into()).collect(),
+  )?;
+  Ok(
+    blobs
+      .iter()
+      .filter_map(|b| b.1.as_ref().map(|c| (b.0.to_owned(), c.to_owned())))
+      .collect(),
+  )
 }
 
 #[op]

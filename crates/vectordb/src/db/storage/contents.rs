@@ -1,17 +1,15 @@
 use super::collections::Collection;
-use super::Database;
+use super::{Database, Document};
 use crate::db::rocks::cf::{column_handle, DatabaseColumnFamily};
 use crate::db::rocks::PinnableSlice;
 use crate::utils::bytes::ToBeBytes;
 use anyhow::Result;
-use bstr::BStr;
-use rocksdb::{ColumnFamily, DBCompressionType, Options, ReadOptions};
+use rocksdb::{
+  ColumnFamily, DBCompressionType, Options, ReadOptions,
+  WriteBatchWithTransaction,
+};
 
 pub static DOC_CONTENTS_CF: &'static str = "document-contents";
-
-pub fn cf<'a>(db: &'a Database) -> Result<impl DatabaseColumnFamily> {
-  Ok((db, column_handle(db, DOC_CONTENTS_CF)?))
-}
 
 pub fn get_db_options() -> Options {
   let mut opt = Options::default();
@@ -26,28 +24,69 @@ pub fn get_db_options() -> Options {
 }
 
 #[allow(dead_code)]
-pub struct DocumentContentsHandle<'d> {
-  collection_index: u32,
+pub struct DocumentBlobsHandle<'d> {
+  collection: &'d Collection,
+  document: &'d Document,
   handle: (&'d Database, &'d ColumnFamily),
 }
 
 #[allow(dead_code)]
-impl<'d> DocumentContentsHandle<'d> {
-  pub fn new(db: &'d Database, collection: &Collection) -> Result<Self> {
+impl<'d> DocumentBlobsHandle<'d> {
+  pub fn new(
+    db: &'d Database,
+    collection: &'d Collection,
+    document: &'d Document,
+  ) -> Result<Self> {
     Ok(Self {
-      collection_index: collection.index,
+      collection,
+      document,
       handle: (db, column_handle(db, DOC_CONTENTS_CF)?),
     })
   }
 
-  pub fn get_pinned_slice(
+  pub fn batch_put_content(
     &self,
-    doc_id: &BStr,
-  ) -> Result<Option<PinnableSlice>> {
-    let storage_doc_id = (self.collection_index, doc_id).to_be_bytes();
+    batch: &mut WriteBatchWithTransaction<true>,
+    content: &[u8],
+  ) {
+    self.batch_put_blob(batch, "content".into(), &content);
+  }
 
+  /// Put a blob with the given key corresponding to the document
+  pub fn batch_put_blob(
+    &self,
+    batch: &mut WriteBatchWithTransaction<true>,
+    blob_key: &str,
+    content: &[u8],
+  ) {
+    self.handle.batch_put(
+      batch,
+      &(self.collection.index, self.document.index, "-", blob_key)
+        .to_be_bytes(),
+      &content,
+    );
+  }
+
+  pub fn get_content(&self) -> Result<Option<PinnableSlice>> {
+    self.get_blob("content".into())
+  }
+
+  pub fn get_blob(&self, blob_key: &str) -> Result<Option<PinnableSlice>> {
     let mut read_options = ReadOptions::default();
     read_options.fill_cache(false);
-    self.handle.get_pinned_opt(storage_doc_id, &read_options)
+    self.handle.get_pinned_opt(
+      (self.collection.index, self.document.index, "-", blob_key).to_be_bytes(),
+      &read_options,
+    )
+  }
+
+  /// Deletes all blobs including "content" for this collection/document
+  pub fn batch_delete(&self, batch: &mut WriteBatchWithTransaction<true>) {
+    self.collection.blobs.iter().for_each(|key| {
+      self.handle.batch_delete(
+        batch,
+        &(self.collection.index, self.document.index, "-", key).to_be_bytes(),
+      )
+    });
   }
 }

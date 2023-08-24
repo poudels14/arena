@@ -86,6 +86,22 @@ class VectorDatabase implements Client {
     );
   }
 
+  async getDocumentBlobs(
+    collectionId: string,
+    documentId: string,
+    keys: string[]
+  ) {
+    assert.notNil(collectionId, "Collection id");
+    assert.notNil(documentId, "Document id");
+    return await opAsync(
+      "op_cloud_vectordb_get_document_blobs",
+      this.#rid,
+      collectionId,
+      documentId,
+      keys
+    );
+  }
+
   async setDocumentEmbeddings(
     collectionId: string,
     documentId: string,

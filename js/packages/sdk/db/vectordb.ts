@@ -13,6 +13,9 @@ export type Collection = {
 
 export type AddDocumentPayload = {
   content: string;
+  // a map of key, value to store arbiraty blobs corresponding to the document
+  // this can be used to store original document, html, etc of the doc
+  blobs?: Record<string, string | ArrayBuffer>;
 };
 
 export type DocumentEmbeddings = {
@@ -28,6 +31,8 @@ export type Document = {
   metadata: any;
   content: any;
 };
+
+export type DocumentBlobs = Record<string, ArrayBuffer>;
 
 export type SearchCollectionOptions = {
   includeChunkContent: boolean;
@@ -84,6 +89,12 @@ export type Client = {
     documentId: string,
     encoding?: "utf-8"
   ): Promise<Document>;
+
+  getDocumentBlobs(
+    collectionId: string,
+    documentId: string,
+    keys: string[]
+  ): Promise<DocumentBlobs>;
 
   setDocumentEmbeddings(
     collectionId: string,

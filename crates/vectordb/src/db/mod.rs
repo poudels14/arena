@@ -7,7 +7,7 @@ use self::storage::contents::DOC_CONTENTS_CF;
 use self::storage::documents::DOCUMENTS_CF;
 use self::storage::embeddings::{StoredEmbeddings, DOC_EMBEDDINGS_CF};
 use self::storage::{
-  Collection, CollectionsHandle, Database, Document, DocumentContentsHandle,
+  Collection, CollectionsHandle, Database, Document, DocumentBlobsHandle,
   DocumentEmbeddingsHandle, DocumentsHandle,
 };
 use crate::db::rocks::cf::DatabaseColumnFamily;
@@ -23,6 +23,7 @@ use rocksdb::{
   ColumnFamilyDescriptor, DBCompressionType, FlushOptions, IteratorMode,
   OptimisticTransactionDB, Options, ReadOptions,
 };
+use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Default)]
@@ -124,6 +125,7 @@ impl<'d> VectorDatabase {
       next_doc_index: 0,
       dimension: col.dimension,
       metadata: col.metadata,
+      blobs: HashSet::new(),
     };
     collections_h.put(id, &stored_collection)?;
 
@@ -180,7 +182,7 @@ impl<'d> VectorDatabase {
     &mut self,
     collection_id: &BStr,
     doc_id: &BStr,
-    query: query::Document,
+    doc: query::Document,
   ) -> Result<()> {
     let collection = self.get_internal_collection(collection_id)?;
     let mut collection = collection.lock().map_err(lock_error)?;
@@ -203,12 +205,12 @@ impl<'d> VectorDatabase {
 
     let document = storage::Document {
       index: collection.next_doc_index,
-      content_length: query.content.len() as u32,
+      content_length: doc.content.len() as u32,
       chunks_count: 0,
-      metadata: query.metadata,
+      metadata: doc.metadata,
     };
 
-    let contents_cf = storage::contents::cf(&self.db)?;
+    let blobs_h = DocumentBlobsHandle::new(&self.db, &collection, &document)?;
     let txn = self.db.transaction();
     let mut batch = txn.get_writebatch();
 
@@ -217,11 +219,22 @@ impl<'d> VectorDatabase {
       &storage_doc_id,
       &rmp_serde::to_vec(&document)?,
     );
-    contents_cf.batch_put(&mut batch, &storage_doc_id, &query.content);
+    blobs_h.batch_put_content(&mut batch, &doc.content);
+
+    doc.blobs.iter().for_each(|(key, blob)| {
+      blobs_h.batch_put_blob(&mut batch, key, &blob);
+    });
 
     let collections_h = CollectionsHandle::new(&self.db)?;
     collection.documents_count += 1;
     collection.next_doc_index += 1;
+    collection.blobs.extend(
+      doc
+        .blobs
+        .iter()
+        .map(|(key, _)| key.clone())
+        .collect::<Vec<String>>(),
+    );
     collections_h.batch_put(&mut batch, collection_id, &collection)?;
 
     self
@@ -327,30 +340,43 @@ impl<'d> VectorDatabase {
     let documents_h = DocumentsHandle::new(&self.db, &collection)?;
     let document = documents_h.get(doc_id)?;
     if let Some(doc) = document {
-      let content_h = DocumentContentsHandle::new(&self.db, &collection)?;
-      let content = content_h
-        .get_pinned_slice(doc_id)?
-        .ok_or(anyhow!("Document content not found"))?;
+      let blob_h = DocumentBlobsHandle::new(&self.db, &collection, &doc)?;
+      let content = blob_h
+        .get_content()?
+        .ok_or(anyhow!("Document content not found"))?
+        .to_vec();
+
       return Ok(Some(query::DocumentWithContent {
         content_length: doc.content_length,
         chunks_count: doc.chunks_count,
         metadata: doc.metadata,
-        content: content.to_vec(),
+        content,
       }));
     }
 
     Ok(None)
   }
 
-  /// Returns the db handle of the document content of given collection
   #[allow(dead_code)]
-  pub fn get_document_content_handle(
-    &'d self,
-    collection_id: &BStr,
-  ) -> Result<DocumentContentsHandle> {
-    let collection = self.get_internal_collection(collection_id)?;
+  pub fn get_document_blobs(
+    &self,
+    col_id: &BStr,
+    doc_id: &BStr,
+    keys: Vec<String>,
+  ) -> Result<Vec<(String, Option<Vec<u8>>)>> {
+    let collection = self.get_internal_collection(col_id)?;
     let collection = collection.lock().map_err(lock_error)?;
-    DocumentContentsHandle::new(&self.db, &collection)
+    let documents_h = DocumentsHandle::new(&self.db, &collection)?;
+    let document = documents_h
+      .get(doc_id)?
+      .ok_or(anyhow!("Document not found"))?;
+    let blob_h = DocumentBlobsHandle::new(&self.db, &collection, &document)?;
+    keys
+      .iter()
+      .map(|key| {
+        Ok((key.to_owned(), blob_h.get_blob(key)?.map(|b| b.to_vec())))
+      })
+      .collect()
   }
 
   /// Returns all the embeddings in a collection
@@ -418,11 +444,11 @@ impl<'d> VectorDatabase {
     collections_h.batch_put(&mut batch, collection_id, &collection)?;
 
     let document_cf = storage::documents::cf(&self.db)?;
-    let contents_cf = storage::contents::cf(&self.db)?;
+    let blob_h = DocumentBlobsHandle::new(&self.db, &collection, &document)?;
 
     let storage_doc_id: Vec<u8> = (collection.index, doc_id).to_be_bytes();
     document_cf.batch_delete(&mut batch, &storage_doc_id);
-    contents_cf.batch_delete(&mut batch, &storage_doc_id);
+    blob_h.batch_delete(&mut batch);
 
     let embeddings_h =
       DocumentEmbeddingsHandle::new(&self.db, &collection, &document)?;
