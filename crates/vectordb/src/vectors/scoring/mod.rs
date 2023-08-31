@@ -1,7 +1,8 @@
 mod glam;
+mod simd;
 pub mod sortedscore;
 
-use self::glam::GlamDotSimilarity;
+use self::simd::SimdDotSimilarity;
 use super::VectorElement;
 
 pub type Score = f32;
@@ -32,7 +33,7 @@ pub struct SimilarityScorerFactory;
 impl SimilarityScorerFactory {
   pub fn get_default<'a>(t: SimilarityType) -> &'a dyn SimilarityScorer {
     match t {
-      SimilarityType::Dot => &GlamDotSimilarity {},
+      SimilarityType::Dot => &SimdDotSimilarity {},
       _ => unimplemented!(),
     }
   }
