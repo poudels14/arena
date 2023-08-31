@@ -72,6 +72,7 @@ pub async fn op_cloud_pdf_to_html(
 
                     let rotation = object.get_rotation_clockwise_degrees();
                     let text = object.text();
+                    let text = html_escape::encode_text(&text);
 
                     Some(format!(
                       r#"<div class="pdf-text" style="position:absolute; left: {left:.2}%; top: {top:.2}%; font-size: calc(var(--scale-factor)*{font_size:.2}px); white-space: pre; transform-origin: 0 0; transform: scaleX(1) rotate({rotation}deg)">{text}</div>
