@@ -34,6 +34,9 @@ pub struct StoredEmbeddings {
   /// end index of the chunk
   pub end: u32,
   pub vectors: Vec<f32>,
+  // Note(sagar): store as serialized bytes (Vec<u8>) since rkyv can't
+  // serialize serde_json::Value
+  pub metadata: Vec<u8>,
 }
 
 impl StoredEmbeddings {

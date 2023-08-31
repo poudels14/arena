@@ -11,7 +11,9 @@ use bitvec::field::BitField;
 use bitvec::prelude::Msb0;
 use bitvec::view::BitView;
 use bstr::{BStr, BString};
+use indexmap::IndexMap;
 use rocksdb::ReadOptions;
+use serde_json::Value;
 
 pub struct FsSearch<'a> {
   db: &'a VectorDatabase,
@@ -29,7 +31,7 @@ impl<'a> FsSearch<'a> {
     query: &[VectorElement],
     k: usize,
     options: SearchOptions,
-  ) -> Result<Vec<(f32, (BString, i32, u32, u32))>> {
+  ) -> Result<Vec<(f32, (BString, i32, u32, u32, IndexMap<String, Value>))>> {
     let collection = self.db.get_internal_collection(collection_id)?;
     let collection = collection.lock().map_err(lock_error)?;
 
@@ -44,6 +46,7 @@ impl<'a> FsSearch<'a> {
       vec![b"".into(); collection.next_doc_index as usize];
     let document_h = DocumentsHandle::new(&self.db.db, &collection)?;
 
+    // TODO: only load docs found in top k results
     document_h.iterator().for_each(|item| {
       if let Ok((id, doc)) = item {
         document_id_by_index[doc.index as usize] = id;
@@ -60,8 +63,8 @@ impl<'a> FsSearch<'a> {
 
     embeddings_cf
       .prefix_iterator(&collection.index.to_be_bytes())
-      .map(|embedding| {
-        let (key, embedding) = embedding?;
+      .filter_map(|embedding| embedding.ok())
+      .for_each(|(key, embedding)| {
         let embedding =
           unsafe { rkyv::archived_root::<StoredEmbeddings>(&embedding) };
         let score = scorer.similarity(&query, &embedding.vectors);
@@ -72,30 +75,32 @@ impl<'a> FsSearch<'a> {
           let chunk_index: i32 = key[8..12].view_bits::<Msb0>().load_be();
           scores.push((
             score,
-            (doc_index, chunk_index, embedding.start, embedding.end),
+            (
+              doc_index,
+              chunk_index,
+              embedding.start,
+              embedding.end,
+              embedding.metadata.to_vec(),
+            ),
           ));
         }
+      });
 
-        Ok(())
-      })
-      .collect::<Result<()>>()?;
-
-    Ok(
-      scores
-        .as_vec()
-        .iter()
-        .map(|(score, info)| {
+    scores
+      .as_vec()
+      .iter()
+      .map(|(score, info)| {
+        Ok((
+          score.to_owned(),
           (
-            score.to_owned(),
-            (
-              document_id_by_index[info.0 as usize].clone(),
-              info.1,
-              info.2,
-              info.3,
-            ),
-          )
-        })
-        .collect(),
-    )
+            document_id_by_index[info.0 as usize].clone(),
+            info.1,
+            info.2,
+            info.3,
+            rmp_serde::from_slice::<IndexMap<String, Value>>(&info.4)?,
+          ),
+        ))
+      })
+      .collect()
   }
 }

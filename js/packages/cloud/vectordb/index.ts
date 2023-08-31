@@ -89,7 +89,8 @@ class VectorDatabase implements Client {
   async getDocumentBlobs(
     collectionId: string,
     documentId: string,
-    keys: string[]
+    keys: string[],
+    encoding?: "base-64"
   ) {
     assert.notNil(collectionId, "Collection id");
     assert.notNil(documentId, "Document id");
@@ -98,7 +99,8 @@ class VectorDatabase implements Client {
       this.#rid,
       collectionId,
       documentId,
-      keys
+      keys,
+      encoding
     );
   }
 

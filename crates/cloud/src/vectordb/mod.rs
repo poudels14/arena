@@ -263,8 +263,7 @@ async fn op_cloud_vectordb_get_document(
 
   document
     .map(|doc| {
-      let content =
-        encoded_buffer(doc.content.into_boxed_slice(), content_encoding)?;
+      let content = encoded_buffer(&doc.content, &content_encoding)?;
       Ok(Document {
         id: doc_id,
         chunks_count: doc.chunks_count,
@@ -283,19 +282,25 @@ async fn op_cloud_vectordb_get_document_blobs(
   collection_id: String,
   doc_id: String,
   blob_keys: Vec<String>,
-) -> Result<HashMap<String, Vec<u8>>> {
+  encoding: Option<String>,
+) -> Result<HashMap<String, StringOrBuffer>> {
   let resource = get_db_resource(state, rid)?;
   let blobs = resource.db.borrow().get_document_blobs(
     collection_id.as_str().into(),
     doc_id.as_str().into(),
     blob_keys.iter().map(|k| k.as_str().into()).collect(),
   )?;
-  Ok(
-    blobs
-      .iter()
-      .filter_map(|b| b.1.as_ref().map(|c| (b.0.to_owned(), c.to_owned())))
-      .collect(),
-  )
+
+  blobs
+    .into_iter()
+    .filter_map(|b| {
+      b.1.map(|c| match encoding.as_ref() {
+        Some(e) if e == "base-64" => Ok((b.0, encoded_buffer(&c, &encoding)?)),
+        None => Ok((b.0, encoded_buffer(&c, &encoding)?)),
+        _ => bail!("Only base-64 encoding is supported"),
+      })
+    })
+    .collect()
 }
 
 #[op]
@@ -361,6 +366,8 @@ pub struct SearchCollectionResult {
   pub content: Option<StringOrBuffer>,
   /// Only set if before/after_context is non-zero
   pub context: (Option<StringOrBuffer>, Option<StringOrBuffer>),
+  /// Chunk/embedding metadata
+  pub metadata: IndexMap<String, Value>,
 }
 
 #[op]
@@ -387,7 +394,7 @@ async fn op_cloud_vectordb_search_collection(
   let mut documents: IndexMap<String, DocumentWithContent> = IndexMap::new();
 
   result
-    .iter()
+    .into_iter()
     .map(|(score, m)| {
       let document_id = std::str::from_utf8(&m.0)
         .context("document name should be utf-8")
@@ -411,8 +418,8 @@ async fn op_cloud_vectordb_search_collection(
           let doc = documents.get(&document_id).unwrap();
 
           let chunk = encoded_buffer(
-            doc.content[start..end].to_vec().into_boxed_slice(),
-            options.content_encoding.clone(),
+            &doc.content[start..end],
+            &options.content_encoding,
           )?;
 
           let before_ctx = options
@@ -420,10 +427,8 @@ async fn op_cloud_vectordb_search_collection(
             .and_then(|size| {
               if start > 0 {
                 Some(encoded_buffer(
-                  doc.content[0.max(start - size)..start]
-                    .to_vec()
-                    .into_boxed_slice(),
-                  options.content_encoding.clone(),
+                  &doc.content[0.max(start - size)..start],
+                  &options.content_encoding,
                 ))
               } else {
                 None
@@ -434,10 +439,8 @@ async fn op_cloud_vectordb_search_collection(
             .after_context
             .map(|size| {
               encoded_buffer(
-                doc.content[end..(end + size).min(doc.content.len())]
-                  .to_vec()
-                  .into_boxed_slice(),
-                options.content_encoding.clone(),
+                &doc.content[end..(end + size).min(doc.content.len())],
+                &options.content_encoding,
               )
             })
             .transpose()?;
@@ -447,7 +450,7 @@ async fn op_cloud_vectordb_search_collection(
       };
 
       Ok(SearchCollectionResult {
-        score: *score,
+        score,
         document_id: std::str::from_utf8(&m.0)
           .context("document name should be utf-8")
           .map(|s| s.to_owned())?,
@@ -456,6 +459,7 @@ async fn op_cloud_vectordb_search_collection(
         end,
         content,
         context,
+        metadata: m.4,
       })
     })
     .collect::<Result<Vec<SearchCollectionResult>>>()
@@ -492,15 +496,20 @@ fn get_db_resource(
 }
 
 fn encoded_buffer(
-  content: Box<[u8]>,
-  encoding: Option<String>,
+  content: &[u8],
+  encoding: &Option<String>,
 ) -> Result<StringOrBuffer> {
-  match encoding.unwrap_or_default().as_ref() {
-    "utf-8" => Ok(StringOrBuffer::String(
+  match encoding.as_ref() {
+    Some(e) if e == "utf-8" => Ok(StringOrBuffer::String(
       simdutf8::basic::from_utf8(&content)
         .context("decoding content to utf-8")?
         .to_owned(),
     )),
-    _ => Ok(StringOrBuffer::Buffer(ZeroCopyBuf::ToV8(Some(content)))),
+    Some(e) if e == "base-64" => {
+      Ok(StringOrBuffer::String(base64::encode(content)))
+    }
+    _ => Ok(StringOrBuffer::Buffer(ZeroCopyBuf::ToV8(Some(
+      content.to_vec().into_boxed_slice(),
+    )))),
   }
 }

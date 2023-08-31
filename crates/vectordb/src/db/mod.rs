@@ -311,6 +311,9 @@ impl<'d> VectorDatabase {
             start: embedding.start,
             end: embedding.end,
             vectors: embedding.vectors.to_owned(),
+            metadata: rmp_serde::to_vec(
+              &embedding.metadata.as_ref().unwrap_or(&IndexMap::new()),
+            )?,
           },
         )?;
         Ok(())

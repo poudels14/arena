@@ -22,6 +22,7 @@ export type DocumentEmbeddings = {
   start: number;
   end: number;
   vectors: number[];
+  metadata?: Record<string, any>;
 };
 
 export type Document = {
@@ -51,6 +52,8 @@ export type SearchCollectionResult = {
   start: number;
   end: number;
   content: string;
+  // empty if the matched embedding doesn't have metadata
+  metadata: Record<string, any>;
 };
 
 export type Config = AbstractDatabaseConfig<
@@ -93,7 +96,8 @@ export type Client = {
   getDocumentBlobs(
     collectionId: string,
     documentId: string,
-    keys: string[]
+    keys: string[],
+    encoding?: "base-64"
   ): Promise<DocumentBlobs>;
 
   setDocumentEmbeddings(

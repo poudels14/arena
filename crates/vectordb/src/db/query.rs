@@ -38,7 +38,7 @@ pub struct Embeddings {
   pub start: u32,
   pub end: u32,
   pub vectors: Vec<f32>,
-  pub metadata: Option<Vec<u8>>,
+  pub metadata: Option<IndexMap<String, Value>>,
 }
 
 #[derive(Debug, Serialize)]
