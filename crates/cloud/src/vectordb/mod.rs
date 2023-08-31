@@ -71,7 +71,7 @@ pub struct NewDocument {
   pub metadata: Option<IndexMap<String, Value>>,
   pub content: StringOrBuffer,
   #[serde(default)]
-  pub blobs: IndexMap<String, StringOrBuffer>,
+  pub blobs: IndexMap<String, Option<StringOrBuffer>>,
 }
 
 #[derive(Serialize)]
@@ -208,7 +208,10 @@ async fn op_cloud_vectordb_add_document(
       blobs: document
         .blobs
         .iter()
-        .map(|(k, v)| (k.as_str().into(), v.as_bytes().to_vec()))
+        .filter_map(|(k, v)| {
+          v.as_ref()
+            .map(|v| (k.as_str().into(), v.as_bytes().to_vec()))
+        })
         .collect(),
     },
   )?;
