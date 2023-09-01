@@ -125,17 +125,20 @@ const Chat = () => {
                           tokens={tokens()}
                           renderer={{
                             code(props) {
+                              const highlighted =
+                                props.lang &&
+                                hljs.listLanguages().includes(props.lang);
                               return (
                                 <code
                                   class="block my-2 px-4 py-4 rounded bg-gray-800 text-white overflow-auto"
                                   innerHTML={
-                                    props.lang &&
-                                    hljs.listLanguages().includes(props.lang)
+                                    highlighted
                                       ? hljs.highlight(props.text, {
                                           language: props.lang,
                                         }).value
-                                      : props.text
+                                      : ""
                                   }
+                                  innerText={highlighted ? "" : props.text}
                                 />
                               );
                             },
