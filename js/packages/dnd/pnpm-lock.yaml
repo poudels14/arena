@@ -5,8 +5,8 @@ dependencies:
     specifier: workspace:^0.1.0
     version: link:../solid-store
   solid-js:
-    specifier: ^1.7.6
-    version: 1.7.6
+    specifier: ^1.7.11
+    version: 1.7.11
 
 packages:
 
@@ -19,8 +19,8 @@ packages:
     engines: {node: '>=10'}
     dev: false
 
-  /solid-js@1.7.6:
-    resolution: {integrity: sha512-DXVOTjUh/bIAhE0fIqu3ezGLyQaez7v8EOw3uPLIi87DmLjg+hsuCAgKyNIZ+o4jUetOk3ZORccvJmE1yZUk8g==}
+  /solid-js@1.7.11:
+    resolution: {integrity: sha512-JkuvsHt8jqy7USsy9xJtT18aF9r2pFO+GB8JQ2XGTvtF49rGTObB46iebD25sE3qVNvIbwglXOXdALnJq9IHtQ==}
     dependencies:
       csstype: 3.1.1
       seroval: 0.5.1

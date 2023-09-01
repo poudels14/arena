@@ -9,7 +9,7 @@
   "dependencies": {
     "nanoid": "^4.0.2",
     "redaxios": "^0.5.1",
-    "solid-js": "^1.7.6",
+    "solid-js": "^1.7.11",
     "url-join": "^5.0.0"
   }
 }

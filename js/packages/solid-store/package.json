@@ -11,7 +11,7 @@
   "author": "Sagar Poudel",
   "license": "MIT",
   "peerDependencies": {
-    "solid-js": "^1.7.6"
+    "solid-js": "^1.7.11"
   },
   "devDependencies": {
     "@vitest/ui": "^0.28.5",

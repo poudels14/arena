@@ -8,8 +8,8 @@ dependencies:
     specifier: ^0.5.1
     version: 0.5.1
   solid-js:
-    specifier: ^1.7.6
-    version: 1.7.8
+    specifier: ^1.7.11
+    version: 1.7.11
   url-join:
     specifier: ^5.0.0
     version: 5.0.0
@@ -35,8 +35,8 @@ packages:
     engines: {node: '>=10'}
     dev: false
 
-  /solid-js@1.7.8:
-    resolution: {integrity: sha512-XHBWk1FvFd0JMKljko7FfhefJMTSgYEuVKcQ2a8hzRXfiuSJAGsrPPafqEo+f6l+e8Oe3cROSpIL6kbzjC1fjQ==}
+  /solid-js@1.7.11:
+    resolution: {integrity: sha512-JkuvsHt8jqy7USsy9xJtT18aF9r2pFO+GB8JQ2XGTvtF49rGTObB46iebD25sE3qVNvIbwglXOXdALnJq9IHtQ==}
     dependencies:
       csstype: 3.1.2
       seroval: 0.5.1

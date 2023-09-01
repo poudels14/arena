@@ -13,11 +13,11 @@
     "@codemirror/lang-javascript": "^6.1.8",
     "@codemirror/lang-sql": "^6.5.0",
     "@codemirror/state": "^6.2.0",
-    "@kobalte/core": "^0.9.6",
+    "@kobalte/core": "^0.9.8",
     "codemirror": "^6.0.1",
     "klona": "^2.0.6"
   },
   "peerDependencies": {
-    "solid-js": "^1.7.6"
+    "solid-js": "^1.7.11"
   }
 }

@@ -16,13 +16,13 @@
     "@arena/widgets": "workspace:^",
     "@blueprintjs/icons": "^4.14.3",
     "@popperjs/core": "^2.11.7",
-    "@solidjs/meta": "^0.28.4",
-    "@solidjs/router": "^0.8.2",
+    "@solidjs/meta": "^0.28.6",
+    "@solidjs/router": "^0.8.3",
     "clean-set": "^1.1.2",
     "debounce": "^1.2.1",
     "dlv": "^1.1.3",
     "fast-deep-equal": "^3.1.3",
     "klona": "^2.0.6",
-    "solid-js": "^1.7.6"
+    "solid-js": "^1.7.11"
   }
 }

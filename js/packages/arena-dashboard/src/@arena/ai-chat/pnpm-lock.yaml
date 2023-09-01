@@ -50,8 +50,8 @@ dependencies:
     specifier: ^0.5.1
     version: 0.5.1
   solid-js:
-    specifier: ^1.7.7
-    version: 1.7.7
+    specifier: ^1.7.11
+    version: 1.7.11
   style-inject:
     specifier: ^0.3.0
     version: 0.3.0
@@ -259,8 +259,8 @@ packages:
       tslib: 2.5.3
     dev: false
 
-  /solid-js@1.7.7:
-    resolution: {integrity: sha512-SPdYVke/Z6Za24PBTbULyQYPrhGO1ZbPany76atO2zF2dmYn2pCotbsw1JtlgWnr9dK2JbwPGnA3ODTGPLhZNw==}
+  /solid-js@1.7.11:
+    resolution: {integrity: sha512-JkuvsHt8jqy7USsy9xJtT18aF9r2pFO+GB8JQ2XGTvtF49rGTObB46iebD25sE3qVNvIbwglXOXdALnJq9IHtQ==}
     dependencies:
       csstype: 3.1.2
       seroval: 0.5.1
