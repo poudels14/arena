@@ -306,8 +306,8 @@ const DocumentViewer = (props: { document: any; onClose: () => void }) => {
 
   const [document] = createResource(
     () => props.document,
-    (doc) => {
-      return router.get(`/api/documents/${doc.id}`).then((r) => r.data);
+    async (doc) => {
+      return await router.get(`/api/documents/${doc.id}`).then((r) => r.data);
     }
   );
 
@@ -317,11 +317,20 @@ const DocumentViewer = (props: { document: any; onClose: () => void }) => {
       contentClass="text-sm text-accent-12/80 overflow-y-auto"
     >
       {/* TODO(sagar): show loading UI */}
-      <Show when={document()}>
+      <Show when={!document.error && document()}>
         <div class="px-5 py-3 text-lg font-medium text-accent-12 bg-brand-3">
           {document().name}
         </div>
-        <div innerHTML={document().html} class="px-5 py-3"></div>
+        <div
+          innerHTML={document().html}
+          class="px-5 py-3 overflow-auto"
+          style={"--scale-factor: 1;"}
+        ></div>
+      </Show>
+      <Show when={document.error}>
+        <div class="py-10 text-lg text-center text-red-700">
+          Error loading document
+        </div>
       </Show>
     </SlidingDrawer>
   );

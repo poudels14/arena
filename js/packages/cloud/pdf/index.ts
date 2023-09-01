@@ -14,4 +14,5 @@ const convertToHtml = async (
   return await opAsync("op_cloud_pdf_to_html", pdfContent, options || {});
 };
 
+export type { PdfPage };
 export { convertToHtml };

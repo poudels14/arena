@@ -32,10 +32,6 @@ class DocumentEmbeddingsGenerator {
     });
   }
 
-  async split(document: Splitter.Document) {
-    return this.getDocumentSplitter()(document);
-  }
-
   async getTextEmbeddings(texts: string[]) {
     const json = await ky
       .post(
@@ -57,13 +53,14 @@ class DocumentEmbeddingsGenerator {
       chunks.map((c) => c.content)
     );
     return embeddings.map((vectors, idx) => {
-      const { position, content } = chunks[idx];
+      const { position, content, metadata } = chunks[idx];
       const { start, end } = position;
       return {
         start,
         end,
         content,
         vectors,
+        metadata,
       };
     });
   }

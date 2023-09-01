@@ -2,12 +2,24 @@
 import { createHash } from "crypto";
 import { pick } from "lodash-es";
 import { renderToStringAsync } from "solid-js/web";
-import { Splitter } from "@arena/llm/splitter";
+import { createComponent } from "solid-js";
+import { createDocumentSplitter } from "@arena/llm/splitter";
+import { HFTokenizer } from "@arena/cloud/llm/tokenizer";
 import { p } from "../procedure";
 import { DocumentEmbeddingsGenerator } from "../EmbeddingsGenerator";
 import { uniqueId } from "../utils";
 import Document from "./RenderDocument";
-import { createComponent } from "solid-js";
+import { MarkdownDocument } from "../documents/markdown";
+import { PdfDocument } from "../documents/pdf";
+
+const FILE_TYPE = {
+  MARKDOWN: "text/markdown",
+  PDF: "application/pdf",
+};
+
+const EMBEDDINGS_MODEL = "thenlper/gte-small";
+// Note: get-small support upto 512 tokens but leave some buffer :shrug:
+const MAX_TOKEN_LENGTH = 400;
 
 const listDocuments = p.query(async ({ ctx }) => {
   const { default: sql } = ctx.dbs;
@@ -33,14 +45,20 @@ const getDocument = p.query(async ({ ctx, params, errors }) => {
 
   const document = documents[0];
   const doc = await vectordb.getDocument("uploads", document.id, "utf-8");
+  const blobs = await vectordb.getDocumentBlobs("uploads", document.id, [
+    "html",
+  ]);
+
   return {
     ...pick(document, "id", "name", "contentType", "uploadedAt"),
     content: doc.content,
-    html: await renderToStringAsync(() =>
-      createComponent(Document, {
-        content: doc.content,
-      })
-    ),
+    html: blobs.html
+      ? Buffer.from(blobs.html).toString("utf-8")
+      : await renderToStringAsync(() =>
+          createComponent(Document, {
+            content: doc.content,
+          })
+        ),
   };
 });
 
@@ -85,28 +103,58 @@ const deleteDocument = p.delete(async ({ ctx, params }) => {
   return { success: true };
 });
 
-const uploadDocuments = p.mutate(async ({ req, ctx, form }) => {
+const uploadDocuments = p.mutate(async ({ req, ctx, form, errors }) => {
   const { default: mainDb, vectordb } = ctx.dbs;
 
   const reqDocuments = await form.multipart(req);
-  const generator = new DocumentEmbeddingsGenerator();
-  const documents = reqDocuments
-    .map((document) => ({
-      // TODO(sagar): improve this using "mime" package
-      type: document.type == "text/markdown" ? "markdown" : null,
-      document,
-    }))
-    .filter((d) => d.type == "markdown")
-    .map(({ type, document }) => {
-      // NOTE(sagar): need to use ASCII encoding here since tokenizer uses
-      // byte pair encoding and doesn't recognize utf-8. So, using utf-8
-      // here causes the token position offset to not match with the
-      // markdown nodes offsets
-      const content = document.data.toString("ascii");
-      const contentHash = createHash("sha256").update(content).digest("hex");
+  if (!reqDocuments.find((d) => Object.values(FILE_TYPE).includes(d.type))) {
+    errors.badRequest(
+      `Only [${Object.values(FILE_TYPE).join(",")}] type files are supported`
+    );
+  }
 
-      return { type, contentHash, content, document };
-    });
+  const generator = new DocumentEmbeddingsGenerator();
+  const splitter = createDocumentSplitter({
+    async tokenize(content) {
+      const tokenizer = await HFTokenizer.init({
+        modelName: EMBEDDINGS_MODEL,
+        truncate: false,
+      });
+      return await tokenizer.tokenize(content);
+    },
+    maxTokenLength: MAX_TOKEN_LENGTH,
+    // TODO(sagar): use the chunk before and after since the following
+    // termination nodes are used
+    windowTerminationNodes: ["heading", "table", "code"],
+  });
+
+  const documents = reqDocuments.map((document) => {
+    // NOTE(sagar): need to use ASCII encoding here since tokenizer uses
+    // byte pair encoding and doesn't recognize utf-8. So, using utf-8
+    // here causes the token position offset to not match with the
+    // markdown nodes offsets
+    const raw = document.data;
+    const contentHash = createHash("sha256").update(raw).digest("hex");
+
+    switch (document.type) {
+      case FILE_TYPE.MARKDOWN:
+        return {
+          type: document.type,
+          filename: document.filename,
+          contentHash,
+          document: new MarkdownDocument(document),
+        };
+      case FILE_TYPE.PDF:
+        return {
+          type: document.type,
+          filename: document.filename,
+          contentHash,
+          document: new PdfDocument(document),
+        };
+      default:
+        throw new Error("Unsupported document type");
+    }
+  });
 
   const { rows: existingDocs } = await mainDb.query(
     `SELECT * FROM uploads WHERE content_hash IN (${[...Array(documents.length)]
@@ -120,12 +168,8 @@ const uploadDocuments = p.mutate(async ({ req, ctx, form }) => {
       .filter(
         (d) => !existingDocs.find((ex: any) => ex.contentHash == d.contentHash)
       )
-      .map(async ({ type, contentHash, content, document }) => {
-        const chunks = await generator.split({
-          type,
-          content,
-        } as Splitter.Document);
-
+      .map(async ({ type, filename, contentHash, document }) => {
+        const chunks = await document.split(splitter);
         const embeddings = await generator.getChunkEmbeddings(chunks);
         const documentId = uniqueId();
         const uploadedAt = new Date();
@@ -138,16 +182,20 @@ const uploadDocuments = p.mutate(async ({ req, ctx, form }) => {
                 VALUES(?, ?, ?, ?, ?, ?)`,
             [
               documentId,
-              document.filename,
+              filename,
               contentHash,
               type,
-              document.filename,
+              filename,
               uploadedAt.getTime(),
             ]
           );
 
           await vectordb.addDocument("uploads", documentId, {
-            content,
+            content: await document.getContent(),
+            blobs: {
+              raw: await document.getRaw(),
+              html: await document.getHtml(),
+            },
           });
 
           await vectordb.setDocumentEmbeddings(
@@ -159,9 +207,9 @@ const uploadDocuments = p.mutate(async ({ req, ctx, form }) => {
 
         return {
           id: documentId,
-          name: document.filename,
-          filename: document.filename,
-          contentType: document.type,
+          name: filename,
+          filename: filename,
+          contentType: type,
           contentHash,
           chunks,
           embeddings,
