@@ -45,7 +45,7 @@ const renderMarkdown = (props: MarkdownProps, renderer: MarkdownRenderer) => {
 const DEFAULT_RENDERER: MarkdownProps["renderer"] = {
   code: (props) => {
     return (
-      <code class="block my-2 px-4 py-4 rounded bg-gray-800 text-white">
+      <code class="block my-2 px-4 py-4 rounded bg-gray-800 text-white overflow-auto">
         {props.text}
       </code>
     );
@@ -68,7 +68,7 @@ const DEFAULT_RENDERER: MarkdownProps["renderer"] = {
     }
   },
   hr: (props) => {
-    throw new Error("not implemented");
+    return <hr />;
   },
   list: (props, renderer) => {
     return (
@@ -130,21 +130,37 @@ const DEFAULT_RENDERER: MarkdownProps["renderer"] = {
     throw new Error("not implemented");
   },
 
-  strong: (props) => {
-    throw new Error("not implemented");
+  strong: (props, renderer) => {
+    return (
+      <strong>
+        <RenderTokens
+          tokens={props.tokens}
+          fallback={props.raw}
+          renderer={renderer}
+        />
+      </strong>
+    );
   },
-  em: (props) => {
-    throw new Error("not implemented");
+  em: (props, renderer) => {
+    return (
+      <i>
+        <RenderTokens
+          tokens={props.tokens}
+          fallback={props.raw}
+          renderer={renderer}
+        />
+      </i>
+    );
   },
   codespan: (props) => {
     return (
-      <code class="px-1.5 py-0.5 rounded bg-gray-600 text-white">
+      <code class="px-1.5 py-0.5 rounded bg-gray-200 text-black">
         {props.text}
       </code>
     );
   },
   br: (props) => {
-    throw new Error("not implemented");
+    return <br />;
   },
   del: (props) => {
     throw new Error("not implemented");

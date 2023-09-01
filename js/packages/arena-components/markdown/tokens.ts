@@ -43,12 +43,22 @@ type Token = {
   tablecell: { content: string; flags: object };
 
   /** The following are inline tokens */
-  strong: { text: string };
-  em: { text: string };
-  codespan: {
+  strong: {
+    type: "strong";
     raw: string;
     text: string;
+    tokens: any;
+  };
+  em: {
+    type: "em";
+    raw: string;
+    text: string;
+    tokens: any;
+  };
+  codespan: {
     type: "codespan";
+    raw: string;
+    text: string;
   };
   br: {};
   del: { text: string };
