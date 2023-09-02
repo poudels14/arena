@@ -26,9 +26,10 @@ type Message = {
 
 type State = {
   documents: null | Document[];
-  activeChannel: {
-    id: string;
+  activeChat: {
+    channelId: string;
     messages: Message[];
+    error: string | null;
   };
   isGeneratingResponse: boolean;
 };
@@ -46,9 +47,10 @@ const ChatContextProvider = (props: any) => {
 
   const [state, setState] = createStore<State>({
     documents: null,
-    activeChannel: {
-      id: "1",
+    activeChat: {
+      channelId: "1",
       messages: [],
+      error: null,
     },
     isGeneratingResponse: false,
   });
@@ -69,15 +71,15 @@ const ChatContextProvider = (props: any) => {
         timestamp: new Date(m.timestamp),
       };
     });
-    setState("activeChannel", "messages", m as any);
+    setState("activeChat", "messages", m as any);
   });
 
   const sendNewMessage = createMutationQuery<SendMessageQuery>(
     async (message) => {
       const messageId = uniqueId();
-      const channelId = state.activeChannel.id();
+      const channelId = state.activeChat.channelId();
       setState("isGeneratingResponse", true);
-      setState("activeChannel", "messages", (prev: any) => {
+      setState("activeChat", "messages", (prev: any) => {
         return [
           ...prev,
           {
@@ -101,7 +103,17 @@ const ChatContextProvider = (props: any) => {
           responseType: "stream",
         }
       );
-      readMessageStream(channelId, res, setState);
+      if (res.status == 200) {
+        await readMessageStream(channelId, res, setState);
+      } else {
+        setState(
+          "activeChat",
+          "error",
+          "Something went wrong. Please try again."
+        );
+      }
+
+      setState("isGeneratingResponse", false);
     }
   );
 
@@ -123,7 +135,7 @@ const readMessageStream = async (
   for await (const { json: chunk } of stream) {
     if (chunk.id) {
       messageId = chunk.id;
-      setState("activeChannel", "messages", (prev: any[]) => {
+      setState("activeChat", "messages", (prev: any[]) => {
         if (prev.find((m) => m.id == chunk.id)) {
           throw new Error("Duplicate messages found");
         }
@@ -145,7 +157,7 @@ const readMessageStream = async (
     }
 
     if (chunk.text) {
-      setState("activeChannel", "messages", streamMsgIdx!, (prev: any) => {
+      setState("activeChat", "messages", streamMsgIdx!, (prev: any) => {
         if (prev.id !== messageId) {
           // TODO(sagar): instead of throwing error here,
           // find the new index
@@ -163,7 +175,7 @@ const readMessageStream = async (
       throw new Error("Expected to received message id in the first chunk");
     }
   }
-  setState("activeChannel", "messages", streamMsgIdx!, (prev: any) => {
+  setState("activeChat", "messages", streamMsgIdx!, (prev: any) => {
     if (prev.id !== messageId) {
       // TODO(sagar): instead of throwing error here,
       // find the new index
@@ -174,7 +186,6 @@ const readMessageStream = async (
       streaming: undefined,
     };
   });
-  setState("isGeneratingResponse", false);
 };
 
 export { ChatContext, ChatContextProvider };

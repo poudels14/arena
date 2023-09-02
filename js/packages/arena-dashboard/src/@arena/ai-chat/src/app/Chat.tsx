@@ -58,12 +58,12 @@ const Chat = () => {
             ref={chatMessagesRef}
             class="chat-messages pb-24 py-2 space-y-5 text-sm text-accent-12/80"
           >
-            <Index each={state.activeChannel.messages()}>
+            <Index each={state.activeChat.messages()}>
               {(_, index) => {
                 // Note(sagar): use state directly to only update message
                 // content element when streaming
-                const m = state.activeChannel.messages[index];
-                if (index == state.activeChannel.messages().length - 1) {
+                const m = state.activeChat.messages[index];
+                if (index == state.activeChat.messages().length - 1) {
                   createEffect(() => {
                     void m.message();
                     // Note(sagar): scroll to the bottom. Need to do it after
@@ -184,6 +184,11 @@ const Chat = () => {
                 );
               }}
             </Index>
+            <Show when={state.activeChat.error()}>
+              <div class="py-4 text-center bg-red-50 text-red-700">
+                {state.activeChat.error()}
+              </div>
+            </Show>
           </div>
         </div>
       </div>
@@ -191,7 +196,7 @@ const Chat = () => {
         <div class="w-8"></div>
         <div class="flex-1 max-w-[560px] rounded-lg pointer-events-auto backdrop-blur-xl">
           <div class="flex p-2 flex-row text-accent-11">
-            <Show when={state.activeChannel.messages().length > 0}>
+            <Show when={state.activeChat.messages().length > 0}>
               <div class="new-chat flex pr-2 text-xs font-normal text-brand-12/80 border border-brand-12/50 rounded align-middle cursor-pointer select-none bg-white shadow-2xl">
                 <InlineIcon size="20px" class="py-1">
                   <path d={AddIcon[0]} />
