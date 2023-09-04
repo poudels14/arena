@@ -279,6 +279,7 @@ pub async fn pipe_widget_query_request(
   let request = HttpRequest {
     method: "POST".to_owned(),
     url: format!("http://0.0.0.0/{app_id}/widgets/{widget_id}/api/{field}"),
+    // TODO(sagar): maybe send some headers?
     headers: vec![(("content-type".to_owned(), "application/json".to_owned()))],
     body: Some(ZeroCopyBuf::ToV8(Some(
       json!({

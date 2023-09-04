@@ -29,7 +29,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::thread;
-use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::sync::{mpsc, oneshot, RwLock};
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -48,8 +48,8 @@ pub struct DqsCluster {
   pub options: DqsClusterOptions,
   pub id: String,
   pub data_dir: PathBuf,
-  /// DqsServer by server id
-  pub servers: Arc<Mutex<HashMap<String, DqsServer>>>,
+  /// DqsServerStatus by server id
+  pub servers: Arc<RwLock<HashMap<String, DqsServerStatus>>>,
   pub db_pool: Pool<ConnectionManager<PgConnection>>,
   pub cache: Cache,
 }
@@ -61,6 +61,12 @@ pub struct DqsServerOptions {
   pub entry: ServerEntry,
   /// Pass the app if the Dqs server is for an app
   pub app: Option<App>,
+}
+
+#[derive(Debug, Clone)]
+pub enum DqsServerStatus {
+  Starting(Arc<RwLock<bool>>),
+  Ready(DqsServer),
 }
 
 #[derive(Debug, Clone)]
@@ -83,7 +89,7 @@ impl DqsCluster {
       options: options.clone(),
       id: Uuid::new_v4().to_string(),
       data_dir: options.data_dir,
-      servers: Arc::new(Mutex::new(HashMap::new())),
+      servers: Arc::new(RwLock::new(HashMap::new())),
       db_pool: db_pool.clone(),
       cache: Cache::new(Some(db_pool)),
     })
@@ -151,15 +157,33 @@ impl DqsCluster {
       loop {
         match receiver.recv().await {
           Some(ServerEvents::Started(_isolate_handle, commands)) => {
-            let mut servers = cluster.servers.lock().await;
+            // Note(sagar): ping the healthy endpoint before marking the
+            // server as ready. This is important because sometimes the
+            // server might need to do some work before being able to serve
+            // requests, like setup database
+            let (tx, rx) = oneshot::channel::<ParsedHttpResponse>();
+            let _ = stream_tx
+              .send((
+                HttpRequest {
+                  method: "GET".to_owned(),
+                  url: format!("http://0.0.0.0/_admin/healthy"),
+                  headers: vec![],
+                  body: None,
+                },
+                tx,
+              ))
+              .await;
+            let _ = rx.await;
+
+            let mut servers = cluster.servers.write().await;
             servers.insert(
               options.id.clone(),
-              DqsServer {
+              DqsServerStatus::Ready(DqsServer {
                 id: options.id.clone(),
                 workspace_id: workspace_id.clone(),
                 http_channel: stream_tx.clone(),
                 commands_channel: commands,
-              },
+              }),
             );
             println!(
               "{}",
@@ -179,7 +203,7 @@ impl DqsCluster {
             started_tx.take().map(|tx| tx.send(()));
           }
           Some(ServerEvents::Terminated(result)) => {
-            let mut servers = cluster.servers.lock().await;
+            let mut servers = cluster.servers.write().await;
             servers.remove(&options.id);
             println!(
               "[{}] DQS server terminated!{}",
@@ -202,8 +226,8 @@ impl DqsCluster {
     Ok(())
   }
 
-  pub async fn get_server_by_id(&self, id: &str) -> Option<DqsServer> {
-    let servers = self.servers.lock().await;
+  pub async fn get_server_by_id(&self, id: &str) -> Option<DqsServerStatus> {
+    let servers = self.servers.read().await;
     servers.get(id).map(|s| s.clone())
   }
 
@@ -212,16 +236,43 @@ impl DqsCluster {
     options: DqsServerOptions,
   ) -> Result<DqsServer> {
     let id = options.id.clone();
-    match self.get_server_by_id(&id).await {
-      Some(s) => Ok(s),
-      None => {
+
+    // If the server is starting, wait for the server to start
+    // When starting the server, first set the status to starting
+    // so that if another request comes in immediately after the
+    // first request, it doesn't start another DQS server but waits
+    // for the first request to spin up the DQS server.
+    // try 3 times :shrug:
+    let status = self.get_server_by_id(&id).await;
+    if let Some(DqsServerStatus::Ready(s)) = status {
+      return Ok(s);
+    } else if let Some(DqsServerStatus::Starting(lock)) = status {
+      let _ = lock.read().await;
+    } else {
+      let mut servers = self.servers.write().await;
+      // It's possible for two requests to get here at the same time
+      // So, check if the server status has been added to the map before
+      // doing do
+      if !servers.contains_key(&id) {
+        let lock = Arc::new(RwLock::new(false));
+        servers.insert(id.clone(), DqsServerStatus::Starting(lock.clone()));
+        drop(servers);
+
+        let mut l = lock.write().await;
         self.spawn_dqs_server(options).await?;
-        self
-          .get_server_by_id(&id)
-          .await
-          .ok_or(anyhow!("Failed to start Workspace server"))
+        *l = true;
+        drop(l);
       }
     }
+
+    let status = self.get_server_by_id(&id).await;
+    if let Some(DqsServerStatus::Ready(s)) = status {
+      return Ok(s);
+    }
+    // Note(sagar): if the read lock is acquired and the server isn't ready,
+    // it means there was error starting the server
+    println!("Failed to start Workspace server");
+    bail!("Failed to start Workspace server");
   }
 
   fn load_permissions(
