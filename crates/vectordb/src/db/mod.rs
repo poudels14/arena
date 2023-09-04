@@ -24,7 +24,7 @@ use rocksdb::{
   OptimisticTransactionDB, Options, ReadOptions,
 };
 use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 #[derive(Debug, Default)]
 pub struct DatabaseOptions {
@@ -45,7 +45,7 @@ pub struct VectorDatabase {
   pub(crate) db: Database,
   doc_read_options: ReadOptions,
   pub(crate) collections_cache:
-    Arc<Mutex<IndexMap<BString, Arc<Mutex<storage::Collection>>>>>,
+    Arc<RwLock<IndexMap<BString, Arc<RwLock<storage::Collection>>>>>,
 }
 
 impl<'d> VectorDatabase {
@@ -91,7 +91,7 @@ impl<'d> VectorDatabase {
       opts,
       db,
       doc_read_options,
-      collections_cache: Arc::new(Mutex::new(IndexMap::new())),
+      collections_cache: Arc::new(RwLock::new(IndexMap::new())),
     })
   }
 
@@ -131,9 +131,9 @@ impl<'d> VectorDatabase {
 
     self
       .collections_cache
-      .lock()
+      .write()
       .map_err(lock_error)?
-      .insert(id.to_owned(), Arc::new(Mutex::new(stored_collection)));
+      .insert(id.to_owned(), Arc::new(RwLock::new(stored_collection)));
     Ok(())
   }
 
@@ -143,7 +143,7 @@ impl<'d> VectorDatabase {
     let res = self.get_internal_collection(id);
 
     match res {
-      Ok(col) => col.lock().map(|c| Some(c.clone())).map_err(lock_error),
+      Ok(col) => col.read().map(|c| Some(c.clone())).map_err(lock_error),
       Err(Error::NotFound(_)) => Ok(None),
       Err(e) => Err(e.into()),
     }
@@ -185,7 +185,7 @@ impl<'d> VectorDatabase {
     doc: query::Document,
   ) -> Result<()> {
     let collection = self.get_internal_collection(collection_id)?;
-    let mut collection = collection.lock().map_err(lock_error)?;
+    let mut collection = collection.write().map_err(lock_error)?;
     let documents_cf = storage::documents::cf(&self.db)?;
     if collection.next_doc_index >= u32::MAX {
       bail!(
@@ -265,7 +265,7 @@ impl<'d> VectorDatabase {
     col_id: &BStr,
   ) -> Result<Vec<(BString, Document)>> {
     let collection = self.get_internal_collection(col_id)?;
-    let collection = collection.lock().map_err(lock_error)?;
+    let collection = collection.read().map_err(lock_error)?;
     let documents_h = DocumentsHandle::new(&self.db, &collection)?;
     documents_h
       .iterator()
@@ -283,7 +283,7 @@ impl<'d> VectorDatabase {
     embeddings: Vec<query::Embeddings>,
   ) -> Result<()> {
     let collection = self.get_internal_collection(collection_id)?;
-    let collection = collection.lock().map_err(lock_error)?;
+    let collection = collection.read().map_err(lock_error)?;
 
     let documents_h = DocumentsHandle::new(&self.db, &collection)?;
     let mut document = documents_h
@@ -339,7 +339,7 @@ impl<'d> VectorDatabase {
     doc_id: &BStr,
   ) -> Result<Option<query::DocumentWithContent>> {
     let collection = self.get_internal_collection(col_id)?;
-    let collection = collection.lock().map_err(lock_error)?;
+    let collection = collection.read().map_err(lock_error)?;
     let documents_h = DocumentsHandle::new(&self.db, &collection)?;
     let document = documents_h.get(doc_id)?;
     if let Some(doc) = document {
@@ -368,7 +368,7 @@ impl<'d> VectorDatabase {
     keys: Vec<String>,
   ) -> Result<Vec<(String, Option<Vec<u8>>)>> {
     let collection = self.get_internal_collection(col_id)?;
-    let collection = collection.lock().map_err(lock_error)?;
+    let collection = collection.read().map_err(lock_error)?;
     let documents_h = DocumentsHandle::new(&self.db, &collection)?;
     let document = documents_h
       .get(doc_id)?
@@ -390,7 +390,7 @@ impl<'d> VectorDatabase {
     collection_id: &BStr,
   ) -> Result<Vec<query::ChunkEmbedding>> {
     let collection = self.get_internal_collection(collection_id)?;
-    let collection = collection.lock().map_err(lock_error)?;
+    let collection = collection.read().map_err(lock_error)?;
 
     let mut document_id_by_index: Vec<BString> =
       vec![b"".into(); collection.next_doc_index as usize];
@@ -432,7 +432,7 @@ impl<'d> VectorDatabase {
     doc_id: &BStr,
   ) -> Result<()> {
     let collection = self.get_internal_collection(collection_id)?;
-    let mut collection = collection.lock().map_err(lock_error)?;
+    let mut collection = collection.write().map_err(lock_error)?;
 
     let collections_h = CollectionsHandle::new(&self.db)?;
     let documents_h = DocumentsHandle::new(&self.db, &collection)?;
@@ -502,21 +502,21 @@ impl<'d> VectorDatabase {
   pub(crate) fn get_internal_collection(
     &'d self,
     id: &BStr,
-  ) -> Result<Arc<Mutex<storage::Collection>>, errors::Error> {
-    let mut collections_cache =
-      self.collections_cache.lock().map_err(lock_error)?;
-    let collection = collections_cache.get(id).map(|c| c.clone());
+  ) -> Result<Arc<RwLock<storage::Collection>>, errors::Error> {
+    let cache = self.collections_cache.read().map_err(lock_error)?;
+    let collection = cache.get(id).map(|c| c.clone());
 
     match collection {
       Some(col) => Ok(col),
       None => {
         let collections_h = CollectionsHandle::new(&self.db)?;
-        let stored_collection = Arc::new(Mutex::new(
+        let stored_collection = Arc::new(RwLock::new(
           collections_h
             .get(id)?
             .ok_or(Error::NotFound("Collection"))?,
         ));
-        collections_cache.insert(id.to_owned(), stored_collection.clone());
+        let mut cache = self.collections_cache.write().map_err(lock_error)?;
+        cache.insert(id.to_owned(), stored_collection.clone());
         Ok(stored_collection)
       }
     }

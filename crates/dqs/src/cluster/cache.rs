@@ -8,28 +8,28 @@ use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 
 #[derive(Clone)]
 pub struct Cache {
   db_pool: Option<Pool<ConnectionManager<PgConnection>>>,
   /// app_id -> workspace_id
-  pub workspace_apps: Arc<Mutex<HashMap<String, String>>>,
-  pub acls: Arc<Mutex<HashMap<String, Box<Vec<Acl>>>>>,
+  pub workspace_apps: Arc<RwLock<HashMap<String, String>>>,
+  pub acls: Arc<RwLock<HashMap<String, Box<Vec<Acl>>>>>,
 }
 
 impl Cache {
   pub fn new(db_pool: Option<Pool<ConnectionManager<PgConnection>>>) -> Self {
     Self {
       db_pool,
-      workspace_apps: Arc::new(Mutex::new(HashMap::new())),
-      acls: Arc::new(Mutex::new(HashMap::new())),
+      workspace_apps: Arc::new(RwLock::new(HashMap::new())),
+      acls: Arc::new(RwLock::new(HashMap::new())),
     }
   }
 
   pub async fn get_workspace_id(&self, app_id: &str) -> Result<Option<String>> {
     let workspace_id = {
-      let map = self.workspace_apps.lock().await;
+      let map = self.workspace_apps.read().await;
       map.get(app_id).map(|w| w.to_string())
     };
 
@@ -47,7 +47,7 @@ impl Cache {
     workspace_id: &str,
   ) -> Option<Box<Vec<Acl>>> {
     let acls = {
-      let map = self.acls.lock().await;
+      let map = self.acls.read().await;
       map.get(workspace_id).map(|m| m.clone())
     };
 
@@ -71,7 +71,7 @@ impl Cache {
 
     match res {
       Ok(app) => {
-        let mut map = self.workspace_apps.lock().await;
+        let mut map = self.workspace_apps.write().await;
         map.insert(app.id.clone(), app.workspace_id.clone());
         Ok(Some(app))
       }
@@ -115,7 +115,7 @@ impl Cache {
       })
       .collect::<Vec<Acl>>();
 
-    let mut map = self.acls.lock().await;
+    let mut map = self.acls.write().await;
     map.insert(workspace_id.to_string(), acls.into());
 
     map
