@@ -1,6 +1,8 @@
 use serde::Deserialize;
 use std::collections::HashMap;
 
+pub mod workspace;
+
 #[derive(Debug, Deserialize)]
 pub struct WidgetConfig {
   pub data: HashMap<String, DataConfig>,

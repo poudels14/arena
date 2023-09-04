@@ -9,7 +9,7 @@ use common::arena::ArenaConfig;
 use common::deno::extensions::server::HttpServerConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use common::deno::permissions::{FileSystemPermissions, PermissionsContainer};
-use jsruntime::permissions::FetchPermissions;
+use jsruntime::permissions::NetPermissions;
 use jsruntime::{IsolatedRuntime, RuntimeOptions};
 use serde_json::{json, Value};
 use std::collections::HashSet;
@@ -208,7 +208,7 @@ impl WorkspaceServer {
           }),
           ..Default::default()
         }),
-        net: Some(FetchPermissions {
+        net: Some(NetPermissions {
           restricted_urls: Some(Default::default()),
           ..Default::default()
         }),

@@ -4,7 +4,7 @@ use common::arena::ArenaConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use deno_core::resolve_url_or_path;
 use jsruntime::permissions::{
-  FetchPermissions, FileSystemPermissions, PermissionsContainer,
+  FileSystemPermissions, NetPermissions, PermissionsContainer,
 };
 use jsruntime::{IsolatedRuntime, RuntimeOptions};
 use std::collections::HashSet;
@@ -84,7 +84,7 @@ impl Command {
           ]),
           ..Default::default()
         }),
-        net: Some(FetchPermissions {
+        net: Some(NetPermissions {
           restricted_urls: Some(HashSet::new()),
           ..Default::default()
         }),

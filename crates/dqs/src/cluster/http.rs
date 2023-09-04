@@ -21,10 +21,9 @@ use http::{Method, Request};
 use hyper::Body;
 use indexmap::IndexMap;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation};
-use jsruntime::permissions::{FileSystemPermissions, PermissionsContainer};
 use serde::Deserialize;
 use serde_json::{json, Value};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::env;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
@@ -164,27 +163,10 @@ pub async fn pipe_app_request(
     .filter(apps::id.eq(app_id.to_string()))
     .filter(apps::archived_at.is_null())
     .first::<db::app::App>(connection)
-    .map_err(|e| anyhow!("Failed to load app details: {}", e))?;
+    .map_err(|e| anyhow!("Failed to load app from db: {}", e))?;
 
   let app_root_path =
     normalize_path(cluster.data_dir.join(format!("./apps/{}", app_id)));
-  std::fs::create_dir_all(&app_root_path)
-    .context("Failed to create root directory for app")?;
-
-  let allowed_read_paths =
-    HashSet::from_iter(vec![normalize_path(&app_root_path)
-      .to_str()
-      .ok_or(anyhow!("Invalid app root path"))?
-      .to_owned()]);
-
-  let allowed_write_paths =
-    vec![normalize_path(app_root_path.join("./db/")).to_str()]
-      .iter()
-      .filter(|p| p.is_some())
-      .map(|p| p.map(|p| p.to_owned()))
-      .collect::<Option<HashSet<String>>>()
-      .unwrap_or_default();
-
   let dqs_server = cluster
     .get_or_spawn_dqs_server(DqsServerOptions {
       id: format!("app/{}", app_id),
@@ -196,15 +178,6 @@ pub async fn pipe_app_request(
         root: app_root_path.clone(),
         registry: cluster.options.registry.clone(),
       }),
-      permissions: PermissionsContainer {
-        fs: Some(FileSystemPermissions {
-          root: app_root_path.clone(),
-          allowed_read_paths,
-          allowed_write_paths,
-          ..Default::default()
-        }),
-        ..Default::default()
-      },
       ..Default::default()
     })
     .await?;

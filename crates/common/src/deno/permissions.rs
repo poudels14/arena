@@ -13,7 +13,8 @@ pub struct TimerPermissions {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
-pub struct FetchPermissions {
+#[serde(rename_all = "camelCase")]
+pub struct NetPermissions {
   pub allowed_urls: Option<HashSet<Url>>,
   pub restricted_urls: Option<HashSet<Url>>,
 }
@@ -27,14 +28,14 @@ pub struct FileSystemPermissions {
   pub root: PathBuf,
   // Note(sp): read paths are relative to the root
   pub allowed_read_paths: HashSet<String>,
-  // Note(sp): write paths are relative to the root
+  // Note(sp): read paths are relative to the root
   pub allowed_write_paths: HashSet<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
 pub struct PermissionsContainer {
   pub timer: Option<TimerPermissions>,
-  pub net: Option<FetchPermissions>,
+  pub net: Option<NetPermissions>,
 
   /// File system permissions
   pub fs: Option<FileSystemPermissions>,

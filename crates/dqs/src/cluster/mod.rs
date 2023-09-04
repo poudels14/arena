@@ -3,7 +3,9 @@ pub(crate) mod discovery;
 pub(crate) mod http;
 use self::cache::Cache;
 use crate::apps::{self, App};
+use crate::config::workspace::WorkspaceConfig;
 use crate::db;
+use crate::db::workspace::workspaces;
 use crate::loaders::registry::Registry;
 use crate::server::entry::ServerEntry;
 use crate::server::{Command, RuntimeOptions, ServerEvents};
@@ -15,12 +17,13 @@ use common::deno::extensions::server::response::ParsedHttpResponse;
 use common::deno::extensions::server::{HttpRequest, HttpServerConfig};
 use common::deno::extensions::BuiltinModule;
 use deno_core::normalize_path;
+use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
-use jsruntime::permissions::PermissionsContainer;
+use jsruntime::permissions::{FileSystemPermissions, PermissionsContainer};
 use serde_json::Value;
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -58,7 +61,6 @@ pub struct DqsServerOptions {
   pub entry: ServerEntry,
   /// Pass the app if the Dqs server is for an app
   pub app: Option<App>,
-  pub permissions: PermissionsContainer,
 }
 
 #[derive(Debug, Clone)]
@@ -98,6 +100,7 @@ impl DqsCluster {
     let workspace_id = options.workspace_id.clone();
 
     let options_clone = options.clone();
+    let permissions = self.load_permissions(&options)?;
     let _thread_handle = thread::spawn(move || {
       let app_modules = match options_clone.app.clone() {
         Some(app) => {
@@ -125,7 +128,7 @@ impl DqsCluster {
           ))),
           egress_address: cluster.options.dqs_egress_addr.clone(),
           modules: app_modules,
-          permissions: options_clone.permissions.clone(),
+          permissions,
           app: options_clone.app,
           registry: Some(cluster.options.registry.clone()),
           ..Default::default()
@@ -218,5 +221,57 @@ impl DqsCluster {
           .ok_or(anyhow!("Failed to start Workspace server"))
       }
     }
+  }
+
+  fn load_permissions(
+    &self,
+    options: &DqsServerOptions,
+  ) -> Result<PermissionsContainer> {
+    if options.app.is_none() {
+      return Ok(PermissionsContainer::default());
+    }
+
+    let app_id = options.app.as_ref().map(|a| a.id.clone()).unwrap();
+    let connection =
+      &mut self.db_pool.clone().get().map_err(|e| anyhow!("{}", e))?;
+
+    let workspace = db::workspace::table
+      .filter(workspaces::id.eq(options.workspace_id.to_string()))
+      .filter(workspaces::archived_at.is_null())
+      .first::<db::workspace::Workspace>(connection)
+      .map_err(|e| anyhow!("Failed to load workspace from db: {}", e))?;
+
+    let workspace_config: WorkspaceConfig =
+      serde_json::from_value(workspace.config).map_err(|e| anyhow!("{}", e))?;
+
+    let app_root_path =
+      normalize_path(self.data_dir.join(format!("./apps/{}", app_id)));
+    std::fs::create_dir_all(&app_root_path)
+      .context("Failed to create root directory for app")?;
+
+    let allowed_read_paths =
+      HashSet::from_iter(vec![normalize_path(&app_root_path)
+        .to_str()
+        .ok_or(anyhow!("Invalid app root path"))?
+        .to_owned()]);
+
+    let allowed_write_paths =
+      vec![normalize_path(app_root_path.join("./db/")).to_str()]
+        .iter()
+        .filter(|p| p.is_some())
+        .map(|p| p.map(|p| p.to_owned()))
+        .collect::<Option<HashSet<String>>>()
+        .unwrap_or_default();
+
+    Ok(PermissionsContainer {
+      fs: Some(FileSystemPermissions {
+        root: app_root_path.clone(),
+        allowed_read_paths,
+        allowed_write_paths,
+        ..Default::default()
+      }),
+      net: workspace_config.runtime.net_permissions,
+      ..Default::default()
+    })
   }
 }

@@ -5,3 +5,4 @@ pub mod acl;
 pub mod app;
 pub mod resource;
 pub mod widget;
+pub mod workspace;
