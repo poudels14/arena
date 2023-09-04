@@ -34,6 +34,7 @@ tower.workspace = true
 tower-http.workspace = true
 axum.workspace = true
 axum-extra.workspace = true
+mime.workspace = true
 jsonwebtoken.workspace = true
 reqwest.workspace = true
 clap.workspace = true
@@ -50,7 +51,6 @@ deno_console.workspace = true
 deno_url.workspace = true
 deno_web.workspace = true
 deno_fetch.workspace = true
-
 
 [build-dependencies]
 common = { path = "../common", features = ["fs_rerun_if_changed"] }

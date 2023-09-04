@@ -89,6 +89,7 @@ impl DqsCluster {
     })
   }
 
+  #[tracing::instrument(skip_all, level = "trace")]
   pub async fn spawn_dqs_server(
     &self,
     options: DqsServerOptions,
@@ -101,7 +102,8 @@ impl DqsCluster {
 
     let options_clone = options.clone();
     let permissions = self.load_permissions(&options)?;
-    let _thread_handle = thread::spawn(move || {
+    let thread = thread::Builder::new().name(format!("dqs-[{}]", options.id));
+    let _thread_handle = thread.spawn(move || {
       let app_modules = match options_clone.app.clone() {
         Some(app) => {
           let ext = RefCell::new(Some(apps::extension(app)));
@@ -138,7 +140,6 @@ impl DqsCluster {
       )
     });
 
-    let servers = self.servers.clone();
     let (started_tx, started_rx) = oneshot::channel();
     let mut started_tx = Some(started_tx);
     tokio::task::spawn(async move {
@@ -150,7 +151,7 @@ impl DqsCluster {
       loop {
         match receiver.recv().await {
           Some(ServerEvents::Started(_isolate_handle, commands)) => {
-            let mut servers = servers.lock().await;
+            let mut servers = cluster.servers.lock().await;
             servers.insert(
               options.id.clone(),
               DqsServer {
@@ -178,7 +179,7 @@ impl DqsCluster {
             started_tx.take().map(|tx| tx.send(()));
           }
           Some(ServerEvents::Terminated(result)) => {
-            let mut servers = servers.lock().await;
+            let mut servers = cluster.servers.lock().await;
             servers.remove(&options.id);
             println!(
               "[{}] DQS server terminated!{}",

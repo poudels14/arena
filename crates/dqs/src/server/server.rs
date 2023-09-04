@@ -20,6 +20,7 @@ pub enum Command {
   Terminate,
 }
 
+#[tracing::instrument(skip_all, level = "trace")]
 pub(crate) fn start(
   config: RuntimeOptions,
   tx: oneshot::Sender<mpsc::Receiver<ServerEvents>>,
@@ -34,7 +35,7 @@ pub(crate) fn start(
     .enable_time()
     .worker_threads(1)
     // TODO(sagar): optimize max blocking threads
-    .max_blocking_threads(1)
+    // .max_blocking_threads(1)
     .build()?;
 
   // TODO(sagar): security

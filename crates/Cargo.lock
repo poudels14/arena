@@ -1580,6 +1580,7 @@ dependencies = [
  "indexmap",
  "jsonwebtoken",
  "jsruntime",
+ "mime",
  "nom",
  "once_cell",
  "reqwest",

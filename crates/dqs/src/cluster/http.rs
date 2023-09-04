@@ -30,7 +30,8 @@ use std::net::SocketAddr;
 use std::str::FromStr;
 use tokio::sync::oneshot;
 use tower::ServiceBuilder;
-use tower_http::compression::CompressionLayer;
+use tower_http::compression::predicate::NotForContentType;
+use tower_http::compression::{CompressionLayer, DefaultPredicate, Predicate};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use url::Url;
 
@@ -39,6 +40,9 @@ pub(crate) async fn start_server(
   address: String,
   port: u16,
 ) -> Result<()> {
+  let compression_predicate = DefaultPredicate::new()
+    .and(NotForContentType::new(mime::TEXT_EVENT_STREAM.as_ref()));
+
   let app = Router::new()
     .route(
       "/w/:appId/widgets/:widgetId/api/:field",
@@ -55,7 +59,7 @@ pub(crate) async fn start_server(
     .layer(
       ServiceBuilder::new()
         .layer(middleware::from_fn(logger::middleware))
-        .layer(CompressionLayer::new())
+        .layer(CompressionLayer::new().compress_when(compression_predicate))
         .layer(
           CorsLayer::new()
             .allow_methods([Method::GET])
