@@ -19,6 +19,7 @@ const build = async (options) => {
   const { external = [], ...restOptions } = options;
   try {
     await esbuild.build({
+      minify: true,
       bundle: true,
       outdir: restOptions.outfile ? undefined : "dist",
       format: "esm",
@@ -59,6 +60,7 @@ program.option("--minify").action(async (options, cmd) => {
   await Promise.all([
     build({
       ...options,
+      minify: true,
       entryPoints: {
         assert: "libs/node/assert.ts",
         events: "libs/node/events.ts",
@@ -189,6 +191,9 @@ program.option("--minify").action(async (options, cmd) => {
       },
       outdir: "dist/functions",
       alias: {
+        // TODO(sagar): "assert" and "utils" are being bundled in several files
+        // but couldn't mark it was external because it would use "require" when
+        // marking as external. Using alias didn't work either. Figure out sth
         pg: "@arena/runtime/postgres",
       },
       external: ["@arena/runtime/postgres"],
