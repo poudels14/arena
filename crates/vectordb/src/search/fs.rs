@@ -33,7 +33,7 @@ impl<'a> FsSearch<'a> {
     options: SearchOptions,
   ) -> Result<Vec<(f32, (BString, i32, u32, u32, IndexMap<String, Value>))>> {
     let collection = self.db.get_internal_collection(collection_id)?;
-    let collection = collection.read().map_err(lock_error)?;
+    let collection = collection.lock().map_err(lock_error)?;
 
     let query_len = query.len();
     if query_len != collection.dimension as usize {
