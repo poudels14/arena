@@ -98,7 +98,11 @@ const sendMessage = p.mutate(async ({ ctx, params, req, errors }) => {
     Buffer.from(JSON.stringify({ queryId: request.id }))
   );
 
-  const [llmQueryRequest, aiResponseStream] = await chatCompletion({
+  const {
+    request: llmQueryRequest,
+    response: llmQueryResponse,
+    stream: aiResponseStream,
+  } = await chatCompletion({
     userId: openAiUserId,
     message: {
       system: {
@@ -112,32 +116,9 @@ const sendMessage = p.mutate(async ({ ctx, params, req, errors }) => {
     },
   });
 
-  // async function* a() {
-  //   const { rows } = await ctx.dbs.default.query<any>(
-  //     `SELECT * FROM chat_messages`
-  //   );
-
-  //   const content = rows[0].message;
-  //   for (let i = 0; i < content.length; i += 4) {
-  //     await new Promise((r) => {
-  //       setTimeout(() => r(null), 100);
-  //     });
-
-  //     yield {
-  //       json: {
-  //         choices: [
-  //           {
-  //             delta: {
-  //               content: content.substring(i, i + 4),
-  //             },
-  //           },
-  //         ],
-  //       },
-  //     };
-  //   }
-  // }
-
-  // const aiResponseStream = a();
+  if (llmQueryResponse.status !== 200) {
+    return errors.internalServerError("Error connection to the AI model");
+  }
 
   let aiResponse = "";
   const stream = new ReadableStream({

@@ -1,4 +1,4 @@
-import axios from "redaxios";
+import axios, { Response } from "redaxios";
 import { jsonStreamToAsyncIterator } from "@arena/sdk/utils/stream";
 import { merge } from "lodash-es";
 
@@ -15,10 +15,11 @@ type ChatCompletionRequest = {
   };
 };
 
-type ChatCompletionResponse = [
-  ChatCompletionRequest,
-  ReturnType<typeof jsonStreamToAsyncIterator>
-];
+type ChatCompletionResponse = {
+  request: ChatCompletionRequest;
+  response: Response<any>;
+  stream: ReturnType<typeof jsonStreamToAsyncIterator>;
+};
 
 async function chatCompletion(
   request: ChatCompletionRequest
@@ -55,7 +56,11 @@ async function chatCompletion(
     }
   );
 
-  return [request, jsonStreamToAsyncIterator(res.body!)];
+  return {
+    request,
+    response: res,
+    stream: jsonStreamToAsyncIterator(res.body!),
+  };
 }
 
 export { chatCompletion };
