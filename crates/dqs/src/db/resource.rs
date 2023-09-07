@@ -6,7 +6,7 @@ use std::time::SystemTime;
 #[derive(Queryable, Debug, Clone)]
 pub struct Resource {
   pub id: String,
-  pub workspace_id: String,
+  pub workspace_id: Option<String>,
   pub name: String,
   pub app_template_id: Option<String>,
   pub app_id: Option<String>,
@@ -21,7 +21,7 @@ pub struct Resource {
 diesel::table! {
   resources (id) {
     id -> Varchar,
-    workspace_id -> Varchar,
+    workspace_id -> Nullable<Varchar>,
     name -> Varchar,
     app_template_id -> Nullable<Varchar>,
     app_id -> Nullable<Varchar>,

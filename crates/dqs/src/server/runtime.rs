@@ -48,8 +48,12 @@ pub struct RuntimeOptions {
 pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
   let db_pool = config.db_pool.clone().unwrap();
   // TODO(sagar): instead of loading RuntimeState here, pass in as options
-  let state =
-    RuntimeState::init(config.workspace_id.clone(), db_pool.clone()).await?;
+  let state = RuntimeState::init(
+    config.workspace_id.clone(),
+    &config.app,
+    &mut db_pool.get()?,
+  )
+  .await?;
 
   let mut extensions = vec![
     deno_webidl::deno_webidl::init_ops(),

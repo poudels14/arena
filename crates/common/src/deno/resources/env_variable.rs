@@ -26,8 +26,8 @@ impl EnvironmentVariable {
     match self {
       EnvironmentVariable::Raw(value) => Ok(value.to_owned()),
       EnvironmentVariable::Secret { id, __type__ } => {
-        let variables = state.borrow::<EnvironmentVariableStore>().clone();
-        variables
+        let store = state.borrow::<EnvironmentVariableStore>().clone();
+        store
           .get(&id)
           .map(|e| e.value)
           .ok_or(anyhow!("Invalid secret environment variable"))
@@ -40,8 +40,6 @@ impl EnvironmentVariable {
 pub struct EnvVar {
   /// same as db row id
   pub id: String,
-  pub app_template_id: Option<String>,
-  pub app_id: Option<String>,
   pub key: String,
   pub value: Value,
   pub is_secret: bool,
@@ -62,35 +60,21 @@ impl EnvironmentVariableStore {
     Self(vars.into())
   }
 
-  /// Return env variables matching `app_template_id` and `app_id`
-  /// if they are set. Else, return env variables with
-  /// env.app_id/app_template_id null
-  pub fn filter(
-    &self,
-    app_id: Option<String>,
-    app_template_id: Option<String>,
-  ) -> Vec<Value> {
+  pub fn to_vec(&self) -> Vec<Value> {
     self
       .0
       .iter()
-      .filter(|ev| {
-        app_template_id == ev.1.app_template_id && app_id == ev.1.app_id
-      })
       .map(|(tmp_id, env)| {
-        let app = match env.app_id.is_some() || env.app_template_id.is_some() {
-          true => Some(json!({
-              "id": env.app_id,
-              "templateId": env.app_template_id,})),
-          false => None,
-        };
-
         json!({
           "id": env.id,
           "secretId": tmp_id,
-          "app": app,
           "key": env.key,
           "isSecret": env.is_secret,
-          "value": if env.is_secret { None } else { Some(env.value.clone()) }
+          "value": if env.is_secret {
+            Some(Value::String("**secret**".to_string()))
+          } else {
+            Some(env.value.clone())
+          }
         })
       })
       .collect::<Vec<Value>>()

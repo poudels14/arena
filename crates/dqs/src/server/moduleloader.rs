@@ -206,7 +206,7 @@ impl AppkitModuleLoader {
     _app_id: &str,
     _widget_id: &str,
   ) -> Result<String> {
-    let variables = self.state.env_variables.filter(None, None);
+    let variables = self.state.env_variables.to_vec();
     loaders::env::to_esm_module(variables)
   }
 

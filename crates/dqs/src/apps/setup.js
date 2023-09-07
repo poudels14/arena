@@ -9,7 +9,9 @@
   }
 
   const env = Arena.core.ops.op_apps_load_env().reduce((acc, cur) => {
-    const value = cur.isSecret ? new EnvironmentSecret(v.secretId) : cur.value;
+    const value = cur.isSecret
+      ? new EnvironmentSecret(cur.secretId)
+      : cur.value;
 
     // override app template's env by app's env if the key match
     if (acc[cur.key]) {
@@ -19,7 +21,6 @@
     } else {
       acc[cur.key] = value;
     }
-    acc[cur.id] = value;
     return acc;
   }, {});
   Object.assign(globalThis.process.env, env);

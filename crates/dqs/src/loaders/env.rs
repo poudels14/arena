@@ -16,7 +16,6 @@ pub(crate) fn to_esm_module<'a>(variables: Vec<Value>) -> Result<String> {
       const value = v.isSecret ? new EnvironmentSecret(v.secretId) : v.value;
       return [
         [v.key, value],
-        [v.id, value]
       ];
     }}));
 

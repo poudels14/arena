@@ -50,16 +50,8 @@ pub fn op_apps_get_app_dir(state: &mut OpState) -> Result<String> {
 
 #[op]
 fn op_apps_load_env(state: &mut OpState) -> Result<Value> {
-  let variables = state.borrow::<EnvironmentVariableStore>().clone();
+  let mut variables = state.borrow::<EnvironmentVariableStore>().to_vec();
   let app = state.borrow::<App>();
-
-  let mut env =
-    variables.filter(Some(app.id.clone()), Some(app.template.id.clone()));
-
-  let app_json = json!({
-    "id": app.id,
-    "templateId": app.template.id.clone()
-  });
 
   // Note(sagar): add default app related env variables
   vec![
@@ -75,15 +67,14 @@ fn op_apps_load_env(state: &mut OpState) -> Result<Value> {
   ]
   .iter()
   .for_each(|(key, value)| {
-    env.push(json!({
+    variables.push(json!({
       "id": Uuid::new_v4().to_string(),
       "secretId": Value::Null,
-      "app": app_json,
       "key": key,
       "isSecret": false,
       "value": value,
     }));
   });
 
-  Ok(json!(env))
+  Ok(json!(variables))
 }
