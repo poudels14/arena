@@ -503,7 +503,7 @@ impl<'d> VectorDatabase {
     &'d self,
     id: &BStr,
   ) -> Result<Arc<Mutex<storage::Collection>>, errors::Error> {
-    let cache = self.collections_cache.lock().map_err(lock_error)?;
+    let mut cache = self.collections_cache.lock().map_err(lock_error)?;
     let collection = cache.get(id).map(|c| c.clone());
 
     match collection {
@@ -515,7 +515,6 @@ impl<'d> VectorDatabase {
             .get(id)?
             .ok_or(Error::NotFound("Collection"))?,
         ));
-        let mut cache = self.collections_cache.lock().map_err(lock_error)?;
         cache.insert(id.to_owned(), stored_collection.clone());
         Ok(stored_collection)
       }
