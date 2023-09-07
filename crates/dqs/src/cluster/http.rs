@@ -157,11 +157,7 @@ pub async fn pipe_app_request(
     })?
     .ok_or(errors::Error::NotFound)?;
 
-  let connection = &mut cluster
-    .db_pool
-    .clone()
-    .get()
-    .map_err(|e| anyhow!("{}", e))?;
+  let connection = &mut cluster.db_pool.get().map_err(|e| anyhow!("{}", e))?;
 
   let app = db::app::table
     .filter(apps::id.eq(app_id.to_string()))
@@ -182,7 +178,9 @@ pub async fn pipe_app_request(
         root: app_root_path.clone(),
         registry: cluster.options.registry.clone(),
       }),
-      ..Default::default()
+      db_pool: cluster.db_pool.clone(),
+      dqs_egress_addr: cluster.options.dqs_egress_addr,
+      registry: cluster.options.registry.clone(),
     })
     .await?;
 
@@ -303,7 +301,10 @@ pub async fn pipe_widget_query_request(
       id: format!("workspace/{}", workspace_id),
       workspace_id,
       entry: ServerEntry::DqsServer,
-      ..Default::default()
+      app: None,
+      db_pool: cluster.db_pool.clone(),
+      dqs_egress_addr: cluster.options.dqs_egress_addr,
+      registry: cluster.options.registry.clone(),
     })
     .await?;
   dqs_server

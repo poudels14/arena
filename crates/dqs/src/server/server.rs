@@ -4,13 +4,15 @@ use common::beam;
 use deno_core::v8::IsolateHandle;
 use deno_core::{JsRuntime, ModuleCode, ModuleSpecifier};
 use serde_json::Value;
-use tokio::sync::{mpsc, oneshot};
+use std::sync::Arc;
+use tokio::sync::{oneshot, watch};
 use tracing::{debug, info};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ServerEvents {
+  Init,
   Started(IsolateHandle, beam::Sender<Command, Value>),
-  Terminated(Result<String>),
+  Terminated(Arc<Result<String>>),
 }
 
 #[allow(dead_code)]
@@ -23,12 +25,10 @@ pub enum Command {
 #[tracing::instrument(skip_all, level = "trace")]
 pub(crate) fn start(
   config: RuntimeOptions,
-  tx: oneshot::Sender<mpsc::Receiver<ServerEvents>>,
+  events_tx: watch::Sender<ServerEvents>,
   // server entry module `(specifier, code)`
   entry_module: (ModuleSpecifier, ModuleCode),
 ) -> Result<()> {
-  let (events_tx, events_rx) = mpsc::channel(5);
-  tx.send(events_rx).unwrap();
   let rt = tokio::runtime::Builder::new_current_thread()
     .thread_name(config.id.clone())
     .enable_io()
@@ -54,8 +54,7 @@ pub(crate) fn start(
       .send(ServerEvents::Started(
         runtime.v8_isolate().thread_safe_handle(),
         sender,
-      ))
-      .await?;
+      ))?;
     local
       .spawn_local(async { listen_to_commands(receiver, terminate_tx).await });
 
@@ -73,8 +72,7 @@ pub(crate) fn start(
     };
     info!("DQS server stopped");
     events_tx
-      .send(ServerEvents::Terminated(res))
-      .await?;
+      .send(ServerEvents::Terminated(res.into()))?;
     Ok(())
   });
 
@@ -85,11 +83,9 @@ pub(crate) fn start(
       // need to send server terminated signal
       local.block_on(&rt, async {
         events_tx
-          .send(ServerEvents::Terminated(Err(anyhow!(
-            "Error running DQS server: {}",
-            e
-          ))))
-          .await
+          .send(ServerEvents::Terminated(
+            Err(anyhow!("Error running DQS server: {}", e)).into(),
+          ))
           .unwrap();
       });
       Err(e)

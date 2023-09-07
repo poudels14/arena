@@ -4,7 +4,6 @@ use crate::server::entry::ServerEntry;
 use crate::server::{self, RuntimeOptions, ServerEvents};
 use anyhow::anyhow;
 use anyhow::bail;
-use anyhow::Context;
 use anyhow::Result;
 use common::deno::extensions::server::HttpRequest;
 use common::deno::extensions::server::HttpServerConfig;
@@ -23,8 +22,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::thread;
 use std::thread::JoinHandle;
-use tokio::sync::mpsc;
 use tokio::sync::oneshot;
+use tokio::sync::{mpsc, watch};
 mod cluster;
 mod handle;
 mod stream;
@@ -69,8 +68,7 @@ async fn op_dqs_start_tcp_server(
 ) -> Result<ResourceId> {
   let mut cluster = state.borrow().borrow::<DqsCluster>().clone();
   let db_pool = cluster.get_db_pool()?;
-
-  let (tx, rx) = oneshot::channel();
+  let (events_tx, events_rx) = watch::channel(ServerEvents::Init);
   let thread_handle = thread::spawn(move || {
     server::start(
       RuntimeOptions {
@@ -83,12 +81,12 @@ async fn op_dqs_start_tcp_server(
         },
         ..Default::default()
       },
-      tx,
+      events_tx,
       ServerEntry::DqsServer.get_main_module()?,
     )
   });
 
-  start_dqs_server(state, thread_handle, rx).await
+  start_dqs_server(state, thread_handle, events_rx).await
 }
 
 #[op]
@@ -98,7 +96,7 @@ async fn op_dqs_start_stream_server(
 ) -> Result<(ResourceId, ResourceId)> {
   let mut cluster = state.borrow().borrow::<DqsCluster>().clone();
 
-  let (tx, rx) = oneshot::channel();
+  let (events_tx, events_rx) = watch::channel(ServerEvents::Init);
   let (stream_tx, stream_rx) = mpsc::channel(5);
   let db_pool = cluster.get_db_pool()?;
   let thread_handle = thread::spawn(move || {
@@ -111,12 +109,12 @@ async fn op_dqs_start_stream_server(
         ))),
         ..Default::default()
       },
-      tx,
+      events_tx,
       ServerEntry::DqsServer.get_main_module()?,
     )
   });
 
-  let handle_id = start_dqs_server(state.clone(), thread_handle, rx)
+  let handle_id = start_dqs_server(state.clone(), thread_handle, events_rx)
     .await
     .map_err(|_| anyhow!("Failed to spin up query runtime"))?;
 
@@ -216,21 +214,20 @@ async fn op_dqs_pipe_request_to_stream(
 async fn start_dqs_server(
   state: Rc<RefCell<OpState>>,
   thread_handle: JoinHandle<Result<()>>,
-  rx: oneshot::Receiver<mpsc::Receiver<ServerEvents>>,
+  mut receiver: watch::Receiver<ServerEvents>,
 ) -> Result<ResourceId> {
   let (handle_sender, handle_receiver) = oneshot::channel();
   let mut handle_sender = Some(handle_sender);
   let mut thread_handle = Some(thread_handle);
   tokio::task::spawn_local(async move {
-    let mut receiver = rx
-      .await
-      .context("Error listening to DQS server events")
-      .unwrap();
-
     let mut handle_id = None;
-    let x = loop {
-      match receiver.recv().await {
-        Some(ServerEvents::Started(isolate_handle, commands))
+    let x: Result<(), anyhow::Error> = loop {
+      if receiver.changed().await.is_err() {
+        break Err(anyhow!("Server events stream error"));
+      }
+      let event = receiver.borrow().clone();
+      match event {
+        ServerEvents::Started(isolate_handle, commands)
           if handle_id == None =>
         {
           let mut cluster = state.borrow().borrow::<DqsCluster>().clone();
@@ -246,26 +243,25 @@ async fn start_dqs_server(
             .unwrap();
           handle_sender
             .take()
-            .map(|tx| tx.send(Ok(hid)).unwrap())
+            .map(|tx| tx.send(Ok(hid)).ok())
             .unwrap();
           handle_id = Some(hid);
         }
-        Some(ServerEvents::Terminated(result)) => {
+        ServerEvents::Terminated(result) => {
           let mut cluster = state.borrow().borrow::<DqsCluster>().clone();
           break handle_id
-            .map(|id| cluster.remove_instance(id).unwrap())
-            .ok_or(anyhow!("Failed to clean up server instance"))
-            .and_then(|_| result);
+            .map(|id| cluster.remove_instance(id))
+            .ok_or(anyhow!(
+              "Failed to clean up server instance. Server terminated: {:?}",
+              result
+            ))
+            .and_then(|_| Err(anyhow!("{:?}", result)));
         }
-        _ => {
-          break Err(anyhow!("Server events stream closed"));
-        }
+        _ => {}
       }
     };
-    handle_sender
-      .take()
-      .and_then(|tx| tx.send(Err(x.unwrap_err())).ok())
-      .unwrap();
+
+    handle_sender.take().map(|tx| tx.send(Err(x.unwrap_err())));
   });
 
   handle_receiver.await?

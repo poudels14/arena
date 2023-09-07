@@ -165,6 +165,8 @@ impl AppkitModuleLoader {
     &mut self,
     specifier: &WidgetQuerySpecifier,
   ) -> Result<String> {
+    // TODO(sagar): instead of loading widget query from db directly,
+    // use registry
     let connection = &mut self.pool.get()?;
     let widget = widgets::table
       .filter(widgets::id.eq(specifier.widget_id.to_string()))

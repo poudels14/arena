@@ -47,6 +47,7 @@ pub struct RuntimeOptions {
 
 pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
   let db_pool = config.db_pool.clone().unwrap();
+  // TODO(sagar): instead of loading RuntimeState here, pass in as options
   let state =
     RuntimeState::init(config.workspace_id.clone(), db_pool.clone()).await?;
 
@@ -145,8 +146,8 @@ fn build_extension(state: RuntimeState, config: &RuntimeOptions) -> Extension {
         }
       ])
       .state(move |op_state| {
-        op_state.put::<RuntimeState>(state.clone());
         op_state.put::<EnvironmentVariableStore>(state.env_variables.clone());
+        op_state.put::<RuntimeState>(state);
         op_state.put::<PermissionsContainer>(permissions);
 
         if let Some(egress_address) = egress_address {
