@@ -1,4 +1,3 @@
-import { createSignal } from "solid-js";
 import { A } from "@solidjs/router";
 import { InlineIcon } from "@arena/components";
 import { DropdownMenu } from "@kobalte/core";
@@ -9,6 +8,7 @@ const AppThumbnail = (props: {
   name: string;
   description?: string;
   config: any;
+  delete: (id: string) => void;
 }) => {
   const thumbnailClass = () => props.config?.ui?.thumbnail?.class;
   return (
@@ -23,15 +23,13 @@ const AppThumbnail = (props: {
         <div class="flex-1 font-medium text-accent-12/80 group-hover:text-brand-12">
           {props.name}
         </div>
-        <MenuDropdown />
+        <MenuDropdown delete={props.delete} />
       </div>
     </A>
   );
 };
 
-const MenuDropdown = () => {
-  const [isOpen, setIsOpen] = createSignal();
-  const deleteApp = () => {};
+const MenuDropdown = (props: { delete: (id: string) => void }) => {
   return (
     <DropdownMenu.Root
       hideWhenDetached={true}
@@ -52,7 +50,7 @@ const MenuDropdown = () => {
           }}
         >
           <DropdownItem label="Share" />
-          <DropdownItem label="Delete" onClick={deleteApp} />
+          <DropdownItem label="Delete" onClick={props.delete} />
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
@@ -63,7 +61,7 @@ const DropdownItem = (props: any) => {
   return (
     <DropdownMenu.Item
       class="p-2 hover:bg-brand-10/10 cursor-pointer rounded"
-      onClick={props.onClick}
+      onSelect={props.onClick}
     >
       <div>{props.label}</div>
     </DropdownMenu.Item>

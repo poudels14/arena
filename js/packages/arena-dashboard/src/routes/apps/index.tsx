@@ -55,6 +55,14 @@ const Home = (props: {
     });
   });
 
+  const deleteApp = async (id: string) => {
+    await client.apps.archive.mutate({
+      workspaceId: workspace.id,
+      id,
+    });
+    refetch();
+  };
+
   return (
     <Show when={apps()}>
       <Title>Apps</Title>
@@ -77,7 +85,7 @@ const Home = (props: {
           </Show>
           <For each={apps()}>
             {(app) => {
-              return <AppThumbnail {...app} />;
+              return <AppThumbnail {...app} delete={() => deleteApp(app.id)} />;
             }}
           </For>
         </div>
