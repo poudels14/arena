@@ -6,3 +6,8 @@ CREATE TABLE resource_types (
   is_secret BOOL DEFAULT false,
   archived_at TIMESTAMPTZ DEFAULT NULL
 );
+
+INSERT INTO resource_types (id, name)
+  VALUES
+    ('@arena/sql/postgres', 'Postgres Database'),
+    ('@arena/env', 'Environment variable');

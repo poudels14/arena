@@ -1,10 +1,10 @@
 CREATE TABLE resources (
   id VARCHAR(50) UNIQUE,
-  workspace_id VARCHAR(50),
-  name VARCHAR(255),
+  workspace_id VARCHAR(50) DEFAULT NULL,
+  name VARCHAR(255) NOT NULL,
   description TEXT DEFAULT NULL,
   -- "@arena/sql/postgres", "env", "config",
-  type VARCHAR(100),
+  type VARCHAR(100) NOT NULL,
   -- whether this resouce is a secret; value of secret resource is only visible
   -- to privileged code and not visible to user code
   secret BOOLEAN DEFAULT false,
@@ -20,11 +20,11 @@ CREATE TABLE resources (
 
   app_id VARCHAR(50) DEFAULT NULL,
 
-  key VARCHAR(100) DEFAULT NULL,
-  value JSONB,
+  key VARCHAR(100) NOT NULL,
+  value JSONB NOT NULL,
   -- this is to support multiple "environments" like prod/staging
   context_id VARCHAR(50) DEFAULT NULL,
-  created_by VARCHAR(50),
+  created_by VARCHAR(50) DEFAULT NNULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   archived_at TIMESTAMPTZ DEFAULT NULL
