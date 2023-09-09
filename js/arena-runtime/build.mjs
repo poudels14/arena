@@ -170,32 +170,18 @@ program.option("--minify").action(async (options, cmd) => {
         "@arena/runtime/babel",
       ],
     }),
-    /**
-     * This bundles exports of `@arena/functions/...` so that it can be
-     * embedded in DQS server during build time to avoid file access during
-     * runtime.
-     *
-     * `@arena/functions` could be open-sourced later, so, putting the build
-     * setup here.
-     */
-    stdinBuild({
+    build({
+      ...options,
       entryPoints: {
-        "router.js": `export * from "@arena/functions/router";`,
-        "sql/postgres.js": `export * from "@arena/functions/sql/postgres";`,
+        "dqs/query": "./libs/dqs/query/router.ts",
+        "dqs/postgres": "./libs/dqs/postgres/index.ts",
+        "dqs/app-server": "./libs/dqs/app/server.ts",
       },
-      outdir: "dist/functions",
       alias: {
         // TODO(sagar): "assert" and "utils" are being bundled in several files
         // but couldn't mark it was external because it would use "require" when
         // marking as external. Using alias didn't work either. Figure out sth
         pg: "@arena/runtime/postgres",
-      },
-      external: ["@arena/runtime/postgres"],
-    }),
-    build({
-      ...options,
-      entryPoints: {
-        "app-server": "./libs/apps/server.ts",
       },
       external: [
         "path",
@@ -203,6 +189,7 @@ program.option("--minify").action(async (options, cmd) => {
         "@dqs/app/template",
         "@arena/runtime/server",
         "@arena/runtime/sqlite",
+        "@arena/runtime/postgres",
         "~/setup/migrations",
       ],
     }),

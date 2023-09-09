@@ -128,7 +128,7 @@ impl ModuleLoader for AppkitModuleLoader {
               let referrer = referrer.as_str();
               // make sure the referrer that's requesting the env variables is
               // same app and widget or the main module which has the privilege
-              if referrer == "builtin:///@arena/dqs/router" {
+              if referrer == "builtin:///@arena/dqs/query" {
               } else {
                 let parsed_referrer = ParsedSpecifier::from(&referrer)?;
                 match parsed_referrer {
@@ -226,12 +226,11 @@ impl AppkitModuleLoader {
   }
 }
 
-// - allow all dqs functions modules; those are meant to be used by user code
-// - allow `path` and `process` node modules
 fn is_allowed_builtin_module(specifier: &str) -> bool {
+  // - allow `path`, `process`, `crypto` node modules
   specifier == "path"
     || specifier == "process"
     || specifier == "crypto"
+    // allow runtime/server since app templates need it
     || specifier == "@arena/runtime/server"
-    || specifier.starts_with("@arena/functions/")
 }

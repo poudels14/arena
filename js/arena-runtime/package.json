@@ -27,7 +27,7 @@
   "dependencies": {
     "@arena/cloud": "workspace:^",
     "@arena/core": "workspace:^",
-    "@arena/functions": "workspace:^",
+    "@arena/db": "workspace:^",
     "@arena/sdk": "workspace:^",
     "@babel/core": "^7.21.3",
     "@babel/helper-plugin-utils": "^7.20.2",
@@ -43,6 +43,7 @@
     "matcher": "^5.0.0",
     "mime": "^3.0.0",
     "path": "^0.12.7",
+    "pg": "link:@arena/db/pg",
     "postcss": "^8.4.25",
     "reserved-words": "^0.1.2",
     "rollup": "^3.17.3",
@@ -51,7 +52,8 @@
     "solid-js": "^1.7.11",
     "terser": "^5.16.8",
     "url": "^0.11.1",
-    "util": "^0.12.5"
+    "util": "^0.12.5",
+    "zod": "^3.22.2"
   },
   "devDependencies": {
     "esbuild": "^0.17.10",

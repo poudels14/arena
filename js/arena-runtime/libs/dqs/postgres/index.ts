@@ -1,5 +1,6 @@
+// @ts-ignore
 import { Client as PgClient } from "pg";
-import { SqlDataQueryConfig } from ".";
+import { SqlDataQueryConfig } from "@arena/db";
 
 /**
  * Only available in Arena cloud

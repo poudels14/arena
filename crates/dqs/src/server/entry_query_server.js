@@ -1,5 +1,5 @@
 import { serve } from "@arena/runtime/server";
-import { router } from "builtin:///@arena/dqs/router";
+import { router } from "builtin:///@arena/dqs/query";
 
 serve({
   async fetch(req) {

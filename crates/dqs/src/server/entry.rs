@@ -2,12 +2,13 @@ use anyhow::Result;
 use deno_core::{ModuleCode, ModuleSpecifier};
 use url::Url;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Default)]
 pub enum ServerEntry {
   /// This is a server entry for widgets, etc
   DqsServer,
+
   /// This is a server entry for an app template's router
-  #[allow(dead_code)]
   AppServer,
 
   #[default]
@@ -15,6 +16,7 @@ pub enum ServerEntry {
 }
 
 impl ServerEntry {
+  #[allow(dead_code)]
   pub fn get_main_module(&self) -> Result<(ModuleSpecifier, ModuleCode)> {
     match self {
       ServerEntry::DqsServer => Ok((
@@ -23,7 +25,7 @@ impl ServerEntry {
       )),
       Self::AppServer => Ok((
         Url::parse("builtin://main")?,
-        include_str!("../../../../js/arena-runtime/dist/app-server.js")
+        include_str!("../../../../js/arena-runtime/dist/dqs/app-server.js")
           .to_owned()
           .into(),
       )),

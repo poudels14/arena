@@ -65,18 +65,17 @@ fn generate_prod_snapshot(path: &Path) {
     }),
     BuiltinModule::Custom(Rc::new(|| BuiltinExtension {
       snapshot_modules: vec![
-        // Note(sagar): load this under @arena/dqs/router instead of
-        // @arena/functions/router since we dont want user code to be able
-        // to load this module and all @arena/functions/... are accessible
-        // by user code
         (
-          "@arena/dqs/router",
+          "@arena/dqs/query",
+          resolve_from_root!("../../js/arena-runtime/dist/dqs/query.js", true),
+        ),
+        (
+          "@arena/dqs/postgres",
           resolve_from_root!(
-            "../../js/arena-runtime/dist/functions/router.js",
+            "../../js/arena-runtime/dist/dqs/postgres.js",
             true
           ),
         ),
-        dqs_function!("sql/postgres"),
       ],
       ..Default::default()
     })),
@@ -147,17 +146,4 @@ fn get_basic_runtime() -> JsRuntime {
     ..Default::default()
   });
   runtime
-}
-
-#[macro_export]
-macro_rules! dqs_function {
-  ($a:literal) => {{
-    (
-      concat!("@arena/functions/", $a),
-      resolve_from_root!(
-        concat!("../../js/arena-runtime/dist/functions/", $a, ".js"),
-        true
-      ),
-    )
-  }};
 }
