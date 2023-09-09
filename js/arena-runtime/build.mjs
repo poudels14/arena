@@ -155,12 +155,6 @@ program.option("--minify").action(async (options, cmd) => {
     build({
       ...options,
       entryPoints: {
-        dqs: "./libs/dqs/index.ts",
-      },
-    }),
-    build({
-      ...options,
-      entryPoints: {
         bundler: "./libs/bundler/index.ts",
       },
       external: ["@arena/runtime/rollup"],

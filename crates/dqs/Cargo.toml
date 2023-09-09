@@ -5,10 +5,6 @@ edition = "2021"
 
 [[bin]]
 name = "dqs_cloud"
-path = "src/dqs_cloud.rs"
-
-[[bin]]
-name = "dqs"
 path = "src/main.rs"
 
 [dependencies]

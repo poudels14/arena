@@ -540,39 +540,6 @@ declare module "@arena/runtime/server" {
   export const serve: (config: ServeConfig) => Promise<void>;
 }
 
-declare module "@arena/runtime/dqs" {
-  export class DqsServer {
-    // returns whether the DQS server is alive
-    isAlive(): boolean;
-
-    pipeRequest(request: {
-      url: string;
-      method?: Request["method"];
-      headers?: [string, string][];
-      body?: any;
-    }): Promise<
-      [
-        // status code
-        number,
-        // headers
-        [string, string][],
-        // body
-        any
-      ]
-    >;
-  }
-
-  export class DqsCluster {
-    static startTcpServer(
-      workspaceId: string,
-      address: string,
-      port: number
-    ): Promise<DqsServer>;
-
-    static startStreamServer(workspaceId: string): Promise<DqsServer>;
-  }
-}
-
 declare module "@arena/runtime/bundler" {
   type BuildConfig = {
     env?: Record<string, any>;
