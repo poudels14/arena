@@ -364,8 +364,10 @@ pub struct SearchCollectionResult {
   pub end: usize,
   #[serde(skip_serializing_if = "Option::is_none")]
   pub content: Option<StringOrBuffer>,
+
   /// Only set if before/after_context is non-zero
-  pub context: (Option<StringOrBuffer>, Option<StringOrBuffer>),
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub context: Option<(Option<StringOrBuffer>, Option<StringOrBuffer>)>,
   /// Chunk/embedding metadata
   pub metadata: IndexMap<String, Value>,
 }
@@ -444,9 +446,9 @@ async fn op_cloud_vectordb_search_collection(
               )
             })
             .transpose()?;
-          (Some(chunk), (before_ctx, after_ctx))
+          (Some(chunk), Some((before_ctx, after_ctx)))
         }
-        false => (None, (None, None)),
+        false => (None, None),
       };
 
       Ok(SearchCollectionResult {
