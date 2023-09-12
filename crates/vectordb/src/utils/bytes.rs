@@ -1,4 +1,5 @@
 use bstr::BStr;
+use bstr::BString;
 use bstr::ByteSlice;
 
 pub trait ToBeBytes {
@@ -8,6 +9,18 @@ pub trait ToBeBytes {
 impl ToBeBytes for (u32, &BStr) {
   fn to_be_bytes(&self) -> Vec<u8> {
     [&self.0.to_be_bytes(), self.1.as_bytes()].concat()
+  }
+}
+
+impl ToBeBytes for (u32, &BString) {
+  fn to_be_bytes(&self) -> Vec<u8> {
+    [&self.0.to_be_bytes(), self.1.as_bytes()].concat()
+  }
+}
+
+impl ToBeBytes for (u32, u32) {
+  fn to_be_bytes(&self) -> Vec<u8> {
+    [self.0.to_be_bytes(), self.1.to_be_bytes()].concat()
   }
 }
 

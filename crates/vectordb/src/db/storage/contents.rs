@@ -1,4 +1,3 @@
-use super::collections::Collection;
 use super::{Database, Document};
 use crate::db::rocks::cf::{column_handle, DatabaseColumnFamily};
 use crate::db::rocks::PinnableSlice;
@@ -25,7 +24,7 @@ pub fn get_db_options() -> Options {
 
 #[allow(dead_code)]
 pub struct DocumentBlobsHandle<'d> {
-  collection: &'d Collection,
+  collection_index: u32,
   document: &'d Document,
   handle: (&'d Database, &'d ColumnFamily),
 }
@@ -34,11 +33,11 @@ pub struct DocumentBlobsHandle<'d> {
 impl<'d> DocumentBlobsHandle<'d> {
   pub fn new(
     db: &'d Database,
-    collection: &'d Collection,
+    collection_index: u32,
     document: &'d Document,
   ) -> Result<Self> {
     Ok(Self {
-      collection,
+      collection_index,
       document,
       handle: (db, column_handle(db, DOC_CONTENTS_CF)?),
     })
@@ -61,7 +60,7 @@ impl<'d> DocumentBlobsHandle<'d> {
   ) {
     self.handle.batch_put(
       batch,
-      &(self.collection.index, self.document.index, "-", blob_key)
+      &(self.collection_index, self.document.index, "-", blob_key)
         .to_be_bytes(),
       &content,
     );
@@ -75,18 +74,21 @@ impl<'d> DocumentBlobsHandle<'d> {
     let mut read_options = ReadOptions::default();
     read_options.fill_cache(false);
     self.handle.get_pinned_opt(
-      (self.collection.index, self.document.index, "-", blob_key).to_be_bytes(),
+      (self.collection_index, self.document.index, "-", blob_key).to_be_bytes(),
       &read_options,
     )
   }
 
   /// Deletes all blobs including "content" for this collection/document
-  pub fn batch_delete(&self, batch: &mut WriteBatchWithTransaction<true>) {
-    self.collection.blobs.iter().for_each(|key| {
-      self.handle.batch_delete(
-        batch,
-        &(self.collection.index, self.document.index, "-", key).to_be_bytes(),
-      )
-    });
+  pub fn batch_delete(
+    &self,
+    batch: &mut WriteBatchWithTransaction<true>,
+    blob_key: &str,
+  ) {
+    self.handle.batch_delete(
+      batch,
+      &(self.collection_index, self.document.index, "-", blob_key)
+        .to_be_bytes(),
+    )
   }
 }

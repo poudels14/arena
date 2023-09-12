@@ -1,8 +1,9 @@
 use super::SearchOptions;
 use crate::db::rocks::cf::DatabaseColumnFamily;
 use crate::db::storage::embeddings::StoredEmbeddings;
-use crate::db::storage::{self, DocumentsHandle};
+use crate::db::storage::{self};
 use crate::db::{lock_error, VectorDatabase};
+use crate::storage::row::RowId;
 use crate::vectors::scoring::sortedscore::SortedSimilarityScores;
 use crate::vectors::scoring::{SimilarityScorerFactory, SimilarityType};
 use crate::vectors::VectorElement;
@@ -10,7 +11,7 @@ use anyhow::{bail, Result};
 use bitvec::field::BitField;
 use bitvec::prelude::Msb0;
 use bitvec::view::BitView;
-use bstr::{BStr, BString};
+use bstr::BStr;
 use indexmap::IndexMap;
 use rocksdb::ReadOptions;
 use serde_json::Value;
@@ -31,7 +32,7 @@ impl<'a> FsSearch<'a> {
     query: &[VectorElement],
     k: usize,
     options: SearchOptions,
-  ) -> Result<Vec<(f32, (BString, i32, u32, u32, IndexMap<String, Value>))>> {
+  ) -> Result<Vec<(f32, (RowId, u32, u32, u32, IndexMap<String, Value>))>> {
     let collection = self.db.get_internal_collection(collection_id)?;
     let collection = collection.lock().map_err(lock_error)?;
 
@@ -42,27 +43,17 @@ impl<'a> FsSearch<'a> {
       bail!("Query vector dimension should be a multiple of 4")
     }
 
-    let mut document_id_by_index: Vec<BString> =
-      vec![b"".into(); collection.next_doc_index as usize];
-    let document_h = DocumentsHandle::new(&self.db.db, &collection)?;
-
-    // TODO: only load docs found in top k results
-    document_h.iterator().for_each(|item| {
-      if let Ok((id, doc)) = item {
-        document_id_by_index[doc.index as usize] = id;
-      }
-    });
-
     let embeddings_cf = storage::embeddings::cf(&self.db.db)?;
     let mut read_options = ReadOptions::default();
     read_options.fill_cache(false);
+    read_options.set_iterate_upper_bound((collection.index + 1).to_be_bytes());
 
     let scorer = SimilarityScorerFactory::get_default(SimilarityType::Dot);
     let mut scores = SortedSimilarityScores::new(k);
     let min_score = options.min_score.unwrap_or(0.0);
 
     embeddings_cf
-      .prefix_iterator(&collection.index.to_be_bytes())
+      .prefix_iterator_opt(&collection.index.to_be_bytes(), read_options)
       .filter_map(|embedding| embedding.ok())
       .for_each(|(key, embedding)| {
         let embedding =
@@ -71,8 +62,8 @@ impl<'a> FsSearch<'a> {
 
         if score >= min_score {
           // Note(sagar): decode these as i32 since they are stored as i32
-          let doc_index: i32 = key[4..8].view_bits::<Msb0>().load_be();
-          let chunk_index: i32 = key[8..12].view_bits::<Msb0>().load_be();
+          let doc_index: u32 = key[4..8].view_bits::<Msb0>().load_be();
+          let chunk_index: u32 = key[8..12].view_bits::<Msb0>().load_be();
           scores.push((
             score,
             (
@@ -93,7 +84,10 @@ impl<'a> FsSearch<'a> {
         Ok((
           score.to_owned(),
           (
-            document_id_by_index[info.0 as usize].clone(),
+            RowId {
+              collection_index: collection.index,
+              row_index: info.0,
+            },
             info.1,
             info.2,
             info.3,

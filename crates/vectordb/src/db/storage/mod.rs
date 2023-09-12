@@ -2,6 +2,7 @@ pub mod collections;
 pub mod contents;
 pub mod documents;
 pub mod embeddings;
+pub mod row;
 
 pub use collections::{Collection, CollectionsHandle};
 pub use contents::DocumentBlobsHandle;

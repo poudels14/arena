@@ -14,6 +14,7 @@ use std::path::Path;
 use std::rc::Rc;
 use vectordb::query::DocumentWithContent;
 use vectordb::search::SearchOptions;
+use vectordb::RowId;
 use vectordb::{query, sql, DatabaseOptions, VectorDatabase};
 
 pub fn extension() -> BuiltinExtension {
@@ -393,32 +394,26 @@ async fn op_cloud_vectordb_search_collection(
     },
   )?;
 
-  let mut documents: IndexMap<String, DocumentWithContent> = IndexMap::new();
+  let mut documents: IndexMap<RowId, DocumentWithContent> = IndexMap::new();
 
   result
     .into_iter()
     .map(|(score, m)| {
-      let document_id = std::str::from_utf8(&m.0)
-        .context("document name should be utf-8")
-        .map(|s| s.to_owned())?;
+      let document_row_id = m.0;
       let chunk_index = m.1 as usize;
       let start = m.2 as usize;
       let end = m.3 as usize;
 
+      if documents.get(&document_row_id).is_none() {
+        let doc = db
+          .get_document_by_row_id(&document_row_id)?
+          .context("Document in search result not found")?;
+        documents.insert(document_row_id.clone(), doc);
+      };
+      let doc = documents.get(&document_row_id).unwrap();
+
       let (content, context) = match options.include_chunk_content {
         true => {
-          if documents.get(&document_id).is_none() {
-            let doc = db.get_document(
-              collection_id.as_str().into(),
-              document_id.as_str().into(),
-            )?;
-            if doc.is_none() {
-              bail!("Document in search result not found");
-            }
-            documents.insert(document_id.clone(), doc.unwrap());
-          };
-          let doc = documents.get(&document_id).unwrap();
-
           let chunk = encoded_buffer(
             &doc.content[start..end],
             &options.content_encoding,
@@ -446,14 +441,20 @@ async fn op_cloud_vectordb_search_collection(
               )
             })
             .transpose()?;
-          (Some(chunk), Some((before_ctx, after_ctx)))
+
+          let ctx = if before_ctx.is_none() && before_ctx.is_none() {
+            None
+          } else {
+            Some((before_ctx, after_ctx))
+          };
+          (Some(chunk), ctx)
         }
         false => (None, None),
       };
 
       Ok(SearchCollectionResult {
         score,
-        document_id: std::str::from_utf8(&m.0)
+        document_id: std::str::from_utf8(&doc.id)
           .context("document name should be utf-8")
           .map(|s| s.to_owned())?,
         chunk_index,

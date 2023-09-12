@@ -50,8 +50,6 @@ pub trait DatabaseColumnFamily<'a> {
     mode: IteratorMode,
   ) -> RowsIterator;
 
-  fn prefix_iterator(&self, prefix: &[u8]) -> RowsIterator;
-
   #[allow(unused_variables)]
   fn prefix_iterator_opt(
     &self,
@@ -109,10 +107,6 @@ impl<'a> DatabaseColumnFamily<'a> for (&'a Database, &'a ColumnFamily) {
     mode: IteratorMode,
   ) -> RowsIterator {
     self.0.iterator_cf_opt(self.1, options, mode)
-  }
-
-  fn prefix_iterator(&self, prefix: &[u8]) -> RowsIterator {
-    self.0.prefix_iterator_cf(self.1, prefix)
   }
 
   fn prefix_iterator_opt(

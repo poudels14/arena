@@ -11,6 +11,7 @@ pub struct Collection {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct DocumentWithContent {
+  pub id: BString,
   pub content_length: u32,
   pub chunks_count: u32,
   pub metadata: Option<IndexMap<String, Value>>,
