@@ -1,9 +1,9 @@
-use super::state::RuntimeState;
 use crate::apps::App;
 use crate::config::{DataConfig, SourceConfig, WidgetConfig};
 use crate::db::widget::{self, widgets};
 use crate::loaders;
 use crate::loaders::registry::Registry;
+use crate::server::RuntimeState;
 use crate::specifier::{ParsedSpecifier, WidgetQuerySpecifier};
 use anyhow::{anyhow, bail, Error, Result};
 use deno_core::{

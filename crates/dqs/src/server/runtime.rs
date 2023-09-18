@@ -1,6 +1,6 @@
-use super::moduleloader::AppkitModuleLoader;
 use super::state::RuntimeState;
 use crate::apps::App;
+use crate::loaders::moduleloader::AppkitModuleLoader;
 use crate::loaders::registry::Registry;
 use anyhow::Result;
 use common::deno::extensions::server::HttpServerConfig;

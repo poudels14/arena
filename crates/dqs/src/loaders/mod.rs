@@ -1,5 +1,6 @@
 pub mod env;
 pub mod javascript;
+pub(crate) mod moduleloader;
 pub(crate) mod registry;
 pub mod sql;
 use anyhow::Result;
