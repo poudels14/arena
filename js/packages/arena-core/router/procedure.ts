@@ -61,10 +61,12 @@ const createHandler = <Context>(
     event: RequestEvent<Context>,
     options: HandleOptions<Context>
   ) => {
-    fns = options?.middlewares ? [...options.middlewares, ...fns] : fns;
+    const finalFns = options?.middlewares
+      ? [...options.middlewares, ...fns]
+      : [...fns];
     const generateNextFn = (currIdx: number) => {
       return (nextArgs: Partial<Omit<RequestEvent<Context>, "next">>) =>
-        fns[currIdx + 1]({
+        finalFns[currIdx + 1]({
           ...event,
           ctx: {
             ...event.ctx,
@@ -76,7 +78,7 @@ const createHandler = <Context>(
 
     let response;
     try {
-      response = fns[0]({ ...event, next: generateNextFn(0) });
+      response = finalFns[0]({ ...event, next: generateNextFn(0) });
     } catch (e) {
       response = e;
     }

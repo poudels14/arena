@@ -13,6 +13,9 @@ import { parseFormData } from "./formdata";
 type RouterConfig<Context> = {
   host?: string;
   prefix?: string;
+  ignoreTrailingSlash?: boolean;
+  ignoreDuplicateSlashes?: boolean;
+
   defaultHandler?: Handler<Context>;
 
   /**
@@ -29,7 +32,11 @@ const createRouter = <Context>(
     routes: Record<string, Handler<Context>>;
   }
 ) => {
-  const r = findMyWay();
+  const r = findMyWay({
+    ignoreTrailingSlash: config.ignoreTrailingSlash,
+    ignoreDuplicateSlashes: config.ignoreDuplicateSlashes,
+  });
+
   const routes = Object.entries(config.routes).map(
     ([path, handler]) =>
       [nodePath.join(config.prefix || "/", path), handler] as const

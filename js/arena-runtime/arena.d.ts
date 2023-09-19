@@ -432,6 +432,9 @@ declare module "@arena/runtime/server" {
   type RouterConfig<Context> = {
     host?: string;
     prefix?: string;
+    ignoreTrailingSlash?: boolean;
+    ignoreDuplicateSlashes?: boolean;
+
     defaultHandler?: ProcedureCallback<Context>;
 
     /**
