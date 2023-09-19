@@ -165,7 +165,7 @@ pub fn handle_websocket(
 ) {
   spawn_local(async move {
     let (_response, fut) =
-      upgrade(&mut req).expect("successful websocket upgrade");
+      upgrade(&mut req).map_err(|_| anyhow!("error upgrading to websocket"))?;
     let mut ws = FragmentCollector::new(
       fut
         .await
