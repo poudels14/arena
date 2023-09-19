@@ -4,4 +4,4 @@ pub(crate) mod loaders;
 pub mod server;
 pub(crate) mod specifier;
 
-pub mod apps;
+pub(crate) mod arena;

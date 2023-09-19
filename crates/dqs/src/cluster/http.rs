@@ -1,10 +1,11 @@
 use super::{DqsCluster, DqsServerOptions};
-use crate::apps::App;
+use crate::arena::app::App;
+use crate::arena::template::Template;
+use crate::arena::MainModule;
 use crate::db;
 use crate::db::app::apps;
-use crate::server::entry::ServerEntry;
 use anyhow::{anyhow, bail, Context, Result};
-use axum::extract::{Path, Query, State};
+use axum::extract::{Json, Path, Query, State};
 use axum::middleware;
 use axum::response::{IntoResponse, Response};
 use axum::{routing, Router};
@@ -21,6 +22,7 @@ use http::{Method, Request};
 use hyper::Body;
 use indexmap::IndexMap;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation};
+use nanoid::nanoid;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -44,6 +46,10 @@ pub(crate) async fn start_server(
     .and(NotForContentType::new(mime::TEXT_EVENT_STREAM.as_ref()));
 
   let app = Router::new()
+    .route(
+      "/w/plugins/:pluginNamespace/:pluginId/:version/:workflowId/*path",
+      routing::post(pipe_execute_plugin_workflow_request),
+    )
     .route(
       "/w/:appId/widgets/:widgetId/api/:field",
       routing::get(handle_widget_get_query),
@@ -171,13 +177,13 @@ pub async fn pipe_app_request(
     .get_or_spawn_dqs_server(DqsServerOptions {
       id: format!("app/{}", app_id),
       workspace_id,
-      entry: ServerEntry::AppServer,
-      app: Some(App {
-        id: app_id,
-        template: app.template.unwrap().try_into()?,
-        root: app_root_path.clone(),
-        registry: cluster.options.registry.clone(),
-      }),
+      root: Some(app_root_path),
+      module: MainModule::App {
+        app: App {
+          id: app_id,
+          template: app.template.unwrap().try_into()?,
+        },
+      },
       db_pool: cluster.db_pool.clone(),
       dqs_egress_addr: cluster.options.dqs_egress_addr,
       registry: cluster.options.registry.clone(),
@@ -300,13 +306,85 @@ pub async fn pipe_widget_query_request(
     .get_or_spawn_dqs_server(DqsServerOptions {
       id: format!("workspace/{}", workspace_id),
       workspace_id,
-      entry: ServerEntry::DqsServer,
-      app: None,
+      root: None,
+      module: MainModule::WidgetQuery,
       db_pool: cluster.db_pool.clone(),
       dqs_egress_addr: cluster.options.dqs_egress_addr,
       registry: cluster.options.registry.clone(),
     })
     .await?;
+  dqs_server
+    .http_channel
+    .send((request, tx))
+    .await
+    .map_err(|_| errors::Error::ResponseBuilder)?;
+
+  let res = rx.await.map_err(|_| errors::Error::ResponseBuilder)?;
+  res.into_response().await
+}
+
+#[derive(Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExecutePluginQuery {
+  workspace_id: String,
+  input: Value,
+}
+
+pub async fn pipe_execute_plugin_workflow_request(
+  Path((plugin_namespace, plugin_id, version, workflow_id, path)): Path<(
+    String,
+    String,
+    String,
+    String,
+    String,
+  )>,
+  State(cluster): State<DqsCluster>,
+  Json(body): Json<ExecutePluginQuery>,
+) -> Result<Response, errors::Error> {
+  let plugin_id = format!("{}/{}", plugin_namespace, plugin_id);
+
+  let (dqs_server, _) = cluster
+    .spawn_dqs_server(DqsServerOptions {
+      id: format!(
+        "plugin/{}/{}/workflow/{}/{}",
+        plugin_id,
+        version,
+        workflow_id,
+        // Note(sagar): use a random id since this is a one-off dqs runtime
+        // and the runtime isn't reused
+        nanoid!(8, &nanoid::alphabet::SAFE)
+      ),
+      workspace_id: body.workspace_id,
+      root: None,
+      module: MainModule::Plugin {
+        template: Template {
+          id: plugin_id.clone(),
+          version: version.clone(),
+        },
+      },
+      db_pool: cluster.db_pool.clone(),
+      dqs_egress_addr: cluster.options.dqs_egress_addr,
+      registry: cluster.options.registry.clone(),
+    })
+    .await?;
+
+  let request = HttpRequest {
+    method: "POST".to_owned(),
+    url: format!(
+      "http://0.0.0.0/plugins/{plugin_id}/{version}/{workflow_id}/{path}",
+    ),
+    headers: vec![],
+    body: Some(ZeroCopyBuf::ToV8(Some(
+      serde_json::to_vec(&json!({
+            "workflowId": workflow_id,
+            "input": body.input
+      }))
+      .context("Error parsing workflow input")?
+      .into_boxed_slice(),
+    ))),
+  };
+
+  let (tx, rx) = oneshot::channel::<ParsedHttpResponse>();
   dqs_server
     .http_channel
     .send((request, tx))

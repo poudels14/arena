@@ -1,11 +1,6 @@
-use super::state::RuntimeState;
-use crate::apps::App;
-use crate::loaders::moduleloader::AppkitModuleLoader;
-use crate::loaders::registry::Registry;
 use anyhow::Result;
 use common::deno::extensions::server::HttpServerConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
-use common::deno::resources::env_variable::EnvironmentVariableStore;
 use deno_core::{
   v8, Extension, ExtensionFileSource, ExtensionFileSourceCode, JsRuntime,
   Snapshot,
@@ -18,19 +13,19 @@ use std::net::IpAddr;
 use std::rc::Rc;
 use tracing::error;
 
+use crate::arena::ArenaRuntimeState;
+use crate::loaders::moduleloader::AppkitModuleLoader;
+use crate::loaders::template::TemplateLoader;
+
 pub static WORKSPACE_DQS_SNAPSHOT: &[u8] =
   include_bytes!(concat!(env!("OUT_DIR"), "/WORKSPACE_DQS_SNAPSHOT.bin"));
 
-#[derive(Default, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct RuntimeOptions {
   /// Runtime id
   pub id: String,
-  /// id of the workspace
-  pub workspace_id: String,
   pub db_pool: Option<Pool<ConnectionManager<PgConnection>>>,
   pub server_config: HttpServerConfig,
-  /// Name of the HTTP user_agent
-  pub user_agent: Option<String>,
   pub permissions: PermissionsContainer,
   /// Heap limit tuple: (initial size, max hard limit) in bytes
   pub heap_limits: Option<(usize, usize)>,
@@ -38,22 +33,11 @@ pub struct RuntimeOptions {
   /// This is useful if we need to restrict the outgoing network
   /// request to a specific network device/address
   pub egress_address: Option<IpAddr>,
-  /// Builtin modules to be loaded to the runtime
-  pub modules: Vec<BuiltinModule>,
-  /// App info - only set if this runtime for an app
-  pub app: Option<App>,
-  pub registry: Option<Registry>,
+  pub state: ArenaRuntimeState,
 }
 
 pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
   let db_pool = config.db_pool.clone().unwrap();
-  // TODO(sagar): instead of loading RuntimeState here, pass in as options
-  let state = RuntimeState::init(
-    config.workspace_id.clone(),
-    &config.app,
-    &mut db_pool.get()?,
-  )
-  .await?;
 
   let mut extensions = vec![
     deno_webidl::deno_webidl::init_ops(),
@@ -74,7 +58,7 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
         file_fetch_handler: Rc::new(deno_fetch::DefaultFileFetchHandler),
       },
     ),
-    self::build_extension(state.clone(), &config),
+    self::build_extension(&config),
   ];
 
   let mut builtin_extensions = BuiltinExtensions::with_modules(
@@ -85,7 +69,7 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
         BuiltinModule::Sqlite,
         BuiltinModule::HttpServer(config.server_config),
       ],
-      config.modules,
+      config.state.module.get_builtin_module_extensions(),
     ]
     .concat(),
   );
@@ -99,11 +83,12 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
     startup_snapshot: Some(Snapshot::Static(WORKSPACE_DQS_SNAPSHOT)),
     create_params,
     module_loader: Some(Rc::new(AppkitModuleLoader {
-      workspace_id: config.workspace_id.clone(),
+      workspace_id: config.state.workspace_id,
       pool: db_pool,
-      state,
-      app: config.app,
-      registry: config.registry.expect("Registry not set"),
+      template_loader: TemplateLoader {
+        module: config.state.module,
+        registry: config.state.registry,
+      },
     })),
     extensions,
     ..Default::default()
@@ -126,9 +111,10 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
   Ok(runtime)
 }
 
-fn build_extension(state: RuntimeState, config: &RuntimeOptions) -> Extension {
+fn build_extension(config: &RuntimeOptions) -> Extension {
   let user_agent = get_user_agent(&config.id);
   let egress_address = config.egress_address.clone();
+  let state = config.state.clone();
   let permissions = config.permissions.clone();
 
   Extension::builder("workspace/runtime")
@@ -150,8 +136,7 @@ fn build_extension(state: RuntimeState, config: &RuntimeOptions) -> Extension {
         }
       ])
       .state(move |op_state| {
-        op_state.put::<EnvironmentVariableStore>(state.env_variables.clone());
-        op_state.put::<RuntimeState>(state);
+        op_state.put::<ArenaRuntimeState>(state);
         op_state.put::<PermissionsContainer>(permissions);
 
         if let Some(egress_address) = egress_address {

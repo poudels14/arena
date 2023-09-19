@@ -26,8 +26,6 @@ pub enum Command {
 pub(crate) fn start(
   config: RuntimeOptions,
   events_tx: watch::Sender<ServerEvents>,
-  // server entry module `(specifier, code)`
-  entry_module: (ModuleSpecifier, ModuleCode),
 ) -> Result<()> {
   let rt = tokio::runtime::Builder::new_current_thread()
     .thread_name(config.id.clone())
@@ -61,6 +59,8 @@ pub(crate) fn start(
     info!("----------------- DQS server started -----------------");
     info!("Config = {:#?}", config);
     info!("-------------------------------------------------------");
+
+    let entry_module = config.state.module.get_entry_module()?;
     let res = tokio::select! {
       res = terminate_rx => {
         res.map(|_| "Terminated by a termination command".to_owned()).map_err(|e| anyhow!("{}", e))
@@ -82,11 +82,11 @@ pub(crate) fn start(
       // Note(sp): if the runtime was terminated because of error,
       // need to send server terminated signal
       local.block_on(&rt, async {
-        events_tx
-          .send(ServerEvents::Terminated(
-            Err(anyhow!("Error running DQS server: {}", e)).into(),
-          ))
-          .unwrap();
+        // The server will be terminated when it's dropped, so ignore
+        // the send error here since the server might been already dropped
+        let _ = events_tx.send(ServerEvents::Terminated(
+          Err(anyhow!("Error running DQS server: {}", e)).into(),
+        ));
       });
       Err(e)
     }

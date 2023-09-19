@@ -1,10 +1,3 @@
-use crate::apps::App;
-use crate::config::{DataConfig, SourceConfig, WidgetConfig};
-use crate::db::widget::{self, widgets};
-use crate::loaders;
-use crate::loaders::registry::Registry;
-use crate::server::RuntimeState;
-use crate::specifier::{ParsedSpecifier, WidgetQuerySpecifier};
 use anyhow::{anyhow, bail, Error, Result};
 use deno_core::{
   futures::FutureExt, ModuleLoader, ModuleSourceFuture, ModuleSpecifier,
@@ -19,13 +12,17 @@ use std::pin::Pin;
 use tracing::info;
 use url::Url;
 
+use super::template::TemplateLoader;
+use crate::config::{DataConfig, SourceConfig, WidgetConfig};
+use crate::db::widget::{self, widgets};
+use crate::loaders;
+use crate::specifier::{ParsedSpecifier, WidgetQuerySpecifier};
+
 #[derive(Clone)]
 pub struct AppkitModuleLoader {
   pub workspace_id: String,
   pub pool: Pool<ConnectionManager<PgConnection>>,
-  pub state: RuntimeState,
-  pub app: Option<App>,
-  pub registry: Registry,
+  pub template_loader: TemplateLoader,
 }
 
 impl ModuleLoader for AppkitModuleLoader {
@@ -61,8 +58,8 @@ impl ModuleLoader for AppkitModuleLoader {
       bail!("Unsupported module specifier: {:?}", specifier);
     }
 
-    let specifier = if specifier == "@dqs/app/template" {
-      format!("app:///{}", specifier)
+    let specifier = if specifier.starts_with("@dqs/template/") {
+      format!("arena:///{}", specifier)
     } else if referrer_url
       .map(|r| r.scheme() == "builtin")
       .unwrap_or(false)
@@ -111,24 +108,42 @@ impl ModuleLoader for AppkitModuleLoader {
     let maybe_referrer = maybe_referrer.cloned();
 
     async move {
-      if specifier.scheme() == "app" && specifier.path() == "/@dqs/app/template"
-      {
-        return Ok(ModuleSource::new(
-          ModuleType::JavaScript,
-          loader.load_app_template_code().await?.into(),
-          &specifier,
-        ));
+      if specifier.scheme() == "arena" {
+        match specifier.path() {
+          "/@dqs/template/app" => {
+            return Ok::<ModuleSource, anyhow::Error>(ModuleSource::new(
+              ModuleType::JavaScript,
+              loader
+                .template_loader
+                .load_app_template_code()
+                .await?
+                .into(),
+              &specifier,
+            ))
+          }
+          "/@dqs/template/plugin" => {
+            return Ok::<ModuleSource, anyhow::Error>(ModuleSource::new(
+              ModuleType::JavaScript,
+              loader.template_loader.load_plugin_template().await?.into(),
+              &specifier,
+            ))
+          }
+          _ => {
+            bail!("Invalid Arena module")
+          }
+        }
       }
 
       let parsed_specifier = ParsedSpecifier::from(&specifier.to_string())?;
       let code = match parsed_specifier {
+        // TODO(sagar): remove this since all envs are populated in process.env
         ParsedSpecifier::Env { app_id, widget_id } => {
           match maybe_referrer {
             Some(referrer) => {
               let referrer = referrer.as_str();
               // make sure the referrer that's requesting the env variables is
               // same app and widget or the main module which has the privilege
-              if referrer == "builtin:///@arena/dqs/query" {
+              if referrer == "builtin:///@arena/dqs/widget-server" {
               } else {
                 let parsed_referrer = ParsedSpecifier::from(&referrer)?;
                 match parsed_referrer {
@@ -206,23 +221,7 @@ impl AppkitModuleLoader {
     _app_id: &str,
     _widget_id: &str,
   ) -> Result<String> {
-    let variables = self.state.env_variables.to_vec();
-    loaders::env::to_esm_module(variables)
-  }
-
-  #[tracing::instrument(
-    name = "AppkitModuleLoader::load_app_template_code",
-    skip(self),
-    level = "trace"
-  )]
-  async fn load_app_template_code(&self) -> Result<String> {
-    if let Some(app) = &self.app {
-      return self
-        .registry
-        .fetch_app_template(&app.template.id, &app.template.version)
-        .await;
-    }
-    bail!("Failed to load app template");
+    Ok("export default process.env;".to_string())
   }
 }
 

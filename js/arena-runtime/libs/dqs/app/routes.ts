@@ -6,7 +6,7 @@ import {
   SqliteDatabaseClient,
 } from "@arena/sdk/db";
 // @ts-expect-error
-import { databases } from "@dqs/app/template";
+import { databases } from "@dqs/template/app";
 
 const p = procedure<{ dbs: DatabaseClients<{}> }>();
 const router = createRouter({

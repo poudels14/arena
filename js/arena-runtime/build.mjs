@@ -173,9 +173,10 @@ program.option("--minify").action(async (options, cmd) => {
     build({
       ...options,
       entryPoints: {
-        "dqs/query": "./libs/dqs/query/router.ts",
+        "dqs/widget-server": "./libs/dqs/widget/server.ts",
         "dqs/postgres": "./libs/dqs/postgres/index.ts",
         "dqs/app-server": "./libs/dqs/app/server.ts",
+        "dqs/plugin-workflow": "./libs/dqs/plugin/workflow.ts",
       },
       alias: {
         // TODO(sagar): "assert" and "utils" are being bundled in several files
@@ -186,7 +187,8 @@ program.option("--minify").action(async (options, cmd) => {
       external: [
         "path",
         "crypto",
-        "@dqs/app/template",
+        "@dqs/template/app",
+        "@dqs/template/plugin",
         "@arena/runtime/server",
         "@arena/runtime/sqlite",
         "@arena/runtime/postgres",

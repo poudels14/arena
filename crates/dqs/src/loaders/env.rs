@@ -1,6 +1,8 @@
 use anyhow::Result;
 use serde_json::{json, Value};
 
+// TODO(sagar): remove this since we are using process.env now
+#[allow(dead_code)]
 pub(crate) fn to_esm_module<'a>(variables: Vec<Value>) -> Result<String> {
   Ok(format!(
     r#"
@@ -19,7 +21,7 @@ pub(crate) fn to_esm_module<'a>(variables: Vec<Value>) -> Result<String> {
       ];
     }}));
 
-    export default variables;
+    export default process.env;
     "#,
     json!(variables)
   ))

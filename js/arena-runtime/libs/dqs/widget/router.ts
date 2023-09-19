@@ -19,7 +19,7 @@ const execWidgetQueryBodySchema = z.object({
 const p = procedure();
 const router = createRouter({
   routes: {
-    "/healthy": p.query(() => {
+    "/_admin/healthy": p.query(() => {
       return "Ok";
     }),
     "/:appId/widgets/:widgetId/api/:field": p.mutate(

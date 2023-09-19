@@ -1,18 +1,8 @@
-use crate::apps;
-use crate::apps::App;
-use crate::config::workspace::WorkspaceConfig;
-use crate::db;
-use crate::db::deployment::{dqs_deployments, Deployment};
-use crate::db::workspace::workspaces;
-use crate::loaders::registry::Registry;
-use crate::server::entry::ServerEntry;
-use crate::server::Command;
-use crate::server::{RuntimeOptions, ServerEvents};
 use anyhow::{anyhow, bail, Context, Result};
 use common::beam;
 use common::deno::extensions::server::response::ParsedHttpResponse;
 use common::deno::extensions::server::{HttpRequest, HttpServerConfig};
-use common::deno::extensions::BuiltinModule;
+use common::deno::resources::env_variable::EnvironmentVariableStore;
 use deno_core::normalize_path;
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
@@ -20,20 +10,30 @@ use diesel::PgConnection;
 use jsruntime::permissions::{FileSystemPermissions, PermissionsContainer};
 use serde_json::Value;
 use std::cell::RefCell;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::net::IpAddr;
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::thread;
+use std::time::SystemTime;
 use tokio::sync::{mpsc, oneshot, watch, RwLock};
+
+use crate::arena::{ArenaRuntimeState, MainModule};
+use crate::config::workspace::WorkspaceConfig;
+use crate::db;
+use crate::db::deployment::{dqs_deployments, Deployment};
+use crate::db::workspace::workspaces;
+use crate::loaders::registry::Registry;
+use crate::server::Command;
+use crate::server::{RuntimeOptions, ServerEvents};
 
 #[derive(Debug, Clone)]
 pub struct DqsServerOptions {
   pub id: String,
   pub workspace_id: String,
-  pub entry: ServerEntry,
-  /// Pass the app if the Dqs server is for an app
-  pub app: Option<App>,
+  pub root: Option<PathBuf>,
+  pub module: MainModule,
   /// The IP address that DQS should use for outgoing network requests
   /// from DQS JS runtime
   pub dqs_egress_addr: Option<IpAddr>,
@@ -67,39 +67,36 @@ impl DqsServer {
     let thread = thread::Builder::new().name(format!("dqs-[{}]", options.id));
     let options_clone = options.clone();
     let _thread_handle = thread.spawn(move || {
-      let app_modules = match options.app.as_ref() {
-        Some(app) => {
-          let ext = RefCell::new(Some(apps::extension(app.clone())));
-          vec![
-            BuiltinModule::Custom(Rc::new(move || {
-              ext.borrow_mut().take().unwrap()
-            })),
-            BuiltinModule::Custom(Rc::new(cloud::vectordb::extension)),
-            BuiltinModule::Custom(Rc::new(cloud::llm::extension)),
-            BuiltinModule::Custom(Rc::new(cloud::pdf::extension)),
-            BuiltinModule::Custom(Rc::new(cloud::html::extension)),
-          ]
-        }
-        None => vec![],
+      let env_variables = match options.module.as_app() {
+        Some(app) => ArenaRuntimeState::load_app_env_variables(
+          &options.workspace_id,
+          app,
+          &mut options.db_pool.get()?,
+        )?,
+        _ => EnvironmentVariableStore::new(HashMap::new()),
+      };
+
+      let state = ArenaRuntimeState {
+        workspace_id: options.workspace_id.clone(),
+        root: options.root,
+        env_variables,
+        module: options.module.clone(),
+        registry: options.registry.clone(),
       };
 
       crate::server::start(
         RuntimeOptions {
           id: options.id,
-          workspace_id: options.workspace_id,
           db_pool: options.db_pool.into(),
           server_config: HttpServerConfig::Stream(Rc::new(RefCell::new(
             http_requests_rx,
           ))),
           egress_address: options.dqs_egress_addr,
-          modules: app_modules,
+          heap_limits: None,
           permissions,
-          app: options.app,
-          registry: Some(options.registry),
-          ..Default::default()
+          state,
         },
         events_tx,
-        options.entry.get_main_module()?,
       )
     });
 
@@ -161,10 +158,19 @@ impl DqsServer {
   }
 
   #[tracing::instrument(skip_all, level = "trace")]
-  pub async fn update_server_deployment(
-    &self,
-    deployment: Deployment,
-  ) -> Result<()> {
+  pub async fn update_server_deployment(&self, node_id: &str) -> Result<()> {
+    let app = self.options.module.as_app();
+    let deployment = Deployment {
+      id: self.options.id.clone(),
+      node_id: node_id.to_string(),
+      workspace_id: self.options.workspace_id.clone(),
+      app_id: app.map(|a| a.id.clone()),
+      app_template_id: app.map(|a| a.template.id.clone()),
+      started_at: SystemTime::now(),
+      last_heartbeat_at: None,
+      reboot_triggered_at: None,
+    };
+
     let connection = &mut self.options.db_pool.get()?;
     diesel::insert_into(dqs_deployments::dsl::dqs_deployments)
       .values(&deployment)
@@ -180,12 +186,16 @@ impl DqsServer {
   fn load_permissions(
     options: &DqsServerOptions,
   ) -> Result<PermissionsContainer> {
-    if options.app.is_none() {
+    let app = options.module.as_app();
+    if app.is_none() {
       return Ok(PermissionsContainer::default());
     }
 
-    let app = options.app.as_ref().unwrap();
-    let app_root_path = &app.root;
+    let app_root_path = &options
+      .root
+      .clone()
+      .context("App doesn't have access to file system")?;
+
     let connection =
       &mut options.db_pool.get().map_err(|e| anyhow!("{}", e))?;
 

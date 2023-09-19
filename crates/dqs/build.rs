@@ -66,8 +66,11 @@ fn generate_prod_snapshot(path: &Path) {
     BuiltinModule::Custom(Rc::new(|| BuiltinExtension {
       snapshot_modules: vec![
         (
-          "@arena/dqs/query",
-          resolve_from_root!("../../js/arena-runtime/dist/dqs/query.js", true),
+          "@arena/dqs/widget-server",
+          resolve_from_root!(
+            "../../js/arena-runtime/dist/dqs/widget-server.js",
+            true
+          ),
         ),
         (
           "@arena/dqs/postgres",

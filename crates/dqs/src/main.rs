@@ -8,7 +8,8 @@ use std::str::FromStr;
 use tracing_subscriber::filter::Directive;
 use tracing_subscriber::prelude::*;
 use tracing_tree::HierarchicalLayer;
-mod apps;
+
+mod arena;
 mod cluster;
 mod config;
 mod db;

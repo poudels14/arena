@@ -1,6 +1,6 @@
 import { serve, mergedRouter } from "@arena/runtime/server";
 // @ts-expect-error
-import { router as appRouter, databases } from "@dqs/app/template";
+import { router as appRouter, databases } from "@dqs/template/app";
 import { DatabaseConfig } from "@arena/sdk/db";
 import { router as adminRouter } from "./routes";
 import { createDbClient } from "./database";

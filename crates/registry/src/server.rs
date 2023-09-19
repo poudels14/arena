@@ -40,8 +40,8 @@ pub(crate) async fn start(
     )
     .route("/static/*uri", routing::get(get_client_bundle))
     .route(
-      "/server/templates/apps/*uri",
-      routing::get(get_app_template_server_bundle),
+      "/server/templates/:template_type/*uri",
+      routing::get(get_template_server_bundle),
     )
     .layer(
       ServiceBuilder::new()
@@ -89,8 +89,8 @@ async fn get_app_template_client_bundle(
   Ok(((StatusCode::NOT_FOUND, "Not found")).into_response())
 }
 
-async fn get_app_template_server_bundle(
-  Path(uri): Path<String>,
+async fn get_template_server_bundle(
+  Path((template_type, uri)): Path<(String, String)>,
   Query(search_params): Query<HashMap<String, String>>,
   State(state): State<AppState>,
 ) -> response::Result<Response> {
@@ -100,7 +100,10 @@ async fn get_app_template_server_bundle(
     Some(api_key) if env::var("API_KEY").ok().eq(&Some(api_key.to_owned())) => {
       if let Ok(t) = template::parse(&uri) {
         return get_bundle_internal(
-          &format!("server/templates/apps/{0}/{1}.js", t.id, t.version),
+          &format!(
+            "server/templates/{template_type}/{0}/{1}.js",
+            t.id, t.version
+          ),
           &state,
         )
         .await;

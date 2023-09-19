@@ -1,7 +1,9 @@
-pub mod env;
-pub mod javascript;
+pub(crate) mod env;
+pub(crate) mod javascript;
 pub(crate) mod moduleloader;
 pub(crate) mod registry;
+pub(crate) mod template;
+
 pub mod sql;
 use anyhow::Result;
 

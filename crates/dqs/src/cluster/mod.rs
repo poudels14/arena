@@ -1,12 +1,3 @@
-pub(crate) mod cache;
-pub(crate) mod http;
-pub(crate) mod server;
-use self::cache::Cache;
-use self::server::{DqsServer, DqsServerOptions, DqsServerStatus};
-use crate::db;
-use crate::db::deployment::Deployment;
-use crate::loaders::registry::Registry;
-use crate::server::ServerEvents;
 use anyhow::{bail, Result};
 use colored::Colorize;
 use diesel::r2d2::{ConnectionManager, Pool};
@@ -15,9 +6,17 @@ use std::collections::HashMap;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::SystemTime;
-use tokio::sync::RwLock;
+use tokio::sync::{watch, RwLock};
 use uuid::Uuid;
+
+pub(crate) mod cache;
+pub(crate) mod http;
+pub(crate) mod server;
+use self::cache::Cache;
+use self::server::{DqsServer, DqsServerOptions, DqsServerStatus};
+use crate::db;
+use crate::loaders::registry::Registry;
+use crate::server::ServerEvents;
 
 #[derive(Clone)]
 pub struct DqsClusterOptions {
@@ -62,33 +61,16 @@ impl DqsCluster {
   pub async fn spawn_dqs_server(
     &self,
     options: DqsServerOptions,
-  ) -> Result<()> {
+  ) -> Result<(DqsServer, watch::Receiver<ServerEvents>)> {
     let dqs_server_id = options.id.clone();
     let server_root = options
-      .app
+      .root
       .as_ref()
-      .and_then(|a| a.root.to_str().map(|s| s.to_owned()))
+      .and_then(|root| root.to_str().map(|s| s.to_owned()))
       .unwrap_or("None".to_owned());
 
-    let (dqs_server, mut server_events) =
-      DqsServer::spawn(options.clone()).await?;
-    dqs_server.healthy().await?;
+    let (dqs_server, server_events) = DqsServer::spawn(options.clone()).await?;
 
-    let app = options.app.as_ref();
-    let deployment = Deployment {
-      id: options.id.clone(),
-      node_id: self.id.clone(),
-      workspace_id: options.workspace_id.clone(),
-      app_id: app.map(|a| a.id.clone()),
-      app_template_id: app.map(|a| a.template.id.clone()),
-      started_at: SystemTime::now(),
-      last_heartbeat_at: None,
-      reboot_triggered_at: None,
-    };
-    dqs_server.update_server_deployment(deployment).await?;
-
-    let mut servers = self.servers.write().await;
-    servers.insert(dqs_server_id.clone(), DqsServerStatus::Ready(dqs_server));
     println!(
       "{}",
       format!(
@@ -98,29 +80,7 @@ impl DqsCluster {
       .yellow()
     );
 
-    let cluster = self.clone();
-    tokio::task::spawn(async move {
-      while server_events.changed().await.is_ok() {
-        let event = server_events.borrow().clone();
-        match event {
-          ServerEvents::Terminated(result) => {
-            let mut servers = cluster.servers.write().await;
-            servers.remove(&dqs_server_id);
-            println!(
-              "{}",
-              format!(
-                "[{}] DQS server terminated! Caused by = {:?}",
-                &dqs_server_id, &result
-              )
-              .red()
-            );
-            break;
-          }
-          _ => {}
-        }
-      }
-    });
-    Ok(())
+    Ok((dqs_server, server_events))
   }
 
   #[tracing::instrument(skip(self), level = "trace")]
@@ -186,7 +146,14 @@ impl DqsCluster {
         drop(servers);
 
         let mut l = lock.write().await;
-        self.spawn_dqs_server(options).await?;
+        let (dqs_server, server_events) =
+          self.spawn_dqs_server(options).await?;
+
+        dqs_server.healthy().await?;
+        dqs_server.update_server_deployment(&self.id).await?;
+
+        self.track_dqs_server(dqs_server, server_events).await;
+
         *l = true;
         drop(l);
       }
@@ -200,5 +167,42 @@ impl DqsCluster {
     // it means there was error starting the server
     println!("Failed to start Workspace server");
     bail!("Failed to start Workspace server");
+  }
+
+  async fn track_dqs_server(
+    &self,
+    dqs_server: DqsServer,
+    mut server_events: watch::Receiver<ServerEvents>,
+  ) {
+    let dqs_server_id = dqs_server.options.id.clone();
+    let mut servers = self.servers.write().await;
+    servers.insert(
+      dqs_server.options.id.clone(),
+      DqsServerStatus::Ready(dqs_server),
+    );
+    drop(servers);
+
+    let cluster = self.clone();
+    tokio::task::spawn(async move {
+      while server_events.changed().await.is_ok() {
+        let event = server_events.borrow().clone();
+        match event {
+          ServerEvents::Terminated(result) => {
+            let mut servers = cluster.servers.write().await;
+            servers.remove(&dqs_server_id);
+            println!(
+              "{}",
+              format!(
+                "[{}] DQS server terminated! Caused by = {:?}",
+                &dqs_server_id, &result
+              )
+              .red()
+            );
+            break;
+          }
+          _ => {}
+        }
+      }
+    });
   }
 }
