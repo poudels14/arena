@@ -1,3 +1,4 @@
+import { AbortController } from "ext:deno_web/03_abort_signal.js";
 import { performance, setTimeOrigin } from "ext:deno_web/15_performance.js";
 import {
   setTimeout,
@@ -82,6 +83,7 @@ function promiseRejectCallback(type, promise, reason) {
     clearTimeout,
     setInterval,
     clearInterval,
+    AbortController,
     performance,
     ReadableStream,
     TextEncoder,
