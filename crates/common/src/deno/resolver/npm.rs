@@ -67,29 +67,35 @@ impl FsModuleResolver {
           }
         };
 
-        for dir_path in directories {
-          debug!("using node_module in: {}", &dir_path.display());
+        for node_modules_dir in directories {
+          debug!("using node_module in: {}", &node_modules_dir.display());
           let maybe_package = load_package_json_in_dir(
-            &dir_path.join(&parsed_specifier.package_name),
+            &node_modules_dir.join(&parsed_specifier.package_name),
           )
           .ok();
 
-          let dir_path = dir_path.clone();
           let resolved = self
-            .load_npm_package(&dir_path, &parsed_specifier, &maybe_package)
+            .load_npm_package(
+              &node_modules_dir,
+              &parsed_specifier,
+              &maybe_package,
+            )
             .or_else(|e| {
               debug!("error loading npm package export: {}", e);
-              fs::load_as_file(&dir_path.join(specifier))
+              fs::load_as_file(&node_modules_dir.join(specifier))
             })
             .or_else(|e| {
               debug!("error loading as file: {}", e);
-              fs::load_as_directory(&dir_path.join(specifier), &maybe_package)
+              fs::load_as_directory(
+                &node_modules_dir.join(specifier),
+                &maybe_package,
+              )
             })
             .or_else(|e| {
               debug!("error loading from imports: {}", e);
               if let Some(package) = maybe_package.as_ref() {
                 if let Some(main) = package.main.as_ref() {
-                  return Ok(dir_path.join(main));
+                  return Ok(node_modules_dir.join(main));
                 }
               }
               Err(anyhow!("package.json \"main\" not found"))
@@ -99,17 +105,20 @@ impl FsModuleResolver {
 
               self.load_from_imports(
                 &specifier,
-                maybe_package.as_ref().map(|p| (p, &dir_path)).or_else(|| {
-                  cache.resolved_path_to_package_name.get(referrer).and_then(
-                    |package_name| {
-                      cache
-                        .packages
-                        .get(package_name)
-                        .as_ref()
-                        .map(|(package, dir)| (package, dir))
-                    },
-                  )
-                }),
+                maybe_package
+                  .as_ref()
+                  .map(|p| (p, node_modules_dir))
+                  .or_else(|| {
+                    cache.resolved_path_to_package_name.get(referrer).and_then(
+                      |package_name| {
+                        cache
+                          .packages
+                          .get(package_name)
+                          .as_ref()
+                          .map(|(package, dir)| (package, dir))
+                      },
+                    )
+                  }),
               )
             })
             .and_then(|p| self.convert_to_url(p));
@@ -117,9 +126,11 @@ impl FsModuleResolver {
           if let Ok(resolved) = resolved {
             if let Some(package) = maybe_package {
               if !cache.packages.contains_key(&package.name) {
-                cache
-                  .packages
-                  .insert(package.name.clone(), (package.clone(), dir_path));
+                let used_node_modules_dir = node_modules_dir.clone();
+                cache.packages.insert(
+                  package.name.clone(),
+                  (package.clone(), used_node_modules_dir),
+                );
               }
               cache
                 .resolved_path_to_package_name
