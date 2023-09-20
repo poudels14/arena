@@ -45,7 +45,7 @@ pub struct EnvVar {
   pub is_secret: bool,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct EnvironmentVariableStore(
   /// Map of temporary secret id to environemnt variable
   Rc<HashMap<String, EnvVar>>,

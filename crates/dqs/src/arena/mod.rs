@@ -1,8 +1,11 @@
-pub mod app;
+mod app;
 mod extension;
 mod mainmodule;
 mod state;
-pub mod template;
+mod template;
+
+pub use app::App;
+pub use template::Template;
 
 pub use extension::extension;
 pub use mainmodule::MainModule;

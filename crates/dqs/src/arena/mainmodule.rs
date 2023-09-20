@@ -13,8 +13,17 @@ use crate::arena;
 #[derive(Debug, Clone)]
 pub enum MainModule {
   WidgetQuery,
-  App { app: App },
-  Plugin { template: Template },
+  App {
+    app: App,
+  },
+  Plugin {
+    template: Template,
+  },
+  #[allow(dead_code)]
+  /// This is used for testing only
+  Inline {
+    code: String,
+  },
 }
 
 impl MainModule {
@@ -46,25 +55,28 @@ impl MainModule {
   pub fn get_entry_module(&self) -> Result<(ModuleSpecifier, ModuleCode)> {
     match self {
       Self::WidgetQuery => Ok((
-        Url::parse("builtin://main")?,
+        Url::parse("builtin:///main")?,
         include_str!("../../../../js/arena-runtime/dist/dqs/widget-server.js")
           .to_owned()
           .into(),
       )),
       Self::App { app: _ } => Ok((
-        Url::parse("builtin://main")?,
+        Url::parse("builtin:///main")?,
         include_str!("../../../../js/arena-runtime/dist/dqs/app-server.js")
           .to_owned()
           .into(),
       )),
       Self::Plugin { template: _ } => Ok((
-        Url::parse("builtin://main")?,
+        Url::parse("builtin:///main")?,
         include_str!(
           "../../../../js/arena-runtime/dist/dqs/plugin-workflow.js"
         )
         .to_owned()
         .into(),
       )),
+      Self::Inline { code } => {
+        Ok((Url::parse("builtin:///main")?, code.clone().into()))
+      }
     }
   }
 }

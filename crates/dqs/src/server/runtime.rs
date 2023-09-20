@@ -1,9 +1,10 @@
 use anyhow::Result;
 use common::deno::extensions::server::HttpServerConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
+use common::deno::loader::BuiltInModuleLoader;
 use deno_core::{
   v8, Extension, ExtensionFileSource, ExtensionFileSourceCode, JsRuntime,
-  Snapshot,
+  ModuleLoader, Snapshot,
 };
 use deno_fetch::CreateHttpClientOptions;
 use diesel::r2d2::{ConnectionManager, Pool};
@@ -37,8 +38,6 @@ pub struct RuntimeOptions {
 }
 
 pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
-  let db_pool = config.db_pool.clone().unwrap();
-
   let mut extensions = vec![
     deno_webidl::deno_webidl::init_ops(),
     deno_console::deno_console::init_ops(),
@@ -79,10 +78,9 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
     v8::Isolate::create_params().heap_limits(initial, max)
   });
 
-  let mut runtime = JsRuntime::new(deno_core::RuntimeOptions {
-    startup_snapshot: Some(Snapshot::Static(WORKSPACE_DQS_SNAPSHOT)),
-    create_params,
-    module_loader: Some(Rc::new(AppkitModuleLoader {
+  let module_loader: Option<Rc<dyn ModuleLoader>> = match config.db_pool.clone()
+  {
+    Some(db_pool) => Some(Rc::new(AppkitModuleLoader {
       workspace_id: config.state.workspace_id,
       pool: db_pool,
       template_loader: TemplateLoader {
@@ -90,6 +88,13 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
         registry: config.state.registry,
       },
     })),
+    None => Some(Rc::new(BuiltInModuleLoader {})),
+  };
+
+  let mut runtime = JsRuntime::new(deno_core::RuntimeOptions {
+    startup_snapshot: Some(Snapshot::Static(WORKSPACE_DQS_SNAPSHOT)),
+    create_params,
+    module_loader,
     extensions,
     ..Default::default()
   });
