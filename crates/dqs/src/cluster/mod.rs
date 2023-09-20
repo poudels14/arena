@@ -16,7 +16,7 @@ use self::cache::Cache;
 use self::server::{DqsServer, DqsServerOptions, DqsServerStatus};
 use crate::db;
 use crate::loaders::registry::Registry;
-use crate::server::ServerEvents;
+use crate::runtime::server::ServerEvents;
 
 #[derive(Clone)]
 pub struct DqsClusterOptions {

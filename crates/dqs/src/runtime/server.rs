@@ -1,4 +1,4 @@
-use super::runtime::{self, RuntimeOptions};
+use super::deno::{self, RuntimeOptions};
 use anyhow::{anyhow, Result};
 use common::beam;
 use deno_core::v8::IsolateHandle;
@@ -44,7 +44,7 @@ pub(crate) fn start(
 
   let local = tokio::task::LocalSet::new();
   let r = local.block_on(&rt, async {
-    let mut runtime = runtime::new(config.clone()).await?;
+    let mut runtime = deno::new(config.clone()).await?;
     let (sender, receiver) = beam::channel(10);
     let (terminate_tx, terminate_rx) = oneshot::channel::<()>();
 
@@ -66,7 +66,7 @@ pub(crate) fn start(
         res.map(|_| "Terminated by a termination command".to_owned()).map_err(|e| anyhow!("{}", e))
 
       },
-      res = run_dqs_server(runtime, entry_module) => {
+      res = load_and_run_module(runtime, entry_module) => {
         res.map(|_| "Terminated due to event-loop completion".to_owned()).map_err(|e| anyhow!("{}", e))
       }
     };
@@ -93,7 +93,8 @@ pub(crate) fn start(
   }
 }
 
-async fn run_dqs_server(
+#[allow(dead_code)]
+async fn load_and_run_module(
   mut runtime: JsRuntime,
   entry_module: (ModuleSpecifier, ModuleCode),
 ) -> Result<()> {
@@ -106,6 +107,7 @@ async fn run_dqs_server(
   rx.await?
 }
 
+#[allow(dead_code)]
 async fn listen_to_commands(
   mut receiver: beam::Receiver<Command, Value>,
   terminate_tx: oneshot::Sender<()>,

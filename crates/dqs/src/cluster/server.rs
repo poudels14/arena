@@ -25,8 +25,8 @@ use crate::db;
 use crate::db::deployment::{dqs_deployments, Deployment};
 use crate::db::workspace::workspaces;
 use crate::loaders::registry::Registry;
-use crate::server::Command;
-use crate::server::{RuntimeOptions, ServerEvents};
+use crate::runtime::Command;
+use crate::runtime::{deno::RuntimeOptions, ServerEvents};
 
 #[derive(Debug, Clone)]
 pub struct DqsServerOptions {
@@ -84,7 +84,7 @@ impl DqsServer {
         registry: options.registry.clone(),
       };
 
-      crate::server::start(
+      crate::runtime::server::start(
         RuntimeOptions {
           id: options.id,
           db_pool: options.db_pool.into(),

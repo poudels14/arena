@@ -1,6 +1,6 @@
 use super::{DqsCluster, DqsServerOptions};
-use crate::arena::app::App;
-use crate::arena::template::Template;
+use crate::arena::App;
+use crate::arena::Template;
 use crate::arena::MainModule;
 use crate::db;
 use crate::db::app::apps;

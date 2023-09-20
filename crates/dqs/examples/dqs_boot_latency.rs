@@ -6,7 +6,7 @@ use anyhow::Result;
 use common::deno::extensions::server::HttpServerConfig;
 use dqs::arena::{ArenaRuntimeState, MainModule};
 use dqs::loaders::Registry;
-use dqs::server::{self, RuntimeOptions};
+use dqs::runtime::deno;
 use tokio::sync::mpsc;
 
 fn main() -> Result<()> {
@@ -23,7 +23,7 @@ fn main() -> Result<()> {
       code: "1+1".to_owned(),
     };
 
-    let mut runtime = server::runtime::new(RuntimeOptions {
+    let mut runtime = deno::new(deno::RuntimeOptions {
       id: "test_runtime".to_string(),
       db_pool: None,
       server_config: HttpServerConfig::Stream(Rc::new(RefCell::new(

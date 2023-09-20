@@ -14,7 +14,7 @@ mod cluster;
 mod config;
 mod db;
 mod loaders;
-mod server;
+mod runtime;
 mod specifier;
 use clap::Parser;
 use cluster::{DqsCluster, DqsClusterOptions};
