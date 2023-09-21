@@ -8,7 +8,7 @@
     }
   }
 
-  const env = Arena.core.ops.op_apps_load_env().reduce((acc, cur) => {
+  const env = Arena.core.ops.op_arena_load_env().reduce((acc, cur) => {
     const value = cur.isSecret
       ? new EnvironmentSecret(cur.secretId)
       : cur.value;

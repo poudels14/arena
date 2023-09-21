@@ -20,7 +20,7 @@ pub fn extension() -> BuiltinExtension {
       Extension::builder("arena/runtime/apps")
         .ops(vec![
           op_arena_get_base_dir::decl(),
-          op_arena_load_app_env::decl(),
+          op_arena_load_env::decl(),
         ])
         .js(vec![ExtensionFileSource {
           specifier: "setup",
@@ -52,7 +52,7 @@ pub fn op_arena_get_base_dir(state: &mut OpState) -> Result<String> {
 }
 
 #[op]
-fn op_arena_load_app_env(state: &mut OpState) -> Result<Value> {
+fn op_arena_load_env(state: &mut OpState) -> Result<Value> {
   let state = state.borrow::<ArenaRuntimeState>();
   let mut variables = state.env_variables.to_vec();
 
