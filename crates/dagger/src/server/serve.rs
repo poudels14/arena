@@ -124,7 +124,7 @@ impl Command {
       .run_until(async move {
         runtime
           .execute_main_module_code(
-            &Url::parse("file://main").unwrap(),
+            &Url::parse("file:///main").unwrap(),
             &format!(
               r#"
               import {{ serve }} from "@arena/runtime/server";

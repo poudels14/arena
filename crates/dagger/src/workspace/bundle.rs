@@ -59,7 +59,7 @@ impl Command {
       resolve_url_or_path(&self.config, &std::env::current_dir()?)?;
     runtime
       .execute_main_module_code(
-        &Url::parse("file://main").unwrap(),
+        &Url::parse("file:///main").unwrap(),
         &format!(
           r#"
         import bundler from "{0}";

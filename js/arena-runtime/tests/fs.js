@@ -1,5 +1,5 @@
 import assert from "assert";
-import { lstat, readFile } from "builtin:///fs/promises";
+import { lstat, readFile } from "builtin://fs/promises";
 
 const run = async () => {
   console.log("CWD =", Arena.fs.cwdSync());

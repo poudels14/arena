@@ -65,7 +65,7 @@ impl FsModuleResolver {
       || specifier.starts_with("@arena/runtime/")
     {
       debug!("Using builtin module: {specifier}");
-      specifier = format!("builtin:///{}", specifier);
+      specifier = format!("builtin://{}", specifier);
     }
     let url = match Url::parse(&specifier) {
       // 1. Apply the URL parser to specifier.

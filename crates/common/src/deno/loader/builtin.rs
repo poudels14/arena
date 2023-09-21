@@ -16,10 +16,10 @@ impl ModuleLoader for BuiltInModuleLoader {
   ) -> Result<ModuleSpecifier> {
     let specifier = specifier.strip_prefix("node:").unwrap_or(specifier);
     // Note(sagar): since all modules during build are builtin modules,
-    // add url schema `builtin:///` prefix
-    let specifier = match specifier.starts_with("builtin:///") {
+    // add url schema `builtin://` prefix
+    let specifier = match specifier.starts_with("builtin://") {
       true => specifier.to_string(),
-      false => format!("builtin:///{}", specifier),
+      false => format!("builtin://{}", specifier),
     };
 
     match Url::parse(&specifier) {

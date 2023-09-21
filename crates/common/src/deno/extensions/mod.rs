@@ -126,7 +126,7 @@ impl BuiltinExtensions {
 
           let mod_id = runtime
             .load_side_module(
-              &Url::parse(&format!("builtin:///{}", module.0))?,
+              &Url::parse(&format!("builtin://{}", module.0))?,
               Some(s.into()),
             )
             .await?;
@@ -147,7 +147,7 @@ impl BuiltinExtensions {
           debug!("Loading built-in module into the runtime: {}", specifier);
           let mod_id = runtime
             .load_side_module(
-              &Url::parse(&format!("builtin:///{}", specifier))?,
+              &Url::parse(&format!("builtin://{}", specifier))?,
               ModuleCode::from_static(code).into(),
             )
             .await?;

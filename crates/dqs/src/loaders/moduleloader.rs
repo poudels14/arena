@@ -38,7 +38,7 @@ impl ModuleLoader for AppkitModuleLoader {
     _kind: ResolutionKind,
   ) -> Result<ModuleSpecifier, Error> {
     let is_referrer_admin_module =
-      referrer == "." || referrer == "builtin://main";
+      referrer == "." || referrer == "builtin:///main";
     let referrer_url = Url::parse(referrer);
 
     // Note(sagar): block all module specifier that are valid Urls
@@ -58,20 +58,18 @@ impl ModuleLoader for AppkitModuleLoader {
       bail!("Unsupported module specifier: {:?}", specifier);
     }
 
-    let specifier = if specifier.starts_with("@dqs/template/") {
-      format!("arena:///{}", specifier)
+    let specifier = if specifier.starts_with("@dqs/") {
+      // modules that start with `@dqs` are workspace modules and loaded
+      // dynamically, normally from db/cache
+      format!("dqs:///{}", specifier)
     } else if referrer_url
       .map(|r| r.scheme() == "builtin")
       .unwrap_or(false)
     {
       // Allow all builtin modules if the referrer is builtin module
-      format!("builtin:///{}", specifier)
+      format!("builtin://{}", specifier)
     } else if is_allowed_builtin_module(specifier) {
-      format!("builtin:///{}", specifier)
-    } else if specifier.starts_with("@") {
-      // modules that start with `@` are workspace modules and loaded
-      // dynamically, normally from db/cache
-      format!("workspace:///{}", specifier)
+      format!("builtin://{}", specifier)
     } else if specifier.starts_with("./") {
       // relative specifiers are used to load env variables, etc
       // for example |import env from "./env"| to load env
@@ -108,7 +106,7 @@ impl ModuleLoader for AppkitModuleLoader {
     let maybe_referrer = maybe_referrer.cloned();
 
     async move {
-      if specifier.scheme() == "arena" {
+      if specifier.scheme() == "dqs" {
         match specifier.path() {
           "/@dqs/template/app" => {
             return Ok::<ModuleSource, anyhow::Error>(ModuleSource::new(
@@ -128,9 +126,7 @@ impl ModuleLoader for AppkitModuleLoader {
               &specifier,
             ))
           }
-          _ => {
-            bail!("Invalid Arena module")
-          }
+          _ => {}
         }
       }
 
@@ -163,8 +159,9 @@ impl ModuleLoader for AppkitModuleLoader {
         ParsedSpecifier::WidgetQuery(src) => {
           loader.load_widget_query_module(&src).await?
         }
-        _ => bail!("Unsupported module"),
+        _ => bail!("Unsupported module: {}", specifier),
       };
+
       Ok(ModuleSource::new(
         ModuleType::JavaScript,
         code.into(),

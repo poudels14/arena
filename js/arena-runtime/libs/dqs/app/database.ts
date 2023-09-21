@@ -10,7 +10,7 @@ const createDbClient = async (options: {
   baseDir: string;
 }) => {
   // @ts-expect-error
-  const dbPath = path.join(ops.op_apps_get_app_dir(), options.baseDir);
+  const dbPath = path.join(ops.op_arena_get_base_dir(), options.baseDir);
   switch (options.type) {
     case "sqlite":
       return new Client({

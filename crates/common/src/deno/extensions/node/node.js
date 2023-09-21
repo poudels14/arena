@@ -1,6 +1,6 @@
-import process from "builtin:///process";
-import path from "builtin:///path";
-import { Buffer } from "builtin:///buffer";
+import process from "builtin://process";
+import path from "builtin://path";
+import { Buffer } from "builtin://buffer";
 
 ((global) => {
   const env = global.process?.env || {};

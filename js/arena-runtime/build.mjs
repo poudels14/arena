@@ -19,7 +19,6 @@ const build = async (options) => {
   const { external = [], ...restOptions } = options;
   try {
     await esbuild.build({
-      minify: true,
       bundle: true,
       outdir: restOptions.outfile ? undefined : "dist",
       format: "esm",
@@ -60,7 +59,6 @@ program.option("--minify").action(async (options, cmd) => {
   await Promise.all([
     build({
       ...options,
-      minify: true,
       entryPoints: {
         assert: "libs/node/assert.ts",
         events: "libs/node/events.ts",
@@ -161,6 +159,7 @@ program.option("--minify").action(async (options, cmd) => {
     }),
     build({
       ...options,
+      minify: true,
       entryPoints: {
         filerouter: "./libs/filerouter/index.ts",
       },
