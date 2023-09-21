@@ -42,10 +42,7 @@ impl MainModule {
           BuiltinModule::Custom(Rc::new(move || {
             ext.borrow_mut().take().unwrap()
           })),
-          BuiltinModule::Custom(Rc::new(cloud::vectordb::extension)),
-          BuiltinModule::Custom(Rc::new(cloud::llm::extension)),
-          BuiltinModule::Custom(Rc::new(cloud::pdf::extension)),
-          BuiltinModule::Custom(Rc::new(cloud::html::extension)),
+          BuiltinModule::Custom(Rc::new(cloud::extension)),
         ]
       }
       _ => vec![],

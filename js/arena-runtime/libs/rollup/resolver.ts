@@ -11,6 +11,7 @@ import { Resolver } from "@arena/runtime/resolver";
 const resolver = (
   options: Arena.ResolverConfig & { external?: string[] } = {}
 ) => {
+  let external: string[] = options.external || [];
   const resolver = new Resolver({
     preserveSymlink: true,
     ...options,
@@ -19,7 +20,7 @@ const resolver = (
   return {
     name: "arena-resolver",
     async resolveId(source, importer, _options) {
-      if (options.external?.includes(source)) {
+      if (external.find((e) => source.startsWith(e))) {
         return {
           id: source,
           external: true,

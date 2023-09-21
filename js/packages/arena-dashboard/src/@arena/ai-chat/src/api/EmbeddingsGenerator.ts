@@ -1,6 +1,6 @@
 import { once } from "lodash-es";
 import ky from "ky";
-import { HFTokenizer } from "@arena/cloud/llm/tokenizer";
+import { HFTokenizer } from "@arena/cloud/llm";
 import { createDocumentSplitter } from "@arena/llm/splitter";
 import type { Splitter } from "@arena/llm/splitter";
 

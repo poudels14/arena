@@ -1,6 +1,5 @@
 import { createRouter, procedure } from "@arena/runtime/server";
-import jwt from "@arena/cloud/jwt";
-// @ts-expect-error
+import * as jwt from "@arena/cloud/jwt";
 import ms from "ms";
 import { pick } from "lodash-es";
 import ky from "ky";
@@ -16,9 +15,9 @@ const accountRouter = createRouter<any>({
      * Send magic link to the email
      */
     "/login": p.mutate(async ({ req, ctx, errors }) => {
-      const { email } = (await req.json()) || {};
+      const { email } = (await req.json().catch((e) => {})) || {};
       if (!email) {
-        return errors.badRequest();
+        return errors.badRequest('HTTP Post body must contain "email" field');
       }
       // TODO(sagar): use CSRF, rate limiting, etc to prevent DDOS
 

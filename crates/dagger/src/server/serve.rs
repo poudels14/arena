@@ -81,12 +81,8 @@ impl Command {
     }
 
     if self.enable_cloud_ext {
-      builtin_modules.extend(vec![
-        BuiltinModule::Custom(Rc::new(cloud::llm::extension)),
-        BuiltinModule::Custom(Rc::new(cloud::vectordb::extension)),
-        BuiltinModule::Custom(Rc::new(cloud::pdf::extension)),
-        BuiltinModule::Custom(Rc::new(cloud::html::extension)),
-      ]);
+      builtin_modules
+        .extend(vec![BuiltinModule::Custom(Rc::new(cloud::extension))]);
     }
 
     let mut runtime = IsolatedRuntime::new(RuntimeOptions {

@@ -4,7 +4,7 @@ import { pick } from "lodash-es";
 import { renderToStringAsync } from "solid-js/web";
 import { createComponent } from "solid-js";
 import { createDocumentSplitter } from "@arena/llm/splitter";
-import { HFTokenizer } from "@arena/cloud/llm/tokenizer";
+import { HFTokenizer } from "@arena/cloud/llm";
 import { p } from "../procedure";
 import { DocumentEmbeddingsGenerator } from "../EmbeddingsGenerator";
 import { uniqueId } from "../utils";

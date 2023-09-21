@@ -82,6 +82,7 @@ fn generate_prod_snapshot(path: &Path) {
       ],
       ..Default::default()
     })),
+    BuiltinModule::Custom(Rc::new(cloud::extension)),
   ])
   .load_snapshot_modules(&mut runtime)
   .unwrap();

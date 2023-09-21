@@ -1,11 +1,11 @@
 pub mod extractor;
 
-use crate::html::extractor::TextExtractor;
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use anyhow::bail;
 use anyhow::Result;
-use common::deno::extensions::BuiltinExtension;
 use deno_core::op;
-use deno_core::Extension;
 use deno_core::OpState;
 use deno_core::StringOrBuffer;
 use html5ever::tendril::SliceExt;
@@ -14,23 +14,8 @@ use html5ever::tokenizer::{
   BufferQueue, Tokenizer, TokenizerOpts, TokenizerResult,
 };
 use serde::Deserialize;
-use std::cell::RefCell;
-use std::rc::Rc;
 
-pub fn extension() -> BuiltinExtension {
-  BuiltinExtension {
-    extension: Some(self::init()),
-    runtime_modules: vec![],
-    snapshot_modules: vec![],
-  }
-}
-
-pub(crate) fn init() -> Extension {
-  Extension::builder("arena/cloud/html")
-    .ops(vec![op_cloud_html_extract_text::decl()])
-    .force_op_registration()
-    .build()
-}
+use crate::html::extractor::TextExtractor;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]

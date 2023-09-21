@@ -1,9 +1,8 @@
 use anyhow::{bail, Context, Result};
 use bstr::ByteSlice;
-use common::deno::extensions::BuiltinExtension;
 use common::deno::utils;
 use deno_core::{
-  op, Extension, OpState, Resource, ResourceId, StringOrBuffer, ZeroCopyBuf,
+  op, OpState, Resource, ResourceId, StringOrBuffer, ZeroCopyBuf,
 };
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -16,35 +15,6 @@ use vectordb::query::DocumentWithContent;
 use vectordb::search::SearchOptions;
 use vectordb::RowId;
 use vectordb::{query, sql, DatabaseOptions, VectorDatabase};
-
-pub fn extension() -> BuiltinExtension {
-  BuiltinExtension {
-    extension: Some(self::init()),
-    runtime_modules: vec![],
-    snapshot_modules: vec![],
-  }
-}
-
-pub(crate) fn init() -> Extension {
-  Extension::builder("arena/cloud/vectordb")
-    .ops(vec![
-      op_cloud_vectordb_open::decl(),
-      op_cloud_vectordb_execute_query::decl(),
-      op_cloud_vectordb_create_collection::decl(),
-      op_cloud_vectordb_list_collections::decl(),
-      op_cloud_vectordb_get_collection::decl(),
-      op_cloud_vectordb_add_document::decl(),
-      op_cloud_vectordb_list_documents::decl(),
-      op_cloud_vectordb_get_document::decl(),
-      op_cloud_vectordb_get_document_blobs::decl(),
-      op_cloud_vectordb_set_document_embeddings::decl(),
-      op_cloud_vectordb_delete_document::decl(),
-      op_cloud_vectordb_search_collection::decl(),
-      op_cloud_vectordb_compact_and_flush::decl(),
-    ])
-    .force_op_registration()
-    .build()
-}
 
 #[allow(dead_code)]
 struct VectorDatabaseResource {

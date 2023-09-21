@@ -1,7 +1,7 @@
 import { inferAsyncReturnType } from "@trpc/server";
 import { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { Client } from "@arena/runtime/postgres";
-import jwt from "@arena/cloud/jwt";
+import * as jwt from "@arena/cloud/jwt";
 // @ts-expect-error
 import cookie from "cookie";
 import { createRepo } from "./repos";

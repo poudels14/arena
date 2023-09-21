@@ -174,8 +174,7 @@ impl WorkspaceServer {
           Some(self.workspace.dir.clone())
         },
       }),
-      BuiltinModule::Custom(Rc::new(cloud::extension::extension)),
-      BuiltinModule::Custom(Rc::new(cloud::llm::extension)),
+      BuiltinModule::Custom(Rc::new(cloud::extension)),
     ];
 
     if self.dev_mode {

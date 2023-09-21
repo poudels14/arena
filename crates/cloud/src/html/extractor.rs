@@ -87,6 +87,7 @@ impl TextExtractor {
   }
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub enum ProcessResult {
   Ok,

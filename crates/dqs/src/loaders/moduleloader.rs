@@ -78,7 +78,11 @@ impl ModuleLoader for AppkitModuleLoader {
         .map_err(|_| anyhow!("Failed to resolve specifier: {:?}", specifier));
     } else {
       info!("Unsupported module specifier: {:?}", specifier);
-      bail!("Unsupported module specifier: {:?}", specifier)
+      bail!(
+        "Unsupported module specifier: {:?}, referrer: {}",
+        specifier,
+        referrer
+      )
     };
 
     Url::parse(&specifier)
@@ -229,4 +233,5 @@ fn is_allowed_builtin_module(specifier: &str) -> bool {
     || specifier == "crypto"
     // allow runtime/server since app templates need it
     || specifier == "@arena/runtime/server"
+    || specifier.starts_with("@arena/cloud/")
 }

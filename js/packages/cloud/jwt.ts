@@ -23,9 +23,7 @@ type JWT = {
   ) => { header: Header; payload: any };
 };
 
-const jwt: JWT = {
-  sign: Arena.core.ops.op_cloud_jwt_sign as JWT["sign"],
-  verify: Arena.core.ops.op_cloud_jwt_verify as JWT["verify"],
-};
+const sign = Arena.core.ops.op_cloud_jwt_sign as JWT["sign"];
+const verify = Arena.core.ops.op_cloud_jwt_verify as JWT["verify"];
 
-export default jwt;
+export { sign, verify };

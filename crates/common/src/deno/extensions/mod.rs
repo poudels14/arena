@@ -140,10 +140,10 @@ impl BuiltinExtensions {
   }
 
   pub fn load_runtime_modules(&self, runtime: &mut JsRuntime) -> Result<()> {
-    for extension in self.extensions.iter() {
-      for module in &extension.runtime_modules {
-        let (specifier, code) = module;
-        futures::executor::block_on(async {
+    futures::executor::block_on(async {
+      for extension in self.extensions.iter() {
+        for module in &extension.runtime_modules {
+          let (specifier, code) = module;
           debug!("Loading built-in module into the runtime: {}", specifier);
           let mod_id = runtime
             .load_side_module(
@@ -153,11 +153,11 @@ impl BuiltinExtensions {
             .await?;
           let receiver = runtime.mod_evaluate(mod_id);
           runtime.run_event_loop(false).await?;
-          receiver.await?
-        })?;
+          receiver.await??;
+        }
       }
-    }
-    Ok(())
+      Ok(())
+    })
   }
 
   pub fn add_module(&mut self, module: BuiltinModule) {
