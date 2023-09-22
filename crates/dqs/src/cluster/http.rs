@@ -1,9 +1,7 @@
 use super::{DqsCluster, DqsServerOptions};
 use crate::arena::App;
-use crate::arena::Template;
 use crate::arena::MainModule;
-use crate::db;
-use crate::db::app::apps;
+use crate::arena::Template;
 use anyhow::{anyhow, bail, Context, Result};
 use axum::extract::{Json, Path, Query, State};
 use axum::middleware;
@@ -17,7 +15,7 @@ use common::deno::extensions::server::request::read_htt_body_to_buffer;
 use common::deno::extensions::server::response::ParsedHttpResponse;
 use common::deno::extensions::server::{errors, HttpRequest};
 use deno_core::{normalize_path, ZeroCopyBuf};
-use diesel::prelude::*;
+use http::StatusCode;
 use http::{Method, Request};
 use hyper::Body;
 use indexmap::IndexMap;
@@ -47,21 +45,25 @@ pub(crate) async fn start_server(
 
   let app = Router::new()
     .route(
-      "/w/plugins/:pluginNamespace/:pluginId/:version/:workflowId/*path",
+      "/w/plugin/:pluginNamespace/:pluginId/:version/:workflowId/*path",
       routing::post(pipe_execute_plugin_workflow_request),
     )
     .route(
-      "/w/:appId/widgets/:widgetId/api/:field",
+      "/w/apps/:appId/widgets/:widgetId/api/:field",
       routing::get(handle_widget_get_query),
     )
     .route(
-      "/w/:appId/widgets/:widgetId/api/:field",
+      "/w/apps/:appId/widgets/:widgetId/api/:field",
       routing::post(handle_widgets_mutate_query),
     )
-    .route("/w/:appId/", routing::get(handle_app_routes_index))
-    .route("/w/:appId/*path", routing::get(handle_app_routes))
-    .route("/w/:appId/", routing::post(handle_app_routes_index))
-    .route("/w/:appId/*path", routing::post(handle_app_routes))
+    .route("/w/apps/:appId/", routing::get(handle_app_routes_index))
+    .route("/w/apps/:appId/*path", routing::get(handle_app_routes))
+    .route("/w/apps/:appId/", routing::post(handle_app_routes_index))
+    .route("/w/apps/:appId/*path", routing::post(handle_app_routes))
+    .route(
+      "/_admin/healthy",
+      routing::get(|| async { (StatusCode::OK, "Ok") }),
+    )
     .layer(
       ServiceBuilder::new()
         .layer(middleware::from_fn(logger::middleware))
@@ -74,6 +76,8 @@ pub(crate) async fn start_server(
     )
     .with_state(cluster);
 
+  // TODO(sagar): listen on multiple ports so that a lot more traffic
+  // can be served from single cluster
   let addr: SocketAddr = (Ipv4Addr::from_str(&address)?, port).into();
 
   println!("{}", "Starting DQS cluster...".yellow().bold());
@@ -134,7 +138,7 @@ pub async fn handle_app_routes_index(
   State(cluster): State<DqsCluster>,
   req: Request<Body>,
 ) -> impl IntoResponse {
-  pipe_app_request(app_id, "/".to_owned(), search_params, cluster, req).await
+  pipe_app_request(cluster, app_id, "/".to_owned(), search_params, req).await
 }
 
 pub async fn handle_app_routes(
@@ -143,47 +147,26 @@ pub async fn handle_app_routes(
   State(cluster): State<DqsCluster>,
   req: Request<Body>,
 ) -> impl IntoResponse {
-  pipe_app_request(app_id, path, search_params, cluster, req).await
+  pipe_app_request(cluster, app_id, path, search_params, req).await
 }
 
 pub async fn pipe_app_request(
+  cluster: DqsCluster,
   app_id: String,
   path: String,
   search_params: IndexMap<String, String>,
-  cluster: DqsCluster,
   mut req: Request<Body>,
 ) -> Result<Response, errors::Error> {
-  let workspace_id = cluster
-    .cache
-    .get_workspace_id(&app_id)
-    .await
-    .map_err(|e| {
-      tracing::error!("Error getting workspace id: {}", e);
-      errors::Error::AnyhowError(e.into())
-    })?
-    .ok_or(errors::Error::NotFound)?;
-
-  let connection = &mut cluster.db_pool.get().map_err(|e| anyhow!("{}", e))?;
-
-  let app = db::app::table
-    .filter(apps::id.eq(app_id.to_string()))
-    .filter(apps::archived_at.is_null())
-    .first::<db::app::App>(connection)
-    .map_err(|e| anyhow!("Failed to load app from db: {}", e))?;
+  let app = authorize_and_get_app(&cluster, &app_id, &req).await?;
 
   let app_root_path =
     normalize_path(cluster.data_dir.join(format!("./apps/{}", app_id)));
   let dqs_server = cluster
     .get_or_spawn_dqs_server(DqsServerOptions {
       id: format!("app/{}", app_id),
-      workspace_id,
+      workspace_id: app.workspace_id.clone(),
       root: Some(app_root_path),
-      module: MainModule::App {
-        app: App {
-          id: app_id,
-          template: app.template.unwrap().try_into()?,
-        },
-      },
+      module: MainModule::App { app },
       db_pool: cluster.db_pool.clone(),
       dqs_egress_addr: cluster.options.dqs_egress_addr,
       registry: cluster.options.registry.clone(),
@@ -233,43 +216,7 @@ pub async fn pipe_widget_query_request(
   params: DataQuerySearchParams,
   mut req: Request<Body>,
 ) -> Result<Response, errors::Error> {
-  let cookies = parse_cookies(&req);
-  let user_id = cookies
-    .get("user")
-    .and_then(|u| get_user_id_from_cookie(u).ok())
-    .unwrap_or("public".to_owned());
-
-  let workspace_id = cluster
-    .cache
-    .get_workspace_id(app_id)
-    .await
-    .map_err(|e| {
-      tracing::error!("Error getting workspace id: {}", e);
-      errors::Error::AnyhowError(e.into())
-    })?
-    .ok_or(errors::Error::NotFound)?;
-
-  let acls = cluster
-    .cache
-    .get_workspace_acls(&workspace_id)
-    .await
-    .unwrap_or_default();
-
-  let has_access = cloud::acl::has_entity_access(
-    &acls,
-    &user_id,
-    Access::CanQuery,
-    &workspace_id,
-    AclEntity::App {
-      id: app_id.to_string(),
-      path: None,
-    },
-  )
-  .map_err(|_| errors::Error::NotFound)?;
-
-  if !has_access {
-    return Err(errors::Error::NotFound);
-  }
+  let app = authorize_and_get_app(cluster, &app_id, &req).await?;
 
   let (tx, rx) = oneshot::channel::<ParsedHttpResponse>();
   let body = read_htt_body_to_buffer(&mut req).await?;
@@ -302,6 +249,7 @@ pub async fn pipe_widget_query_request(
     ))),
   };
 
+  let workspace_id = app.workspace_id;
   let dqs_server = cluster
     .get_or_spawn_dqs_server(DqsServerOptions {
       id: format!("workspace/{}", workspace_id),
@@ -370,9 +318,7 @@ pub async fn pipe_execute_plugin_workflow_request(
 
   let request = HttpRequest {
     method: "POST".to_owned(),
-    url: format!(
-      "http://0.0.0.0/plugins/{plugin_id}/{version}/{workflow_id}/{path}",
-    ),
+    url: format!("http://0.0.0.0/{path}",),
     headers: vec![],
     body: Some(ZeroCopyBuf::ToV8(Some(
       serde_json::to_vec(&json!({
@@ -393,6 +339,51 @@ pub async fn pipe_execute_plugin_workflow_request(
 
   let res = rx.await.map_err(|_| errors::Error::ResponseBuilder)?;
   res.into_response().await
+}
+
+async fn authorize_and_get_app(
+  cluster: &DqsCluster,
+  app_id: &str,
+  req: &Request<Body>,
+) -> Result<App, errors::Error> {
+  let cookies = parse_cookies(&req);
+  let user_id = cookies
+    .get("user")
+    .and_then(|u| get_user_id_from_cookie(u).ok())
+    .unwrap_or("public".to_owned());
+
+  let app = cluster
+    .cache
+    .get_app(app_id)
+    .await
+    .map_err(|e| {
+      tracing::error!("Error getting workspace id: {}", e);
+      errors::Error::AnyhowError(e.into())
+    })?
+    .ok_or(errors::Error::NotFound)?;
+
+  let acls = cluster
+    .cache
+    .get_workspace_acls(&app.workspace_id)
+    .await
+    .unwrap_or_default();
+
+  let has_access = cloud::acl::has_entity_access(
+    &acls,
+    &user_id,
+    Access::CanQuery,
+    &app.workspace_id,
+    AclEntity::App {
+      id: app.id.to_string(),
+      path: None,
+    },
+  )
+  .map_err(|_| errors::Error::NotFound)?;
+
+  if !has_access {
+    return Err(errors::Error::NotFound);
+  }
+  Ok(app)
 }
 
 fn parse_cookies(req: &Request<Body>) -> HashMap<String, String> {

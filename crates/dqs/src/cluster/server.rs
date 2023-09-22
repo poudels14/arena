@@ -17,7 +17,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::thread;
 use std::time::SystemTime;
-use tokio::sync::{mpsc, oneshot, watch, RwLock};
+use tokio::sync::{mpsc, oneshot, watch, Mutex};
 
 use crate::arena::{ArenaRuntimeState, MainModule};
 use crate::config::workspace::WorkspaceConfig;
@@ -44,7 +44,7 @@ pub struct DqsServerOptions {
 
 #[derive(Debug, Clone)]
 pub enum DqsServerStatus {
-  Starting(Arc<RwLock<bool>>),
+  Starting(Arc<Mutex<bool>>),
   Ready(DqsServer),
 }
 
@@ -61,7 +61,7 @@ impl DqsServer {
   pub async fn spawn(
     options: DqsServerOptions,
   ) -> Result<(DqsServer, watch::Receiver<ServerEvents>)> {
-    let (http_requests_tx, http_requests_rx) = mpsc::channel(5);
+    let (http_requests_tx, http_requests_rx) = mpsc::channel(200);
     let (events_tx, mut receiver) = watch::channel(ServerEvents::Init);
     let permissions = Self::load_permissions(&options)?;
     let thread = thread::Builder::new().name(format!("dqs-[{}]", options.id));
@@ -124,6 +124,7 @@ impl DqsServer {
     }
   }
 
+  #[tracing::instrument(skip_all, level = "trace")]
   pub async fn healthy(&self) -> Result<()> {
     let (tx, rx) = oneshot::channel::<ParsedHttpResponse>();
     let _ = self

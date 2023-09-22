@@ -1,6 +1,7 @@
+use crate::arena::App;
 use crate::db::acl;
 use crate::db::acl::acls;
-use crate::db::app::{self, apps, App};
+use crate::db::app::{self, apps};
 use anyhow::{anyhow, bail, Result};
 use cloud::acl::{Access, Acl, AclEntity};
 use diesel::prelude::*;
@@ -13,8 +14,7 @@ use tokio::sync::RwLock;
 #[derive(Clone)]
 pub struct Cache {
   db_pool: Option<Pool<ConnectionManager<PgConnection>>>,
-  /// app_id -> workspace_id
-  pub workspace_apps: Arc<RwLock<HashMap<String, String>>>,
+  pub workspace_apps: Arc<RwLock<HashMap<String, App>>>,
   pub acls: Arc<RwLock<HashMap<String, Box<Vec<Acl>>>>>,
 }
 
@@ -27,18 +27,15 @@ impl Cache {
     }
   }
 
-  pub async fn get_workspace_id(&self, app_id: &str) -> Result<Option<String>> {
-    let workspace_id = {
+  pub async fn get_app(&self, app_id: &str) -> Result<Option<App>> {
+    let app = {
       let map = self.workspace_apps.read().await;
-      map.get(app_id).map(|w| w.to_string())
+      map.get(app_id).map(|w| w.clone())
     };
 
-    match workspace_id {
-      Some(id) => Ok(Some(id)),
-      None => self
-        .fetch_and_cache_app(app_id)
-        .await
-        .map(|a| a.map(|a| a.workspace_id)),
+    match app {
+      Some(app) => Ok(Some(app)),
+      None => self.fetch_and_cache_app(app_id).await,
     }
   }
 
@@ -70,13 +67,18 @@ impl Cache {
       .first::<app::App>(connection);
 
     match res {
-      Ok(app) => {
+      Ok(db_app) => {
         let mut map = self.workspace_apps.write().await;
-        map.insert(app.id.clone(), app.workspace_id.clone());
+        let app = App {
+          workspace_id: db_app.workspace_id.clone(),
+          id: db_app.id.clone(),
+          template: db_app.template.unwrap().try_into()?,
+        };
+        map.insert(app.id.clone(), app.clone());
         Ok(Some(app))
       }
       Err(e) if e == diesel::NotFound => Ok(None),
-      Err(e) => bail!("{}", e),
+      Err(e) => bail!("Failed to load app from db: {}", e),
     }
   }
 

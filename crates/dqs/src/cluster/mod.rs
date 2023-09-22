@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::{watch, RwLock};
+use tokio::sync::{watch, Mutex, RwLock};
 use uuid::Uuid;
 
 pub(crate) mod cache;
@@ -134,28 +134,43 @@ impl DqsCluster {
     if let Some(DqsServerStatus::Ready(s)) = status {
       return Ok(s);
     } else if let Some(DqsServerStatus::Starting(lock)) = status {
-      let _ = lock.read().await;
+      let _ = lock.lock().await;
     } else {
       let mut servers = self.servers.write().await;
       // It's possible for two requests to get here at the same time
       // So, check if the server status has been added to the map before
       // doing do
       if !servers.contains_key(&id) {
-        let lock = Arc::new(RwLock::new(false));
+        let lock = Arc::new(Mutex::new(false));
         servers.insert(id.clone(), DqsServerStatus::Starting(lock.clone()));
         drop(servers);
 
-        let mut l = lock.write().await;
-        let (dqs_server, server_events) =
-          self.spawn_dqs_server(options).await?;
+        let cluster = self.clone();
+        let result = tokio::task::spawn(async move {
+          let mut l = lock.lock().await;
+          let (dqs_server, server_events) =
+            cluster.spawn_dqs_server(options).await?;
 
-        dqs_server.healthy().await?;
-        dqs_server.update_server_deployment(&self.id).await?;
+          dqs_server.healthy().await?;
+          dqs_server.update_server_deployment(&cluster.id).await?;
 
-        self.track_dqs_server(dqs_server, server_events).await;
+          cluster.track_dqs_server(dqs_server, server_events).await;
 
-        *l = true;
-        drop(l);
+          *l = true;
+          drop(l);
+
+          Ok::<(), anyhow::Error>(())
+        })
+        .await;
+
+        match result {
+          Ok(_) => {}
+          Err(e) => {
+            let mut servers = self.servers.write().await;
+            servers.remove(&id);
+            return Err(e.into());
+          }
+        }
       }
     }
 

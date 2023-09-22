@@ -31,8 +31,7 @@ struct Args {
   egress_addr: Option<String>,
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
   let subscriber = tracing_subscriber::registry()
     .with(
       tracing_subscriber::filter::EnvFilter::from_default_env()
@@ -91,6 +90,14 @@ async fn main() -> Result<()> {
     },
   })?;
 
-  cluster::http::start_server(dqs_cluster, host, port).await?;
-  Ok(())
+  let rt = tokio::runtime::Builder::new_multi_thread()
+    .worker_threads(num_cpus::get())
+    .enable_all()
+    .build()?;
+
+  let local = tokio::task::LocalSet::new();
+  local.block_on(&rt, async {
+    cluster::http::start_server(dqs_cluster, host, port).await?;
+    Ok(())
+  })
 }

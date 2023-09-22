@@ -17,7 +17,7 @@ use super::MainModule;
 pub fn extension() -> BuiltinExtension {
   BuiltinExtension {
     extension: Some(
-      Extension::builder("arena/runtime/apps")
+      Extension::builder("arena/dqs/runtime")
         .ops(vec![
           op_arena_get_base_dir::decl(),
           op_arena_load_env::decl(),

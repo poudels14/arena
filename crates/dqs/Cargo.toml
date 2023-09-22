@@ -38,6 +38,7 @@ indexmap.workspace = true
 simdutf8.workspace = true
 colored.workspace = true
 nanoid.workspace = true
+num_cpus.workspace = true
 common = { path = "../common" }
 jsruntime = { path = "../jsruntime" }
 cloud = { path = "../cloud" }
