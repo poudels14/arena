@@ -1,13 +1,13 @@
 use anyhow::{bail, Result};
 use cloud::pubsub::exchange::Exchange;
 use colored::Colorize;
+use dashmap::DashMap;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
-use std::collections::HashMap;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::{watch, Mutex, RwLock};
+use tokio::sync::{watch, Mutex};
 use uuid::Uuid;
 
 pub(crate) mod cache;
@@ -36,8 +36,8 @@ pub struct DqsCluster {
   pub id: String,
   pub data_dir: PathBuf,
   /// DqsServerStatus by server id
-  pub servers: Arc<RwLock<HashMap<String, DqsServerStatus>>>,
-  pub exchanges: Arc<RwLock<HashMap<String, Exchange>>>,
+  pub servers: Arc<DashMap<String, DqsServerStatus>>,
+  pub exchanges: Arc<DashMap<String, Exchange>>,
   pub db_pool: Pool<ConnectionManager<PgConnection>>,
   pub cache: Cache,
 }
@@ -53,8 +53,8 @@ impl DqsCluster {
       options: options.clone(),
       id: Uuid::new_v4().to_string(),
       data_dir: options.data_dir,
-      servers: Arc::new(RwLock::new(HashMap::new())),
-      exchanges: Arc::new(RwLock::new(HashMap::new())),
+      servers: Arc::new(DashMap::with_shard_amount(32)),
+      exchanges: Arc::new(DashMap::with_shard_amount(32)),
       db_pool: db_pool.clone(),
       cache: Cache::new(Some(db_pool)),
     })
@@ -93,9 +93,7 @@ impl DqsCluster {
     &self,
     id: &str,
   ) -> Result<Option<DqsServerStatus>> {
-    let servers = self.servers.read().await;
-    let server = servers.get(id).map(|s| s.clone());
-    drop(servers);
+    let server = self.servers.get(id).map(|s| s.clone());
     match &server {
       Some(s) => {
         if let DqsServerStatus::Ready(s) = s {
@@ -111,8 +109,7 @@ impl DqsCluster {
             })
             .unwrap_or(false);
           if reboot_triggered_after_deployment {
-            let mut servers = self.servers.write().await;
-            servers.remove(id);
+            self.servers.remove(id);
             return Ok(None);
           }
         }
@@ -141,14 +138,14 @@ impl DqsCluster {
     } else if let Some(DqsServerStatus::Starting(lock)) = status {
       let _ = lock.lock().await;
     } else {
-      let mut servers = self.servers.write().await;
       // It's possible for two requests to get here at the same time
       // So, check if the server status has been added to the map before
       // doing do
-      if !servers.contains_key(&id) {
+      if !self.servers.contains_key(&id) {
         let lock = Arc::new(Mutex::new(false));
-        servers.insert(id.clone(), DqsServerStatus::Starting(lock.clone()));
-        drop(servers);
+        self
+          .servers
+          .insert(id.clone(), DqsServerStatus::Starting(lock.clone()));
 
         let cluster = self.clone();
         let result = tokio::task::spawn(async move {
@@ -171,8 +168,7 @@ impl DqsCluster {
         match result {
           Ok(_) => {}
           Err(e) => {
-            let mut servers = self.servers.write().await;
-            servers.remove(&id);
+            self.servers.remove(&id);
             return Err(e.into());
           }
         }
@@ -190,18 +186,13 @@ impl DqsCluster {
   }
 
   pub async fn get_exchange(&self, workspace_id: &str) -> Result<Exchange> {
-    let exchange = {
-      let exchanges = self.exchanges.read().await;
-      exchanges.get(workspace_id).cloned()
-    };
+    let exchange = self.exchanges.get(workspace_id).map(|e| e.value().clone());
 
     match exchange {
       Some(e) => Ok(e),
       None => {
         let e = Exchange::new(workspace_id.to_string());
-
-        let mut exchanges = self.exchanges.write().await;
-        exchanges.insert(workspace_id.to_string(), e.clone());
+        self.exchanges.insert(workspace_id.to_string(), e.clone());
 
         let exchange = e.clone();
         // TODO(sagar): run all exchanges in a dedicated thread
@@ -220,12 +211,10 @@ impl DqsCluster {
     mut server_events: watch::Receiver<ServerEvents>,
   ) {
     let dqs_server_id = dqs_server.options.id.clone();
-    let mut servers = self.servers.write().await;
-    servers.insert(
+    self.servers.insert(
       dqs_server.options.id.clone(),
       DqsServerStatus::Ready(dqs_server),
     );
-    drop(servers);
 
     let cluster = self.clone();
     tokio::task::spawn(async move {
@@ -233,8 +222,7 @@ impl DqsCluster {
         let event = server_events.borrow().clone();
         match event {
           ServerEvents::Terminated(result) => {
-            let mut servers = cluster.servers.write().await;
-            servers.remove(&dqs_server_id);
+            cluster.servers.remove(&dqs_server_id);
             println!(
               "{}",
               format!(

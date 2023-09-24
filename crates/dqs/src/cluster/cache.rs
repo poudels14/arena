@@ -4,34 +4,30 @@ use crate::db::acl::acls;
 use crate::db::app::{self, apps};
 use anyhow::{anyhow, bail, Result};
 use cloud::acl::{Access, Acl, AclEntity};
+use dashmap::DashMap;
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
-use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
 #[derive(Clone)]
 pub struct Cache {
   db_pool: Option<Pool<ConnectionManager<PgConnection>>>,
-  pub workspace_apps: Arc<RwLock<HashMap<String, App>>>,
-  pub acls: Arc<RwLock<HashMap<String, Box<Vec<Acl>>>>>,
+  pub apps_by_id: Arc<DashMap<String, App>>,
+  pub acls: Arc<DashMap<String, Box<Vec<Acl>>>>,
 }
 
 impl Cache {
   pub fn new(db_pool: Option<Pool<ConnectionManager<PgConnection>>>) -> Self {
     Self {
       db_pool,
-      workspace_apps: Arc::new(RwLock::new(HashMap::new())),
-      acls: Arc::new(RwLock::new(HashMap::new())),
+      apps_by_id: Arc::new(DashMap::with_shard_amount(32)),
+      acls: Arc::new(DashMap::with_shard_amount(32)),
     }
   }
 
   pub async fn get_app(&self, app_id: &str) -> Result<Option<App>> {
-    let app = {
-      let map = self.workspace_apps.read().await;
-      map.get(app_id).map(|w| w.clone())
-    };
+    let app = self.apps_by_id.get(app_id).map(|w| w.value().clone());
 
     match app {
       Some(app) => Ok(Some(app)),
@@ -43,10 +39,7 @@ impl Cache {
     &self,
     workspace_id: &str,
   ) -> Option<Box<Vec<Acl>>> {
-    let acls = {
-      let map = self.acls.read().await;
-      map.get(workspace_id).map(|m| m.clone())
-    };
+    let acls = self.acls.get(workspace_id).map(|m| m.value().clone());
 
     match acls {
       Some(acls) => Some(acls),
@@ -68,13 +61,12 @@ impl Cache {
 
     match res {
       Ok(db_app) => {
-        let mut map = self.workspace_apps.write().await;
         let app = App {
           workspace_id: db_app.workspace_id.clone(),
           id: db_app.id.clone(),
           template: db_app.template.unwrap().try_into()?,
         };
-        map.insert(app.id.clone(), app.clone());
+        self.apps_by_id.insert(app.id.clone(), app.clone());
         Ok(Some(app))
       }
       Err(e) if e == diesel::NotFound => Ok(None),
@@ -117,12 +109,12 @@ impl Cache {
       })
       .collect::<Vec<Acl>>();
 
-    let mut map = self.acls.write().await;
-    map.insert(workspace_id.to_string(), acls.into());
+    self.acls.insert(workspace_id.to_string(), acls.into());
 
-    map
+    self
+      .acls
       .get(workspace_id)
-      .map(|acls| acls.clone())
+      .map(|acls| acls.value().clone())
       .ok_or(anyhow!("failed to get workspace acls"))
   }
 }
