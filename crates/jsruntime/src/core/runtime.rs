@@ -26,6 +26,31 @@ pub static RUNTIME_PROD_SNAPSHOT: &[u8] =
 #[derive(Derivative)]
 #[derivative(Default)]
 pub struct RuntimeOptions {
+  pub enable_console: bool,
+
+  /// Name of the HTTP user_agent
+  pub user_agent: Option<String>,
+
+  /// The local address to use for outgoing network request
+  /// This is useful if we need to restrict the outgoing network
+  /// request to a specific network device/address
+  pub egress_addr: Option<IpAddr>,
+
+  pub permissions: PermissionsContainer,
+
+  /// Heap limit tuple: (initial size, max hard limit) in bytes
+  pub heap_limits: Option<(usize, usize)>,
+
+  /// Additional extensions to add to the runtime
+  pub extensions: Vec<Extension>,
+
+  pub builtin_extensions: BuiltinExtensions,
+
+  /// whether to auto-transpile the code when loading
+  pub transpile: bool,
+
+  pub disable_module_loader: bool,
+
   /// Project root must be passed
   /// This should either be a directory where package.json is located
   /// or current directory
@@ -39,30 +64,10 @@ pub struct RuntimeOptions {
   #[derivative(Default(value = "Option::None"))]
   pub config: Option<ArenaConfig>,
 
-  /// Name of the HTTP user_agent
-  pub user_agent: Option<String>,
-
-  pub permissions: PermissionsContainer,
-
-  pub enable_console: bool,
-
-  /// Additional extensions to add to the runtime
-  pub extensions: Vec<Extension>,
-
-  /// Heap limit tuple: (initial size, max hard limit) in bytes
-  pub heap_limits: Option<(usize, usize)>,
-
-  /// whether to auto-transpile the code when loading
-  pub transpile: bool,
-
-  pub disable_module_loader: bool,
-
-  pub builtin_extensions: BuiltinExtensions,
-
-  /// The local address to use for outgoing network request
-  /// This is useful if we need to restrict the outgoing network
-  /// request to a specific network device/address
-  pub egress_addr: Option<IpAddr>,
+  /// If set to true, `globalThis.Deno` and `globalThis.Arena` will be
+  /// left intact. Else, Deno will be removed from globalThis and Arena
+  /// will only have few required fields
+  pub enable_arena_global: bool,
 }
 
 pub struct IsolatedRuntime {
@@ -215,6 +220,30 @@ impl IsolatedRuntime {
     options
       .builtin_extensions
       .load_runtime_modules(&mut js_runtime)?;
+
+    if !options.enable_arena_global {
+      futures::executor::block_on(async {
+        js_runtime.execute_script(
+            "<setup/global/reset>",
+            FastString::Static(
+              r#"
+              // Delete reference to global Arena that has lots of runtime features
+              // and only provide access to select few features/configs
+              let newArena = {
+                config: Arena.config,
+                fs: Arena.fs,
+              };
+
+              delete globalThis["Deno"];
+              delete globalThis["Arena"];
+              globalThis.Arena = newArena;
+              "#,
+            ),
+          )?;
+        js_runtime.run_event_loop(false).await?;
+        Ok::<(), anyhow::Error>(())
+      })?;
+    }
 
     let runtime = IsolatedRuntime {
       runtime: Rc::new(RefCell::new(js_runtime)),
