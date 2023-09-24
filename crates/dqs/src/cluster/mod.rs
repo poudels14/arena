@@ -1,4 +1,5 @@
 use anyhow::{bail, Result};
+use cloud::pubsub::exchange::Exchange;
 use colored::Colorize;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
@@ -36,6 +37,7 @@ pub struct DqsCluster {
   pub data_dir: PathBuf,
   /// DqsServerStatus by server id
   pub servers: Arc<RwLock<HashMap<String, DqsServerStatus>>>,
+  pub exchanges: Arc<RwLock<HashMap<String, Exchange>>>,
   pub db_pool: Pool<ConnectionManager<PgConnection>>,
   pub cache: Cache,
 }
@@ -52,6 +54,7 @@ impl DqsCluster {
       id: Uuid::new_v4().to_string(),
       data_dir: options.data_dir,
       servers: Arc::new(RwLock::new(HashMap::new())),
+      exchanges: Arc::new(RwLock::new(HashMap::new())),
       db_pool: db_pool.clone(),
       cache: Cache::new(Some(db_pool)),
     })
@@ -69,7 +72,9 @@ impl DqsCluster {
       .and_then(|root| root.to_str().map(|s| s.to_owned()))
       .unwrap_or("None".to_owned());
 
-    let (dqs_server, server_events) = DqsServer::spawn(options.clone()).await?;
+    let exchange = self.get_exchange(&options.workspace_id).await?;
+    let (dqs_server, server_events) =
+      DqsServer::spawn(options.clone(), Some(exchange)).await?;
 
     println!(
       "{}",
@@ -182,6 +187,31 @@ impl DqsCluster {
     // it means there was error starting the server
     println!("Failed to start Workspace server");
     bail!("Failed to start Workspace server");
+  }
+
+  pub async fn get_exchange(&self, workspace_id: &str) -> Result<Exchange> {
+    let exchange = {
+      let exchanges = self.exchanges.read().await;
+      exchanges.get(workspace_id).cloned()
+    };
+
+    match exchange {
+      Some(e) => Ok(e),
+      None => {
+        let e = Exchange::new(workspace_id.to_string());
+
+        let mut exchanges = self.exchanges.write().await;
+        exchanges.insert(workspace_id.to_string(), e.clone());
+
+        let exchange = e.clone();
+        // TODO(sagar): run all exchanges in a dedicated thread
+        tokio::task::spawn(async move {
+          let _ = exchange.run().await;
+        });
+
+        Ok(e)
+      }
+    }
   }
 
   async fn track_dqs_server(

@@ -1,4 +1,5 @@
 use anyhow::{anyhow, bail, Context, Result};
+use cloud::pubsub::exchange::Exchange;
 use common::beam;
 use common::deno::extensions::server::response::ParsedHttpResponse;
 use common::deno::extensions::server::{HttpRequest, HttpServerConfig};
@@ -60,6 +61,7 @@ impl DqsServer {
   #[tracing::instrument(skip_all, level = "trace")]
   pub async fn spawn(
     options: DqsServerOptions,
+    exchange: Option<Exchange>,
   ) -> Result<(DqsServer, watch::Receiver<ServerEvents>)> {
     let (http_requests_tx, http_requests_rx) = mpsc::channel(200);
     let (events_tx, mut receiver) = watch::channel(ServerEvents::Init);
@@ -94,6 +96,7 @@ impl DqsServer {
           egress_address: options.dqs_egress_addr,
           heap_limits: None,
           permissions,
+          exchange,
           state,
         },
         events_tx,

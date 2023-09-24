@@ -5,6 +5,7 @@ use crate::server::{
 };
 use crate::Workspace;
 use anyhow::{anyhow, bail, Result};
+use cloud::CloudExtensionProvider;
 use common::arena::ArenaConfig;
 use common::deno::extensions::server::HttpServerConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
@@ -160,6 +161,11 @@ impl WorkspaceServer {
   }
 
   async fn start_workspace_js_server(&self) -> Result<()> {
+    let cloud_ext =
+      BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider {
+        publisher: None,
+      }));
+
     let mut builtin_modules = vec![
       BuiltinModule::Fs,
       BuiltinModule::Env,
@@ -174,7 +180,7 @@ impl WorkspaceServer {
           Some(self.workspace.dir.clone())
         },
       }),
-      BuiltinModule::Custom(Rc::new(cloud::extension)),
+      cloud_ext.clone(),
     ];
 
     if self.dev_mode {
@@ -193,6 +199,7 @@ impl WorkspaceServer {
       enable_console: true,
       builtin_extensions: BuiltinExtensions::with_modules(builtin_modules),
       transpile: self.dev_mode,
+      enable_arena_global: true,
       // TODO(sagar): file permissions is required to server static files
       // move the fileserver to rust so that file permission isn't ncessary
       permissions: PermissionsContainer {
@@ -216,6 +223,12 @@ impl WorkspaceServer {
       heap_limits: self.workspace.heap_limits,
       ..Default::default()
     })?;
+
+    // TODO(sagar): use a snapshot for this
+    let mut rt = runtime.runtime.borrow_mut();
+    BuiltinExtensions::with_modules(vec![cloud_ext])
+      .load_snapshot_modules(&mut rt)?;
+    drop(rt);
 
     let server_entry = self.workspace.server_entry()?;
     let server_entry = server_entry

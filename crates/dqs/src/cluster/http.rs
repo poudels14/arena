@@ -9,6 +9,9 @@ use axum::response::{IntoResponse, Response};
 use axum::{routing, Router};
 use axum_extra::extract::cookie::Cookie;
 use cloud::acl::{Access, AclEntity};
+use cloud::pubsub::EventSink;
+use cloud::pubsub::Node;
+use cloud::pubsub::Subscriber;
 use colored::Colorize;
 use common::axum::logger;
 use common::deno::extensions::server::request::read_htt_body_to_buffer;
@@ -28,7 +31,9 @@ use std::env;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
 use std::str::FromStr;
+use std::sync::Arc;
 use tokio::sync::oneshot;
+use tokio::sync::Mutex;
 use tower::ServiceBuilder;
 use tower_http::compression::predicate::NotForContentType;
 use tower_http::compression::{CompressionLayer, DefaultPredicate, Predicate};
@@ -63,6 +68,13 @@ pub(crate) async fn start_server(
     .route(
       "/_admin/healthy",
       routing::get(|| async { (StatusCode::OK, "Ok") }),
+    )
+    // TODO: listen to pub/sub in different port
+    // Subscribe to all pub/sub events for all apps/workflows in the given
+    // workspace that are running on this dqs server
+    .route(
+      "/w/subscribe/:workspaceId/*path",
+      routing::get(subscribe_to_events),
     )
     .layer(
       ServiceBuilder::new()
@@ -304,8 +316,11 @@ pub async fn pipe_execute_plugin_workflow_request(
       ),
       workspace_id: body.workspace_id,
       root: None,
-      module: MainModule::Plugin {
-        template: Template {
+      module: MainModule::Workflow {
+        // TODO(sagar): use unique workflow id
+        id: workflow_id.clone(),
+        name: workflow_id.clone(),
+        plugin: Template {
           id: plugin_id.clone(),
           version: version.clone(),
         },
@@ -339,6 +354,56 @@ pub async fn pipe_execute_plugin_workflow_request(
 
   let res = rx.await.map_err(|_| errors::Error::ResponseBuilder)?;
   res.into_response().await
+}
+
+async fn subscribe_to_events(
+  State(cluster): State<DqsCluster>,
+  Path((workspace_id, _path)): Path<(String, String)>,
+  mut req: Request<Body>,
+) -> Result<http::Response<hyper::Body>, errors::Error> {
+  let cookies = parse_cookies(&req);
+
+  // TODO(sagar): authenticate the non-user subscriber like apps and
+  // set proper node info
+  let user_id = cookies
+    .get("user")
+    .and_then(|u| get_user_id_from_cookie(u).ok())
+    .unwrap_or("public".to_owned());
+
+  let (response, upgrade_fut) = fastwebsockets::upgrade::upgrade(&mut req)
+    .map_err(|e| anyhow!("Error upgrading websocket connection: {}", e))?;
+
+  tokio::spawn(async move {
+    let ws = upgrade_fut.await;
+
+    match ws {
+      Ok(ws) => {
+        if let Ok(exchange) = cluster.get_exchange(&workspace_id).await {
+          let ws = fastwebsockets::FragmentCollector::new(ws);
+          let res = exchange
+            .add_subscriber(Subscriber {
+              node: Node::User { id: user_id },
+              out_stream: EventSink::Websocket(Arc::new(Mutex::new(ws))),
+              // TODO(sagar): set event filter based on the path
+              filter: Default::default(),
+            })
+            .await;
+          if res.is_err() {
+            tracing::error!(
+              "Error sending event to a subscriber [workspace_id = {}]: {:?}",
+              workspace_id,
+              res
+            );
+          }
+        }
+      }
+      Err(e) => {
+        tracing::error!("Error upgrading websocket connection: {}", e)
+      }
+    }
+  });
+
+  Ok::<_, errors::Error>(response.into())
 }
 
 async fn authorize_and_get_app(

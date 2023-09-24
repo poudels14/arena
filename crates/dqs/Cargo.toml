@@ -31,6 +31,7 @@ tower-http.workspace = true
 axum.workspace = true
 axum-extra.workspace = true
 mime.workspace = true
+fastwebsockets.workspace = true
 jsonwebtoken.workspace = true
 reqwest.workspace = true
 clap.workspace = true
@@ -38,6 +39,7 @@ indexmap.workspace = true
 simdutf8.workspace = true
 colored.workspace = true
 nanoid.workspace = true
+dashmap.workspace = true
 num_cpus.workspace = true
 common = { path = "../common" }
 jsruntime = { path = "../jsruntime" }

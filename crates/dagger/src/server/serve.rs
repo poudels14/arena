@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
 use clap::Parser;
+use cloud::CloudExtensionProvider;
 use common::arena::ArenaConfig;
 use common::deno::extensions::server::HttpServerConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
@@ -80,9 +81,12 @@ impl Command {
       ]);
     }
 
+    let cloud_ext =
+      BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider {
+        publisher: None,
+      }));
     if self.enable_cloud_ext {
-      builtin_modules
-        .extend(vec![BuiltinModule::Custom(Rc::new(cloud::extension))]);
+      builtin_modules.push(cloud_ext.clone());
     }
 
     let mut runtime = IsolatedRuntime::new(RuntimeOptions {
@@ -91,6 +95,7 @@ impl Command {
       enable_console: true,
       transpile: self.transpile,
       builtin_extensions: BuiltinExtensions::with_modules(builtin_modules),
+      enable_arena_global: self.enable_cloud_ext,
       permissions: PermissionsContainer {
         fs: Some(FileSystemPermissions {
           root: cwd_path.clone(),
@@ -112,6 +117,14 @@ impl Command {
       },
       ..Default::default()
     })?;
+
+    if self.enable_cloud_ext {
+      // TODO(sagar): use a snapshot for this
+      let mut rt = runtime.runtime.borrow_mut();
+      BuiltinExtensions::with_modules(vec![cloud_ext])
+        .load_snapshot_modules(&mut rt)?;
+      drop(rt);
+    }
 
     let entry_file = resolve_url_or_path(&self.entry, &cwd_path)?;
 

@@ -212,6 +212,7 @@ program
           // TODO(sagar): "assert" is being bundled in several files, fix it
           "vectordb.js": getCloudExportCode("vectordb"),
           "jwt.js": getCloudExportCode("jwt"),
+          "pubsub.js": getCloudExportCode("pubsub"),
           "query.js": getCloudExportCode("query"),
           "llm.js": getCloudExportCode("llm"),
           "html.js": getCloudExportCode("html"),

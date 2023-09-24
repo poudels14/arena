@@ -3,6 +3,8 @@ use std::rc::Rc;
 use std::time::Instant;
 
 use anyhow::Result;
+use cloud::pubsub::exchange::Exchange;
+use cloud::pubsub::{EventSink, Node, OutgoingEvent, Subscriber};
 use common::deno::extensions::server::HttpServerConfig;
 use dqs::arena::{ArenaRuntimeState, MainModule};
 use dqs::loaders::Registry;
@@ -12,16 +14,52 @@ use tokio::sync::mpsc;
 fn main() -> Result<()> {
   let start = Instant::now();
 
-  let rt = tokio::runtime::Builder::new_current_thread()
+  let rt = tokio::runtime::Builder::new_multi_thread()
     .enable_all()
     .build()?;
 
-  let _ = rt.block_on(async {
+  let local = tokio::task::LocalSet::new();
+  local.block_on(&rt, async {
     let (_, http_requests_rx) = mpsc::channel(5);
+    let (tx, mut rx) = mpsc::channel::<Vec<OutgoingEvent>>(10);
+
+    tokio::spawn(async move {
+      while let Some(e) = rx.recv().await {
+        println!("EVENT RECEIVED: {:?}", e);
+      }
+    });
 
     let main_module = MainModule::Inline {
-      code: "1+1".to_owned(),
+      code: r#"
+      import { publish, subscribe } from "@arena/cloud/pubsub";
+      console.log("starting dqs...");
+
+      subscribe((event) => {
+        console.log("RECIVED: ", event);
+      });
+
+
+      setInterval(async () => {
+        let result = await publish({
+          message: "Hello world!",
+        });
+        console.log("Published = ", result);
+      }, 1_000);
+      "#
+      .to_owned(),
     };
+
+    let exchange = Exchange::new("workspace_id".to_owned());
+
+    let _ = exchange
+      .add_subscriber(Subscriber {
+        node: Node::User {
+          id: "test_user".to_owned(),
+        },
+        out_stream: EventSink::Stream(tx),
+        filter: Default::default(),
+      })
+      .await;
 
     let mut runtime = deno::new(deno::RuntimeOptions {
       id: "test_runtime".to_string(),
@@ -32,7 +70,7 @@ fn main() -> Result<()> {
       permissions: Default::default(),
       heap_limits: None,
       egress_address: None,
-      publisher: None,
+      exchange: Some(exchange.clone()),
       state: ArenaRuntimeState {
         workspace_id: "test_workspace".to_string(),
         root: None,
@@ -45,6 +83,10 @@ fn main() -> Result<()> {
       },
     })
     .await?;
+
+    tokio::spawn(async move {
+      let _ = exchange.run().await;
+    });
 
     let entry_module = main_module.get_entry_module()?;
 

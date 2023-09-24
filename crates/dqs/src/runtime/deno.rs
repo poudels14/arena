@@ -1,4 +1,7 @@
 use anyhow::Result;
+use cloud::pubsub::exchange::Exchange;
+use cloud::pubsub::Node;
+use cloud::CloudExtensionProvider;
 use common::deno::extensions::server::HttpServerConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use common::deno::loader::BuiltInModuleLoader;
@@ -14,7 +17,7 @@ use std::net::IpAddr;
 use std::rc::Rc;
 use tracing::error;
 
-use crate::arena::ArenaRuntimeState;
+use crate::arena::{ArenaRuntimeState, MainModule};
 use crate::loaders::moduleloader::AppkitModuleLoader;
 use crate::loaders::template::TemplateLoader;
 
@@ -27,6 +30,7 @@ pub struct RuntimeOptions {
   pub id: String,
   pub db_pool: Option<Pool<ConnectionManager<PgConnection>>>,
   pub server_config: HttpServerConfig,
+  pub exchange: Option<Exchange>,
   pub permissions: PermissionsContainer,
   /// Heap limit tuple: (initial size, max hard limit) in bytes
   pub heap_limits: Option<(usize, usize)>,
@@ -60,6 +64,21 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
     self::build_extension(&config),
   ];
 
+  let publisher = if let Some(exchange) = config.exchange {
+    let node = match &config.state.module {
+      MainModule::App { app } => Node::App { id: app.id.clone() },
+      MainModule::Workflow {
+        id,
+        name: _,
+        plugin: _,
+      } => Node::Workflow { id: id.to_string() },
+      _ => Node::Unknown,
+    };
+    Some(exchange.new_publisher(node).await)
+  } else {
+    None
+  };
+
   let mut builtin_extensions = BuiltinExtensions::with_modules(
     vec![
       vec![
@@ -67,6 +86,9 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
         BuiltinModule::Postgres,
         BuiltinModule::Sqlite,
         BuiltinModule::HttpServer(config.server_config),
+        BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider {
+          publisher,
+        })),
       ],
       config.state.module.get_builtin_module_extensions(),
     ]

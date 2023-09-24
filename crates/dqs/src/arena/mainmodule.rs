@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::rc::Rc;
 
 use anyhow::Result;
@@ -16,8 +15,10 @@ pub enum MainModule {
   App {
     app: App,
   },
-  Plugin {
-    template: Template,
+  Workflow {
+    id: String,
+    name: String,
+    plugin: Template,
   },
   #[allow(dead_code)]
   /// This is used for testing only
@@ -37,13 +38,7 @@ impl MainModule {
   pub fn get_builtin_module_extensions(&self) -> Vec<BuiltinModule> {
     match self {
       Self::App { app: _ } => {
-        let ext = RefCell::new(Some(arena::extension()));
-        vec![
-          BuiltinModule::Custom(Rc::new(move || {
-            ext.borrow_mut().take().unwrap()
-          })),
-          BuiltinModule::Custom(Rc::new(cloud::extension)),
-        ]
+        vec![BuiltinModule::Custom(Rc::new(arena::extension))]
       }
       _ => vec![],
     }
@@ -63,7 +58,11 @@ impl MainModule {
           .to_owned()
           .into(),
       )),
-      Self::Plugin { template: _ } => Ok((
+      Self::Workflow {
+        id: _,
+        name: _,
+        plugin: _,
+      } => Ok((
         Url::parse("builtin:///main")?,
         include_str!(
           "../../../../js/arena-runtime/dist/dqs/plugin-workflow.js"

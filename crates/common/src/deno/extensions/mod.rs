@@ -34,6 +34,10 @@ pub struct BuiltinExtension {
   pub runtime_modules: Vec<(&'static str, &'static str)>,
 }
 
+pub trait BuiltinExtensionProvider {
+  fn get_extension(&self) -> BuiltinExtension;
+}
+
 #[derive(Clone, Derivative)]
 #[derivative(Debug)]
 pub enum BuiltinModule {
@@ -51,6 +55,9 @@ pub enum BuiltinModule {
   HttpServer(HttpServerConfig),
   /// args: (specifier, code)
   CustomRuntimeModule(&'static str, &'static str),
+  UsingProvider(
+    #[derivative(Debug = "ignore")] Rc<dyn BuiltinExtensionProvider>,
+  ),
   Custom(#[derivative(Debug = "ignore")] Rc<dyn Fn() -> BuiltinExtension>),
 }
 
@@ -73,6 +80,7 @@ impl BuiltinModule {
         runtime_modules: vec![(specifier, code)],
         ..Default::default()
       },
+      Self::UsingProvider(p) => p.get_extension(),
       Self::Custom(ext) => ext(),
     }
   }

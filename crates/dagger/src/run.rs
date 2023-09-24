@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
+use cloud::CloudExtensionProvider;
 use common::arena::ArenaConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use deno_core::resolve_url_or_path;
@@ -53,9 +54,12 @@ impl Command {
       ])
     }
 
+    let cloud_ext =
+      BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider {
+        publisher: None,
+      }));
     if self.enable_cloud_ext {
-      builtin_modules
-        .extend(vec![BuiltinModule::Custom(Rc::new(cloud::extension))]);
+      builtin_modules.push(cloud_ext.clone());
     }
 
     let egress_addr = self
@@ -90,6 +94,14 @@ impl Command {
       egress_addr,
       ..Default::default()
     })?;
+
+    if self.enable_cloud_ext {
+      // TODO(sagar): use a snapshot for this
+      let mut rt = runtime.runtime.borrow_mut();
+      BuiltinExtensions::with_modules(vec![cloud_ext])
+        .load_snapshot_modules(&mut rt)?;
+      drop(rt);
+    }
 
     let main_module =
       resolve_url_or_path(&self.file, &std::env::current_dir()?)?;
