@@ -12,6 +12,7 @@ use super::{Node, OutgoingEvent};
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct Subscriber {
+  pub id: String,
   pub node: Node,
 
   pub out_stream: EventSink,

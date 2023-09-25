@@ -8,7 +8,7 @@ pub(crate) mod subscriber;
 pub mod exchange;
 pub mod extension;
 
-pub use node::Node;
 pub use event::*;
+pub use node::Node;
 pub use publisher::Publisher;
 pub use subscriber::{EventSink, Subscriber};

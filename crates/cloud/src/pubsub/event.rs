@@ -14,7 +14,7 @@ pub struct EventBuffer {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OutgoingEvent {
-  pub publisher_id: usize,
+  pub source: Node,
   /// Setting the path when publishing the event will allow ACL checker
   /// to check whether the user has access to the path before sending
   /// the event with that path

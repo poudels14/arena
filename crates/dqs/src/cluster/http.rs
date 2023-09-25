@@ -26,6 +26,7 @@ use jsonwebtoken::{Algorithm, DecodingKey, Validation};
 use nanoid::nanoid;
 use serde::Deserialize;
 use serde_json::{json, Value};
+use uuid::Uuid;
 use std::collections::HashMap;
 use std::env;
 use std::net::Ipv4Addr;
@@ -382,6 +383,7 @@ async fn subscribe_to_events(
           let ws = fastwebsockets::FragmentCollector::new(ws);
           let res = exchange
             .add_subscriber(Subscriber {
+              id: Uuid::new_v4().to_string(),
               node: Node::User { id: user_id },
               out_stream: EventSink::Websocket(Arc::new(Mutex::new(ws))),
               // TODO(sagar): set event filter based on the path

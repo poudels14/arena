@@ -765,6 +765,7 @@ dependencies = [
  "tokio",
  "tracing",
  "url",
+ "uuid 0.8.2",
  "v8 0.74.2",
  "vectordb",
 ]

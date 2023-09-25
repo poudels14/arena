@@ -41,7 +41,7 @@ pub async fn op_dqs_pubsub_publish(
     publisher
       .out_stream
       .send(OutgoingEvent {
-        publisher_id: publisher.id,
+        source: publisher.source.clone(),
         path,
         data,
       })

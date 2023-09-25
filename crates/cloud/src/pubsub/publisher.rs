@@ -11,7 +11,7 @@ use super::{EventBuffer, IncomingEvent, Node, OutgoingEvent};
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct PublisherHandle {
-  pub id: usize,
+  pub id: String,
 
   pub source: Node,
 
@@ -24,7 +24,8 @@ pub struct PublisherHandle {
 #[derive(Derivative)]
 #[derivative(Debug, Clone)]
 pub struct Publisher {
-  pub id: usize,
+  pub id: String,
+  pub source: Node,
   pub in_stream: Rc<RefCell<mpsc::Receiver<IncomingEvent>>>,
   pub out_stream: mpsc::Sender<OutgoingEvent>,
 }

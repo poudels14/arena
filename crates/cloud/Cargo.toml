@@ -23,6 +23,7 @@ derivative.workspace = true
 tokio.workspace = true
 hyper.workspace = true
 fastwebsockets.workspace = true
+uuid.workspace = true
 pdfium-render = { version = "0.8.8", features = ["thread_safe"] }
 html-escape = "0.2.13"
 html5ever = "0.26.0"
