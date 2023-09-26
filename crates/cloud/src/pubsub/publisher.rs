@@ -6,14 +6,15 @@ use deno_core::Resource;
 use derivative::Derivative;
 use tokio::sync::{mpsc, Mutex};
 
-use super::{EventBuffer, IncomingEvent, Node, OutgoingEvent};
+use super::{EventBuffer, IncomingEvent, OutgoingEvent};
+use crate::identity::Identity;
 
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct PublisherHandle {
   pub id: String,
 
-  pub source: Node,
+  pub source: Identity,
 
   pub stream: Arc<Mutex<mpsc::Sender<IncomingEvent>>>,
 
@@ -25,7 +26,7 @@ pub struct PublisherHandle {
 #[derivative(Debug, Clone)]
 pub struct Publisher {
   pub id: String,
-  pub source: Node,
+  pub source: Identity,
   pub in_stream: Rc<RefCell<mpsc::Receiver<IncomingEvent>>>,
   pub out_stream: mpsc::Sender<OutgoingEvent>,
 }

@@ -54,7 +54,7 @@ const parseUserIdFromCookies = (req: Request) => {
         "HS256",
         process.env.JWT_SIGNINIG_SECRET
       );
-      return payload.data.id;
+      return payload.user.id;
     } catch (_) {
       return null;
     }

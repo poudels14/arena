@@ -10,8 +10,10 @@ use tokio::sync::{mpsc, Mutex, RwLock};
 use tracing::debug;
 use uuid::Uuid;
 
+use crate::identity::Identity;
+
 use super::publisher::{Publisher, PublisherHandle};
-use super::{EventSink, Node, OutgoingEvent, Subscriber};
+use super::{EventSink, OutgoingEvent, Subscriber};
 
 #[derive(Derivative)]
 #[derivative(Clone, Debug)]
@@ -49,7 +51,7 @@ impl Exchange {
     Ok(())
   }
 
-  pub async fn new_publisher(&self, source: Node) -> Publisher {
+  pub async fn new_publisher(&self, source: Identity) -> Publisher {
     let mut publishers = self.publishers.write().await;
     let publisher_id = Uuid::new_v4().to_string();
 
@@ -101,7 +103,7 @@ impl Exchange {
                   unsubscribed_subs.push(sub_id.clone());
                   tracing::error!(
                     "Error sending data to a subscriber [{:?}]: {:?}",
-                    sub.node,
+                    sub.identity,
                     e
                   );
                 }

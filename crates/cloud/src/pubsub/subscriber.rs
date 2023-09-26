@@ -6,14 +6,16 @@ use hyper::upgrade::Upgraded;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::Mutex;
 
+use crate::identity::Identity;
+
 use super::filter::EventFilter;
-use super::{Node, OutgoingEvent};
+use super::OutgoingEvent;
 
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct Subscriber {
   pub id: String,
-  pub node: Node,
+  pub identity: Identity,
 
   pub out_stream: EventSink,
 

@@ -32,7 +32,7 @@ fn main() -> Result<()> {
       permissions: Default::default(),
       heap_limits: None,
       egress_address: None,
-      publisher: None,
+      exchange: None,
       state: ArenaRuntimeState {
         workspace_id: "test_workspace".to_string(),
         root: None,

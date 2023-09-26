@@ -1,20 +1,23 @@
-use super::{DqsCluster, DqsServerOptions};
-use crate::arena::App;
-use crate::arena::MainModule;
-use crate::arena::Template;
-use anyhow::{anyhow, bail, Context, Result};
+use std::collections::HashMap;
+use std::env;
+use std::net::Ipv4Addr;
+use std::net::SocketAddr;
+use std::str::FromStr;
+use std::sync::Arc;
+
+use anyhow::{anyhow, Context, Result};
 use axum::extract::{Json, Path, Query, State};
 use axum::middleware;
 use axum::response::{IntoResponse, Response};
 use axum::{routing, Router};
 use axum_extra::extract::cookie::Cookie;
 use cloud::acl::{Access, AclEntity};
+use cloud::identity::Identity;
 use cloud::pubsub::EventSink;
-use cloud::pubsub::Node;
 use cloud::pubsub::Subscriber;
 use colored::Colorize;
 use common::axum::logger;
-use common::deno::extensions::server::request::read_htt_body_to_buffer;
+use common::deno::extensions::server::request::read_http_body_to_buffer;
 use common::deno::extensions::server::response::ParsedHttpResponse;
 use common::deno::extensions::server::{errors, HttpRequest};
 use deno_core::{normalize_path, ZeroCopyBuf};
@@ -26,13 +29,6 @@ use jsonwebtoken::{Algorithm, DecodingKey, Validation};
 use nanoid::nanoid;
 use serde::Deserialize;
 use serde_json::{json, Value};
-use uuid::Uuid;
-use std::collections::HashMap;
-use std::env;
-use std::net::Ipv4Addr;
-use std::net::SocketAddr;
-use std::str::FromStr;
-use std::sync::Arc;
 use tokio::sync::oneshot;
 use tokio::sync::Mutex;
 use tower::ServiceBuilder;
@@ -40,6 +36,12 @@ use tower_http::compression::predicate::NotForContentType;
 use tower_http::compression::{CompressionLayer, DefaultPredicate, Predicate};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use url::Url;
+use uuid::Uuid;
+
+use super::{DqsCluster, DqsServerOptions};
+use crate::arena::App;
+use crate::arena::MainModule;
+use crate::arena::Template;
 
 pub(crate) async fn start_server(
   cluster: DqsCluster,
@@ -170,7 +172,8 @@ pub async fn pipe_app_request(
   search_params: IndexMap<String, String>,
   mut req: Request<Body>,
 ) -> Result<Response, errors::Error> {
-  let app = authorize_and_get_app(&cluster, &app_id, &req).await?;
+  let (_, app) =
+    authenticate_user(&cluster, &app_id, Some(path.clone()), &req).await?;
 
   let app_root_path =
     normalize_path(cluster.data_dir.join(format!("./apps/{}", app_id)));
@@ -198,7 +201,7 @@ pub async fn pipe_app_request(
     url
   };
 
-  let body = read_htt_body_to_buffer(&mut req).await?;
+  let body = read_http_body_to_buffer(&mut req).await?;
   let request = HttpRequest {
     method: req.method().to_string(),
     url: url.as_str().to_owned(),
@@ -229,10 +232,12 @@ pub async fn pipe_widget_query_request(
   params: DataQuerySearchParams,
   mut req: Request<Body>,
 ) -> Result<Response, errors::Error> {
-  let app = authorize_and_get_app(cluster, &app_id, &req).await?;
+  let path = format!("/{app_id}/widgets/{widget_id}/api/{field}");
+  let (_, app) =
+    authenticate_user(cluster, &app_id, Some(path.clone()), &req).await?;
 
   let (tx, rx) = oneshot::channel::<ParsedHttpResponse>();
-  let body = read_htt_body_to_buffer(&mut req).await?;
+  let body = read_http_body_to_buffer(&mut req).await?;
 
   let props = params
     .props
@@ -242,7 +247,7 @@ pub async fn pipe_widget_query_request(
 
   let request = HttpRequest {
     method: "POST".to_owned(),
-    url: format!("http://0.0.0.0/{app_id}/widgets/{widget_id}/api/{field}"),
+    url: format!("http://0.0.0.0{path}"),
     // TODO(sagar): maybe send some headers?
     headers: vec![(("content-type".to_owned(), "application/json".to_owned()))],
     body: Some(ZeroCopyBuf::ToV8(Some(
@@ -366,10 +371,8 @@ async fn subscribe_to_events(
 
   // TODO(sagar): authenticate the non-user subscriber like apps and
   // set proper node info
-  let user_id = cookies
-    .get("user")
-    .and_then(|u| get_user_id_from_cookie(u).ok())
-    .unwrap_or("public".to_owned());
+  let identity =
+    get_identity_from_cookie(&cookies).unwrap_or(Identity::Unknown);
 
   let (response, upgrade_fut) = fastwebsockets::upgrade::upgrade(&mut req)
     .map_err(|e| anyhow!("Error upgrading websocket connection: {}", e))?;
@@ -384,7 +387,7 @@ async fn subscribe_to_events(
           let res = exchange
             .add_subscriber(Subscriber {
               id: Uuid::new_v4().to_string(),
-              node: Node::User { id: user_id },
+              identity,
               out_stream: EventSink::Websocket(Arc::new(Mutex::new(ws))),
               // TODO(sagar): set event filter based on the path
               filter: Default::default(),
@@ -408,16 +411,16 @@ async fn subscribe_to_events(
   Ok::<_, errors::Error>(response.into())
 }
 
-async fn authorize_and_get_app(
+/// Returns tuple of (identity, App) if authorization succeeds
+async fn authenticate_user(
   cluster: &DqsCluster,
   app_id: &str,
+  path: Option<String>,
   req: &Request<Body>,
-) -> Result<App, errors::Error> {
+) -> Result<(Identity, App), errors::Error> {
   let cookies = parse_cookies(&req);
-  let user_id = cookies
-    .get("user")
-    .and_then(|u| get_user_id_from_cookie(u).ok())
-    .unwrap_or("public".to_owned());
+  let identity =
+    get_identity_from_cookie(&cookies).unwrap_or(Identity::Unknown);
 
   let app = cluster
     .cache
@@ -437,12 +440,12 @@ async fn authorize_and_get_app(
 
   let has_access = cloud::acl::has_entity_access(
     &acls,
-    &user_id,
+    &identity,
     Access::CanQuery,
     &app.workspace_id,
     AclEntity::App {
       id: app.id.to_string(),
-      path: None,
+      path,
     },
   )
   .map_err(|_| errors::Error::NotFound)?;
@@ -450,7 +453,7 @@ async fn authorize_and_get_app(
   if !has_access {
     return Err(errors::Error::NotFound);
   }
-  Ok(app)
+  Ok((identity, app))
 }
 
 fn parse_cookies(req: &Request<Body>) -> HashMap<String, String> {
@@ -470,21 +473,30 @@ fn parse_cookies(req: &Request<Body>) -> HashMap<String, String> {
   })
 }
 
-fn get_user_id_from_cookie(token: &str) -> Result<String> {
-  if let Ok(secret) = env::var("JWT_SIGNINIG_SECRET") {
-    return jsonwebtoken::decode::<Value>(
-      &token,
-      &DecodingKey::from_secret(secret.as_ref()),
-      &Validation::new(Algorithm::HS256),
-    )
-    .map(|r| {
-      r.claims
-        .get("data")
-        .and_then(|data| data.get("id"))
-        .and_then(|id| id.as_str().and_then(|v| Some(v.to_owned())))
-        .ok_or(anyhow!("Error getting user_id from cookie"))
-    })
-    .context("JWT verification error")?;
-  }
-  bail!("JWT signing key not found");
+fn get_identity_from_cookie(
+  cookies: &HashMap<String, String>,
+) -> Result<Identity> {
+  let token = cookies
+    .get("user")
+    .ok_or(anyhow!("User not found in cookie"))?;
+
+  let secret = env::var("JWT_SIGNINIG_SECRET")?;
+  jsonwebtoken::decode::<Value>(
+    token,
+    &DecodingKey::from_secret(secret.as_ref()),
+    &Validation::new(Algorithm::HS256),
+  )
+  .context("JWT verification error")
+  .and_then(|mut r| {
+    let claims = r
+      .claims
+      .as_object_mut()
+      .ok_or(anyhow!("Invalid JWT token"))?;
+
+    // when deserializing enum, can't have unspecified fields
+    claims.retain(|k, _| k == "user" || k == "app" || k == "workflow");
+
+    serde_json::from_value(r.claims)
+      .context("Failed to parse identity from cookie")
+  })
 }

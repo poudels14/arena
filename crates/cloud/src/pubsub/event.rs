@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::Node;
+use crate::identity::Identity;
 
 #[derive(Debug, Default)]
 pub struct EventBuffer {
@@ -14,7 +14,7 @@ pub struct EventBuffer {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OutgoingEvent {
-  pub source: Node,
+  pub source: Identity,
   /// Setting the path when publishing the event will allow ACL checker
   /// to check whether the user has access to the path before sending
   /// the event with that path
@@ -24,7 +24,7 @@ pub struct OutgoingEvent {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IncomingEvent {
-  pub source: Node,
+  pub source: Identity,
   pub path: String,
   pub message: Value,
 }

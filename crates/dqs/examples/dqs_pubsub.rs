@@ -3,8 +3,9 @@ use std::rc::Rc;
 use std::time::Instant;
 
 use anyhow::Result;
+use cloud::identity::Identity;
 use cloud::pubsub::exchange::Exchange;
-use cloud::pubsub::{EventSink, Node, OutgoingEvent, Subscriber};
+use cloud::pubsub::{EventSink, OutgoingEvent, Subscriber};
 use common::deno::extensions::server::HttpServerConfig;
 use dqs::arena::{ArenaRuntimeState, MainModule};
 use dqs::loaders::Registry;
@@ -53,7 +54,8 @@ fn main() -> Result<()> {
 
     let _ = exchange
       .add_subscriber(Subscriber {
-        node: Node::User {
+        id: "0".into(),
+        identity: Identity::User {
           id: "test_user".to_owned(),
         },
         out_stream: EventSink::Stream(tx),

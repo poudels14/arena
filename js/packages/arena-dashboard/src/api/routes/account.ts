@@ -29,8 +29,8 @@ const accountRouter = createRouter<any>({
       const signInToken = jwt.sign({
         header: { alg: "HS256" },
         payload: {
-          data: {
-            userId: user.id,
+          user: {
+            id: user.id,
           },
           exp: (new Date().getTime() + ms("2 weeks")) / 1000,
         },
@@ -76,7 +76,7 @@ const accountRouter = createRouter<any>({
             process.env.JWT_SIGNINIG_SECRET
           );
 
-          const { userId } = payload.data || {};
+          const { id: userId } = payload.user || {};
 
           let user;
           if (!userId || !(user = await ctx.repo.users.fetchById(userId))) {
@@ -95,7 +95,7 @@ const accountRouter = createRouter<any>({
           const signInToken = jwt.sign({
             header: { alg: "HS256" },
             payload: {
-              data: {
+              user: {
                 id: user.id,
                 email: user.email,
                 config: pick(user.config, "waitlisted"),

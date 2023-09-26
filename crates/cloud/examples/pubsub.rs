@@ -1,8 +1,9 @@
 use std::rc::Rc;
 
 use anyhow::Result;
+use cloud::identity::Identity;
 use cloud::pubsub::exchange::Exchange;
-use cloud::pubsub::{EventSink, OutgoingEvent, Source, Subscriber};
+use cloud::pubsub::{EventSink, OutgoingEvent, Subscriber};
 use cloud::CloudExtensionProvider;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use jsruntime::{IsolatedRuntime, RuntimeOptions};
@@ -15,7 +16,7 @@ async fn main() -> Result<()> {
   let provider = CloudExtensionProvider {
     publisher: Some(
       exchange
-        .new_publisher(Source::User {
+        .new_publisher(Identity::User {
           id: "test_user".to_owned(),
         })
         .await,
@@ -26,6 +27,8 @@ async fn main() -> Result<()> {
     let (tx, mut rx) = mpsc::channel::<Vec<OutgoingEvent>>(10);
     let _ = exchange
       .add_subscriber(Subscriber {
+        id: "0".into(),
+        identity: Identity::Unknown,
         out_stream: EventSink::Stream(tx),
         filter: Default::default(),
       })

@@ -1,12 +1,14 @@
 mod extension;
-pub(crate) mod html;
 mod jwt;
 mod llm;
-mod pdf;
 mod transpile;
-mod vectordb;
+
+pub mod html;
+pub mod pdf;
+pub mod vectordb;
 
 pub mod acl;
+pub mod identity;
 pub mod pubsub;
 
 pub use extension::*;

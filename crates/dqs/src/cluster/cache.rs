@@ -1,14 +1,17 @@
-use crate::arena::App;
-use crate::db::acl;
-use crate::db::acl::acls;
-use crate::db::app::{self, apps};
+use std::sync::Arc;
+
 use anyhow::{anyhow, bail, Result};
 use cloud::acl::{Access, Acl, AclEntity};
+use cloud::identity::Identity;
 use dashmap::DashMap;
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
-use std::sync::Arc;
+
+use crate::arena::App;
+use crate::db::acl;
+use crate::db::acl::acls;
+use crate::db::app::{self, apps};
 
 #[derive(Clone)]
 pub struct Cache {
@@ -91,21 +94,30 @@ impl Cache {
 
     let acls = db_acls
       .iter()
-      .map(|acl| Acl {
-        id: acl.id.to_owned(),
-        user_id: acl.user_id.to_owned(),
-        workspace_id: acl.workspace_id.to_owned(),
-        access: Access::from(&acl.access),
-        entity: match acl.app_id.as_ref() {
-          Some(app_id) => AclEntity::App {
-            id: app_id.to_owned(),
-            path: acl.path.to_owned(),
+      .map(|acl| {
+        let identity = match acl.user_id.as_str() {
+          "public" => Identity::Unknown,
+          user_id => Identity::User {
+            id: user_id.to_owned(),
           },
-          None if acl.resource_id.is_some() => {
-            AclEntity::Resource(acl.resource_id.to_owned().unwrap())
-          }
-          _ => AclEntity::Unknown,
-        },
+        };
+
+        Acl {
+          id: acl.id.to_owned(),
+          identity,
+          workspace_id: acl.workspace_id.to_owned(),
+          access: Access::from(&acl.access),
+          entity: match acl.app_id.as_ref() {
+            Some(app_id) => AclEntity::App {
+              id: app_id.to_owned(),
+              path: acl.path.to_owned(),
+            },
+            None if acl.resource_id.is_some() => {
+              AclEntity::Resource(acl.resource_id.to_owned().unwrap())
+            }
+            _ => AclEntity::Unknown,
+          },
+        }
       })
       .collect::<Vec<Acl>>();
 

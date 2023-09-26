@@ -1,6 +1,6 @@
-use super::Node;
+use crate::identity::Identity;
 
 #[derive(Default, Debug, Clone)]
 pub struct EventFilter {
-  pub source: Option<Node>,
+  pub source: Option<Identity>,
 }

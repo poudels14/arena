@@ -1,9 +1,12 @@
-use super::{Access, AclEntity};
+use std::borrow::Cow;
+use std::rc::Rc;
+
 use anyhow::Result;
 use deno_core::{op, OpState, Resource, ResourceId};
 use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
-use std::rc::Rc;
+
+use super::{Access, AclEntity};
+use crate::identity::Identity;
 
 pub struct AclChecker {
   pub acls: Box<Vec<Acl>>,
@@ -20,7 +23,7 @@ impl Resource for AclChecker {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Acl {
   pub id: String,
-  pub user_id: String,
+  pub identity: Identity,
   pub workspace_id: String,
   pub entity: AclEntity,
   pub access: Access,
@@ -38,7 +41,7 @@ fn op_cloud_acl_new_checker(
 fn op_cloud_acl_filter_entity_by_access(
   state: &mut OpState,
   checker_id: ResourceId,
-  user_id: String,
+  identity: Identity,
   access: Access,
   // workspace of the entities being filtered
   workspace_id: &str,
@@ -48,7 +51,7 @@ fn op_cloud_acl_filter_entity_by_access(
   Ok(
     filter_entity_by_access(
       &checker.acls,
-      &user_id,
+      &identity,
       access,
       workspace_id,
       &entities,
@@ -61,7 +64,7 @@ fn op_cloud_acl_filter_entity_by_access(
 
 pub fn filter_entity_by_access<'a>(
   acls: &Vec<Acl>,
-  user_id: &str,
+  identity: &Identity,
   access: Access,
   // workspace of the entities being filtered
   workspace_id: &str,
@@ -79,7 +82,7 @@ pub fn filter_entity_by_access<'a>(
         acls.iter().any(|acl| {
           // check if the user has workspace/entity level access
           (acl.workspace_id == workspace_id
-            && acl.user_id == user_id
+            && acl.identity == *identity
             && acl.entity.comapre(e) >= 0
             && acl.access.compare(&access) >= 0)
             // Check entity level access
@@ -87,7 +90,7 @@ pub fn filter_entity_by_access<'a>(
               && acl.access.compare(&access) >= 0
               // Note(sagar): if shared with another user, user_id will match;
               // if shared "publicly", allow access to everyone;
-              && (acl.user_id == "public" || acl.user_id == user_id))
+              && (acl.identity == Identity::Unknown || acl.identity == *identity))
         })
       })
       .collect::<Vec<&AclEntity>>(),
@@ -96,11 +99,11 @@ pub fn filter_entity_by_access<'a>(
 
 pub fn has_entity_access(
   acls: &Vec<Acl>,
-  user_id: &str,
+  identity: &Identity,
   access: Access,
   workspace_id: &str,
   entity: AclEntity,
 ) -> Result<bool> {
-  filter_entity_by_access(acls, user_id, access, workspace_id, &vec![entity])
+  filter_entity_by_access(acls, identity, access, workspace_id, &vec![entity])
     .map(|e| e.len() == 1)
 }

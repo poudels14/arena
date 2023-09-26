@@ -37,7 +37,7 @@ pub async fn pipe_request<'a>(
 ) -> Result<Response, errors::Error> {
   let (tx, rx) = oneshot::channel::<ParsedHttpResponse>();
 
-  let body = read_htt_body_to_buffer(&mut req).await?;
+  let body = read_http_body_to_buffer(&mut req).await?;
   let request = HttpRequest {
     method: req.method().as_str().to_string(),
     url: format!("http://0.0.0.0{}", req.uri().to_string()),
@@ -98,7 +98,7 @@ impl From<(Method, &str)> for HttpRequest {
   }
 }
 
-pub async fn read_htt_body_to_buffer(
+pub async fn read_http_body_to_buffer(
   req: &mut Request<Body>,
 ) -> Result<Option<ZeroCopyBuf>> {
   match *req.method() {

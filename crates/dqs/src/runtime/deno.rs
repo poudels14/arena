@@ -1,6 +1,6 @@
 use anyhow::Result;
+use cloud::identity::Identity;
 use cloud::pubsub::exchange::Exchange;
-use cloud::pubsub::Node;
 use cloud::CloudExtensionProvider;
 use common::deno::extensions::server::HttpServerConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
@@ -66,13 +66,13 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
 
   let publisher = if let Some(exchange) = config.exchange {
     let node = match &config.state.module {
-      MainModule::App { app } => Node::App { id: app.id.clone() },
+      MainModule::App { app } => Identity::App { id: app.id.clone() },
       MainModule::Workflow {
         id,
         name: _,
         plugin: _,
-      } => Node::Workflow { id: id.to_string() },
-      _ => Node::Unknown,
+      } => Identity::Workflow { id: id.to_string() },
+      _ => Identity::Unknown,
     };
     Some(exchange.new_publisher(node).await)
   } else {
