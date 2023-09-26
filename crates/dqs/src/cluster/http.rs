@@ -9,6 +9,7 @@ use anyhow::{anyhow, Context, Result};
 use axum::extract::{Json, Path, Query, State};
 use axum::middleware;
 use axum::response::{IntoResponse, Response};
+use axum::routing::MethodFilter;
 use axum::{routing, Router};
 use axum_extra::extract::cookie::Cookie;
 use cloud::acl::{Access, AclEntity};
@@ -64,10 +65,14 @@ pub(crate) async fn start_server(
       "/w/apps/:appId/widgets/:widgetId/api/:field",
       routing::post(handle_widgets_mutate_query),
     )
-    .route("/w/apps/:appId/", routing::get(handle_app_routes_index))
-    .route("/w/apps/:appId/*path", routing::get(handle_app_routes))
-    .route("/w/apps/:appId/", routing::post(handle_app_routes_index))
-    .route("/w/apps/:appId/*path", routing::post(handle_app_routes))
+    .route(
+      "/w/apps/:appId/",
+      routing::on(MethodFilter::all(), handle_app_routes_index),
+    )
+    .route(
+      "/w/apps/:appId/*path",
+      routing::on(MethodFilter::all(), handle_app_routes),
+    )
     .route(
       "/_admin/healthy",
       routing::get(|| async { (StatusCode::OK, "Ok") }),
