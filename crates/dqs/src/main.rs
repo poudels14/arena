@@ -1,6 +1,6 @@
 use anyhow::Result;
 use colored::Colorize;
-use common::dotenv;
+use common::{dotenv, required_env};
 use loaders::registry::Registry;
 use std::env;
 use std::path::Path;
@@ -66,15 +66,10 @@ fn main() -> Result<()> {
     .map(|addr| addr.parse())
     .transpose()?;
 
-  let registry_host = env::var("REGISTRY_HOST").expect(&format!(
-    "{}",
-    "Missing environment variable `REGISTRY_HOST`".red()
-  ));
-
-  let registry_api_key = env::var("REGISTRY_API_KEY").expect(&format!(
-    "{}",
-    "Missing environment variable `REGISTRY_API_KEY`".red()
-  ));
+  let registry_host = required_env!("REGISTRY_HOST");
+  let registry_api_key = required_env!("REGISTRY_API_KEY");
+  let _ = required_env!("DATABASE_URL");
+  let _ = required_env!("JWT_SIGNINIG_SECRET");
 
   let data_dir = Path::new(&args.data_dir).to_path_buf().canonicalize()?;
   if !data_dir.is_dir() {

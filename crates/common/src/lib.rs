@@ -7,6 +7,7 @@ pub mod beam;
 pub mod deno;
 #[cfg(feature = "dotenv")]
 pub mod dotenv;
+pub mod env;
 pub mod node;
 #[cfg(feature = "data_query")]
 pub mod query;
