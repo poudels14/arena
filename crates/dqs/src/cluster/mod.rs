@@ -37,6 +37,10 @@ pub struct DqsCluster {
   pub data_dir: PathBuf,
   /// DqsServerStatus by server id
   pub servers: Arc<DashMap<String, DqsServerStatus>>,
+  /// It seems like there's a race condition occationally that causes
+  /// two instances of DQS server gets started for same app. So, use a
+  /// global lock to make sure only one DQS server is spawned at a time
+  pub spawn_lock: Arc<Mutex<usize>>,
   pub exchanges: Arc<DashMap<String, Exchange>>,
   pub db_pool: Pool<ConnectionManager<PgConnection>>,
   pub cache: Cache,
@@ -54,13 +58,14 @@ impl DqsCluster {
       id: Uuid::new_v4().to_string(),
       data_dir: options.data_dir,
       servers: Arc::new(DashMap::with_shard_amount(32)),
+      spawn_lock: Arc::new(Mutex::new(0)),
       exchanges: Arc::new(DashMap::with_shard_amount(32)),
       db_pool: db_pool.clone(),
       cache: Cache::new(Some(db_pool)),
     })
   }
 
-  #[tracing::instrument(skip_all, level = "trace")]
+  #[tracing::instrument(skip_all, level = "debug")]
   pub async fn spawn_dqs_server(
     &self,
     options: DqsServerOptions,
@@ -119,7 +124,7 @@ impl DqsCluster {
     }
   }
 
-  #[tracing::instrument(skip_all, level = "trace")]
+  #[tracing::instrument(skip_all, level = "debug")]
   pub async fn get_or_spawn_dqs_server(
     &self,
     options: DqsServerOptions,
@@ -136,20 +141,23 @@ impl DqsCluster {
     if let Some(DqsServerStatus::Ready(s)) = status {
       return Ok(s);
     } else if let Some(DqsServerStatus::Starting(lock)) = status {
-      let _ = lock.lock().await;
+      let _l = lock.lock().await;
     } else {
+      let _l = self.spawn_lock.lock().await;
+
       // It's possible for two requests to get here at the same time
       // So, check if the server status has been added to the map before
       // doing do
       if !self.servers.contains_key(&id) {
         let lock = Arc::new(Mutex::new(false));
+        let mut l = lock.lock().await;
+
         self
           .servers
           .insert(id.clone(), DqsServerStatus::Starting(lock.clone()));
 
         let cluster = self.clone();
-        let result = tokio::task::spawn(async move {
-          let mut l = lock.lock().await;
+        let result = async move {
           let (dqs_server, server_events) =
             cluster.spawn_dqs_server(options).await?;
 
@@ -158,12 +166,12 @@ impl DqsCluster {
 
           cluster.track_dqs_server(dqs_server, server_events).await;
 
-          *l = true;
-          drop(l);
-
           Ok::<(), anyhow::Error>(())
-        })
+        }
         .await;
+
+        *l = true;
+        drop(l);
 
         match result {
           Ok(_) => {}
