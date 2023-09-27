@@ -34,6 +34,7 @@ pub struct IncomingEvent {
 pub enum Data {
   Message(Value),
   State(Value),
+  #[serde(rename_all = "camelCase")]
   ChangeSet {
     /// Reference id of the state that this changeset is based on
     reference_id: String,

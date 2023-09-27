@@ -10,11 +10,13 @@ pub enum Error {
   StdError,
   HyperError,
   HttpError,
+  RequestParsingError,
   AnyhowError(Box<anyhow::Error>),
   InvalidHeaderNameError,
   InvalidHeaderValueError,
   ResponseBuilder,
   NotFound,
+  BadRequest(Option<&'static str>),
 }
 
 impl std::error::Error for Error {}
@@ -64,7 +66,13 @@ impl From<InvalidHeaderValue> for Error {
 impl response::IntoResponse for Error {
   fn into_response(self) -> response::Response {
     match self {
-      Self::NotFound => (StatusCode::NOT_FOUND, "Not found").into_response(),
+      Self::NotFound => {
+        (StatusCode::NOT_FOUND, "404 Not found").into_response()
+      }
+      Self::BadRequest(msg) => {
+        (StatusCode::BAD_REQUEST, msg.unwrap_or("400 Bad Request"))
+          .into_response()
+      }
       _ => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error")
         .into_response(),
     }

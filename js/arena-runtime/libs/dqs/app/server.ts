@@ -2,8 +2,9 @@ import { serve, mergedRouter } from "@arena/runtime/server";
 // @ts-expect-error
 import { router as appRouter, databases } from "@dqs/template/app";
 import { DatabaseConfig } from "@arena/sdk/db";
-import { router as adminRouter } from "./routes";
-import { createDbClient } from "./database";
+import { router as adminRouter } from "./admin";
+// @ts-expect-error
+import { createDbClient } from "@arena/dqs/utils";
 
 const router = mergedRouter({
   routers: [adminRouter, appRouter],

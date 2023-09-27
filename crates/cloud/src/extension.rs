@@ -58,8 +58,8 @@ pub(crate) fn init(options: Config) -> Extension {
   Extension::builder("arena/cloud")
     .ops(vec![
       // pubsub
-      pubsub::extension::op_dqs_pubsub_publish::decl(),
-      pubsub::extension::op_dqs_pubsub_subscribe::decl(),
+      pubsub::extension::op_cloud_pubsub_publish::decl(),
+      pubsub::extension::op_cloud_pubsub_subscribe::decl(),
       // data query transpiler
       op_cloud_transpile_js_data_query::decl(),
       // jwt

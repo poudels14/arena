@@ -3,6 +3,7 @@ mod extension;
 mod mainmodule;
 mod state;
 mod template;
+pub mod workflow;
 
 pub use app::App;
 pub use template::Template;

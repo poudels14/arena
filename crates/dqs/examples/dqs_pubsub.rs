@@ -39,7 +39,6 @@ fn main() -> Result<()> {
         console.log("RECIVED: ", event);
       });
 
-
       setInterval(async () => {
         let result = await publish({
           message: "Hello world!",
@@ -93,7 +92,7 @@ fn main() -> Result<()> {
     let entry_module = main_module.get_entry_module()?;
 
     let mod_id = runtime
-      .load_main_module(&entry_module.0, Some(entry_module.1))
+      .load_main_module(&entry_module.0, entry_module.1)
       .await?;
 
     let rx = runtime.mod_evaluate(mod_id);

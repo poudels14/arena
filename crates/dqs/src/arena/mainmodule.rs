@@ -1,13 +1,9 @@
-use std::rc::Rc;
-
 use anyhow::Result;
-use common::deno::extensions::BuiltinModule;
 use deno_core::{ModuleCode, ModuleSpecifier};
 use url::Url;
 
 use super::app::App;
-use super::template::Template;
-use crate::arena;
+use super::workflow::PluginWorkflow;
 
 #[derive(Debug, Clone)]
 pub enum MainModule {
@@ -15,10 +11,8 @@ pub enum MainModule {
   App {
     app: App,
   },
-  Workflow {
-    id: String,
-    name: String,
-    plugin: Template,
+  PluginWorkflowRun {
+    workflow: PluginWorkflow,
   },
   #[allow(dead_code)]
   /// This is used for testing only
@@ -35,43 +29,33 @@ impl MainModule {
     }
   }
 
-  pub fn get_builtin_module_extensions(&self) -> Vec<BuiltinModule> {
+  pub fn get_entry_module(
+    &self,
+  ) -> Result<(ModuleSpecifier, Option<ModuleCode>)> {
     match self {
-      Self::App { app: _ } => {
-        vec![BuiltinModule::Custom(Rc::new(arena::extension))]
+      Self::WidgetQuery => {
+        Ok((Url::parse("builtin:///@arena/dqs/widget-server")?, None))
       }
-      _ => vec![],
-    }
-  }
-
-  pub fn get_entry_module(&self) -> Result<(ModuleSpecifier, ModuleCode)> {
-    match self {
-      Self::WidgetQuery => Ok((
-        Url::parse("builtin:///main")?,
-        include_str!("../../../../js/arena-runtime/dist/dqs/widget-server.js")
-          .to_owned()
-          .into(),
-      )),
       Self::App { app: _ } => Ok((
         Url::parse("builtin:///main")?,
-        include_str!("../../../../js/arena-runtime/dist/dqs/app-server.js")
+        Some(
+          include_str!("../../../../js/arena-runtime/dist/dqs/app-server.js")
+            .to_owned()
+            .into(),
+        ),
+      )),
+      Self::PluginWorkflowRun { workflow: _ } => Ok((
+        Url::parse("builtin:///main")?,
+        Some(
+          include_str!(
+            "../../../../js/arena-runtime/dist/dqs/plugin-workflow.js"
+          )
           .to_owned()
           .into(),
-      )),
-      Self::Workflow {
-        id: _,
-        name: _,
-        plugin: _,
-      } => Ok((
-        Url::parse("builtin:///main")?,
-        include_str!(
-          "../../../../js/arena-runtime/dist/dqs/plugin-workflow.js"
-        )
-        .to_owned()
-        .into(),
+        ),
       )),
       Self::Inline { code } => {
-        Ok((Url::parse("builtin:///main")?, code.clone().into()))
+        Ok((Url::parse("builtin:///main")?, Some(code.clone().into())))
       }
     }
   }

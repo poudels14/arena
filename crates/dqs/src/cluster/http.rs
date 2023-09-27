@@ -10,6 +10,7 @@ use axum::extract::{Json, Path, Query, State};
 use axum::middleware;
 use axum::response::{IntoResponse, Response};
 use axum::routing::MethodFilter;
+use axum::RequestExt;
 use axum::{routing, Router};
 use axum_extra::extract::cookie::Cookie;
 use cloud::acl::{Access, AclEntity};
@@ -18,16 +19,17 @@ use cloud::pubsub::EventSink;
 use cloud::pubsub::Subscriber;
 use colored::Colorize;
 use common::axum::logger;
+use common::deno::extensions::server::errors::Error;
 use common::deno::extensions::server::request::read_http_body_to_buffer;
 use common::deno::extensions::server::response::ParsedHttpResponse;
 use common::deno::extensions::server::{errors, HttpRequest};
 use deno_core::{normalize_path, ZeroCopyBuf};
+use diesel::prelude::*;
 use http::StatusCode;
 use http::{Method, Request};
 use hyper::Body;
 use indexmap::IndexMap;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation};
-use nanoid::nanoid;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use tokio::sync::oneshot;
@@ -40,9 +42,12 @@ use url::Url;
 use uuid::Uuid;
 
 use super::{DqsCluster, DqsServerOptions};
+use crate::arena::workflow::PluginWorkflow;
+use crate::arena::workflow::WorkflowTemplate;
 use crate::arena::App;
 use crate::arena::MainModule;
-use crate::arena::Template;
+use crate::db::workflow::workflow_runs;
+use crate::db::workflow::WorkflowRun;
 
 pub(crate) async fn start_server(
   cluster: DqsCluster,
@@ -54,8 +59,8 @@ pub(crate) async fn start_server(
 
   let app = Router::new()
     .route(
-      "/w/plugin/:pluginNamespace/:pluginId/:version/:workflowId/*path",
-      routing::post(pipe_execute_plugin_workflow_request),
+      "/w/workflow/:workflowId/*path",
+      routing::on(MethodFilter::all(), pipe_plugin_workflow_request),
     )
     .route(
       "/w/apps/:appId/widgets/:widgetId/api/:field",
@@ -294,48 +299,74 @@ pub async fn pipe_widget_query_request(
   res.into_response().await
 }
 
-#[derive(Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ExecutePluginQuery {
-  workspace_id: String,
-  input: Value,
-}
-
-pub async fn pipe_execute_plugin_workflow_request(
-  Path((plugin_namespace, plugin_id, version, workflow_id, path)): Path<(
-    String,
-    String,
-    String,
-    String,
-    String,
-  )>,
+pub async fn pipe_plugin_workflow_request(
+  Path((workflow_id, path)): Path<(String, String)>,
   State(cluster): State<DqsCluster>,
-  Json(body): Json<ExecutePluginQuery>,
+  req: Request<Body>,
 ) -> Result<Response, errors::Error> {
-  let plugin_id = format!("{}/{}", plugin_namespace, plugin_id);
+  let identity =
+    parse_identity_from_header(&req).map_err(|_| errors::Error::NotFound)?;
+
+  let mut connection = cluster
+    .db_pool
+    .get()
+    .map_err(|_| anyhow!("Database connection error"))?;
+
+  let wf_run: WorkflowRun = workflow_runs::table
+    .filter(workflow_runs::id.eq(&workflow_id))
+    .first::<WorkflowRun>(&mut connection)
+    .optional()
+    .map_err(|e| anyhow!("Failed to load Workflow run from db: {}", e))?
+    .ok_or(Error::NotFound)?;
+
+  let Json(body): Json<Value> = req
+    .extract()
+    .await
+    .map_err(|_| Error::RequestParsingError)?;
+
+  let template = serde_json::from_value::<WorkflowTemplate>(wf_run.template)
+    .map_err(|_| Error::BadRequest(Some("Invalid workflow tempalte")))?;
+
+  let can_access = match identity {
+    // Only allow the app that created the workflow to access it for now
+    Identity::App {
+      id,
+      system_originated,
+    } => {
+      system_originated.unwrap_or(false)
+        && wf_run
+          .parent_id
+          .map(|parent_id| parent_id == id)
+          .unwrap_or(false)
+    }
+    _ => false,
+  };
+  if !can_access {
+    return Err(Error::NotFound);
+  }
+
+  let (workflow, module) = match template {
+    WorkflowTemplate::Plugin { plugin, slug } => {
+      let workflow = PluginWorkflow {
+        id: workflow_id.clone(),
+        plugin,
+        slug,
+      };
+
+      (workflow.clone(), MainModule::PluginWorkflowRun { workflow })
+    }
+    #[allow(unreachable_patterns)]
+    _ => {
+      return Err(Error::BadRequest(Some("Only plugin workflow supported")));
+    }
+  };
 
   let (dqs_server, _) = cluster
     .spawn_dqs_server(DqsServerOptions {
-      id: format!(
-        "plugin/{}/{}/workflow/{}/{}",
-        plugin_id,
-        version,
-        workflow_id,
-        // Note(sagar): use a random id since this is a one-off dqs runtime
-        // and the runtime isn't reused
-        nanoid!(8, &nanoid::alphabet::SAFE)
-      ),
-      workspace_id: body.workspace_id,
+      id: format!("workflow/{}", workflow_id,),
+      workspace_id: wf_run.workspace_id,
       root: None,
-      module: MainModule::Workflow {
-        // TODO(sagar): use unique workflow id
-        id: workflow_id.clone(),
-        name: workflow_id.clone(),
-        plugin: Template {
-          id: plugin_id.clone(),
-          version: version.clone(),
-        },
-      },
+      module,
       db_pool: cluster.db_pool.clone(),
       dqs_egress_addr: cluster.options.dqs_egress_addr,
       registry: cluster.options.registry.clone(),
@@ -348,10 +379,10 @@ pub async fn pipe_execute_plugin_workflow_request(
     headers: vec![],
     body: Some(ZeroCopyBuf::ToV8(Some(
       serde_json::to_vec(&json!({
-            "workflowId": workflow_id,
-            "input": body.input
+        "workflow": workflow,
+        "input": body
       }))
-      .context("Error parsing workflow input")?
+      .context("Error serializing workflow request body")?
       .into_boxed_slice(),
     ))),
   };
@@ -372,12 +403,12 @@ async fn subscribe_to_events(
   Path((workspace_id, _path)): Path<(String, String)>,
   mut req: Request<Body>,
 ) -> Result<http::Response<hyper::Body>, errors::Error> {
-  let cookies = parse_cookies(&req);
+  let identity = parse_identity_from_header(&req).unwrap_or(Identity::Unknown);
 
-  // TODO(sagar): authenticate the non-user subscriber like apps and
-  // set proper node info
-  let identity =
-    get_identity_from_cookie(&cookies).unwrap_or(Identity::Unknown);
+  // Disable events subscription for unknown user
+  if identity == Identity::Unknown {
+    return Err(errors::Error::NotFound);
+  }
 
   let (response, upgrade_fut) = fastwebsockets::upgrade::upgrade(&mut req)
     .map_err(|e| anyhow!("Error upgrading websocket connection: {}", e))?;
@@ -423,9 +454,7 @@ async fn authenticate_user(
   path: Option<String>,
   req: &Request<Body>,
 ) -> Result<(Identity, App), errors::Error> {
-  let cookies = parse_cookies(&req);
-  let identity =
-    get_identity_from_cookie(&cookies).unwrap_or(Identity::Unknown);
+  let identity = parse_identity_from_header(req).unwrap_or(Identity::Unknown);
 
   let app = cluster
     .cache
@@ -478,16 +507,22 @@ fn parse_cookies(req: &Request<Body>) -> HashMap<String, String> {
   })
 }
 
-fn get_identity_from_cookie(
-  cookies: &HashMap<String, String>,
-) -> Result<Identity> {
+fn parse_identity_from_header(req: &Request<Body>) -> Result<Identity> {
+  let cookies = parse_cookies(req);
   let token = cookies
     .get("user")
-    .ok_or(anyhow!("User not found in cookie"))?;
+    .map(|v| v.as_str())
+    .or_else(|| {
+      req
+        .headers()
+        .get("x-arena-authorization")
+        .and_then(|c| c.to_str().ok())
+    })
+    .ok_or(anyhow!("Unauthenticated requested"))?;
 
   let secret = env::var("JWT_SIGNINIG_SECRET")?;
   jsonwebtoken::decode::<Value>(
-    token,
+    &token,
     &DecodingKey::from_secret(secret.as_ref()),
     &Validation::new(Algorithm::HS256),
   )

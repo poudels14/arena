@@ -183,10 +183,11 @@ program
         ...options,
         minify: false,
         entryPoints: {
+          "dqs/utils": "./libs/dqs/utils/index.ts",
           "dqs/widget-server": "./libs/dqs/widget/server.ts",
           "dqs/postgres": "./libs/dqs/postgres/index.ts",
           "dqs/app-server": "./libs/dqs/app/server.ts",
-          "dqs/plugin-workflow": "./libs/dqs/plugin/workflow.ts",
+          "dqs/plugin-workflow": "./libs/dqs/plugin/workflow/index.ts",
         },
         alias: {
           // TODO(sagar): "assert" and "utils" are being bundled in several files
@@ -199,9 +200,11 @@ program
           "crypto",
           "@dqs/template/app",
           "@dqs/template/plugin",
+          "@arena/dqs/utils",
           "@arena/runtime/server",
           "@arena/runtime/sqlite",
           "@arena/runtime/postgres",
+          "@arena/cloud",
           "~/setup/migrations",
         ],
       }),

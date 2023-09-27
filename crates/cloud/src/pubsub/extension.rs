@@ -11,7 +11,7 @@ use super::IncomingEvent;
 use super::OutgoingEvent;
 
 #[op]
-pub async fn op_dqs_pubsub_subscribe(
+pub async fn op_cloud_pubsub_subscribe(
   state: Rc<RefCell<OpState>>,
 ) -> Result<Option<IncomingEvent>> {
   let stream = {
@@ -30,7 +30,7 @@ pub async fn op_dqs_pubsub_subscribe(
 
 /// Returns boolean indicating whether the data was published
 #[op]
-pub async fn op_dqs_pubsub_publish(
+pub async fn op_cloud_pubsub_publish(
   state: Rc<RefCell<OpState>>,
   data: Data,
   path: Option<String>,

@@ -1,8 +1,8 @@
 use anyhow::anyhow;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Template {
   pub id: String,
   pub version: String,

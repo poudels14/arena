@@ -17,7 +17,7 @@ use std::net::IpAddr;
 use std::rc::Rc;
 use tracing::error;
 
-use crate::arena::{ArenaRuntimeState, MainModule};
+use crate::arena::{self, ArenaRuntimeState, MainModule};
 use crate::loaders::moduleloader::AppkitModuleLoader;
 use crate::loaders::template::TemplateLoader;
 
@@ -61,17 +61,18 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
         file_fetch_handler: Rc::new(deno_fetch::DefaultFileFetchHandler),
       },
     ),
-    self::build_extension(&config),
   ];
 
-  let publisher = if let Some(exchange) = config.exchange {
+  let publisher = if let Some(exchange) = &config.exchange {
     let node = match &config.state.module {
-      MainModule::App { app } => Identity::App { id: app.id.clone() },
-      MainModule::Workflow {
-        id,
-        name: _,
-        plugin: _,
-      } => Identity::Workflow { id: id.to_string() },
+      MainModule::App { app } => Identity::App {
+        id: app.id.clone(),
+        system_originated: None,
+      },
+      MainModule::PluginWorkflowRun { workflow } => Identity::WorkflowRun {
+        id: workflow.id.to_string(),
+        system_originated: None,
+      },
       _ => Identity::Unknown,
     };
     Some(exchange.new_publisher(node).await)
@@ -79,22 +80,16 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
     None
   };
 
-  let mut builtin_extensions = BuiltinExtensions::with_modules(
-    vec![
-      vec![
-        BuiltinModule::Node(Some(vec!["crypto"])),
-        BuiltinModule::Postgres,
-        BuiltinModule::Sqlite,
-        BuiltinModule::HttpServer(config.server_config),
-        BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider {
-          publisher,
-        })),
-      ],
-      config.state.module.get_builtin_module_extensions(),
-    ]
-    .concat(),
-  );
+  let mut builtin_extensions = BuiltinExtensions::with_modules(vec![
+    BuiltinModule::Node(Some(vec!["crypto"])),
+    BuiltinModule::Postgres,
+    BuiltinModule::Sqlite,
+    BuiltinModule::HttpServer(config.server_config.clone()),
+    BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider { publisher })),
+    BuiltinModule::Custom(Rc::new(arena::extension)),
+  ]);
   extensions.extend(builtin_extensions.deno_extensions());
+  extensions.push(self::build_init_extension(&config));
 
   let create_params = config.heap_limits.map(|(initial, max)| {
     v8::Isolate::create_params().heap_limits(initial, max)
@@ -138,7 +133,7 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
   Ok(runtime)
 }
 
-fn build_extension(config: &RuntimeOptions) -> Extension {
+fn build_init_extension(config: &RuntimeOptions) -> Extension {
   let user_agent = get_user_agent(&config.id);
   let egress_address = config.egress_address.clone();
   let state = config.state.clone();

@@ -63,6 +63,7 @@ fn generate_prod_snapshot(path: &Path) {
       port: 0,
       serve_dir: None,
     }),
+    BuiltinModule::Custom(Rc::new(|| cloud::extension(Default::default()))),
     BuiltinModule::Custom(Rc::new(|| BuiltinExtension {
       snapshot_modules: vec![
         (
@@ -71,6 +72,10 @@ fn generate_prod_snapshot(path: &Path) {
             "../../js/arena-runtime/dist/dqs/widget-server.js",
             true
           ),
+        ),
+        (
+          "@arena/dqs/utils",
+          resolve_from_root!("../../js/arena-runtime/dist/dqs/utils.js", true),
         ),
         (
           "@arena/dqs/postgres",
@@ -82,7 +87,6 @@ fn generate_prod_snapshot(path: &Path) {
       ],
       ..Default::default()
     })),
-    BuiltinModule::Custom(Rc::new(|| cloud::extension(Default::default()))),
   ])
   .load_snapshot_modules(&mut runtime)
   .unwrap();

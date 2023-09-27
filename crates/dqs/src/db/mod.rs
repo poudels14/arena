@@ -6,4 +6,5 @@ pub mod app;
 pub mod deployment;
 pub mod resource;
 pub mod widget;
+pub mod workflow;
 pub mod workspace;

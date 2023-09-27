@@ -35,7 +35,7 @@ pub fn extension() -> BuiltinExtension {
   }
 }
 
-#[op]
+#[op(fast)]
 pub fn op_arena_get_base_dir(state: &mut OpState) -> Result<String> {
   let state = state.borrow::<ArenaRuntimeState>();
   state
@@ -51,7 +51,7 @@ pub fn op_arena_get_base_dir(state: &mut OpState) -> Result<String> {
     })
 }
 
-#[op]
+#[op(fast)]
 fn op_arena_load_env(state: &mut OpState) -> Result<Value> {
   let state = state.borrow::<ArenaRuntimeState>();
   let mut variables = state.env_variables.to_vec();

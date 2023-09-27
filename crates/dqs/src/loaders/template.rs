@@ -31,15 +31,10 @@ impl TemplateLoader {
     level = "trace"
   )]
   pub async fn load_plugin_template(&self) -> Result<String> {
-    if let MainModule::Workflow {
-      id: _,
-      name: _,
-      plugin,
-    } = &self.module
-    {
+    if let MainModule::PluginWorkflowRun { workflow } = &self.module {
       return self
         .registry
-        .fetch_plugin(&plugin.id, &plugin.version)
+        .fetch_plugin(&workflow.plugin.id, &workflow.plugin.version)
         .await;
     }
     unreachable!("Invalid template loader config");

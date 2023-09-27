@@ -96,10 +96,10 @@ pub(crate) fn start(
 #[allow(dead_code)]
 async fn load_and_run_module(
   mut runtime: JsRuntime,
-  entry_module: (ModuleSpecifier, ModuleCode),
+  entry_module: (ModuleSpecifier, Option<ModuleCode>),
 ) -> Result<()> {
   let mod_id = runtime
-    .load_main_module(&entry_module.0, Some(entry_module.1))
+    .load_main_module(&entry_module.0, entry_module.1)
     .await?;
 
   let rx = runtime.mod_evaluate(mod_id);
