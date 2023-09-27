@@ -19,7 +19,7 @@ function fileURLToPath(path: string | URL): string {
   if (path.protocol !== "file:") {
     throw new Error("Expected URL scheme to be 'file'");
   }
-  return isWindows ? getPathFromURLWin(path) : getPathFromURLPosix(path);
+  return isWindows() ? getPathFromURLWin(path) : getPathFromURLPosix(path);
 }
 
 function getPathFromURLWin(url: URL): string {
@@ -61,7 +61,9 @@ function getPathFromURLWin(url: URL): string {
 
 function getPathFromURLPosix(url: URL): string {
   if (url.hostname !== "") {
-    throw new Error(`File URL host must be "localhost" or empty on ${osType}`);
+    throw new Error(
+      `File URL host must be "localhost" or empty on ${osType()}`
+    );
   }
   const pathname = url.pathname;
   for (let n = 0; n < pathname.length; n++) {

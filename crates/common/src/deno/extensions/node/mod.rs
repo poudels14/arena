@@ -36,20 +36,13 @@ pub fn extension(module_filter: Option<Vec<&'static str>>) -> BuiltinExtension {
     "fs/promises",
     "tty",
     "util",
+    "url",
   ];
 
   let module_filter = module_filter.unwrap_or(modules.clone());
   BuiltinExtension {
     extension: Some(self::init_ops()),
-    runtime_modules: vec![
-      // Note(sagar): load this during runtime because it depends on some ops
-      // that gets executed when loading the module
-      (
-        "url",
-        include_str!("../../../../../../js/arena-runtime/dist/node/url.js"),
-      ),
-      ("setup", include_str!("./node.js")),
-    ],
+    runtime_modules: vec![("setup", include_str!("./node.js"))],
     snapshot_modules: [
       required_modules,
       modules
