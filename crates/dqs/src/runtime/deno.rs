@@ -145,48 +145,37 @@ fn build_extension(config: &RuntimeOptions) -> Extension {
   let permissions = config.permissions.clone();
 
   Extension::builder("workspace/runtime")
-      .js(vec![
-        ExtensionFileSource {
-          specifier: "init",
-          code: ExtensionFileSourceCode::IncludedInBinary(
-            r#"
-            Deno.core.setMacrotaskCallback(globalThis.__bootstrap.handleTimerMacrotask);
+    .js(vec![ExtensionFileSource {
+      specifier: "init",
+      code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
+        "./init.js"
+      )),
+    }])
+    .state(move |op_state| {
+      op_state.put::<ArenaRuntimeState>(state);
+      op_state.put::<PermissionsContainer>(permissions);
 
-            // TODO(sagar): remove this
-            globalThis.console = new globalThis.__bootstrap.Console(Deno.core.print);
-
-            // Remove bootstrapping data from the global scope
-            delete globalThis.__bootstrap;
-            delete globalThis.bootstrap;
-          "#,
-          ),
-        }
-      ])
-      .state(move |op_state| {
-        op_state.put::<ArenaRuntimeState>(state);
-        op_state.put::<PermissionsContainer>(permissions);
-
-        if let Some(egress_address) = egress_address {
-          let mut client = common::deno::fetch::get_default_http_client_builder(
-            &user_agent,
-            CreateHttpClientOptions {
-              root_cert_store: None,
-              ca_certs: vec![],
-              proxy: None,
-              unsafely_ignore_certificate_errors: None,
-              client_cert_chain_and_key: None,
-              pool_max_idle_per_host: None,
-              pool_idle_timeout: None,
-              http1: true,
-              http2: true,
-            },
-          )
-          .unwrap();
-          client = client.local_address(egress_address);
-          op_state.put::<reqwest::Client>(client.build().unwrap());
-        }
-      })
-      .build()
+      if let Some(egress_address) = egress_address {
+        let mut client = common::deno::fetch::get_default_http_client_builder(
+          &user_agent,
+          CreateHttpClientOptions {
+            root_cert_store: None,
+            ca_certs: vec![],
+            proxy: None,
+            unsafely_ignore_certificate_errors: None,
+            client_cert_chain_and_key: None,
+            pool_max_idle_per_host: None,
+            pool_idle_timeout: None,
+            http1: true,
+            http2: true,
+          },
+        )
+        .unwrap();
+        client = client.local_address(egress_address);
+        op_state.put::<reqwest::Client>(client.build().unwrap());
+      }
+    })
+    .build()
 }
 
 fn get_user_agent(id: &str) -> String {
