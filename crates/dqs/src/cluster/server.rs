@@ -16,7 +16,7 @@ use std::net::IpAddr;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::thread;
+use std::thread::{self, JoinHandle};
 use std::time::SystemTime;
 use tokio::sync::{mpsc, oneshot, watch, Mutex};
 
@@ -55,6 +55,7 @@ pub struct DqsServer {
   pub http_channel:
     mpsc::Sender<(HttpRequest, oneshot::Sender<ParsedHttpResponse>)>,
   pub commands_channel: beam::Sender<Command, Value>,
+  pub thread_handle: Arc<std::sync::Mutex<Option<JoinHandle<Result<()>>>>>,
 }
 
 impl DqsServer {
@@ -68,7 +69,7 @@ impl DqsServer {
     let permissions = Self::load_permissions(&options)?;
     let thread = thread::Builder::new().name(format!("dqs-[{}]", options.id));
     let options_clone = options.clone();
-    let _thread_handle = thread.spawn(move || {
+    let thread_handle = thread.spawn(move || {
       let env_variables = match options.module.as_app() {
         Some(app) => ArenaRuntimeState::load_app_env_variables(
           &options.workspace_id,
@@ -101,7 +102,7 @@ impl DqsServer {
         },
         events_tx,
       )
-    });
+    })?;
 
     loop {
       if receiver.changed().await.is_err() {
@@ -116,6 +117,9 @@ impl DqsServer {
               options: options_clone,
               http_channel: http_requests_tx,
               commands_channel: commands,
+              thread_handle: Arc::new(std::sync::Mutex::new(Some(
+                thread_handle,
+              ))),
             },
             receiver,
           ));

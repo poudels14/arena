@@ -1,7 +1,8 @@
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use cloud::pubsub::exchange::Exchange;
 use colored::Colorize;
 use dashmap::DashMap;
+use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
 use std::net::IpAddr;
@@ -16,11 +17,17 @@ pub(crate) mod server;
 use self::cache::Cache;
 use self::server::{DqsServer, DqsServerOptions, DqsServerStatus};
 use crate::db;
+use crate::db::deployment::dqs_deployments;
+use crate::db::nodes::dqs_nodes;
 use crate::loaders::registry::Registry;
 use crate::runtime::server::ServerEvents;
 
 #[derive(Clone)]
 pub struct DqsClusterOptions {
+  /// Cluster address
+  pub address: String,
+  /// Cluster port
+  pub port: u16,
   /// The IP address that DQS should use for outgoing network requests
   /// from DQS JS runtime
   pub dqs_egress_addr: Option<IpAddr>,
@@ -33,7 +40,7 @@ pub struct DqsClusterOptions {
 #[derive(Clone)]
 pub struct DqsCluster {
   pub options: DqsClusterOptions,
-  pub id: String,
+  pub node_id: String,
   pub data_dir: PathBuf,
   /// DqsServerStatus by server id
   pub servers: Arc<DashMap<String, DqsServerStatus>>,
@@ -55,7 +62,7 @@ impl DqsCluster {
     let db_pool = db::create_connection_pool()?;
     Ok(Self {
       options: options.clone(),
-      id: Uuid::new_v4().to_string(),
+      node_id: Uuid::new_v4().to_string(),
       data_dir: options.data_dir,
       servers: Arc::new(DashMap::with_shard_amount(32)),
       spawn_lock: Arc::new(Mutex::new(0)),
@@ -162,7 +169,9 @@ impl DqsCluster {
             cluster.spawn_dqs_server(options).await?;
 
           dqs_server.healthy().await?;
-          dqs_server.update_server_deployment(&cluster.id).await?;
+          dqs_server
+            .update_server_deployment(&cluster.node_id)
+            .await?;
 
           cluster.track_dqs_server(dqs_server, server_events).await;
 
@@ -211,6 +220,55 @@ impl DqsCluster {
         Ok(e)
       }
     }
+  }
+
+  pub fn mark_node_as_online(&self) -> Result<()> {
+    let connection = &mut self.db_pool.get()?;
+    let node = db::nodes::DqsNode {
+      id: self.node_id.to_string(),
+      host: self.options.address.clone(),
+      port: self.options.port as i32,
+      status: "ONLINE".to_owned(),
+    };
+
+    diesel::insert_into(dqs_nodes::dsl::dqs_nodes)
+      .values(&node)
+      .on_conflict(dqs_nodes::id)
+      .do_update()
+      .set(&node)
+      .execute(connection)
+      .map_err(|e| anyhow!("Failed to mark node as online: {}", e))?;
+    Ok(())
+  }
+
+  pub fn mark_node_as_terminating(&self) -> Result<()> {
+    let connection = &mut self.db_pool.get()?;
+    diesel::update(dqs_nodes::dsl::dqs_nodes)
+      .set(dqs_nodes::status.eq("TERMINATING".to_string()))
+      .filter(dqs_nodes::id.eq(self.node_id.clone()))
+      .execute(connection)
+      .map_err(|e| anyhow!("Failed to mark node as offline: {}", e))?;
+
+    diesel::delete(dqs_deployments::dsl::dqs_deployments)
+      .filter(dqs_deployments::node_id.eq(self.node_id.clone()))
+      .execute(connection)
+      .map_err(|e| {
+        anyhow!(
+          "Failed to remove DQS deployments from terminating node: {}",
+          e
+        )
+      })?;
+
+    Ok(())
+  }
+
+  pub fn mark_node_as_terminated(&self) -> Result<()> {
+    let connection = &mut self.db_pool.get()?;
+    diesel::delete(dqs_nodes::dsl::dqs_nodes)
+      .filter(dqs_nodes::id.eq(self.node_id.to_string()))
+      .execute(connection)
+      .map_err(|e| anyhow!("Failed to mark node as terminated: {}", e))?;
+    Ok(())
   }
 
   async fn track_dqs_server(

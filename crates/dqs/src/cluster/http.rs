@@ -46,72 +46,97 @@ use crate::arena::workflow::PluginWorkflow;
 use crate::arena::workflow::WorkflowTemplate;
 use crate::arena::App;
 use crate::arena::MainModule;
+use crate::cluster::server::DqsServerStatus;
 use crate::db::workflow::workflow_runs;
 use crate::db::workflow::WorkflowRun;
+use crate::runtime::Command;
 
-pub(crate) async fn start_server(
-  cluster: DqsCluster,
-  address: String,
-  port: u16,
-) -> Result<()> {
-  let compression_predicate = DefaultPredicate::new()
-    .and(NotForContentType::new(mime::TEXT_EVENT_STREAM.as_ref()));
+impl DqsCluster {
+  pub(crate) async fn start_server(
+    &self,
+    shutdown_signal: oneshot::Receiver<()>,
+  ) -> Result<()> {
+    let compression_predicate = DefaultPredicate::new()
+      .and(NotForContentType::new(mime::TEXT_EVENT_STREAM.as_ref()));
 
-  let app = Router::new()
-    .route(
-      "/w/workflow/:workflowId/*path",
-      routing::on(MethodFilter::all(), pipe_plugin_workflow_request),
-    )
-    .route(
-      "/w/apps/:appId/widgets/:widgetId/api/:field",
-      routing::get(handle_widget_get_query),
-    )
-    .route(
-      "/w/apps/:appId/widgets/:widgetId/api/:field",
-      routing::post(handle_widgets_mutate_query),
-    )
-    .route(
-      "/w/apps/:appId/",
-      routing::on(MethodFilter::all(), handle_app_routes_index),
-    )
-    .route(
-      "/w/apps/:appId/*path",
-      routing::on(MethodFilter::all(), handle_app_routes),
-    )
-    .route(
-      "/_admin/healthy",
-      routing::get(|| async { (StatusCode::OK, "Ok") }),
-    )
-    // TODO: listen to pub/sub in different port
-    // Subscribe to all pub/sub events for all apps/workflows in the given
-    // workspace that are running on this dqs server
-    .route(
-      "/w/subscribe/:workspaceId/*path",
-      routing::get(subscribe_to_events),
-    )
-    .layer(
-      ServiceBuilder::new()
-        .layer(middleware::from_fn(logger::middleware))
-        .layer(CompressionLayer::new().compress_when(compression_predicate))
-        .layer(
-          CorsLayer::new()
-            .allow_methods([Method::GET])
-            .allow_origin(AllowOrigin::list(vec![])),
-        ),
-    )
-    .with_state(cluster);
+    let app = Router::new()
+      .route(
+        "/w/workflow/:workflowId/*path",
+        routing::on(MethodFilter::all(), pipe_plugin_workflow_request),
+      )
+      .route(
+        "/w/apps/:appId/widgets/:widgetId/api/:field",
+        routing::get(handle_widget_get_query),
+      )
+      .route(
+        "/w/apps/:appId/widgets/:widgetId/api/:field",
+        routing::post(handle_widgets_mutate_query),
+      )
+      .route(
+        "/w/apps/:appId/",
+        routing::on(MethodFilter::all(), handle_app_routes_index),
+      )
+      .route(
+        "/w/apps/:appId/*path",
+        routing::on(MethodFilter::all(), handle_app_routes),
+      )
+      .route(
+        "/_admin/healthy",
+        routing::get(|| async { (StatusCode::OK, "Ok") }),
+      )
+      // TODO: listen to pub/sub in different port
+      // Subscribe to all pub/sub events for all apps/workflows in the given
+      // workspace that are running on this dqs server
+      .route(
+        "/w/subscribe/:workspaceId/*path",
+        routing::get(subscribe_to_events),
+      )
+      .layer(
+        ServiceBuilder::new()
+          .layer(middleware::from_fn(logger::middleware))
+          .layer(CompressionLayer::new().compress_when(compression_predicate))
+          .layer(
+            CorsLayer::new()
+              .allow_methods([Method::GET])
+              .allow_origin(AllowOrigin::list(vec![])),
+          ),
+      )
+      .with_state(self.clone());
 
-  // TODO(sagar): listen on multiple ports so that a lot more traffic
-  // can be served from single cluster
-  let addr: SocketAddr = (Ipv4Addr::from_str(&address)?, port).into();
+    // TODO(sagar): listen on multiple ports so that a lot more traffic
+    // can be served from single cluster
+    let addr: SocketAddr = (
+      Ipv4Addr::from_str(&self.options.address)?,
+      self.options.port,
+    )
+      .into();
 
-  println!("{}", "Starting DQS cluster...".yellow().bold());
-  axum::Server::bind(&addr)
-    .serve(app.into_make_service())
-    .await
-    .unwrap();
+    println!("{}", "Starting DQS cluster...".yellow().bold());
+    self.mark_node_as_online()?;
+    axum::Server::bind(&addr)
+      .serve(app.into_make_service())
+      .with_graceful_shutdown(async {
+        shutdown_signal.await.ok();
+        let _ = self.mark_node_as_terminating();
+      })
+      .await?;
 
-  Ok(())
+    self.mark_node_as_terminated()?;
+
+    // Terminate all server threads
+    for server in self.servers.iter_mut() {
+      match server.value() {
+        DqsServerStatus::Ready(server) => {
+          let commands_channel = server.commands_channel.clone();
+          let _ = commands_channel.send(Command::Terminate).await;
+          let _ = server.thread_handle.lock().unwrap().take().unwrap().join();
+        }
+        _ => {}
+      };
+    }
+
+    Ok(())
+  }
 }
 
 #[derive(Debug, Deserialize)]

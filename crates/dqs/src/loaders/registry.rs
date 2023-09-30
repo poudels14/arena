@@ -45,7 +45,7 @@ impl Registry {
     let res = client
       .get(url)
       .query(&[("API_KEY", self.api_key.clone())])
-      .timeout(Duration::from_secs(15))
+      .timeout(Duration::from_secs(30))
       .send()
       .await?;
 

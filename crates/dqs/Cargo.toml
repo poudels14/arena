@@ -41,6 +41,7 @@ colored.workspace = true
 nanoid.workspace = true
 dashmap.workspace = true
 num_cpus.workspace = true
+signal-hook.workspace = true
 common = { path = "../common" }
 jsruntime = { path = "../jsruntime" }
 cloud = { path = "../cloud" }

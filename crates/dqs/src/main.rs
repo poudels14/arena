@@ -2,9 +2,15 @@ use anyhow::Result;
 use colored::Colorize;
 use common::{dotenv, required_env};
 use loaders::registry::Registry;
+use signal_hook::consts::TERM_SIGNALS;
+use signal_hook::flag;
+use signal_hook::iterator::exfiltrator::SignalOnly;
+use signal_hook::iterator::SignalsInfo;
 use std::env;
 use std::path::Path;
 use std::str::FromStr;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 use tracing_subscriber::filter::Directive;
 use tracing_subscriber::prelude::*;
 use tracing_tree::HierarchicalLayer;
@@ -77,6 +83,8 @@ fn main() -> Result<()> {
   }
 
   let dqs_cluster = DqsCluster::new(DqsClusterOptions {
+    address: host,
+    port,
     dqs_egress_addr,
     data_dir,
     registry: Registry {
@@ -90,9 +98,25 @@ fn main() -> Result<()> {
     .enable_all()
     .build()?;
 
-  let local = tokio::task::LocalSet::new();
-  local.block_on(&rt, async {
-    cluster::http::start_server(dqs_cluster, host, port).await?;
-    Ok(())
-  })
+  let (shutdown_signal_tx, shutdown_signal_rx) =
+    tokio::sync::oneshot::channel::<()>();
+  let handle: tokio::task::JoinHandle<Result<(), anyhow::Error>> =
+    rt.spawn(async move {
+      dqs_cluster.start_server(shutdown_signal_rx).await?;
+      Ok(())
+    });
+
+  let term_now = Arc::new(AtomicBool::new(false));
+  for sig in TERM_SIGNALS {
+    flag::register_conditional_shutdown(*sig, 1, Arc::clone(&term_now))?;
+    flag::register(*sig, Arc::clone(&term_now))?;
+  }
+  let mut signals = SignalsInfo::<SignalOnly>::new(TERM_SIGNALS)?;
+
+  for _ in &mut signals {
+    shutdown_signal_tx.send(()).unwrap();
+    break;
+  }
+
+  rt.block_on(handle)?
 }
