@@ -78,7 +78,13 @@ const Chat = () => {
                   });
                 }
 
-                const tokens = createMemo(() => marked.lexer(m.message()));
+                const tokens = createMemo(() => {
+                  const content = m.message.content();
+                  if (content) {
+                    return marked.lexer(content);
+                  }
+                  return null;
+                });
                 const uniqueDocuments = createMemo(() => {
                   const allDocs = state.documents() || [];
                   const docs = m.metadata.documents!() || [];
@@ -121,29 +127,30 @@ const Chat = () => {
                         }}
                         style={"letter-spacing: 0.1px; word-spacing: 1px"}
                       >
-                        <Markdown
-                          tokens={tokens()}
-                          renderer={{
-                            code(props) {
-                              const highlighted =
-                                props.lang &&
-                                hljs.listLanguages().includes(props.lang);
-                              return (
-                                <code
-                                  class="block my-2 px-4 py-4 rounded bg-gray-800 text-white overflow-auto"
-                                  innerHTML={
-                                    highlighted
-                                      ? hljs.highlight(props.text, {
-                                          language: props.lang,
-                                        }).value
-                                      : ""
-                                  }
-                                  innerText={highlighted ? "" : props.text}
-                                />
-                              );
-                            },
-                          }}
-                        />
+                        <Show when={tokens()}>
+                          <Markdown
+                            tokens={tokens()}
+                            renderer={{
+                              code(props) {
+                                const highlighted =
+                                  props.lang &&
+                                  hljs.listLanguages().includes(props.lang);
+                                return (
+                                  <code
+                                    class="block my-2 px-4 py-4 rounded bg-gray-800 text-white overflow-auto"
+                                    innerHTML={
+                                      highlighted
+                                        ? hljs.highlight(props.text, {
+                                            language: props.lang,
+                                          }).value
+                                        : props.text
+                                    }
+                                  />
+                                );
+                              },
+                            }}
+                          />
+                        </Show>
                       </div>
                       <Show when={uniqueDocuments().length > 0}>
                         <div class="matched-documents px-2 space-y-2">

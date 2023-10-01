@@ -1,9 +1,10 @@
-import { omit, pick } from "lodash-es";
+import { omit, pick, snakeCase, uniqBy } from "lodash-es";
 import { p } from "../../procedure";
-import { chatCompletion } from "./OpenAI";
+import { OpenAIChat, chatCompletion } from "./OpenAI";
 import { generateSystemPrompt } from "./prompt";
 import { DocumentEmbeddingsGenerator } from "../../EmbeddingsGenerator";
 import { uniqueId } from "../../utils";
+import { mergeDelta } from "./llm";
 
 const listChannels = p.query(async ({ ctx }) => {
   const { rows } = await ctx.dbs.default.query(`SELECT * FROM chat_channels`);
@@ -25,13 +26,14 @@ const listMessages = p.query(async ({ ctx, params }) => {
         "parentId",
         "role",
         "userId",
-        "message",
         "model",
         "timestamp"
       ),
+      message: JSON.parse(m.message),
       metadata: {
-        documents: metadata?.documents.map((d: any) =>
-          pick(d, "documentId", "score")
+        documents: uniqBy(
+          metadata?.documents.map((d: any) => pick(d, "documentId", "score")),
+          (d: any) => d.documentId
         ),
       },
     };
@@ -39,6 +41,7 @@ const listMessages = p.query(async ({ ctx, params }) => {
 });
 
 const sendMessage = p.mutate(async ({ ctx, params, req, errors }) => {
+  const { vectordb } = ctx.dbs;
   let request: {
     id: string;
     message: string;
@@ -54,6 +57,11 @@ const sendMessage = p.mutate(async ({ ctx, params, req, errors }) => {
     errors.badRequest("Message can't be empty");
   }
 
+  // TODO(sagar): abstract several steps and use middleware like system
+  // so that it's easier to build plugins for chat system itself. For example,
+  // there can be a plugin to augment prompts to provide better results, or
+  // a plugin to provide additional context based on the prompt, or a plugin
+  // to built agent like multi-step llm querries
   request.id = request.id || uniqueId();
 
   const { rows: channels } = await ctx.dbs.default.query(
@@ -72,15 +80,16 @@ const sendMessage = p.mutate(async ({ ctx, params, req, errors }) => {
       request.id,
       channelId,
       ctx.user?.id || "user",
-      request.message,
+      JSON.stringify({
+        content: request.message,
+      }),
       new Date().getTime(),
     ]
   );
 
-  // TODO(sagar)
   const generator = new DocumentEmbeddingsGenerator();
   const embeddings = await generator.getTextEmbeddings([request.message]);
-  const vectorSearchResult = await ctx.dbs.vectordb.searchCollection(
+  const documentsSearchResults = await vectordb.searchCollection(
     "uploads",
     embeddings[0],
     4,
@@ -90,6 +99,27 @@ const sendMessage = p.mutate(async ({ ctx, params, req, errors }) => {
       minScore: 0.7,
     }
   );
+
+  const pluginsSearchResults = await vectordb.searchCollection(
+    "plugins",
+    embeddings[0],
+    5,
+    {
+      includeChunkContent: true,
+      contentEncoding: "utf-8",
+      minScore: 0.75,
+    }
+  );
+
+  const aiFunctions = pluginsSearchResults.map((r) => {
+    const fn = JSON.parse(r.content);
+    return {
+      id: r.documentId,
+      name: snakeCase(r.documentId),
+      description: fn.description,
+      parameters: fn.parameters,
+    };
+  });
 
   const aiResponseTime = new Date();
   const aiResponseId = uniqueId();
@@ -104,23 +134,34 @@ const sendMessage = p.mutate(async ({ ctx, params, req, errors }) => {
     stream: aiResponseStream,
   } = await chatCompletion({
     userId: openAiUserId,
-    message: {
-      system: {
+    messages: [
+      {
+        role: "system",
         content: generateSystemPrompt({
           // TODO(sagar): aggregate all chunks of the same document
           // into one section in the prompt
-          documents: vectorSearchResult,
+          documents: [
+            {
+              content: "Current date/time is: " + new Date().toISOString(),
+            },
+            ...documentsSearchResults,
+          ],
+          has_functions: aiFunctions.length > 0,
         }),
       },
-      query: request.message,
-    },
+      {
+        role: "user",
+        content: request.message,
+      },
+    ],
+    functions: aiFunctions.length > 0 ? aiFunctions : undefined,
   });
 
   if (llmQueryResponse.status !== 200) {
     return errors.internalServerError("Error connection to the AI model");
   }
 
-  let aiResponse = "";
+  let aiResponse: OpenAIChat.StreamResponseDelta = {};
   const stream = new ReadableStream({
     async start(controller) {
       controller.enqueue(
@@ -128,26 +169,28 @@ const sendMessage = p.mutate(async ({ ctx, params, req, errors }) => {
           id: aiResponseId,
           timestamp: aiResponseTime.getTime(),
           metadata: {
-            documents: vectorSearchResult.map((r) =>
+            documents: documentsSearchResults.map((r) =>
               pick(r, "documentId", "score")
             ),
           },
         })
       );
+
       try {
         for await (const data of aiResponseStream) {
           if (data.json) {
-            const { content } = data.json.choices[0].delta;
-            if (content) {
-              controller.enqueue(
-                JSON.stringify({
-                  text: content,
-                })
-              );
-              aiResponse += content;
+            const { delta } = data.json.choices[0];
+            aiResponse = mergeDelta(aiResponse, delta);
+            if (delta.function_call?.name) {
+              // @ts-expect-error
+              aiResponse.function_call!.id = aiFunctions.find(
+                (f) => f.name == delta.function_call?.name
+              )!.id;
             }
+            controller.enqueue(JSON.stringify({ delta }));
           }
         }
+
         await ctx.dbs.default.query(
           `INSERT INTO chat_messages
             (id, channel_id, parent_id, role, message, model, metadata, timestamp)
@@ -157,10 +200,10 @@ const sendMessage = p.mutate(async ({ ctx, params, req, errors }) => {
             channelId,
             request.id,
             "ai",
-            aiResponse,
+            JSON.stringify(aiResponse),
             llmQueryRequest.model,
             JSON.stringify({
-              documents: vectorSearchResult.map((r) =>
+              documents: documentsSearchResults.map((r) =>
                 omit(r, "content", "context")
               ),
             }),

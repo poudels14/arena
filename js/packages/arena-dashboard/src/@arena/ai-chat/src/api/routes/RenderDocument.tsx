@@ -2,6 +2,8 @@ import hljs from "./highlight";
 import { Markdown } from "@arena/components/markdown";
 import { Marked } from "marked";
 
+const SUPPORTED_LANGUAGES = hljs.listLanguages();
+
 const Document = (props: { content: string }) => {
   const marked = new Marked({});
   const tokens = marked.lexer(props.content);
@@ -14,7 +16,7 @@ const Document = (props: { content: string }) => {
       renderer={{
         code(props) {
           const highlighted =
-            props.lang && hljs.listLanguages().includes(props.lang);
+            props.lang && SUPPORTED_LANGUAGES.includes(props.lang);
           return (
             <code
               class="block my-2 px-4 py-4 rounded bg-gray-800 text-white overflow-auto"
@@ -24,9 +26,8 @@ const Document = (props: { content: string }) => {
                       language: props.lang,
                       ignoreIllegals: true,
                     }).value
-                  : ""
+                  : props.text
               }
-              innerText={highlighted ? "" : props.text}
             />
           );
         },

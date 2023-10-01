@@ -7,12 +7,16 @@ type ChatCompletionRequest = {
   temperature?: number;
   max_tokens?: number;
   userId: string;
-  message: {
-    query: string;
-    system: {
-      content: string;
-    };
-  };
+  messages: {
+    role: string;
+    content: string;
+  }[];
+  functions?: {
+    name: string;
+    description: string;
+    // JSON schema parameters definition
+    parameters: any;
+  }[];
 };
 
 type ChatCompletionResponse = {
@@ -20,6 +24,26 @@ type ChatCompletionResponse = {
   response: Response<any>;
   stream: ReturnType<typeof jsonStreamToAsyncIterator>;
 };
+
+namespace OpenAIChat {
+  export type StreamResponseDelta = {
+    role?: "assistant";
+    content?: string | null;
+    function_call?: { name: string; arguments: string } | null;
+  };
+
+  export type StreamResponse = {
+    id: string;
+    object: "chat.completion.chunk";
+    created: number;
+    model: string;
+    choices: {
+      index: number;
+      delta: StreamResponseDelta;
+      finish_reason: "function_call" | "stop" | null;
+    }[];
+  };
+}
 
 async function chatCompletion(
   request: ChatCompletionRequest
@@ -37,16 +61,8 @@ async function chatCompletion(
       user: request.userId,
       model: request.model,
       stream: true,
-      messages: [
-        {
-          role: "system",
-          content: request.message.system.content,
-        },
-        {
-          role: "user",
-          content: request.message.query,
-        },
-      ],
+      messages: request.messages,
+      functions: request.functions,
     },
     {
       responseType: "stream",
@@ -64,3 +80,4 @@ async function chatCompletion(
 }
 
 export { chatCompletion };
+export type { OpenAIChat };

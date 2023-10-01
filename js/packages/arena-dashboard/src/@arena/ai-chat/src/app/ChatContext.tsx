@@ -11,7 +11,10 @@ type Message = {
   id: string;
   channelId: string;
   threadId: string | null;
-  message: string;
+  message: {
+    role: string;
+    content: string;
+  };
   role: string;
   timestamp: Date;
   userId: string | null;
@@ -84,7 +87,9 @@ const ChatContextProvider = (props: any) => {
           ...prev,
           {
             id: messageId,
-            message,
+            message: {
+              content: message,
+            },
             role: "user",
             channelId,
             timestamp: new Date().getTime(),
@@ -144,7 +149,9 @@ const readMessageStream = async (
           ...prev,
           {
             id: messageId,
-            message: "",
+            message: {
+              content: "",
+            },
             role: "ai",
             userId: null,
             channelId,
@@ -156,7 +163,7 @@ const readMessageStream = async (
       });
     }
 
-    if (chunk.text) {
+    if (chunk.delta?.content) {
       setState("activeChat", "messages", streamMsgIdx!, (prev: any) => {
         if (prev.id !== messageId) {
           // TODO(sagar): instead of throwing error here,
@@ -165,7 +172,9 @@ const readMessageStream = async (
         }
         return {
           ...prev,
-          message: prev.message + chunk.text,
+          message: {
+            content: prev.message.content + chunk.delta.content,
+          },
         };
       });
     }
