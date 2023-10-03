@@ -19,7 +19,7 @@ export const apps = pgTable("apps", {
   name: varchar("name").notNull(),
   description: text("description"),
   template: jsonb("template"),
-  workspaceId: varchar("workspace_id"),
+  workspaceId: varchar("workspace_id").notNull(),
   config: jsonb("config"),
   createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow(),

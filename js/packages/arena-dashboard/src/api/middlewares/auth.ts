@@ -10,7 +10,7 @@ const useLoggedInMiddleware = (t: any) =>
       });
     }
 
-    if (ctx.user.config.waitlisted) {
+    if (ctx.user.config?.waitlisted) {
       throw new TRPCError({
         code: "FORBIDDEN",
         cause: {

@@ -7,6 +7,8 @@ import { appsRouter } from "./routes/apps";
 import { widgetsRouter } from "./routes/widgets";
 import { resourcesRouter } from "./routes/resources";
 import { accountRouter } from "./routes/account";
+import { pluginsRouter } from "./routes/plugins";
+import { workflowsRouter } from "./routes/workflows";
 
 const r = trpcRouter({
   apps: appsRouter,
@@ -27,7 +29,16 @@ type RouterOptions = {
 const router = (options: RouterOptions) => {
   const findMyRouter = mergedRouter({
     prefix: "/api",
-    routers: [accountRouter],
+    ignoreTrailingSlash: true,
+    async middleware({ ctx, next }) {
+      try {
+        return await next({ ctx });
+      } catch (e) {
+        console.error(e);
+        return e;
+      }
+    },
+    routers: [accountRouter, pluginsRouter, workflowsRouter],
   });
 
   return async ({ event, context }: { event: PageEvent; context: Context }) => {

@@ -5,6 +5,7 @@ import { createRepo as createAclRepo } from "./acl";
 import { createRepo as createAppRepo } from "./app";
 import { createRepo as createWidgetsRepo } from "./widget";
 import { createRepo as createResourcesRepo } from "./resources";
+import { createRepo as createWorkflowRunsRepo } from "./workflowRuns";
 
 const createRepo = (client: Client) => {
   const context = {
@@ -17,6 +18,7 @@ const createRepo = (client: Client) => {
     apps: createAppRepo(context),
     widgets: createWidgetsRepo(context),
     resources: createResourcesRepo(context),
+    workflowRuns: createWorkflowRunsRepo(context),
   };
 };
 

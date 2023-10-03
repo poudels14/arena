@@ -23,7 +23,7 @@ const App = (props: { id: string }) => {
       }
       queryWidgetData={async (input: any) => {
         return await fetch(
-          `/w/${input.appId}/widgets/${input.widgetId}/api/${
+          `/w/apps/${input.appId}/widgets/${input.widgetId}/api/${
             input.field
           }?updatedAt=${input.updatedAt}&props=${encodeURI(
             JSON.stringify(input.props)
@@ -39,7 +39,7 @@ const App = (props: { id: string }) => {
         });
       }}
     >
-      <AppContextProvider urlPrefix={`/w/${props.id}/`}>
+      <AppContextProvider urlPrefix={`/w/apps/${props.id}/`}>
         <Editor appId={props.id} />
       </AppContextProvider>
     </ApiContextProvider>
