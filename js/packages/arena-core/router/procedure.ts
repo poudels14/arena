@@ -1,11 +1,6 @@
 // @ts-expect-error
 import { CookieSerializeOptions } from "cookie";
-
-// Note(sp): this is to prevent env replacement during build
-const isDev = () => {
-  const env = process.env;
-  return env["NODE_ENV"] == "development";
-};
+import { generateResponse } from "./response";
 
 type RequestEvent<Context> = {
   req: Request;
@@ -127,42 +122,6 @@ class Procedure<Context> {
     }) as Handler<Context>;
   }
 }
-
-const generateResponse = (response: any) => {
-  if (response instanceof Response) {
-    return response;
-  } else if (response instanceof Error) {
-    if (isDev()) {
-      return jsonResponse(500, {
-        error: {
-          cause: response.cause,
-          stack: response.stack,
-        },
-      });
-    }
-    return new Response("500 Internal Server Error", {
-      status: 500,
-    });
-  } else {
-    if (
-      typeof response != "string" &&
-      !(response instanceof Uint8Array) &&
-      !(response instanceof Uint16Array)
-    ) {
-      return jsonResponse(200, response);
-    }
-    return new Response(response, {
-      status: 200,
-    });
-  }
-};
-
-const jsonResponse = (status: number, response: any) => {
-  return new Response(JSON.stringify(response), {
-    status,
-    headers: new Headers([["content-type", "application/json"]]),
-  });
-};
 
 const procedure = <Context>() => {
   return new Procedure<Context>([]);

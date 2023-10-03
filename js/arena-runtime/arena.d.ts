@@ -454,10 +454,10 @@ declare module "@arena/runtime/server" {
     searchParams: Record<string, string>;
     cookies: Record<string, string>;
     errors: {
-      notFound(message?: string): void;
-      badRequest(message?: string): void;
-      forbidden(message?: string): void;
-      internalServerError(message?: string): void;
+      notFound(message?: any): void;
+      badRequest(message?: any): void;
+      forbidden(message?: any): void;
+      internalServerError(message?: any): void;
     };
     setHeader: (name: string, value: string) => void;
     setCookie(
