@@ -67,6 +67,35 @@ describe("Store", () => {
       });
     }));
 
+  test("Update null field with non-null value - another field shouldn't be reactive", () =>
+    new Promise((done) => {
+      createRoot(() => {
+        const [store, setStore] = createStore<{
+          data: { message: string };
+          name: string;
+        }>({
+          data: null!,
+          name: null!,
+        });
+
+        const cleanupFn = vitest.fn();
+        createEffect(() => {
+          void store.name();
+          onCleanup(() => cleanupFn());
+        });
+
+        setTimeout(() => {
+          setStore("data", { message: "hello, new world!" });
+
+          setTimeout(() => {
+            expect(store.data.message!()).toBe("hello, new world!");
+            expect(cleanupFn).toBeCalledTimes(0);
+            done(null);
+          });
+        });
+      });
+    }));
+
   test("Using singal inside getter works", () =>
     new Promise((done) => {
       createRoot(() => {

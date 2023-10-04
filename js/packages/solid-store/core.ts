@@ -52,10 +52,15 @@ type StoreValue<Shape, Value> = Node<Value> &
     : Node<Value>);
 
 type Store<T> = StoreValue<NonNullable<T>, T>;
-
 type StoreSetter<T> = SetStoreFunction<T>;
+type CreateStoreOptions<T> = {
+  /**
+   * Plugins will allow adding features like storage, client/server sync, etc
+   */
+  plugins?: [(store: Store<T>, setStore: StoreSetter<T>) => void];
+};
 
-function createStore<T>(initValue: T) {
+function createStore<T>(initValue: T, options?: CreateStoreOptions<T>) {
   let store = new Proxy(createDataNode(initValue, "$store"), proxyHandlers);
   Object.defineProperties(store, {
     [$STORE]: {
@@ -90,25 +95,24 @@ const proxyHandlers = {
     if (getter) {
       return getter;
     }
-    const value = rawTarget?.[p];
-    if (value === undefined || value === null) {
-      // Note(sagar): if the value of sub-field is null || undefined,
-      // return undefined but make this call reactive
-      getListener() && void receiver();
-      return value === undefined ? UNDEFINED_TRAP : NULL_TRAP;
-    }
 
     // Note(sagar): if `.length` of an array is being accessed,
     // return a memo that updates when array length change
-    if (p === "length" && rawTarget.push) {
+    if (p === "length" && rawTarget?.push) {
       return (target[tp] = createMemo(() => {
         return receiver().length;
       }));
     }
-    return (target[tp] = new Proxy(
-      (target[tp] = createDataNode(value, tp)),
-      proxyHandlers
-    ));
+
+    const value = rawTarget?.[p];
+    target[tp] = new Proxy(createDataNode(value, p), proxyHandlers);
+    if (value === undefined || value === null) {
+      // Note(sagar): if the value of sub-field is null || undefined,
+      // return undefined but make this call reactive
+      getListener() && target[tp]();
+      return value === undefined ? UNDEFINED_TRAP : NULL_TRAP;
+    }
+    return target[tp];
   },
   apply(target: any) {
     /**
@@ -249,10 +253,12 @@ const updatePath = (root: any, path: any[]) => {
   if (value === prevValue) {
     return;
   }
+
   updates.forEach((n) => {
     n[$UPDATEDAT] = updateEpoch;
     n[$SET]?.(updateEpoch);
   });
+
   if (nodeNode) {
     nodeToUpdate = path.length > 0 ? nodeNode[internalKey] : nodeNode;
     compareAndNotify(nodeToUpdate, value);
@@ -268,6 +274,8 @@ const updatePath = (root: any, path: any[]) => {
   }
 };
 
+// TODO(sagar): there's a bug where removing a key from object
+// doesn't delete the signal from the node
 const compareAndNotify = (node: any, value: any) => {
   let nodeNode: any, prev;
   if (!node || !(nodeNode = node[$NODE]) || value === (prev = nodeNode[$RAW])) {
