@@ -3,7 +3,6 @@ use super::Database;
 use crate::db::rocks::cf::{column_handle, DatabaseColumnFamily};
 use crate::utils::bytes::ToBeBytes;
 use anyhow::{Context, Result};
-use bstr::{BStr, BString};
 use indexmap::IndexMap;
 use rocksdb::{ColumnFamily, ReadOptions, WriteBatchWithTransaction};
 use serde::{Deserialize, Serialize};
@@ -18,7 +17,7 @@ pub struct Document {
   /// documents in a single collection. So, using u32 saves half the space
   /// as compared to u64
   pub index: u32,
-  pub id: BString,
+  pub id: String,
   pub content_length: u32,
   pub embeddings_count: u32,
   pub metadata: Option<IndexMap<String, Value>>,
@@ -41,7 +40,7 @@ impl<'d> DocumentsHandle<'d> {
 
   /// Get a document of the given id
   /// The id is document id without the collection index prefix
-  pub fn get_by_id(&self, id: &BStr) -> Result<Option<Document>> {
+  pub fn get_by_id(&self, id: &str) -> Result<Option<Document>> {
     self
       .doc_id_handle
       .get_pinned(&(self.collection_index, id).to_be_bytes())?

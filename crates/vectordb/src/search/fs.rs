@@ -13,7 +13,6 @@ use anyhow::{bail, Result};
 use bitvec::field::BitField;
 use bitvec::prelude::Msb0;
 use bitvec::view::BitView;
-use bstr::BStr;
 use indexmap::IndexMap;
 use rocksdb::ReadOptions;
 use serde_json::Value;
@@ -30,7 +29,7 @@ impl<'a> FsSearch<'a> {
   #[allow(dead_code)]
   pub fn top_k(
     &self,
-    collection_id: &BStr,
+    collection_id: &str,
     query: &[VectorElement],
     k: usize,
     options: SearchOptions,

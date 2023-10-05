@@ -4,7 +4,6 @@ use std::path::Path;
 use std::rc::Rc;
 
 use anyhow::{bail, Context, Result};
-use bstr::ByteSlice;
 use common::deno::utils;
 use deno_core::{
   op, OpState, Resource, ResourceId, StringOrBuffer, ZeroCopyBuf,
@@ -131,17 +130,15 @@ async fn op_cloud_vectordb_list_collections(
   rid: ResourceId,
 ) -> Result<Vec<Collection>> {
   let resource = get_db_resource(state, rid)?;
-  let mut collections = resource.db.borrow().list_collections()?;
+  let collections = resource.db.borrow().list_collections()?;
   collections
-    .iter_mut()
-    .map(|(id, col)| {
+    .into_iter()
+    .map(|col| {
       Ok(Collection {
-        id: std::str::from_utf8(id)
-          .map(|c| c.to_owned())
-          .context("collection id should be utf-8")?,
+        id: col.id,
         documents_count: col.documents_count,
         dimension: col.dimension,
-        metadata: col.metadata.take(),
+        metadata: col.metadata,
       })
     })
     .collect::<Result<Vec<Collection>>>()
@@ -178,13 +175,12 @@ async fn op_cloud_vectordb_add_document(
     doc_id.as_str().into(),
     query::Document {
       metadata: document.metadata,
-      content: document.content.as_bytes().to_vec(),
+      content: document.content.to_vec(),
       blobs: document
         .blobs
         .iter()
         .filter_map(|(k, v)| {
-          v.as_ref()
-            .map(|v| (k.as_str().into(), v.as_bytes().to_vec()))
+          v.as_ref().map(|v| (k.as_str().into(), v.to_vec()))
         })
         .collect(),
     },
@@ -199,22 +195,20 @@ async fn op_cloud_vectordb_list_documents(
   collection_id: String,
 ) -> Result<Vec<Document>> {
   let resource = get_db_resource(state, rid)?;
-  let mut documents = resource
+  let documents = resource
     .db
     .borrow()
     .list_documents(collection_id.as_str().into())?;
 
   let documents = documents
-    .iter_mut()
+    .into_iter()
     .map(|doc| {
       Ok(Document {
-        id: std::str::from_utf8(&doc.id)
-          .map(|s| s.to_owned())
-          .context("document id should be utf-8")?,
+        id: doc.id,
         content_length: doc.content_length,
         embeddings_count: doc.embeddings_count,
         content: None,
-        metadata: doc.metadata.take(),
+        metadata: doc.metadata,
       })
     })
     .collect::<Result<Vec<Document>>>();

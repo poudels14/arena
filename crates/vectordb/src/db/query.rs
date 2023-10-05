@@ -1,4 +1,3 @@
-use bstr::BString;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -11,7 +10,7 @@ pub struct Collection {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct DocumentWithContent {
-  pub id: BString,
+  pub id: String,
   pub content_length: u32,
   pub embeddings_count: u32,
   pub metadata: Option<IndexMap<String, Value>>,
@@ -44,7 +43,7 @@ pub struct Embeddings {
 
 #[derive(Debug, Serialize)]
 pub struct ChunkEmbedding {
-  pub document_id: BString,
+  pub document_id: String,
   pub start: u32,
   pub end: u32,
   pub vectors: Vec<f32>,

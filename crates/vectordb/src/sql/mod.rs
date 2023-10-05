@@ -83,7 +83,7 @@ impl<'a> Client<'a> {
         }?;
 
         self.db.create_collection(
-          name.into(),
+          simdutf8::basic::from_utf8(name)?,
           Collection {
             dimension: dim,
             metadata: None,

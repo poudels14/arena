@@ -27,7 +27,6 @@ serde_json.workspace = true
 simdutf8.workspace = true
 indexmap.workspace = true
 itertools.workspace = true
-bstr.workspace = true
 bitvec = "1.0.1"
 derivative.workspace = true
 axum.workspace = true

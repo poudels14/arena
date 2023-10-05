@@ -1,4 +1,3 @@
-use bstr::BString;
 use deno_core::StringOrBuffer;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -36,7 +35,7 @@ pub struct Result {
 #[serde(rename_all = "camelCase")]
 pub struct Document {
   /// Document id
-  pub id: BString,
+  pub id: String,
   /// Document metadata
   pub metadata: Option<IndexMap<String, Value>>,
 }
@@ -45,7 +44,7 @@ pub struct Document {
 #[serde(rename_all = "camelCase")]
 pub struct Embedding {
   pub score: f32,
-  pub document_id: BString,
+  pub document_id: String,
   pub index: usize,
   pub start: usize,
   pub end: usize,

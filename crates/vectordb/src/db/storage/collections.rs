@@ -3,7 +3,6 @@ use crate::db::rocks::cf::RowsIterator;
 use crate::db::rocks::cf::{column_handle, DatabaseColumnFamily};
 use anyhow::Context;
 use anyhow::Result;
-use bstr::BStr;
 use indexmap::IndexMap;
 use rocksdb::IteratorMode;
 use rocksdb::{ColumnFamily, WriteBatchWithTransaction};
@@ -15,6 +14,8 @@ pub static COLLECTIONS_CF: &'static str = "collections";
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Collection {
+  /// Collection id
+  pub id: String,
   /// The index is used to prefix all the documents in the collection.
   /// Since we need a fixed length prefix for all documents, use u32
   /// number as an index
@@ -47,8 +48,8 @@ impl<'d> CollectionsHandle<'d> {
 
   /// Get a document of the given id
   /// The id is document id without the collection index prefix
-  pub fn get(&self, id: &BStr) -> Result<Option<Collection>> {
-    let collection = self.handle.get_pinned(&id)?;
+  pub fn get(&self, id: &str) -> Result<Option<Collection>> {
+    let collection = self.handle.get_pinned(id.as_bytes())?;
 
     match collection {
       Some(collection) => rmp_serde::from_slice(&collection)
@@ -57,8 +58,10 @@ impl<'d> CollectionsHandle<'d> {
     }
   }
 
-  pub fn put(&self, id: &BStr, collection: &Collection) -> Result<()> {
-    self.handle.put(&id, &rmp_serde::to_vec(&collection)?)
+  pub fn put(&self, id: &str, collection: &Collection) -> Result<()> {
+    self
+      .handle
+      .put(id.as_bytes(), &rmp_serde::to_vec(&collection)?)
   }
 
   pub fn iterator(&self, mode: IteratorMode) -> RowsIterator {
@@ -68,12 +71,14 @@ impl<'d> CollectionsHandle<'d> {
   pub fn batch_put(
     &self,
     batch: &mut WriteBatchWithTransaction<true>,
-    id: &BStr,
+    id: &str,
     collection: &Collection,
   ) -> Result<()> {
-    self
-      .handle
-      .batch_put(batch, &id, &rmp_serde::to_vec(&collection)?);
+    self.handle.batch_put(
+      batch,
+      id.as_bytes(),
+      &rmp_serde::to_vec(&collection)?,
+    );
     Ok(())
   }
 }

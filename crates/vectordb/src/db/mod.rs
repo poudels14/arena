@@ -15,7 +15,6 @@ use anyhow::{anyhow, bail, Context, Result};
 use bitvec::field::BitField;
 use bitvec::prelude::Msb0;
 use bitvec::view::BitView;
-use bstr::{BStr, BString, ByteSlice};
 use errors::Error;
 use indexmap::IndexMap;
 use rocksdb::{
@@ -44,7 +43,7 @@ pub struct VectorDatabase {
   pub(crate) db: Database,
   doc_read_options: ReadOptions,
   pub(crate) collections_cache:
-    Arc<Mutex<IndexMap<BString, Arc<Mutex<storage::Collection>>>>>,
+    Arc<Mutex<IndexMap<String, Arc<Mutex<storage::Collection>>>>>,
 }
 
 impl<'d> VectorDatabase {
@@ -99,7 +98,7 @@ impl<'d> VectorDatabase {
   #[allow(dead_code)]
   pub fn create_collection(
     &mut self,
-    id: &BStr,
+    id: &str,
     col: query::Collection,
   ) -> Result<()> {
     if self.get_internal_collection(id).is_ok() {
@@ -120,6 +119,7 @@ impl<'d> VectorDatabase {
     }
 
     let stored_collection = storage::Collection {
+      id: id.to_string(),
       index: collection_count,
       documents_count: 0,
       next_doc_index: 0,
@@ -139,7 +139,7 @@ impl<'d> VectorDatabase {
 
   /// Get collection info by id
   #[allow(dead_code)]
-  pub fn get_collection(&self, id: &BStr) -> Result<Option<Collection>> {
+  pub fn get_collection(&self, id: &str) -> Result<Option<Collection>> {
     let res = self.get_internal_collection(id);
 
     match res {
@@ -152,7 +152,7 @@ impl<'d> VectorDatabase {
   /// Lists all the collections
   /// This reads the collections from the database and don't use caching
   #[allow(dead_code)]
-  pub fn list_collections(&self) -> Result<Vec<(BString, Collection)>> {
+  pub fn list_collections(&self) -> Result<Vec<Collection>> {
     let collections_cf = storage::collections::cf(&self.db)?;
     let iter = collections_cf.iterator(IteratorMode::Start);
     Ok(
@@ -161,9 +161,9 @@ impl<'d> VectorDatabase {
           let col = col?;
           let collection =
             rmp_serde::from_slice::<storage::Collection>(&col.1)?;
-          Ok((col.0.as_ref().as_bstr().to_owned(), collection.clone()))
+          Ok(collection)
         })
-        .collect::<Result<Vec<(BString, Collection)>>>()?,
+        .collect::<Result<Vec<Collection>>>()?,
     )
   }
 
@@ -180,8 +180,8 @@ impl<'d> VectorDatabase {
   #[allow(dead_code)]
   pub fn add_document(
     &mut self,
-    collection_id: &BStr,
-    doc_id: &BStr,
+    collection_id: &str,
+    doc_id: &str,
     doc: query::Document,
   ) -> Result<()> {
     let collection = self.get_internal_collection(collection_id)?;
@@ -248,7 +248,7 @@ impl<'d> VectorDatabase {
   #[allow(dead_code)]
   pub fn index_document(
     &self,
-    _doc_id: &[u8],
+    _doc_id: &str,
     _options: &query::DocumentIndexOption,
   ) -> Result<()> {
     unimplemented!("// TODO(sagar)");
@@ -256,7 +256,7 @@ impl<'d> VectorDatabase {
 
   /// Returns a map of (document_id => document)
   #[allow(dead_code)]
-  pub fn list_documents(&self, col_id: &BStr) -> Result<Vec<Document>> {
+  pub fn list_documents(&self, col_id: &str) -> Result<Vec<Document>> {
     let collection = self.get_internal_collection(col_id)?;
     let collection = collection.lock().map_err(lock_error)?;
     let documents_h = DocumentsHandle::new(&self.db, collection.index)?;
@@ -269,8 +269,8 @@ impl<'d> VectorDatabase {
   #[allow(dead_code)]
   pub fn set_document_embeddings(
     &mut self,
-    collection_id: &BStr,
-    doc_id: &BStr,
+    collection_id: &str,
+    doc_id: &str,
     embeddings: Vec<query::Embeddings>,
   ) -> Result<()> {
     let collection = self.get_internal_collection(collection_id)?;
@@ -326,8 +326,8 @@ impl<'d> VectorDatabase {
   #[allow(dead_code)]
   pub fn get_document(
     &self,
-    col_id: &BStr,
-    doc_id: &BStr,
+    col_id: &str,
+    doc_id: &str,
   ) -> Result<Option<query::DocumentWithContent>> {
     let collection = self.get_internal_collection(col_id)?;
     let collection = collection.lock().map_err(lock_error)?;
@@ -382,8 +382,8 @@ impl<'d> VectorDatabase {
   #[allow(dead_code)]
   pub fn get_document_blobs(
     &self,
-    col_id: &BStr,
-    doc_id: &BStr,
+    col_id: &str,
+    doc_id: &str,
     keys: Vec<String>,
   ) -> Result<Vec<(String, Option<Vec<u8>>)>> {
     let collection = self.get_internal_collection(col_id)?;
@@ -407,13 +407,13 @@ impl<'d> VectorDatabase {
   #[allow(dead_code)]
   pub fn scan_embeddings(
     &self,
-    collection_id: &BStr,
+    collection_id: &str,
   ) -> Result<Vec<query::ChunkEmbedding>> {
     let collection = self.get_internal_collection(collection_id)?;
     let collection = collection.lock().map_err(lock_error)?;
 
-    let mut document_id_by_index: Vec<BString> =
-      vec![b"".into(); collection.next_doc_index as usize];
+    let mut document_id_by_index: Vec<String> =
+      vec!["".to_owned(); collection.next_doc_index as usize];
     let document_h = DocumentsHandle::new(&self.db, collection.index)?;
 
     document_h.iterator().for_each(|item| {
@@ -449,8 +449,8 @@ impl<'d> VectorDatabase {
   #[allow(dead_code)]
   pub fn delete_document(
     &mut self,
-    collection_id: &BStr,
-    doc_id: &BStr,
+    collection_id: &str,
+    doc_id: &str,
   ) -> Result<()> {
     let collection = self.get_internal_collection(collection_id)?;
     let mut collection = collection.lock().map_err(lock_error)?;
@@ -525,7 +525,7 @@ impl<'d> VectorDatabase {
 
   pub(crate) fn get_internal_collection(
     &'d self,
-    id: &BStr,
+    id: &str,
   ) -> Result<Arc<Mutex<storage::Collection>>, errors::Error> {
     let mut cache = self.collections_cache.lock().map_err(lock_error)?;
     let collection = cache.get(id).map(|c| c.clone());
