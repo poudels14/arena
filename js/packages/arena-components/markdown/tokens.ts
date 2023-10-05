@@ -8,8 +8,9 @@ type Token = {
   blockquote: { quote: string };
   html: { html: string; block: boolean };
   heading: {
+    type: "heading";
     text: string;
-    level: number;
+    depth: number;
     raw: string;
     slugger: any;
   };

@@ -57,13 +57,13 @@ const DEFAULT_RENDERER: MarkdownProps["renderer"] = {
     throw new Error("not implemented");
   },
   heading: (props) => {
-    if (props.level == 1) {
+    if (props.depth == 1) {
       return <h1>{props.text}</h1>;
-    } else if (props.level == 2) {
+    } else if (props.depth == 2) {
       return <h2>{props.text}</h2>;
-    } else if (props.level == 3) {
+    } else if (props.depth == 3) {
       return <h3>{props.text}</h3>;
-    } else if (props.level == 4) {
+    } else if (props.depth == 4) {
       return <h4>{props.text}</h4>;
     }
   },
