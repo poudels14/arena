@@ -257,16 +257,11 @@ impl<'d> VectorDatabase {
 
   /// Returns a map of (document_id => document)
   #[allow(dead_code)]
-  pub fn list_documents(
-    &self,
-    col_id: &BStr,
-  ) -> Result<Vec<(BString, Document)>> {
+  pub fn list_documents(&self, col_id: &BStr) -> Result<Vec<Document>> {
     let collection = self.get_internal_collection(col_id)?;
     let collection = collection.lock().map_err(lock_error)?;
     let documents_h = DocumentsHandle::new(&self.db, collection.index)?;
-    documents_h
-      .iterator()
-      .collect::<Result<Vec<(BString, Document)>>>()
+    documents_h.iterator().collect::<Result<Vec<Document>>>()
   }
 
   // TODO(sagar): make it so that chunks can only be added one time
@@ -423,8 +418,8 @@ impl<'d> VectorDatabase {
     let document_h = DocumentsHandle::new(&self.db, collection.index)?;
 
     document_h.iterator().for_each(|item| {
-      if let Ok((id, doc)) = item {
-        document_id_by_index[doc.index as usize] = id;
+      if let Ok(doc) = item {
+        document_id_by_index[doc.index as usize] = doc.id;
       }
     });
 

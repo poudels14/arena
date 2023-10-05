@@ -203,9 +203,9 @@ async fn op_cloud_vectordb_list_documents(
 
   let documents = documents
     .iter_mut()
-    .map(|(id, doc)| {
+    .map(|doc| {
       Ok(Document {
-        id: std::str::from_utf8(id)
+        id: std::str::from_utf8(&doc.id)
           .map(|s| s.to_owned())
           .context("document id should be utf-8")?,
         content_length: doc.content_length,

@@ -89,21 +89,18 @@ impl<'d> DocumentsHandle<'d> {
 
   pub fn iterator(
     &'d self,
-  ) -> impl Iterator<Item = Result<(BString, Document), anyhow::Error>> + 'd {
+  ) -> impl Iterator<Item = Result<Document, anyhow::Error>> + 'd {
     let mut read_options = ReadOptions::default();
     read_options
       .set_iterate_upper_bound((self.collection_index + 1).to_be_bytes());
     let iter = self
       .handle
-      .prefix_iterator_opt(&self.collection_index.to_le_bytes(), read_options);
+      .prefix_iterator_opt(&self.collection_index.to_be_bytes(), read_options);
 
     iter.into_iter().map(|doc| {
       let doc = doc?;
       let stored_doc = rmp_serde::from_slice::<Document>(&doc.1)?;
-
-      // offset by 4 bytes since it's prefixed with u32 collection_index
-      let doc_id = &doc.0[4..];
-      Ok::<(BString, Document), anyhow::Error>((doc_id.into(), stored_doc))
+      Ok::<Document, anyhow::Error>(stored_doc)
     })
   }
 
