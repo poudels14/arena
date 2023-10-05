@@ -15,7 +15,10 @@
         },
         "dedupe": [
           "solid-js",
-          "@arena/core"
+          "@solidjs/router",
+          "@solidjs/meta",
+          "@arena/core",
+          "@arena/solid-store"
         ]
       }
     },
@@ -66,6 +69,8 @@
     "@arena/solid-store": "workspace:^",
     "@arena/uikit": "workspace:^",
     "@blueprintjs/icons": "^4.14.3",
+    "@solidjs/meta": "^0.28.6",
+    "@solidjs/router": "^0.8.3",
     "@twind/preset-radix-ui": "^1.0.7",
     "@twind/preset-tailwind": "^1.1.4",
     "highlight.js": "^11.8.0",

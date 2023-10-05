@@ -14,16 +14,16 @@ const Sidebar = () => {
   return (
     <div class="w-52 h-screen text-sm bg-accent-1">
       <div class="p-2">
-        <SidebarTabs
+        {/* <SidebarTabs
           isTabActive={isTabActive}
           setSelected={(tab) => setState("tab", "selected", tab)}
-        />
+        /> */}
       </div>
       <div class="px-1">
         <Show when={isTabActive("Chat")}>
           <div class="space-y-4">
             <div>
-              <div class="py-1 px-2 font-medium rounded cursor-pointer bg-brand-10/20 text-accent-12/70">
+              <div class="py-1 px-2 font-medium rounded-sm cursor-pointer bg-brand-12/90 text-accent-1">
                 Chat
               </div>
             </div>
@@ -48,11 +48,11 @@ const SidebarTabs = (props: {
         selected={props.isTabActive("Chat")}
         setSelected={props.setSelected}
       />
-      <SidebarTab
+      {/* <SidebarTab
         name="History"
         selected={props.isTabActive("History")}
         setSelected={props.setSelected}
-      />
+      /> */}
     </div>
   );
 };

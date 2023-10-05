@@ -3,7 +3,8 @@ import { jsonStreamToAsyncIterator } from "@arena/sdk/utils/stream";
 import { merge } from "lodash-es";
 
 type ChatCompletionRequest = {
-  model?: "gpt-3.5-turbo";
+  url?: string;
+  model?: "gpt-3.5-turbo" | string;
   temperature?: number;
   max_tokens?: number;
   userId: string;
@@ -56,7 +57,7 @@ async function chatCompletion(
   );
 
   const res = await axios.post(
-    "https://api.openai.com/v1/chat/completions",
+    request.url || "https://api.openai.com/v1/chat/completions",
     {
       user: request.userId,
       model: request.model,

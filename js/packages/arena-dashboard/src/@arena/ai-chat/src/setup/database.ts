@@ -14,17 +14,31 @@ const main: SqliteDatabaseConfig = {
     {
       async up(mainDb: SqliteDatabaseClient) {
         await mainDb.query(`CREATE TABLE chat_channels (
-        -- channel id
-        id          TEXT NOT NULL,
-        name        TEXT
-      )`);
+          -- channel id
+          id          TEXT NOT NULL,
+          name        TEXT,
+          metadata    TEXT -- in JSON format
+        )
+      `);
       },
     },
     {
       async up(mainDb: SqliteDatabaseClient) {
-        await mainDb.query(
-          `INSERT INTO chat_channels (id, name) VALUES ('default', 'Default')`
-        );
+        await mainDb.query(`
+          INSERT INTO chat_channels (id, name, metadata)
+          VALUES ('default', 'Default', '{"enableAI": true}');`);
+      },
+    },
+    {
+      async up(mainDb: SqliteDatabaseClient) {
+        await mainDb.query(`CREATE TABLE chat_threads (
+        -- thread id
+        id          TEXT NOT NULL,
+        channel_id  TEXT NOT NULL,
+        title       TEXT NOT NULL,
+        metadata    TEXT NOT NULL, -- in JSON format
+        timestamp   INTEGER
+      )`);
       },
     },
     {
@@ -58,6 +72,16 @@ const main: SqliteDatabaseConfig = {
       )`);
       },
     },
+    {
+      async up(mainDb: SqliteDatabaseClient) {
+        await mainDb.query(`CREATE TABLE plugins (
+        id            TEXT NOT NULL,
+        name          TEXT NOT NULL,
+        version       TEXT NOT NULL,
+        installed_at  INTEGER NOT NULL
+      )`);
+      },
+    },
   ],
 };
 
@@ -68,6 +92,11 @@ const vectordb: ArenaVectorDatabase.Config = {
     {
       async up(db: any) {
         await db.query(`CREATE TABLE uploads (dimension vector(384))`);
+      },
+    },
+    {
+      async up(db: any) {
+        await db.query(`CREATE TABLE plugins (dimension vector(384))`);
       },
     },
   ],

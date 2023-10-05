@@ -1,4 +1,4 @@
-import { omit, pick, snakeCase, uniqBy } from "lodash-es";
+import { merge, omit, pick, snakeCase, uniqBy } from "lodash-es";
 import { p } from "../../procedure";
 import { OpenAIChat, chatCompletion } from "./OpenAI";
 import { generateSystemPrompt } from "./prompt";
@@ -6,15 +6,127 @@ import { DocumentEmbeddingsGenerator } from "../../EmbeddingsGenerator";
 import { uniqueId } from "../../utils";
 import { mergeDelta } from "./llm";
 
+type ChatChannel = {
+  id: string;
+  name: string;
+  metadata: {
+    enableAI: boolean;
+  };
+};
+
+type ChatThread = {
+  id: string;
+  title: string;
+  metadata: {
+    ai: {
+      model: string;
+    };
+  };
+};
+
 const listChannels = p.query(async ({ ctx }) => {
   const { rows } = await ctx.dbs.default.query(`SELECT * FROM chat_channels`);
-  return rows;
+
+  return rows.map((row: any) => {
+    return merge(row, {
+      metadata: JSON.parse(row.metadata),
+    });
+  });
 });
 
-const listMessages = p.query(async ({ ctx, params }) => {
+const getChannel = p.query(async ({ ctx, params, errors, ...args }) => {
+  const channel = await ctx.dbs.default
+    .query<any>(`SELECT * FROM chat_channels WHERE id = ?`, [params.channelId])
+    .then(({ rows }) => {
+      const row = rows[0]!;
+      return (
+        row &&
+        merge(row, {
+          metadata: JSON.parse(row.metadata),
+        })
+      );
+    });
+
+  if (!channel) {
+    return errors.notFound();
+  }
+
+  const threads = await listThreads({
+    ...args,
+    errors,
+    ctx,
+    params,
+  });
+
+  const messages = await listMessages({
+    ...args,
+    errors,
+    ctx,
+    params,
+  });
+
+  return {
+    ...channel,
+    threads,
+    messages,
+  };
+});
+
+const listThreads = p.query(async ({ ctx, params }) => {
+  const channelId = params.channelId;
+  const { rows } = await ctx.dbs.default.query(
+    `SELECT * FROM chat_threads WHERE channel_id = ? ORDER BY timestamp`,
+    [channelId]
+  );
+
+  return rows.map((row: any) => {
+    return merge(row, {
+      metadata: JSON.parse(row.metadata),
+    });
+  });
+});
+
+const getThread = p.query(async ({ req, ctx, params, errors, ...args }) => {
+  const { channelId, threadId } = params;
+  const thread = await ctx.dbs.default
+    .query<any>(`SELECT * FROM chat_threads WHERE id = ? AND channel_id = ?`, [
+      threadId,
+      channelId,
+    ])
+    .then(({ rows }) => {
+      if (rows[0]) {
+        return merge(rows[0], {
+          metadata: JSON.parse(rows[0].metadata),
+        });
+      }
+    });
+  if (!thread) {
+    return errors.notFound();
+  }
+
+  const messages = await listMessages({
+    ...args,
+    req,
+    ctx,
+    params: {
+      channelId,
+    },
+    searchParams: {
+      threadId,
+    },
+    errors,
+  });
+
+  return {
+    ...thread,
+    messages,
+  };
+});
+
+const listMessages = p.query(async ({ ctx, params, searchParams }) => {
   const { rows: messages } = await ctx.dbs.default.query(
-    `SELECT * FROM chat_messages where channel_id = ? ORDER BY timestamp`,
-    [params.channelId]
+    `SELECT * FROM chat_messages where channel_id = ? AND thread_id = ? ORDER BY timestamp`,
+    [params.channelId, searchParams.threadId || null]
   );
   return messages.map((m: any) => {
     const metadata = JSON.parse(m.metadata);
@@ -22,6 +134,7 @@ const listMessages = p.query(async ({ ctx, params }) => {
       ...pick(
         m,
         "id",
+        "channelId",
         "threadId",
         "parentId",
         "role",
@@ -41,9 +154,11 @@ const listMessages = p.query(async ({ ctx, params }) => {
 });
 
 const sendMessage = p.mutate(async ({ ctx, params, req, errors }) => {
-  const { vectordb } = ctx.dbs;
+  const now = new Date();
+  const { default: sqlite, vectordb } = ctx.dbs;
   let request: {
     id: string;
+    thread: Partial<ChatThread>;
     message: string;
   };
   try {
@@ -54,7 +169,7 @@ const sendMessage = p.mutate(async ({ ctx, params, req, errors }) => {
 
   const channelId = params.channelId;
   if (!request.message) {
-    errors.badRequest("Message can't be empty");
+    errors.badRequest({ error: "Message can't be empty" });
   }
 
   // TODO(sagar): abstract several steps and use middleware like system
@@ -63,27 +178,84 @@ const sendMessage = p.mutate(async ({ ctx, params, req, errors }) => {
   // a plugin to provide additional context based on the prompt, or a plugin
   // to built agent like multi-step llm querries
   request.id = request.id || uniqueId();
+  request.thread = request.thread || { id: uniqueId() };
 
-  const { rows: channels } = await ctx.dbs.default.query(
-    `SELECT * FROM chat_channels WHERE id = ?`,
-    [channelId]
-  );
+  const channels = await sqlite
+    .query<any>(`SELECT * FROM chat_channels WHERE id = ?`, [channelId])
+    .then(
+      ({ rows }) =>
+        rows.map((row) => {
+          return {
+            id: row.id,
+            name: row.name,
+            metadata: JSON.parse(row.metadata),
+          };
+        }) as ChatChannel[]
+    );
+
+  const channel = channels[0];
   if (channels.length == 0) {
-    await ctx.dbs.default.query(`INSERT INTO chat_channels(id) VALUES (?)`, [
-      channelId,
-    ]);
+    return errors.badRequest({ error: "Channel doesn't exist" });
+  } else if (!channel.metadata.enableAI) {
+    return errors.internalServerError({ error: "Unsupported chat feature" });
   }
 
-  await ctx.dbs.default.query(
-    `INSERT INTO chat_messages(id, channel_id, role, message, timestamp) VALUES (?,?,?,?,?)`,
+  const threads = await sqlite
+    .query<any>(`SELECT * FROM chat_threads WHERE id = ? AND channel_id = ?`, [
+      channel.id,
+      request.thread.id,
+    ])
+    .then(
+      ({ rows }) =>
+        rows.map((row) => {
+          return {
+            id: row.id,
+            title: row.title,
+            metadata: JSON.parse(row.metadata),
+          };
+        }) as ChatThread[]
+    );
+
+  const thread = threads[0] || {
+    ...request.thread,
+    metadata: {
+      ai: {
+        model: request.thread.metadata || "gpt-3.5-turbo",
+      },
+    },
+  };
+
+  if (threads.length == 0) {
+    await sqlite.query(
+      `INSERT INTO chat_threads(id, channel_id, title, metadata, timestamp)
+      VALUES (?,?,?,?,?)`,
+      [
+        thread.id,
+        channel.id,
+        thread.title || "Untitiled",
+        JSON.stringify(thread.metadata),
+        now.getTime(),
+      ]
+    );
+  }
+
+  const threadMessages = await sqlite.query(
+    `SELECT * FROM chat_messages WHERE thread_id = ?`,
+    [request.thread.id]
+  );
+
+  await sqlite.query(
+    `INSERT INTO chat_messages(id, channel_id, thread_id, role, message, timestamp)
+    VALUES (?,?,?,?,?,?)`,
     [
       request.id,
       channelId,
+      request.thread.id,
       ctx.user?.id || "user",
       JSON.stringify({
         content: request.message,
       }),
-      new Date().getTime(),
+      now.getTime(),
     ]
   );
 
@@ -133,6 +305,7 @@ const sendMessage = p.mutate(async ({ ctx, params, req, errors }) => {
     response: llmQueryResponse,
     stream: aiResponseStream,
   } = await chatCompletion({
+    model: thread.metadata.ai.model,
     userId: openAiUserId,
     messages: [
       {
@@ -191,13 +364,14 @@ const sendMessage = p.mutate(async ({ ctx, params, req, errors }) => {
           }
         }
 
-        await ctx.dbs.default.query(
+        await sqlite.query(
           `INSERT INTO chat_messages
-            (id, channel_id, parent_id, role, message, model, metadata, timestamp)
-            VALUES (?,?,?,?,?,?,?,?)`,
+            (id, channel_id, thread_id, parent_id, role, message, model, metadata, timestamp)
+            VALUES (?,?,?,?,?,?,?,?,?)`,
           [
             aiResponseId,
             channelId,
+            request.thread.id,
             request.id,
             "ai",
             JSON.stringify(aiResponse),
@@ -231,4 +405,12 @@ const deleteMessage = p.delete(async ({ ctx, params }) => {
   return { success: true };
 });
 
-export { listChannels, listMessages, sendMessage, deleteMessage };
+export {
+  listChannels,
+  getChannel,
+  listThreads,
+  getThread,
+  listMessages,
+  sendMessage,
+  deleteMessage,
+};

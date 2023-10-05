@@ -7,7 +7,7 @@ import UploadIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/cl
 import EditIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/edit";
 import DeleteIcon from "@blueprintjs/icons/lib/esm/generated-icons/20px/paths/trash";
 import { Document } from "../types";
-import { ChatContext } from "../ChatContext";
+import { ChatContext } from "../chat/ChatContext";
 
 const SUPPORTED_FILE_TYPES = [
   ".md",
@@ -210,7 +210,7 @@ const DocumentTab = (props: {
         </div> */}
       </div>
       <div
-        class="flex-1 py-0.5 px-2 rounded cursor-pointer text-accent-12/80 hover:bg-accent-4"
+        class="flex-1 py-0.5 px-2 rounded cursor-pointer text-accent-12/80 text-ellipsis hover:bg-accent-4"
         classList={{
           "bg-brand-12/10": isEditMode(),
         }}

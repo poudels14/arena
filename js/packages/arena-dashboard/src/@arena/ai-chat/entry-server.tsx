@@ -53,13 +53,19 @@ const handler = chainMiddlewares<{ event: PageEvent }>(
       }
     : null,
   async ({ event }) => {
-    return await router.route(event.request, {
-      env: event.env,
-      context: {
-        user: null,
-        dbs,
-      },
-    });
+    try {
+      return await router.route(event.request, {
+        env: event.env,
+        context: {
+          user: {
+            id: "test-user",
+          },
+          dbs,
+        },
+      });
+    } catch (e) {
+      console.error(e);
+    }
   },
   renderAsync(({ event }) => {
     return <ServerRoot event={event} Root={Root} />;

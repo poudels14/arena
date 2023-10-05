@@ -51,7 +51,9 @@ class DocumentEmbeddingsGenerator {
   async getChunkEmbeddings(chunks: Splitter.DocumentChunk[]) {
     const embeddings = await this.getTextEmbeddings(
       chunks.map((c) => c.content)
-    );
+    ).catch((e) => {
+      throw new Error("Error generating text embeddings");
+    });
     return embeddings.map((vectors, idx) => {
       const { position, content, metadata } = chunks[idx];
       const { start, end } = position;
