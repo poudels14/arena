@@ -6,11 +6,14 @@ import { DocumentEmbeddingsGenerator } from "../EmbeddingsGenerator";
 const embeddingsGenerator = new DocumentEmbeddingsGenerator();
 
 const listPlugins = p.query(async ({ ctx }) => {
-  const { default: sql } = ctx.dbs;
-  const { rows: plugins } = await sql.query<any>(`SELECT * FROM plugins`);
+  const { default: sql, vectordb } = ctx.dbs;
+
+  const { rows: plugins } = await sql.query<any>(
+    `SELECT * FROM installed_plugins`
+  );
   return plugins.map((plugin) => {
     return {
-      ...pick(plugin, "id", "name", "version"),
+      ...pick(plugin, "id", "name", "description", "version"),
       installedAt: new Date(plugin.installedAt).toISOString(),
     };
   });
@@ -25,13 +28,20 @@ const searchPlugins = p.query(async ({ ctx, searchParams, errors }) => {
 
   const generator = new DocumentEmbeddingsGenerator();
   const embeddings = await generator.getTextEmbeddings([searchParams.query]);
-  const results = await db.searchCollection("plugins", embeddings[0], 5, {
-    includeChunkContent: true,
-    contentEncoding: "utf-8",
-    minScore: 0.75,
-  });
 
-  return results.map((r) => {
+  const now = performance.now();
+  const results = await db.searchCollection(
+    "plugin_functions",
+    embeddings[0],
+    5,
+    {
+      includeChunkContent: true,
+      contentEncoding: "utf-8",
+      minScore: 0.75,
+    }
+  );
+
+  return results.embeddings.map((r) => {
     const slashIndex = r.documentId.lastIndexOf("/");
     const pluginId = r.documentId.substring(0, slashIndex);
     const functionName = r.documentId.substring(slashIndex);
@@ -48,13 +58,17 @@ const searchPlugins = p.query(async ({ ctx, searchParams, errors }) => {
 
 const installPlugin = p.mutate(async ({ req, ctx, errors }) => {
   const { default: mainDb, vectordb } = ctx.dbs;
-  const pluginsToInstall = (await req.json()) as { id: string }[];
+  const pluginsToInstall = (await req.json()) as {
+    id: string;
+    version: string;
+  }[];
 
   const { rows: existingPlugins } = await mainDb.query<{ id: string }>(
-    `SELECT * FROM plugins WHERE id = ?`,
+    `SELECT * FROM installed_plugins WHERE id = ?`,
     pluginsToInstall.map((p) => p.id)
   );
 
+  // TODO(sagar): check version
   const newPlugins = pluginsToInstall.filter(
     (p) => !existingPlugins.find((ep) => ep.id !== p.id)
   );
@@ -74,17 +88,32 @@ const installPlugin = p.mutate(async ({ req, ctx, errors }) => {
   }
 
   const manifest: Manifest = await manifestReq.json();
+
+  await mainDb.query(
+    `INSERT INTO installed_plugins (id, name, description, version, installed_at)
+    VALUES (?,?,?,?,?)`,
+    [
+      pluginId,
+      manifest.name,
+      manifest.description || null,
+      manifest.version,
+      new Date().getTime(),
+    ]
+  );
+
   const { llm, workflows } = manifest;
   await Promise.all(
     workflows!.map(async (query) => {
       const queryId = `${pluginId}/${query.slug}`;
       const content = JSON.stringify(query);
 
-      await vectordb.deleteDocument("plugins", queryId).catch(() => {});
-      await vectordb.addDocument("plugins", queryId, {
+      await vectordb
+        .deleteDocument("plugin_functions", queryId)
+        .catch(() => {});
+      await vectordb.addDocument("plugin_functions", queryId, {
         content,
         metadata: {
-          type: "query",
+          type: "workflow",
         },
       });
 
@@ -104,7 +133,11 @@ const installPlugin = p.mutate(async ({ req, ctx, errors }) => {
         })
       );
 
-      await vectordb.setDocumentEmbeddings("plugins", queryId, embeddings);
+      await vectordb.setDocumentEmbeddings(
+        "plugin_functions",
+        queryId,
+        embeddings
+      );
     })
   );
 

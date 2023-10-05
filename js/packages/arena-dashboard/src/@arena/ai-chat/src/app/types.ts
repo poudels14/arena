@@ -19,6 +19,12 @@ export namespace Chat {
     id: string;
     channelId: string;
     title: string;
+    /**
+     * If a thread is blocked, this field is set.
+     * The thread will be blocked when AI is generating response or
+     * a workflow is running
+     */
+    blockedBy?: string | null;
     metadata: {
       ai: {
         model: string;
@@ -26,11 +32,6 @@ export namespace Chat {
     };
     timestamp: number;
 
-    /**
-     * If a thread is blocked, user can't send the message.
-     * The thread should be blocked when AI is generating response
-     */
-    blocked: boolean;
     messages: Message[];
   };
 
@@ -47,13 +48,18 @@ export namespace Chat {
     threadId: string | null;
     message: {
       role: string;
-      content: string | Accessor<string>;
+      function_call?: string;
+      content?: string;
     };
     role: string;
     timestamp: number;
     userId: string | null;
     metadata: {
       documents?: { documentId: string; score: number }[];
+      function?: {
+        type: "workflow";
+        id: string;
+      };
     } | null;
     /**
      * Set to true if this message is currently being streamed

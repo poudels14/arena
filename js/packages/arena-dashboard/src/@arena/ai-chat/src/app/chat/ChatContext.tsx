@@ -1,13 +1,7 @@
-import {
-  createSignal,
-  createContext,
-  createComputed,
-  createEffect,
-  batch,
-} from "solid-js";
+import { createContext, createComputed, createEffect, batch } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { useAppContext } from "@arena/sdk/app";
-import { Store, StoreSetter, createStore } from "@arena/solid-store";
+import { $RAW, Store, StoreSetter, createStore } from "@arena/solid-store";
 import { MutationQuery, createMutationQuery } from "@arena/uikit/solid";
 import { uniqueId } from "@arena/sdk/utils/uniqueId";
 import { jsonStreamToAsyncIterator } from "@arena/sdk/utils/stream";
@@ -61,7 +55,7 @@ const ChatContextProvider = (props: any) => {
       const threadId = activeThreadId || messageId;
 
       // If it's a new thread, set the initial state
-      setState("threads", threadId, "blocked", true);
+      setState("threads", threadId, "blockedBy", "UI");
       setState("threads", threadId, "messages", (prev = []) => {
         return [
           ...prev,
@@ -101,7 +95,7 @@ const ChatContextProvider = (props: any) => {
       );
 
       if (res.status == 200) {
-        await readMessageStream(channelId, threadId, res, setState);
+        await readMessageStream(channelId, threadId, res, state, setState);
       } else {
         setState("errors", (prev) => {
           return [
@@ -114,7 +108,9 @@ const ChatContextProvider = (props: any) => {
           ];
         });
       }
-      setState("threads", threadId, "blocked", false);
+      setState("threads", threadId, "blockedBy", (prev) => {
+        return prev == "UI" ? null : prev;
+      });
     }
   );
 
@@ -151,8 +147,11 @@ const ChatContextProvider = (props: any) => {
         });
         setState("threads", (prev) => {
           const newThreads = { ...prev };
+          // TODO(sagar): reconcile
           threads.forEach((t: Chat.Thread) => {
-            newThreads[t.id] = t;
+            if (!newThreads[t.id]) {
+              newThreads[t.id] = t;
+            }
           });
           return newThreads;
         });
@@ -165,19 +164,26 @@ const ChatContextProvider = (props: any) => {
     const threadId = state.activeThreadId()!;
     if ((channelId && channelId != prev[0]) || threadId != prev[1]) {
       if (threadId) {
-        fetchThread(channelId, threadId).then((thread: Chat.Thread) => {
-          // TODO(sagar): reconcile
-          const { messages, ...rest } = thread;
-          setState("threads", threadId, rest);
-          setState("threads", threadId, "messages", (prev = []) => {
-            const newMessages = messages.filter(
-              (m) => !prev.find((p) => p.id == m.id)
-            );
-            return [...prev, ...newMessages].sort(
-              (a, b) => a.timestamp - b.timestamp
-            );
+        fetchThread(channelId, threadId)
+          .then((thread: Chat.Thread) => {
+            // TODO(sagar): reconcile
+            const { messages, ...rest } = thread;
+            setState("threads", threadId, rest);
+            setState("threads", threadId, "messages", (prev = []) => {
+              // TODO(sagar): reconcile existing messages
+              const newMessages = messages.filter(
+                (m) => !prev.find((p) => p.id == m.id)
+              );
+              return [...prev, ...newMessages].sort(
+                (a, b) => a.timestamp - b.timestamp
+              );
+            });
+          })
+          .catch((e) => {
+            if (e.status == 404) {
+              navigate(`/chat/${channelId}`);
+            }
           });
-        });
       }
     }
     return [channelId, threadId];
@@ -196,47 +202,85 @@ const readMessageStream = async (
   channelId: string,
   threadId: string,
   res: any,
+  state: Store<ChatState>,
   setState: StoreSetter<ChatState>
 ) => {
   const stream = jsonStreamToAsyncIterator(res.body);
-  let messageId: string | undefined;
+  let streamingMessageId: string | undefined;
+  let messageIdx: number | undefined;
 
-  const content = createSignal("");
   for await (const { json: chunk } of stream) {
-    if (chunk.id) {
-      messageId = chunk.id;
-      setState("threads", threadId, "messages", (prev) => {
-        const messages = prev.filter((p) => p.id !== messageId);
-        messages.push({
-          id: messageId!,
-          threadId,
-          message: {
-            role: "ai",
-            content: content[0],
-          },
-          role: "ai",
-          userId: null,
-          channelId,
-          timestamp: chunk.timestamp,
-          metadata: chunk.metadata,
-          streaming: true,
+    const { message, thread } = chunk;
+    if (message) {
+      if (messageIdx == undefined && message.id) {
+        streamingMessageId = message.id;
+
+        setState("threads", threadId, "messages", (prev) => {
+          messageIdx = prev.length;
+          const messages = [
+            ...prev,
+            {
+              id: message.id!,
+              threadId,
+              message: {
+                role: "assistant",
+                content: "",
+              },
+              role: "ai",
+              userId: null,
+              channelId,
+              timestamp: message.timestamp,
+              metadata: message.metadata,
+              streaming: true,
+            },
+          ];
+          messages.sort((a, b) => a.timestamp - b.timestamp);
+          return messages;
         });
-        return messages;
+      } else {
+        const allMessages = state.threads[threadId].messages[$RAW];
+        if (allMessages[messageIdx!].id != message.id) {
+          messageIdx = allMessages.findIndex((m) => m.id == message.id);
+          if (messageIdx == undefined) {
+            throw new Error("Something unexpected happened");
+          }
+        }
+
+        if (message.delta?.content) {
+          setState(
+            "threads",
+            threadId,
+            "messages",
+            messageIdx!,
+            "message",
+            "content",
+            (prev) => prev + message.delta.content
+          );
+        }
+        if (message.metadata) {
+          setState(
+            "threads",
+            threadId,
+            "messages",
+            messageIdx!,
+            "metadata",
+            message.metadata
+          );
+        }
+      }
+    }
+    if (thread) {
+      setState("threads", thread.id, (prev) => {
+        return {
+          ...prev,
+          ...thread,
+        };
       });
-    }
-
-    if (chunk.delta?.content) {
-      content[1](content[0]() + chunk.delta.content);
-    }
-
-    if (!messageId) {
-      // Note(sagar): message id must be sent in the fist message
-      throw new Error("Expected to received message id in the first chunk");
     }
   }
   setState("threads", threadId, "messages", (prev) => {
     return prev.map((m) => {
-      if (m.id == messageId) {
+      if (m.id == streamingMessageId) {
         return {
           ...m,
           streaming: undefined,

@@ -5,6 +5,7 @@ import { merge } from "lodash-es";
 type ChatCompletionRequest = {
   url?: string;
   model?: "gpt-3.5-turbo" | string;
+  stream: boolean;
   temperature?: number;
   max_tokens?: number;
   userId: string;
@@ -23,7 +24,10 @@ type ChatCompletionRequest = {
 type ChatCompletionResponse = {
   request: ChatCompletionRequest;
   response: Response<any>;
-  stream: ReturnType<typeof jsonStreamToAsyncIterator>;
+  /**
+   * null if request.stream is false
+   */
+  stream: ReturnType<typeof jsonStreamToAsyncIterator> | null;
 };
 
 namespace OpenAIChat {
@@ -61,12 +65,12 @@ async function chatCompletion(
     {
       user: request.userId,
       model: request.model,
-      stream: true,
+      stream: request.stream,
       messages: request.messages,
       functions: request.functions,
     },
     {
-      responseType: "stream",
+      responseType: request.stream ? "stream" : "json",
       headers: {
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       },
@@ -76,7 +80,7 @@ async function chatCompletion(
   return {
     request,
     response: res,
-    stream: jsonStreamToAsyncIterator(res.body!),
+    stream: request.stream ? jsonStreamToAsyncIterator(res.body!) : null,
   };
 }
 

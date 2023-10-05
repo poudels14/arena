@@ -67,11 +67,12 @@ const searchDocuments = p.query(async ({ ctx, searchParams }) => {
 
   const generator = new DocumentEmbeddingsGenerator();
   const embeddings = await generator.getTextEmbeddings([searchParams.query]);
-  return await db.searchCollection("uploads", embeddings[0], 10, {
+  const results = await db.searchCollection("uploads", embeddings[0], 10, {
     includeChunkContent: true,
     contentEncoding: "utf-8",
     minScore: 0.7,
   });
+  return results.embeddings;
 });
 
 const updateDocument = p.mutate(async ({ ctx, req, params, errors }) => {

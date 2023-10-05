@@ -27,6 +27,7 @@ import { Store } from "@arena/solid-store";
 import { useNavigate } from "@solidjs/router";
 import { DocumentViewer } from "./DocumentViewer";
 import { EmptyAIThread } from "./EmptyAIThread";
+import { PluginWorkflow } from "./PluginWorkflow";
 
 hljs.registerLanguage("javascript", jsGrammar);
 hljs.registerLanguage("css", cssGrammar);
@@ -77,7 +78,7 @@ const AIChat = (props: { channelId: string; threadId: string }) => {
             <Switch>
               <Match when={Boolean(props.threadId)}>
                 <For each={messages()!}>
-                  {(m, index) => {
+                  {(_, index) => {
                     const msgArr = messages()!;
                     // Note(sagar): use state directly to only update message
                     // content element when streaming
@@ -99,11 +100,22 @@ const AIChat = (props: { channelId: string; threadId: string }) => {
                     }
 
                     return (
-                      <ChatMessage
-                        state={state}
-                        message={message}
-                        showDocument={setDrawerDocument}
-                      />
+                      <Switch>
+                        <Match
+                          when={
+                            message.metadata.function?.type!() == "workflow"
+                          }
+                        >
+                          <PluginWorkflow />
+                        </Match>
+                        <Match when={message.message.content!()}>
+                          <ChatMessage
+                            state={state}
+                            message={message}
+                            showDocument={setDrawerDocument}
+                          />
+                        </Match>
+                      </Switch>
                     );
                   }}
                 </For>
@@ -139,9 +151,7 @@ const AIChat = (props: { channelId: string; threadId: string }) => {
               </div>
             </Show>
           </div>
-          <Chatbox
-            isGeneratingResponse={state.threads[props.threadId].blocked}
-          />
+          <Chatbox thread={state.threads[props.threadId]} />
         </div>
       </div>
       <Show when={drawerDocument()}>
@@ -155,9 +165,11 @@ const AIChat = (props: { channelId: string; threadId: string }) => {
 };
 
 const ThreadInfo = (props: { threadId: string }) => {
+  const { state } = useContext(ChatContext)!;
   return (
     <div class="h-10 bg-brand-10/20">
-      <div>Thread info</div>
+      {/* <div>Thread info</div>
+      <div>BLOCKED: {state.threads[props.threadId].blockedBy!()}</div> */}
     </div>
   );
 };
@@ -168,9 +180,9 @@ const ChatMessage = (props: {
   showDocument(doc: any): void;
 }) => {
   const tokens = createMemo(() => {
-    const content = props.message.message.content();
+    const content = props.message.message.content!();
     if (content) {
-      return marked.lexer(typeof content == "function" ? content() : content);
+      return marked.lexer(content);
     }
     return null;
   });
@@ -276,7 +288,7 @@ const ChatMessage = (props: {
   );
 };
 
-const Chatbox = (props: { isGeneratingResponse(): boolean }) => {
+const Chatbox = (props: { thread: Store<Chat.Thread> }) => {
   const { state, sendNewMessage } = useContext(ChatContext)!;
   const [getMessage, setMessage] = createSignal("");
   const [getTextareaHeight, setTextareaHeight] = createSignal(
@@ -324,7 +336,7 @@ const Chatbox = (props: { isGeneratingResponse(): boolean }) => {
     if (
       e.key == "Enter" &&
       !e.shiftKey &&
-      !props.isGeneratingResponse() &&
+      !props.thread.blockedBy!() &&
       value.trim().length > 0
     ) {
       submitForm();

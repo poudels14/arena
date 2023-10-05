@@ -17,6 +17,12 @@ type ChatChannel = {
 type ChatThread = {
   id: string;
   title: string;
+  /**
+   * If a thread is blocked, this field is set to whoever blocked the
+   * thread. For example, the thread will be blocked when a workflow
+   * is running
+   */
+  blockedBy?: string;
   metadata: {
     ai: {
       model: string;
@@ -144,10 +150,8 @@ const listMessages = p.query(async ({ ctx, params, searchParams }) => {
       ),
       message: JSON.parse(m.message),
       metadata: {
-        documents: uniqBy(
-          metadata?.documents.map((d: any) => pick(d, "documentId", "score")),
-          (d: any) => d.documentId
-        ),
+        documents: uniqBy(metadata?.documents, (d: any) => d.documentId),
+        function: metadata?.function,
       },
     };
   });
@@ -245,13 +249,14 @@ const sendMessage = p.mutate(async ({ ctx, params, req, errors }) => {
   );
 
   await sqlite.query(
-    `INSERT INTO chat_messages(id, channel_id, thread_id, role, message, timestamp)
-    VALUES (?,?,?,?,?,?)`,
+    `INSERT INTO chat_messages(id, channel_id, thread_id, role, user_id, message, timestamp)
+    VALUES (?,?,?,?,?,?,?)`,
     [
       request.id,
       channelId,
       request.thread.id,
-      ctx.user?.id || "user",
+      "user",
+      ctx.user?.id,
       JSON.stringify({
         content: request.message,
       }),
@@ -261,7 +266,7 @@ const sendMessage = p.mutate(async ({ ctx, params, req, errors }) => {
 
   const generator = new DocumentEmbeddingsGenerator();
   const embeddings = await generator.getTextEmbeddings([request.message]);
-  const documentsSearchResults = await vectordb.searchCollection(
+  const { embeddings: documentEmbeddings } = await vectordb.searchCollection(
     "uploads",
     embeddings[0],
     4,
@@ -272,18 +277,14 @@ const sendMessage = p.mutate(async ({ ctx, params, req, errors }) => {
     }
   );
 
-  const pluginsSearchResults = await vectordb.searchCollection(
-    "plugins",
-    embeddings[0],
-    5,
-    {
+  const { documents: pluginFunctions, embeddings: pluginEmbeddings } =
+    await vectordb.searchCollection("plugin_functions", embeddings[0], 5, {
       includeChunkContent: true,
       contentEncoding: "utf-8",
       minScore: 0.75,
-    }
-  );
+    });
 
-  const aiFunctions = pluginsSearchResults.map((r) => {
+  const aiFunctions = pluginEmbeddings.map((r) => {
     const fn = JSON.parse(r.content);
     return {
       id: r.documentId,
@@ -307,6 +308,7 @@ const sendMessage = p.mutate(async ({ ctx, params, req, errors }) => {
   } = await chatCompletion({
     model: thread.metadata.ai.model,
     userId: openAiUserId,
+    stream: true,
     messages: [
       {
         role: "system",
@@ -317,7 +319,7 @@ const sendMessage = p.mutate(async ({ ctx, params, req, errors }) => {
             {
               content: "Current date/time is: " + new Date().toISOString(),
             },
-            ...documentsSearchResults,
+            ...documentEmbeddings,
           ],
           has_functions: aiFunctions.length > 0,
         }),
@@ -339,35 +341,74 @@ const sendMessage = p.mutate(async ({ ctx, params, req, errors }) => {
     async start(controller) {
       controller.enqueue(
         JSON.stringify({
-          id: aiResponseId,
-          timestamp: aiResponseTime.getTime(),
-          metadata: {
-            documents: documentsSearchResults.map((r) =>
-              pick(r, "documentId", "score")
-            ),
+          message: {
+            id: aiResponseId,
+            timestamp: aiResponseTime.getTime(),
           },
         })
       );
 
       try {
-        for await (const data of aiResponseStream) {
+        let matchedFunctionCall: (typeof aiFunctions)[0] | undefined;
+        for await (const data of aiResponseStream!) {
           if (data.json) {
             const { delta } = data.json.choices[0];
             aiResponse = mergeDelta(aiResponse, delta);
             if (delta.function_call?.name) {
-              // @ts-expect-error
-              aiResponse.function_call!.id = aiFunctions.find(
+              matchedFunctionCall = aiFunctions.find(
                 (f) => f.name == delta.function_call?.name
-              )!.id;
+              );
             }
-            controller.enqueue(JSON.stringify({ delta }));
+            controller.enqueue(
+              JSON.stringify({
+                message: {
+                  id: aiResponseId,
+                  delta,
+                },
+              })
+            );
           }
+        }
+
+        const metadata = {
+          documents: documentEmbeddings.map((r) =>
+            omit(r, "content", "context")
+          ),
+          function: {
+            type: pluginFunctions.find((f) => f.id == matchedFunctionCall?.id)
+              ?.metadata?.type,
+            ...pick(matchedFunctionCall, "id"),
+          },
+        };
+
+        controller.enqueue(
+          JSON.stringify({
+            message: {
+              id: aiResponseId,
+              metadata,
+            },
+          })
+        );
+
+        if (metadata.function?.type == "workflow") {
+          controller.enqueue(
+            JSON.stringify({
+              thread: {
+                id: request.thread.id,
+                blockedBy: "workflow",
+              },
+            })
+          );
+          await sqlite.query(
+            `UPDATE chat_threads SET blocked_by = 'workflow' WHERE id = ? AND channel_id = ?`,
+            [thread.id, channel.id]
+          );
         }
 
         await sqlite.query(
           `INSERT INTO chat_messages
-            (id, channel_id, thread_id, parent_id, role, message, model, metadata, timestamp)
-            VALUES (?,?,?,?,?,?,?,?,?)`,
+            (id, channel_id, thread_id, parent_id, role, message, metadata, timestamp)
+            VALUES (?,?,?,?,?,?,?,?)`,
           [
             aiResponseId,
             channelId,
@@ -375,19 +416,43 @@ const sendMessage = p.mutate(async ({ ctx, params, req, errors }) => {
             request.id,
             "ai",
             JSON.stringify(aiResponse),
-            llmQueryRequest.model,
-            JSON.stringify({
-              documents: documentsSearchResults.map((r) =>
-                omit(r, "content", "context")
-              ),
-            }),
+            JSON.stringify(metadata),
             aiResponseTime.getTime(),
           ]
         );
+
+        if (!thread.title) {
+          const title = await generateThreadTitle({
+            model: thread.metadata.ai.model,
+            userId: openAiUserId,
+            messages: [
+              {
+                role: "user",
+                content: request.message,
+              },
+              aiResponse,
+            ],
+          });
+          if (title) {
+            await sqlite.query(
+              `UPDATE chat_threads SET title = ? WHERE id = ? AND channel_id = ?`,
+              [title, thread.id, channel.id]
+            );
+            controller.enqueue(
+              JSON.stringify({
+                thread: {
+                  id: request.thread.id,
+                  title,
+                },
+              })
+            );
+          }
+        }
       } catch (e) {
         controller.error(e);
+      } finally {
+        controller.close();
       }
-      controller.close();
     },
   });
 
@@ -404,6 +469,28 @@ const deleteMessage = p.delete(async ({ ctx, params }) => {
   );
   return { success: true };
 });
+
+const generateThreadTitle = async (req: {
+  model: string;
+  userId: string;
+  messages: any[];
+}) => {
+  const { request, response } = await chatCompletion({
+    model: req.model,
+    userId: req.userId,
+    stream: false,
+    messages: [
+      {
+        role: "system",
+        content:
+          "Generate a title of the following query in just a few words for the following text. don't use quotes. make it as short as possible",
+      },
+      ...req.messages.filter((m) => m.content),
+    ],
+  });
+
+  return response.data.choices[0].message.content.replaceAll(/(^")|("$)/g, "");
+};
 
 export {
   listChannels,

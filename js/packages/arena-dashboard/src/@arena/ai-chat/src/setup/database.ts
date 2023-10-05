@@ -36,6 +36,8 @@ const main: SqliteDatabaseConfig = {
         id          TEXT NOT NULL,
         channel_id  TEXT NOT NULL,
         title       TEXT NOT NULL,
+        -- null if the thread isn't blocked
+        blocked_by  TEXT,
         metadata    TEXT NOT NULL, -- in JSON format
         timestamp   INTEGER
       )`);
@@ -52,8 +54,6 @@ const main: SqliteDatabaseConfig = {
         role        TEXT NOT NULL,
         user_id     TEXT,
         message     TEXT NOT NULL,
-        -- ai model name; only set if the role is 'ai'
-        model       TEXT,
         -- in JSON format
         metadata    TEXT,
         timestamp   INTEGER
@@ -74,9 +74,10 @@ const main: SqliteDatabaseConfig = {
     },
     {
       async up(mainDb: SqliteDatabaseClient) {
-        await mainDb.query(`CREATE TABLE plugins (
+        await mainDb.query(`CREATE TABLE installed_plugins (
         id            TEXT NOT NULL,
         name          TEXT NOT NULL,
+        description   TEXT,
         version       TEXT NOT NULL,
         installed_at  INTEGER NOT NULL
       )`);
@@ -96,7 +97,7 @@ const vectordb: ArenaVectorDatabase.Config = {
     },
     {
       async up(db: any) {
-        await db.query(`CREATE TABLE plugins (dimension vector(384))`);
+        await db.query(`CREATE TABLE plugin_functions (dimension vector(384))`);
       },
     },
   ],

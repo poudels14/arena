@@ -68,17 +68,26 @@ const Documents = () => {
         <LinkNewDocument />
       </div>
       <div>
-        <For each={state.documents()}>
-          {(document) => {
-            return (
-              <DocumentTab
-                {...document}
-                renameDocument={renameDocument}
-                deleteDocument={deleteDocument}
-              />
-            );
-          }}
-        </For>
+        <Switch>
+          <Match when={state.documents()!.length > 0}>
+            <For each={state.documents()}>
+              {(document) => {
+                return (
+                  <DocumentTab
+                    {...document}
+                    renameDocument={renameDocument}
+                    deleteDocument={deleteDocument}
+                  />
+                );
+              }}
+            </For>
+          </Match>
+          <Match when={true}>
+            <div class="text-xs text-center text-gray-400">
+              No documents linked yet
+            </div>
+          </Match>
+        </Switch>
       </div>
     </Show>
   );

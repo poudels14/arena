@@ -12,7 +12,7 @@ const Sidebar = () => {
   const isTabActive = createSelector(sidebarState.tab.selected);
 
   return (
-    <div class="w-52 h-screen text-sm bg-accent-1">
+    <div class="w-52 h-screen text-sm bg-accent-1 shadow">
       <div class="p-2">
         {/* <SidebarTabs
           isTabActive={isTabActive}
