@@ -16,6 +16,7 @@ export type AddDocumentPayload = {
   // a map of key, value to store arbiraty blobs corresponding to the document
   // this can be used to store original document, html, etc of the doc
   blobs?: Record<string, string | ArrayBuffer | null>;
+  metadata?: any;
 };
 
 export type DocumentEmbeddings = {
@@ -111,7 +112,9 @@ export type Client = {
   deleteDocument(collectionId: string, documentId: string): Promise<void>;
 
   /**
-   * Search embeddings in a collection by the given query vector
+   * Search embeddings in a collection by the given query vector.
+   *
+   * Returns [{matched_embeddings}, {search_metadata}]
    *
    * @param collectionId collection id
    * @param queryVector the vector of the query
@@ -122,5 +125,5 @@ export type Client = {
     queryVector: number[],
     k: number,
     options?: SearchCollectionOptions
-  ): Promise<SearchCollectionResult[]>;
+  ): Promise<[SearchCollectionResult[], any]>;
 };

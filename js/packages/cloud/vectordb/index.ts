@@ -145,7 +145,7 @@ class VectorDatabase implements Client {
     queryVector: number[],
     k: number,
     options?: SearchCollectionOptions
-  ): Promise<SearchCollectionResult[]> {
+  ): Promise<[SearchCollectionResult[], any]> {
     assert.notNil(collectionId, "Collection id");
     return await opAsync(
       "op_cloud_vectordb_search_collection",

@@ -1,10 +1,12 @@
-use super::SearchOptions;
+use super::{MatchedEmbedding, SearchMetrics, SearchOptions};
 use crate::db::rocks::cf::DatabaseColumnFamily;
 use crate::db::storage::embeddings::StoredEmbeddings;
 use crate::db::storage::{self};
 use crate::db::{lock_error, VectorDatabase};
 use crate::storage::row::RowId;
-use crate::vectors::scoring::sortedscore::SortedSimilarityScores;
+use crate::vectors::scoring::sortedscore::{
+  ItemWithScore, SortedSimilarityScores,
+};
 use crate::vectors::scoring::{SimilarityScorerFactory, SimilarityType};
 use crate::vectors::VectorElement;
 use anyhow::{bail, Result};
@@ -32,7 +34,7 @@ impl<'a> FsSearch<'a> {
     query: &[VectorElement],
     k: usize,
     options: SearchOptions,
-  ) -> Result<Vec<(f32, (RowId, u32, u32, u32, IndexMap<String, Value>))>> {
+  ) -> Result<(Vec<MatchedEmbedding>, SearchMetrics)> {
     let collection = self.db.get_internal_collection(collection_id)?;
     let collection = collection.lock().map_err(lock_error)?;
 
@@ -52,10 +54,15 @@ impl<'a> FsSearch<'a> {
     let mut scores = SortedSimilarityScores::new(k);
     let min_score = options.min_score.unwrap_or(0.0);
 
+    let mut metrics = SearchMetrics {
+      total_embeddings_scanned: 0,
+    };
+
     embeddings_cf
       .prefix_iterator_opt(&collection.index.to_be_bytes(), read_options)
       .filter_map(|embedding| embedding.ok())
       .for_each(|(key, embedding)| {
+        metrics.total_embeddings_scanned += 1;
         let embedding =
           unsafe { rkyv::archived_root::<StoredEmbeddings>(&embedding) };
         let score = scorer.similarity(&query, &embedding.vectors);
@@ -77,24 +84,27 @@ impl<'a> FsSearch<'a> {
         }
       });
 
-    scores
-      .as_vec()
-      .iter()
-      .map(|(score, info)| {
-        Ok((
-          score.to_owned(),
-          (
-            RowId {
+    Ok((
+      scores
+        .as_vec()
+        .iter()
+        .map(|ItemWithScore(score, info)| {
+          Ok(MatchedEmbedding {
+            score: score.to_owned(),
+            row_id: RowId {
               collection_index: collection.index,
               row_index: info.0,
             },
-            info.1,
-            info.2,
-            info.3,
-            rmp_serde::from_slice::<IndexMap<String, Value>>(&info.4)?,
-          ),
-        ))
-      })
-      .collect()
+            chunk_index: info.1,
+            embedding_start: info.2,
+            embedding_end: info.3,
+            metadata: rmp_serde::from_slice::<IndexMap<String, Value>>(
+              &info.4,
+            )?,
+          })
+        })
+        .collect::<Result<Vec<MatchedEmbedding>>>()?,
+      metrics,
+    ))
   }
 }
