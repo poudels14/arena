@@ -9,6 +9,7 @@ import {
 import { Handler, ProcedureCallback } from "./procedure";
 import { errors } from "./errors";
 import { parseFormData } from "./formdata";
+import { generateResponse } from "./response";
 
 type RouterConfig<Context> = {
   host?: string;
@@ -111,39 +112,60 @@ const createRouter = <Context>(
           ]);
         };
 
-        // @ts-expect-error
-        request.cookies = parseCookie(request.headers.get("Cookie") || "");
-        // @ts-expect-error
-        const res: Response = await routeHandler(
-          {
-            req: request,
-            env: meta.env || {},
-            ctx: meta.context || {},
-            params: route?.params || {},
-            searchParams: route?.searchParams || {},
-            errors,
-            setHeader,
-            redirect,
-            setCookie,
-            clearCookie,
-            form: {
-              multipart: parseFormData,
+        let response;
+        try {
+          // @ts-expect-error
+          response = routeHandler(
+            {
+              req: request,
+              env: meta.env || {},
+              ctx: meta.context || {},
+              params: route?.params || {},
+              searchParams: route?.searchParams || {},
+              errors,
+              setHeader,
+              redirect,
+              cookies: parseCookie(request.headers.get("Cookie") || ""),
+              setCookie,
+              clearCookie,
+              form: {
+                multipart: parseFormData,
+              },
             },
-          },
-          {
-            middlewares: config.middleware ? [config.middleware] : null,
+            {
+              middlewares: config.middleware ? [config.middleware] : null,
+            }
+          );
+          if (response?.then) {
+            response = await response;
           }
-        );
+        } catch (e) {
+          response = e;
+        }
 
-        _resInternal.headers.forEach((h) => {
-          res.headers.set(h[0], h[1]);
-        });
+        /**
+         * Only return a valid response, else return undefined so that
+         * server can return proper error message. Alternatively, the
+         * router can be chained with some other handler if undefined
+         * is returned
+         */
+        if (response) {
+          const res: Response = generateResponse(response);
 
-        _resInternal.cookies.forEach(([name, value, options]) => {
-          res.headers.set("Set-Cookie", serializeCookie(name, value, options));
-        });
+          _resInternal.headers.forEach((h) => {
+            res.headers.set(h[0], h[1]);
+          });
 
-        return res;
+          _resInternal.cookies.forEach(([name, value, options]) => {
+            res.headers.set(
+              "Set-Cookie",
+              serializeCookie(name, value, options)
+            );
+          });
+
+          return res;
+        }
+        return undefined;
       }
     },
     listRoutes() {

@@ -1,6 +1,5 @@
 // @ts-expect-error
 import { CookieSerializeOptions } from "cookie";
-import { generateResponse } from "./response";
 
 type RequestEvent<Context> = {
   req: Request;
@@ -70,20 +69,7 @@ const createHandler = <Context>(
           next: generateNextFn(currIdx + 1),
         });
     };
-
-    let response;
-    try {
-      response = finalFns[0]({ ...event, next: generateNextFn(0) });
-    } catch (e) {
-      response = e;
-    }
-
-    if (!response) {
-      return generateResponse(new Error("Middleware should return"));
-    } else if (response instanceof Promise) {
-      response = await response.catch((e) => e);
-    }
-    return generateResponse(response);
+    return finalFns[0]({ ...event, next: generateNextFn(0) });
   };
 };
 
