@@ -31,13 +31,12 @@ pub struct DatabaseOptions {
   pub enable_statistics: bool,
 }
 
-/// Document vector database stores documents, their chunks and embeddings for
-/// each chunks. The chunks are stored as indices of (begin, end) bytes of the
-/// chunks. This prevents storing duplicate data for each document; first the
-/// entire document and next for each chunks.
+/// Document vector database stores documents, embeddings for each of their
+/// chunks
 ///
-/// Documents and chunks can have metadata associated with them. When querying
-/// the index, the metadata for matched chunk and documents are returned.
+/// Documents and embeddings can have metadata associated with them.
+/// When querying the index, the metadata for matched chunk and documents
+/// are returned.
 #[allow(dead_code)]
 pub struct VectorDatabase {
   pub(crate) path: String,
@@ -206,7 +205,7 @@ impl<'d> VectorDatabase {
       index: collection.next_doc_index,
       id: doc_id.into(),
       content_length: doc.content.len() as u32,
-      chunks_count: 0,
+      embeddings_count: 0,
       metadata: doc.metadata,
     };
 
@@ -266,7 +265,7 @@ impl<'d> VectorDatabase {
 
   // TODO(sagar): make it so that chunks can only be added one time
   // This is necessary to index the chunks
-  /// Adds document chunks and their embeddings to the database
+  /// Adds document embeddings to the database
   #[allow(dead_code)]
   pub fn set_document_embeddings(
     &mut self,
@@ -281,8 +280,8 @@ impl<'d> VectorDatabase {
     let mut document = documents_h
       .get_by_id(&doc_id)?
       .context(format!("Couldn't find document with id = {}", doc_id))?;
-    if document.chunks_count > 0 {
-      bail!("Document chunks already added. To replace, delete them first");
+    if document.embeddings_count > 0 {
+      bail!("Document embeddings already added. To replace, delete them first");
     }
 
     let embeddings_h =
@@ -312,13 +311,13 @@ impl<'d> VectorDatabase {
       })
       .collect::<Result<()>>()?;
 
-    document.chunks_count = embeddings.len() as u32;
+    document.embeddings_count = embeddings.len() as u32;
     documents_h.batch_put(&mut batch, &document)?;
 
     self
       .db
       .write(batch)
-      .map_err(|e| anyhow!("Error writing chunks: {}", e))?;
+      .map_err(|e| anyhow!("Error writing embeddings: {}", e))?;
 
     txn.commit()?;
     Ok(())
@@ -344,7 +343,7 @@ impl<'d> VectorDatabase {
       return Ok(Some(query::DocumentWithContent {
         id: doc.id,
         content_length: doc.content_length,
-        chunks_count: doc.chunks_count,
+        embeddings_count: doc.embeddings_count,
         metadata: doc.metadata,
         content,
       }));
@@ -371,7 +370,7 @@ impl<'d> VectorDatabase {
       return Ok(Some(query::DocumentWithContent {
         id: doc.id,
         content_length: doc.content_length,
-        chunks_count: doc.chunks_count,
+        embeddings_count: doc.embeddings_count,
         metadata: doc.metadata,
         content,
       }));
@@ -480,7 +479,7 @@ impl<'d> VectorDatabase {
 
     let embeddings_h =
       DocumentEmbeddingsHandle::new(&self.db, &collection, &document)?;
-    (0..document.chunks_count).for_each(|idx| {
+    (0..document.embeddings_count).for_each(|idx| {
       embeddings_h.batch_delete(&mut batch, idx as u32);
     });
 

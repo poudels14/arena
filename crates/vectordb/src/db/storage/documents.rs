@@ -20,7 +20,7 @@ pub struct Document {
   pub index: u32,
   pub id: BString,
   pub content_length: u32,
-  pub chunks_count: u32,
+  pub embeddings_count: u32,
   pub metadata: Option<IndexMap<String, Value>>,
 }
 

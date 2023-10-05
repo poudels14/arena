@@ -1,3 +1,8 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::path::Path;
+use std::rc::Rc;
+
 use anyhow::{bail, Context, Result};
 use bstr::ByteSlice;
 use common::deno::utils;
@@ -7,14 +12,12 @@ use deno_core::{
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::path::Path;
-use std::rc::Rc;
 use vectordb::query::DocumentWithContent;
-use vectordb::search::{SearchMetrics, SearchOptions};
+use vectordb::search::SearchOptions;
 use vectordb::RowId;
 use vectordb::{query, sql, DatabaseOptions, VectorDatabase};
+
+mod search;
 
 #[allow(dead_code)]
 struct VectorDatabaseResource {
@@ -50,7 +53,7 @@ pub struct NewDocument {
 pub struct Document {
   id: String,
   pub content_length: u32,
-  pub chunks_count: u32,
+  pub embeddings_count: u32,
   #[serde(skip_serializing_if = "Option::is_none")]
   /// Only set in ops that send content
   pub content: Option<StringOrBuffer>,
@@ -209,7 +212,7 @@ async fn op_cloud_vectordb_list_documents(
           .map(|s| s.to_owned())
           .context("document id should be utf-8")?,
         content_length: doc.content_length,
-        chunks_count: doc.chunks_count,
+        embeddings_count: doc.embeddings_count,
         content: None,
         metadata: doc.metadata.take(),
       })
@@ -237,7 +240,7 @@ async fn op_cloud_vectordb_get_document(
       let content = encoded_buffer(&doc.content, &content_encoding)?;
       Ok(Document {
         id: doc_id,
-        chunks_count: doc.chunks_count,
+        embeddings_count: doc.embeddings_count,
         content_length: doc.content_length,
         content: Some(content),
         metadata: doc.metadata,
@@ -306,43 +309,6 @@ async fn op_cloud_vectordb_delete_document(
   Ok(())
 }
 
-#[derive(Debug, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SearchCollectionOptions {
-  #[serde(default)]
-  pub include_chunk_content: bool,
-  #[serde(default)]
-  pub content_encoding: Option<String>,
-  /// if set, only the chunks with score greater or equal to this score
-  /// will be returned
-  #[serde(default)]
-  pub min_score: Option<f32>,
-  /// number of bytes before the matched chunks to include in the response
-  #[serde(default)]
-  pub before_context: Option<usize>,
-  /// number of bytes after the matched chunks to include in the response
-  #[serde(default)]
-  pub after_context: Option<usize>,
-}
-
-#[derive(Default, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SearchCollectionResult {
-  pub score: f32,
-  pub document_id: String,
-  pub chunk_index: usize,
-  pub start: usize,
-  pub end: usize,
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub content: Option<StringOrBuffer>,
-
-  /// Only set if before/after_context is non-zero
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub context: Option<(Option<StringOrBuffer>, Option<StringOrBuffer>)>,
-  /// Chunk/embedding metadata
-  pub metadata: IndexMap<String, Value>,
-}
-
 #[op]
 async fn op_cloud_vectordb_search_collection(
   state: Rc<RefCell<OpState>>,
@@ -350,8 +316,8 @@ async fn op_cloud_vectordb_search_collection(
   collection_id: String,
   query: Vec<f32>,
   k: usize,
-  options: SearchCollectionOptions,
-) -> Result<(Vec<SearchCollectionResult>, SearchMetrics)> {
+  options: search::Options,
+) -> Result<search::Result> {
   let resource = get_db_resource(state, rid)?;
   let db = resource.db.borrow();
   let searcher = vectordb::search::FsSearch::using(&db);
@@ -366,79 +332,85 @@ async fn op_cloud_vectordb_search_collection(
 
   let mut documents: IndexMap<RowId, DocumentWithContent> = IndexMap::new();
 
-  Ok((
-    results
-      .into_iter()
-      .map(|result| {
-        let document_row_id = result.row_id;
-        let chunk_index = result.chunk_index as usize;
-        let start = result.embedding_start as usize;
-        let end = result.embedding_end as usize;
+  let embeddings = results
+    .into_iter()
+    .map(|result| {
+      let document_row_id = result.row_id;
+      let start = result.embedding_start as usize;
+      let end = result.embedding_end as usize;
 
-        if documents.get(&document_row_id).is_none() {
-          let doc = db
-            .get_document_by_row_id(&document_row_id)?
-            .context("Document in search result not found")?;
-          documents.insert(document_row_id.clone(), doc);
-        };
-        let doc = documents.get(&document_row_id).unwrap();
+      if documents.get(&document_row_id).is_none() {
+        let doc = db
+          .get_document_by_row_id(&document_row_id)?
+          .context("Document in search result not found")?;
+        documents.insert(document_row_id.clone(), doc);
+      };
+      let doc = documents.get(&document_row_id).unwrap();
 
-        let (content, context) = match options.include_chunk_content {
-          true => {
-            let chunk = encoded_buffer(
-              &doc.content[start..end],
-              &options.content_encoding,
-            )?;
+      let (content, context) = match options.include_chunk_content {
+        true => {
+          let chunk = encoded_buffer(
+            &doc.content[start..end],
+            &options.content_encoding,
+          )?;
 
-            let before_ctx = options
-              .before_context
-              .and_then(|size| {
-                if start > 0 {
-                  Some(encoded_buffer(
-                    &doc.content[0.max(start - size)..start],
-                    &options.content_encoding,
-                  ))
-                } else {
-                  None
-                }
-              })
-              .transpose()?;
-            let after_ctx = options
-              .after_context
-              .map(|size| {
-                encoded_buffer(
-                  &doc.content[end..(end + size).min(doc.content.len())],
+          let before_ctx = options
+            .before_context
+            .and_then(|size| {
+              if start > 0 {
+                Some(encoded_buffer(
+                  &doc.content[0.max(start - size)..start],
                   &options.content_encoding,
-                )
-              })
-              .transpose()?;
+                ))
+              } else {
+                None
+              }
+            })
+            .transpose()?;
+          let after_ctx = options
+            .after_context
+            .map(|size| {
+              encoded_buffer(
+                &doc.content[end..(end + size).min(doc.content.len())],
+                &options.content_encoding,
+              )
+            })
+            .transpose()?;
 
-            let ctx = if before_ctx.is_none() && before_ctx.is_none() {
-              None
-            } else {
-              Some((before_ctx, after_ctx))
-            };
-            (Some(chunk), ctx)
-          }
-          false => (None, None),
-        };
+          let ctx = if before_ctx.is_none() && before_ctx.is_none() {
+            None
+          } else {
+            Some((before_ctx, after_ctx))
+          };
+          (Some(chunk), ctx)
+        }
+        false => (None, None),
+      };
 
-        Ok(SearchCollectionResult {
-          score: result.score,
-          document_id: std::str::from_utf8(&doc.id)
-            .context("document name should be utf-8")
-            .map(|s| s.to_owned())?,
-          chunk_index,
-          start,
-          end,
-          content,
-          context,
-          metadata: result.metadata,
-        })
+      Ok(search::Embedding {
+        score: result.score,
+        document_id: doc.id.clone(),
+        index: result.index as usize,
+        start,
+        end,
+        content,
+        context,
+        metadata: result.metadata,
       })
-      .collect::<Result<Vec<SearchCollectionResult>>>()?,
+    })
+    .collect::<Result<Vec<search::Embedding>>>()?;
+
+  Ok(search::Result {
+    documents: documents
+      .into_iter()
+      .map(|(_, doc)| search::Document {
+        id: doc.id,
+        metadata: doc.metadata,
+      })
+      .collect(),
+    embeddings,
     metrics,
-  ))
+  })
 }
 
 #[op]

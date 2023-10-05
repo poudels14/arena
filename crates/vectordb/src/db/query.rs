@@ -13,7 +13,7 @@ pub struct Collection {
 pub struct DocumentWithContent {
   pub id: BString,
   pub content_length: u32,
-  pub chunks_count: u32,
+  pub embeddings_count: u32,
   pub metadata: Option<IndexMap<String, Value>>,
   pub content: Vec<u8>,
 }

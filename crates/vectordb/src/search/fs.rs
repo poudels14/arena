@@ -95,7 +95,7 @@ impl<'a> FsSearch<'a> {
               collection_index: collection.index,
               row_index: info.0,
             },
-            chunk_index: info.1,
+            index: info.1,
             embedding_start: info.2,
             embedding_end: info.3,
             metadata: rmp_serde::from_slice::<IndexMap<String, Value>>(
