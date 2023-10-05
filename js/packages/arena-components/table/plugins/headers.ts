@@ -36,30 +36,35 @@ namespace Config {
   };
 
   // TODO(sagar): support grouped columns
-  type Column = BasicColumn; // | GroupedColumn;
-
-  export type Headers = {
-    headers: Column[];
-  };
+  export type Column = BasicColumn; // | GroupedColumn;
 }
 
+type Config = {
+  headers: Config.Column[];
+};
+
 type State = {
-  headers: {
-    config: Config.Headers;
+  withHeaders: {
+    config: Config;
   };
 };
 
 type Methods = {
+  setHeaders: (headers: Config["headers"]) => void;
   getHeaderGroups: () => HeaderGroup[];
 };
 
-const withHeaders: Plugin<Config.Headers, State, Methods> = (config) => {
+const withHeaders: Plugin<Config, State, Methods> = (config) => {
   return (table) => {
     const { setState, state } = table;
-    setState("_plugins", "headers", { config: klona(config) });
+
+    const setHeaders = (headers: Config["headers"]) => {
+      setState("_plugins", "withHeaders", "config", "headers", klona(headers));
+    };
+    setHeaders(config.headers);
 
     const headerGroups = createMemo(() => {
-      const config = state._plugins.headers.config();
+      const config = state._plugins.withHeaders.config();
       const headerGroups: HeaderGroup[] = [
         {
           id: "0",
@@ -92,6 +97,7 @@ const withHeaders: Plugin<Config.Headers, State, Methods> = (config) => {
     });
 
     Object.assign(table, {
+      setHeaders,
       getHeaderGroups() {
         return headerGroups();
       },
