@@ -49,7 +49,7 @@ declare namespace Arena {
     streamId: number,
     eventName: "data",
     data: any
-  ): Promise<void>;
+  ): Promise<number>;
 
   function OpAsync(
     fn: "op_websocket_recv",
@@ -425,7 +425,7 @@ declare module "@arena/runtime/server" {
   };
 
   type Handler<Context> = {
-    (args: { req: Request; ctx: Context }): Promise<Response>;
+    (args: ProcedureCallbackArgs<Context>): Promise<Response>;
     method: "GET" | "POST" | "PATCH";
   };
 

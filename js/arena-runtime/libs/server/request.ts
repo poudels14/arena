@@ -31,12 +31,16 @@ class ArenaRequest extends Request {
       let next;
       let reader = body.getReader();
       while ((next = await reader.read()) && !next.done) {
-        await opAsync(
+        const len = await opAsync(
           "op_http_write_data_to_stream",
           writerId!,
           "data",
           next.value
         );
+        if (len == -1) {
+          await reader.cancel();
+          return;
+        }
       }
       ops.op_http_close_stream(writerId!);
       return;
