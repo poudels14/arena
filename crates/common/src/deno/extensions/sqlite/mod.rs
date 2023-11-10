@@ -6,7 +6,7 @@ use crate::resolve_from_file;
 use anyhow::bail;
 use anyhow::Result;
 use deno_core::{
-  op, serde_json::Value, Extension, OpState, Resource, ResourceId,
+  op2, serde_json::Value, Extension, Op, OpState, Resource, ResourceId,
 };
 use heck::ToLowerCamelCase;
 use rusqlite::params_from_iter;
@@ -32,14 +32,17 @@ pub fn extension() -> BuiltinExtension {
 }
 
 fn init() -> Extension {
-  Extension::builder("arena/runtime/sqlite")
-    .ops(vec![
-      op_sqlite_create_connection::decl(),
-      op_sqlite_execute_query::decl(),
-      op_sqlite_close_connection::decl(),
-    ])
-    .force_op_registration()
-    .build()
+  Extension {
+    name: "arena/runtime/sqlite",
+    ops: vec![
+      op_sqlite_create_connection::DECL,
+      op_sqlite_execute_query::DECL,
+      op_sqlite_close_connection::DECL,
+    ]
+    .into(),
+    enabled: true,
+    ..Default::default()
+  }
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -89,10 +92,11 @@ impl Resource for SqliteConnection {
   }
 }
 
-#[op(fast)]
+#[op2]
+#[smi]
 fn op_sqlite_create_connection(
   state: &mut OpState,
-  config: ConnectionConfig,
+  #[serde] config: ConnectionConfig,
 ) -> Result<ResourceId> {
   let flags = config
     .flags
@@ -138,13 +142,14 @@ fn op_sqlite_create_connection(
   Ok(state.resource_table.add::<SqliteConnection>(connection))
 }
 
-#[op(fast)]
+#[op2(async)]
+#[serde]
 async fn op_sqlite_execute_query(
   state: Rc<RefCell<OpState>>,
-  rid: ResourceId,
-  query: String,
-  params: Vec<Param>,
-  options: Option<QueryOptions>,
+  #[smi] rid: ResourceId,
+  #[string] query: String,
+  #[serde] params: Vec<Param>,
+  #[serde] options: Option<QueryOptions>,
 ) -> Result<QueryResponse> {
   let resource = state.borrow().resource_table.get::<SqliteConnection>(rid)?;
   let connection = resource.connection.borrow();
@@ -201,10 +206,10 @@ async fn op_sqlite_execute_query(
   })
 }
 
-#[op(fast)]
+#[op2(async)]
 async fn op_sqlite_close_connection(
   state: Rc<RefCell<OpState>>,
-  rid: ResourceId,
+  #[smi] rid: ResourceId,
 ) -> Result<()> {
   let resource =
     { state.borrow().resource_table.get::<SqliteConnection>(rid)? };

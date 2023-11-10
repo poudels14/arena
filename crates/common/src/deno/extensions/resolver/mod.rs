@@ -6,7 +6,7 @@ use crate::resolve_from_root;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Result;
-use deno_core::op;
+use deno_core::op2;
 use deno_core::OpState;
 use deno_core::Resource;
 use deno_core::ResourceId;
@@ -45,9 +45,6 @@ deno_core::extension!(
       root: options.root.to_owned(),
       config: resolve,
     });
-  },
-  customizer = |ext: &mut deno_core::ExtensionBuilder| {
-    ext.force_op_registration();
   }
 );
 
@@ -63,10 +60,11 @@ impl Resource for FsModuleResolver {
 
 // TODO(sagar): should the resolver created here be dropped
 // when resouce is closed?
-#[op]
+#[op2]
+#[serde]
 fn op_resolver_new(
   state: &mut OpState,
-  config: Option<ResolverConfig>,
+  #[serde] config: Option<ResolverConfig>,
 ) -> Result<(ResourceId, String)> {
   let default_config = state.borrow_mut::<DefaultResolverConfig>();
   let root = default_config.root.clone();
@@ -85,12 +83,13 @@ fn op_resolver_new(
   ))
 }
 
-#[op]
+#[op2]
+#[string]
 fn op_resolver_resolve(
   state: Rc<RefCell<OpState>>,
-  rid: ResourceId,
-  specifier: String,
-  referrer: String,
+  #[smi] rid: ResourceId,
+  #[string] specifier: String,
+  #[string] referrer: String,
 ) -> Result<Option<String>> {
   let state = state.borrow_mut();
   let resolver = state.resource_table.get::<FsModuleResolver>(rid)?;
@@ -104,6 +103,7 @@ pub(crate) fn resolve(
   referrer: &str,
   specifier: &str,
 ) -> Result<Option<String>> {
+  // TODO(sagar): does this not check file access permission?
   let referrer = match referrer.starts_with(".") || referrer.starts_with("/") {
     true => {
       let p = root.join(referrer);

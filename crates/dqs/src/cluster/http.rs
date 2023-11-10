@@ -23,7 +23,7 @@ use common::deno::extensions::server::errors::Error;
 use common::deno::extensions::server::request::read_http_body_to_buffer;
 use common::deno::extensions::server::response::ParsedHttpResponse;
 use common::deno::extensions::server::{errors, HttpRequest};
-use deno_core::{normalize_path, ZeroCopyBuf};
+use deno_core::normalize_path;
 use diesel::prelude::*;
 use http::StatusCode;
 use http::{Method, Request};
@@ -285,7 +285,7 @@ pub async fn pipe_widget_query_request(
     url: format!("http://0.0.0.0{path}"),
     // TODO(sagar): maybe send some headers?
     headers: vec![(("content-type".to_owned(), "application/json".to_owned()))],
-    body: Some(ZeroCopyBuf::ToV8(Some(
+    body: Some(
       json!({
         "trigger": trigger,
         "workspaceId": "workspaceId",
@@ -297,9 +297,9 @@ pub async fn pipe_widget_query_request(
         "body": body,
       })
       .to_string()
-      .as_bytes()
+      .into_bytes()
       .into(),
-    ))),
+    ),
   };
 
   let workspace_id = app.workspace_id;
@@ -360,7 +360,7 @@ pub async fn pipe_plugin_workflow_request(
     } => {
       system_originated.unwrap_or(false)
         && wf_run
-          .parent_id
+          .parent_app_id
           .map(|parent_id| parent_id == id)
           .unwrap_or(false)
     }
@@ -402,14 +402,14 @@ pub async fn pipe_plugin_workflow_request(
     method: "POST".to_owned(),
     url: format!("http://0.0.0.0/{path}",),
     headers: vec![],
-    body: Some(ZeroCopyBuf::ToV8(Some(
+    body: Some(
       serde_json::to_vec(&json!({
         "workflow": workflow,
         "input": body
       }))
       .context("Error serializing workflow request body")?
-      .into_boxed_slice(),
-    ))),
+      .into(),
+    ),
   };
 
   let (tx, rx) = oneshot::channel::<ParsedHttpResponse>();

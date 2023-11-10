@@ -7,7 +7,7 @@ use crate::resolve_from_root;
 use anyhow::{anyhow, bail, Result};
 use axum::response::sse::Event;
 use deno_core::{
-  op, ByteString, Extension, OpState, ResourceId, StringOrBuffer,
+  op2, ByteString, Extension, Op, OpState, Resource, ResourceId, StringOrBuffer,
 };
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -36,40 +36,47 @@ pub fn extension(config: HttpServerConfig) -> BuiltinExtension {
 
 /// initialize server extension with given (address, port)
 fn init(config: HttpServerConfig) -> Extension {
-  Extension::builder("arena/runtime/server")
-    .ops(vec![
-      op_http_start::decl(),
-      op_http_send_response::decl(),
-      op_http_write_data_to_stream::decl(),
-      op_http_close_stream::decl(),
-      websocket::op_websocket_recv::decl(),
-      websocket::op_websocket_send::decl(),
-    ])
-    .ops(match &config {
-      HttpServerConfig::Stream(_) => vec![
-        stream::op_http_accept::decl(),
-        stream::op_http_listen::decl(),
+  let ops = match &config {
+    HttpServerConfig::Stream(_) => {
+      vec![stream::op_http_accept::DECL, stream::op_http_listen::DECL]
+    }
+    HttpServerConfig::Tcp {
+      address: _,
+      port: _,
+      serve_dir: _,
+    } => {
+      vec![tcp::op_http_accept::DECL, tcp::op_http_listen::DECL]
+    }
+    _ => unimplemented!(),
+  };
+  Extension {
+    name: "arena/runtime/server",
+    ops: vec![
+      vec![
+        op_http_start::DECL,
+        op_http_send_response::DECL,
+        op_http_write_data_to_stream::DECL,
+        op_http_close_stream::DECL,
+        websocket::op_websocket_recv::DECL,
+        websocket::op_websocket_send::DECL,
       ],
-      HttpServerConfig::Tcp {
-        address: _,
-        port: _,
-        serve_dir: _,
-      } => {
-        vec![tcp::op_http_accept::decl(), tcp::op_http_listen::decl()]
-      }
-      _ => unimplemented!(),
-    })
-    .state(move |state| {
+      ops,
+    ]
+    .concat()
+    .into(),
+    op_state_fn: Some(Box::new(move |state: &mut OpState| {
       state.put::<HttpServerConfig>(config.clone());
-    })
-    .force_op_registration()
-    .build()
+    })),
+    enabled: true,
+    ..Default::default()
+  }
 }
 
-#[op]
+#[op2(async)]
+#[serde]
 async fn op_http_start(
   state: Rc<RefCell<OpState>>,
-  rid: u32,
+  #[smi] rid: ResourceId,
 ) -> Result<Option<(ResourceId, HttpRequest)>> {
   let connection = state.borrow().resource_table.get::<HttpConnection>(rid)?;
   let stream = connection.req_stream.try_borrow_mut();
@@ -96,13 +103,14 @@ async fn op_http_start(
 /// It returns a tuple of (resource_id, null, null) if stream option is
 /// true and data can be written to the returned resource id using
 /// `op_http_write_data_to_stream`
-#[op]
+#[op2(async)]
+#[serde]
 async fn op_http_send_response(
   state: Rc<RefCell<OpState>>,
-  rid: u32,
-  status: u16,
-  headers: Vec<(ByteString, ByteString)>,
-  data: Option<StringOrBuffer>,
+  #[smi] rid: ResourceId,
+  #[smi] status: u16,
+  #[serde] headers: Vec<(ByteString, ByteString)>,
+  #[serde] data: Option<StringOrBuffer>,
   stream: Option<bool>,
 ) -> Result<Option<(ResourceId, Option<ResourceId>, Option<StringOrBuffer>)>> {
   let handle = {
@@ -172,12 +180,12 @@ async fn op_http_send_response(
 /// bytes written
 /// if it failed to write (probably because the stream is already closed),
 /// returns -1
-#[op]
+#[op2(async)]
 async fn op_http_write_data_to_stream(
   state: Rc<RefCell<OpState>>,
-  writer_id: ResourceId,
-  event: String,
-  data: StringOrBuffer,
+  #[smi] writer_id: ResourceId,
+  #[string] event: String,
+  #[serde] data: StringOrBuffer,
 ) -> Result<i32> {
   let writer = {
     state
@@ -211,14 +219,28 @@ async fn op_http_write_data_to_stream(
     // If there's any error writing to the stream, close the stream resource
     // and return error
     Err(_) => {
-      state.borrow_mut().resource_table.close(writer_id)?;
+      state
+        .borrow_mut()
+        .resource_table
+        .take::<StreamResponseWriter>(writer_id)?
+        .close();
       return Ok(-1);
     }
   }
 }
 
 /// Return true if stream closed successful
-#[op]
-fn op_http_close_stream(state: &mut OpState, writer_id: ResourceId) -> bool {
-  state.resource_table.close(writer_id).is_ok()
+#[op2(fast)]
+fn op_http_close_stream(
+  state: &mut OpState,
+  #[smi] writer_id: ResourceId,
+) -> bool {
+  state
+    .resource_table
+    .take::<StreamResponseWriter>(writer_id)
+    .map(|r| {
+      r.close();
+      true
+    })
+    .unwrap_or(false)
 }

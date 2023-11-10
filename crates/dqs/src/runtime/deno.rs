@@ -4,12 +4,12 @@ use cloud::pubsub::exchange::Exchange;
 use cloud::CloudExtensionProvider;
 use common::deno::extensions::server::HttpServerConfig;
 use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
-use common::deno::loader::BuiltInModuleLoader;
 use deno_core::{
   v8, Extension, ExtensionFileSource, ExtensionFileSourceCode, JsRuntime,
-  ModuleLoader, Snapshot,
+  Snapshot,
 };
 use deno_fetch::CreateHttpClientOptions;
+use derivative::Derivative;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
 use jsruntime::permissions::PermissionsContainer;
@@ -24,7 +24,8 @@ use crate::loaders::template::TemplateLoader;
 pub static WORKSPACE_DQS_SNAPSHOT: &[u8] =
   include_bytes!(concat!(env!("OUT_DIR"), "/WORKSPACE_DQS_SNAPSHOT.bin"));
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Derivative)]
+#[derivative(Debug)]
 pub struct RuntimeOptions {
   /// Runtime id
   pub id: String,
@@ -47,7 +48,7 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
     deno_console::deno_console::init_ops(),
     deno_url::deno_url::init_ops(),
     deno_web::deno_web::init_ops::<PermissionsContainer>(
-      deno_web::BlobStore::default(),
+      deno_web::BlobStore::default().into(),
       Default::default(),
     ),
     deno_fetch::deno_fetch::init_ops::<PermissionsContainer>(
@@ -95,23 +96,13 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
     v8::Isolate::create_params().heap_limits(initial, max)
   });
 
-  let module_loader: Option<Rc<dyn ModuleLoader>> = match config.db_pool.clone()
-  {
-    Some(db_pool) => Some(Rc::new(AppkitModuleLoader {
-      workspace_id: config.state.workspace_id,
-      pool: db_pool,
-      template_loader: TemplateLoader {
-        module: config.state.module,
-        registry: config.state.registry,
-      },
-    })),
-    None => Some(Rc::new(BuiltInModuleLoader {})),
-  };
-
   let mut runtime = JsRuntime::new(deno_core::RuntimeOptions {
     startup_snapshot: Some(Snapshot::Static(WORKSPACE_DQS_SNAPSHOT)),
     create_params,
-    module_loader,
+    module_loader: Some(Rc::new(AppkitModuleLoader {
+      workspace_id: config.state.workspace_id,
+      pool: config.db_pool.clone(),
+    })),
     extensions,
     ..Default::default()
   });
@@ -139,14 +130,16 @@ fn build_init_extension(config: &RuntimeOptions) -> Extension {
   let state = config.state.clone();
   let permissions = config.permissions.clone();
 
-  Extension::builder("workspace/runtime")
-    .js(vec![ExtensionFileSource {
+  Extension {
+    name: "workspace/runtime",
+    js_files: vec![ExtensionFileSource {
       specifier: "init",
       code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
         "./init.js"
       )),
-    }])
-    .state(move |op_state| {
+    }]
+    .into(),
+    op_state_fn: Some(Box::new(move |op_state| {
       op_state.put::<ArenaRuntimeState>(state);
       op_state.put::<PermissionsContainer>(permissions);
 
@@ -169,8 +162,10 @@ fn build_init_extension(config: &RuntimeOptions) -> Extension {
         client = client.local_address(egress_address);
         op_state.put::<reqwest::Client>(client.build().unwrap());
       }
-    })
-    .build()
+    })),
+    enabled: true,
+    ..Default::default()
+  }
 }
 
 fn get_user_agent(id: &str) -> String {

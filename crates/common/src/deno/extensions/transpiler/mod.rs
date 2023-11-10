@@ -13,12 +13,9 @@ use deno_ast::EmitOptions;
 use deno_ast::MediaType;
 use deno_ast::ParseParams;
 use deno_ast::SourceTextInfo;
-use deno_core::op;
-use deno_core::Extension;
-use deno_core::OpState;
-use deno_core::Resource;
-use deno_core::ResourceId;
-use deno_core::StringOrBuffer;
+use deno_core::{
+  op2, Extension, Op, OpState, Resource, ResourceId, StringOrBuffer,
+};
 use indexmap::IndexMap;
 use serde::Deserialize;
 use serde::Serialize;
@@ -43,14 +40,17 @@ pub fn extension() -> BuiltinExtension {
 }
 
 pub fn init() -> Extension {
-  Extension::builder("arena/buildtools/transpiler")
-    .ops(vec![
-      op_transpiler_new::decl(),
-      op_transpiler_transpile_sync::decl(),
-      op_transpiler_transpile_file_async::decl(),
-    ])
-    .force_op_registration()
-    .build()
+  Extension {
+    name: "arena/buildtools/transpiler",
+    ops: vec![
+      op_transpiler_new::DECL,
+      op_transpiler_transpile_sync::DECL,
+      op_transpiler_transpile_file_async::DECL,
+    ]
+    .into(),
+    enabled: true,
+    ..Default::default()
+  }
 }
 
 #[derive(Serialize)]
@@ -89,10 +89,11 @@ impl Resource for Transpiler {
   fn close(self: Rc<Self>) {}
 }
 
-#[op]
+#[op2]
+#[serde]
 fn op_transpiler_new(
   state: &mut OpState,
-  config: TranspilerConfig,
+  #[serde] config: TranspilerConfig,
 ) -> Result<(ResourceId, String)> {
   let build_config = state.borrow_mut::<DefaultResolverConfig>();
 
@@ -123,11 +124,12 @@ fn op_transpiler_new(
 }
 
 /// Note(sagar): all filenames are resolved from root
-#[op]
+#[op2(async)]
+#[serde]
 async fn op_transpiler_transpile_file_async(
   state: Rc<RefCell<OpState>>,
-  rid: ResourceId,
-  filename: String,
+  #[smi] rid: ResourceId,
+  #[string] filename: String,
 ) -> Result<TranspileResult> {
   let (transpiler, resolved_path) = {
     let mut state = state.borrow_mut();
@@ -141,12 +143,13 @@ async fn op_transpiler_transpile_file_async(
   transpile_code(transpiler, &resolved_path, &code)
 }
 
-#[op]
+#[op2]
+#[serde]
 fn op_transpiler_transpile_sync(
   state: &mut OpState,
-  rid: ResourceId,
-  filename: String,
-  code: String,
+  #[smi] rid: ResourceId,
+  #[string] filename: String,
+  #[string] code: String,
 ) -> Result<TranspileResult> {
   let transpiler = state.resource_table.get::<Transpiler>(rid)?;
   transpile_code(transpiler, &PathBuf::from(filename), &code)

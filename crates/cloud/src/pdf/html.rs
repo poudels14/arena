@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context, Result};
-use deno_core::{op, OpState, StringOrBuffer};
+use deno_core::{op2, JsBuffer, OpState};
 use pdfium_render::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
@@ -19,11 +19,12 @@ pub struct PdfPage {
 }
 
 /// Returns a list of PdfPage, one for each page in the pdf document
-#[op]
+#[op2(async)]
+#[serde]
 pub async fn op_cloud_pdf_to_html(
   _state: Rc<RefCell<OpState>>,
-  pdf_bytes: StringOrBuffer,
-  options: PdfToHtmlOptions,
+  #[buffer] pdf_bytes: JsBuffer,
+  #[serde] options: PdfToHtmlOptions,
 ) -> Result<Vec<PdfPage>> {
   let pdfium = Pdfium::new(
     Pdfium::bind_to_library(
@@ -59,8 +60,8 @@ pub async fn op_cloud_pdf_to_html(
 
                     let transform = object.matrix().unwrap();
                     // Note(sagar): use percentage for positioning
-                    let top = 100 as f32 - (transform.f * 100 as f32) / page_height;
-                    let left = (transform.e * 100 as f32) / page_width;
+                    let top = 100 as f32 - (transform.f() * 100 as f32) / page_height;
+                    let left = (transform.e() * 100 as f32) / page_width;
                     let mut font_size =  object.unscaled_font_size().value;
                     if font_size < 1.0 {
                       // sometimes, the font size is wrong for some reason

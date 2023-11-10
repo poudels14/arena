@@ -1,6 +1,6 @@
 use anyhow::{anyhow, bail, Result};
 use deno_core::error::AnyError;
-use deno_core::{normalize_path, OpState};
+use deno_core::normalize_path;
 use derivative::Derivative;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -93,7 +93,6 @@ impl deno_web::TimersPermission for PermissionsContainer {
   fn allow_hrtime(&mut self) -> bool {
     self.timer.as_ref().and_then(|t| Some(t.allow_hrtime)) == Some(true)
   }
-  fn check_unstable(&self, _: &OpState, _: &'static str) {}
 }
 
 impl PermissionsContainer {

@@ -1,4 +1,4 @@
-use deno_core::StringOrBuffer;
+use deno_core::ToJsBuffer;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -9,8 +9,6 @@ use vectordb::search::SearchMetrics;
 pub struct Options {
   #[serde(default)]
   pub include_chunk_content: bool,
-  #[serde(default)]
-  pub content_encoding: Option<String>,
   /// if set, only the embeddings with score greater or equal to this score
   /// will be returned
   #[serde(default)]
@@ -49,11 +47,11 @@ pub struct Embedding {
   pub start: usize,
   pub end: usize,
   #[serde(skip_serializing_if = "Option::is_none")]
-  pub content: Option<StringOrBuffer>,
+  pub content: Option<ToJsBuffer>,
 
   /// Only set if before/after_context is non-zero
   #[serde(skip_serializing_if = "Option::is_none")]
-  pub context: Option<(Option<StringOrBuffer>, Option<StringOrBuffer>)>,
+  pub context: Option<(Option<ToJsBuffer>, Option<ToJsBuffer>)>,
   /// Chunk/embedding metadata
   pub metadata: IndexMap<String, Value>,
 }

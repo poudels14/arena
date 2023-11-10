@@ -1,6 +1,7 @@
 mod core;
 
-pub use crate::core::function;
-pub use crate::core::{IsolatedRuntime, RuntimeOptions};
+pub use crate::core::{
+  FsModuleLoader, IsolatedRuntime, ModuleLoaderOption, RuntimeOptions,
+};
 
 pub use common::deno::permissions;

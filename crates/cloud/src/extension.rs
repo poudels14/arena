@@ -1,6 +1,6 @@
 use common::deno::extensions::{BuiltinExtension, BuiltinExtensionProvider};
 use common::resolve_from_root;
-use deno_core::Extension;
+use deno_core::{Extension, Op};
 
 use crate::jwt::{op_cloud_jwt_sign, op_cloud_jwt_verify};
 use crate::pubsub::publisher::Publisher;
@@ -55,43 +55,46 @@ pub fn extension(options: Config) -> BuiltinExtension {
 }
 
 pub(crate) fn init(options: Config) -> Extension {
-  Extension::builder("arena/cloud")
-    .ops(vec![
+  Extension {
+    name: "arena/cloud",
+    ops: vec![
       // pubsub
-      pubsub::extension::op_cloud_pubsub_publish::decl(),
-      pubsub::extension::op_cloud_pubsub_subscribe::decl(),
+      pubsub::extension::op_cloud_pubsub_publish::DECL,
+      pubsub::extension::op_cloud_pubsub_subscribe::DECL,
       // data query transpiler
-      op_cloud_transpile_js_data_query::decl(),
+      op_cloud_transpile_js_data_query::DECL,
       // jwt
-      op_cloud_jwt_sign::decl(),
-      op_cloud_jwt_verify::decl(),
+      op_cloud_jwt_sign::DECL,
+      op_cloud_jwt_verify::DECL,
       // llm
-      llm::tokenizer::op_cloud_llm_hf_new_pretrained_tokenizer::decl(),
-      llm::tokenizer::op_cloud_llm_hf_encode::decl(),
+      llm::tokenizer::op_cloud_llm_hf_new_pretrained_tokenizer::DECL,
+      llm::tokenizer::op_cloud_llm_hf_encode::DECL,
       // pdf
-      pdf::html::op_cloud_pdf_to_html::decl(),
+      pdf::html::op_cloud_pdf_to_html::DECL,
       // html
-      html::op_cloud_html_extract_text::decl(),
+      html::op_cloud_html_extract_text::DECL,
       // vector db
-      vectordb::op_cloud_vectordb_open::decl(),
-      vectordb::op_cloud_vectordb_execute_query::decl(),
-      vectordb::op_cloud_vectordb_create_collection::decl(),
-      vectordb::op_cloud_vectordb_list_collections::decl(),
-      vectordb::op_cloud_vectordb_get_collection::decl(),
-      vectordb::op_cloud_vectordb_add_document::decl(),
-      vectordb::op_cloud_vectordb_list_documents::decl(),
-      vectordb::op_cloud_vectordb_get_document::decl(),
-      vectordb::op_cloud_vectordb_get_document_blobs::decl(),
-      vectordb::op_cloud_vectordb_set_document_embeddings::decl(),
-      vectordb::op_cloud_vectordb_delete_document::decl(),
-      vectordb::op_cloud_vectordb_search_collection::decl(),
-      vectordb::op_cloud_vectordb_compact_and_flush::decl(),
-    ])
-    .state(|state| {
+      vectordb::op_cloud_vectordb_open::DECL,
+      vectordb::op_cloud_vectordb_execute_query::DECL,
+      vectordb::op_cloud_vectordb_create_collection::DECL,
+      vectordb::op_cloud_vectordb_list_collections::DECL,
+      vectordb::op_cloud_vectordb_get_collection::DECL,
+      vectordb::op_cloud_vectordb_add_document::DECL,
+      vectordb::op_cloud_vectordb_list_documents::DECL,
+      vectordb::op_cloud_vectordb_get_document::DECL,
+      vectordb::op_cloud_vectordb_get_document_blobs::DECL,
+      vectordb::op_cloud_vectordb_set_document_embeddings::DECL,
+      vectordb::op_cloud_vectordb_delete_document::DECL,
+      vectordb::op_cloud_vectordb_search_collection::DECL,
+      vectordb::op_cloud_vectordb_compact_and_flush::DECL,
+    ]
+    .into(),
+    op_state_fn: Some(Box::new(|state| {
       if let Some(publisher) = options.publisher {
         state.put::<Publisher>(publisher);
       }
-    })
-    .force_op_registration()
-    .build()
+    })),
+    enabled: true,
+    ..Default::default()
+  }
 }

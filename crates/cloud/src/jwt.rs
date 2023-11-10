@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use deno_core::{op, OpState};
+use deno_core::{op2, OpState};
 use jsonwebtoken::{
   decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation,
 };
@@ -23,16 +23,17 @@ struct Claims {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct JwtSignOptions {
+pub struct JwtSignOptions {
   header: Header,
   payload: Value,
   secret: String,
 }
 
-#[op]
-fn op_cloud_jwt_sign(
+#[op2]
+#[string]
+pub fn op_cloud_jwt_sign(
   _state: &mut OpState,
-  options: JwtSignOptions,
+  #[serde] options: JwtSignOptions,
 ) -> Result<String> {
   encode(
     &options.header,
@@ -42,13 +43,14 @@ fn op_cloud_jwt_sign(
   .context("JWT encoding error")
 }
 
-#[op]
-fn op_cloud_jwt_verify(
+#[op2]
+#[serde]
+pub fn op_cloud_jwt_verify(
   _state: &mut OpState,
-  token: String,
-  algorith: Algorithm,
-  secret: String,
-) -> Result<Value> {
+  #[string] token: String,
+  #[serde] algorith: Algorithm,
+  #[string] secret: String,
+) -> Result<serde_json::Value> {
   decode::<Value>(
     &token,
     &DecodingKey::from_secret((&secret).as_ref()),

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use common::query::DataQuery;
-use deno_core::{op, OpState};
+use deno_core::{op2, OpState};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::cell::RefCell;
@@ -15,10 +15,11 @@ pub struct DataQueryMetadata {
   pub resources: Vec<String>,
 }
 
-#[op]
-async fn op_cloud_transpile_js_data_query(
-  _state: Rc<RefCell<OpState>>,
-  code: String,
+#[op2(async)]
+#[serde]
+pub async fn op_cloud_transpile_js_data_query(
+  _: Rc<RefCell<OpState>>,
+  #[string] code: String,
 ) -> Result<DataQueryMetadata> {
   let query = DataQuery::from(&code)?;
   Ok(DataQueryMetadata {

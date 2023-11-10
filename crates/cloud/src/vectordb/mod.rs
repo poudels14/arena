@@ -3,11 +3,9 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::rc::Rc;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use common::deno::utils;
-use deno_core::{
-  op, OpState, Resource, ResourceId, StringOrBuffer, ZeroCopyBuf,
-};
+use deno_core::{op2, JsBuffer, OpState, Resource, ResourceId, ToJsBuffer};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -42,9 +40,9 @@ pub struct Collection {
 #[derive(Deserialize)]
 pub struct NewDocument {
   pub metadata: Option<IndexMap<String, Value>>,
-  pub content: StringOrBuffer,
+  pub content: JsBuffer,
   #[serde(default)]
-  pub blobs: IndexMap<String, Option<StringOrBuffer>>,
+  pub blobs: IndexMap<String, Option<JsBuffer>>,
 }
 
 #[derive(Serialize)]
@@ -55,14 +53,15 @@ pub struct Document {
   pub embeddings_count: u32,
   #[serde(skip_serializing_if = "Option::is_none")]
   /// Only set in ops that send content
-  pub content: Option<StringOrBuffer>,
+  pub content: Option<ToJsBuffer>,
   pub metadata: Option<IndexMap<String, Value>>,
 }
 
-#[op]
-async fn op_cloud_vectordb_open(
+#[op2(async)]
+#[smi]
+pub async fn op_cloud_vectordb_open(
   state: Rc<RefCell<OpState>>,
-  path_str: String,
+  #[string] path_str: String,
 ) -> Result<ResourceId> {
   let mut state = state.borrow_mut();
   let path = Path::new(&path_str);
@@ -94,11 +93,11 @@ async fn op_cloud_vectordb_open(
   }))
 }
 
-#[op]
-async fn op_cloud_vectordb_execute_query(
+#[op2(async)]
+pub async fn op_cloud_vectordb_execute_query(
   state: Rc<RefCell<OpState>>,
-  rid: ResourceId,
-  sql: String,
+  #[smi] rid: ResourceId,
+  #[string] sql: String,
 ) -> Result<()> {
   let resource = get_db_resource(state, rid)?;
   let mut db = resource.db.borrow_mut();
@@ -108,12 +107,12 @@ async fn op_cloud_vectordb_execute_query(
   Ok(())
 }
 
-#[op]
-async fn op_cloud_vectordb_create_collection(
+#[op2(async)]
+pub async fn op_cloud_vectordb_create_collection(
   state: Rc<RefCell<OpState>>,
-  rid: ResourceId,
-  name: String,
-  config: query::Collection,
+  #[smi] rid: ResourceId,
+  #[string] name: String,
+  #[serde] config: query::Collection,
 ) -> Result<()> {
   let resource = get_db_resource(state, rid)?;
   resource
@@ -124,10 +123,11 @@ async fn op_cloud_vectordb_create_collection(
   Ok(())
 }
 
-#[op]
-async fn op_cloud_vectordb_list_collections(
+#[op2(async)]
+#[serde]
+pub async fn op_cloud_vectordb_list_collections(
   state: Rc<RefCell<OpState>>,
-  rid: ResourceId,
+  #[smi] rid: ResourceId,
 ) -> Result<Vec<Collection>> {
   let resource = get_db_resource(state, rid)?;
   let collections = resource.db.borrow().list_collections()?;
@@ -144,11 +144,12 @@ async fn op_cloud_vectordb_list_collections(
     .collect::<Result<Vec<Collection>>>()
 }
 
-#[op]
-async fn op_cloud_vectordb_get_collection(
+#[op2(async)]
+#[serde]
+pub async fn op_cloud_vectordb_get_collection(
   state: Rc<RefCell<OpState>>,
-  rid: ResourceId,
-  id: String,
+  #[smi] rid: ResourceId,
+  #[string] id: String,
 ) -> Result<Option<Collection>> {
   let resource = get_db_resource(state, rid)?;
   let collection = resource.db.borrow().get_collection(id.as_str().into())?;
@@ -161,13 +162,13 @@ async fn op_cloud_vectordb_get_collection(
   }))
 }
 
-#[op]
-async fn op_cloud_vectordb_add_document(
+#[op2(async)]
+pub async fn op_cloud_vectordb_add_document(
   state: Rc<RefCell<OpState>>,
-  rid: ResourceId,
-  collection_id: String,
-  doc_id: String,
-  document: NewDocument,
+  #[smi] rid: ResourceId,
+  #[string] collection_id: String,
+  #[string] doc_id: String,
+  #[serde] document: NewDocument,
 ) -> Result<()> {
   let resource = get_db_resource(state, rid)?;
   resource.db.borrow_mut().add_document(
@@ -188,11 +189,12 @@ async fn op_cloud_vectordb_add_document(
   Ok(())
 }
 
-#[op]
-async fn op_cloud_vectordb_list_documents(
+#[op2(async)]
+#[serde]
+pub async fn op_cloud_vectordb_list_documents(
   state: Rc<RefCell<OpState>>,
-  rid: ResourceId,
-  collection_id: String,
+  #[smi] rid: ResourceId,
+  #[string] collection_id: String,
 ) -> Result<Vec<Document>> {
   let resource = get_db_resource(state, rid)?;
   let documents = resource
@@ -215,13 +217,13 @@ async fn op_cloud_vectordb_list_documents(
   documents
 }
 
-#[op]
-async fn op_cloud_vectordb_get_document(
+#[op2(async)]
+#[serde]
+pub async fn op_cloud_vectordb_get_document(
   state: Rc<RefCell<OpState>>,
-  rid: ResourceId,
-  collection_id: String,
-  doc_id: String,
-  content_encoding: Option<String>,
+  #[smi] rid: ResourceId,
+  #[string] collection_id: String,
+  #[string] doc_id: String,
 ) -> Result<Option<Document>> {
   let resource = get_db_resource(state, rid)?;
   let document = resource
@@ -231,27 +233,26 @@ async fn op_cloud_vectordb_get_document(
 
   document
     .map(|doc| {
-      let content = encoded_buffer(&doc.content, &content_encoding)?;
       Ok(Document {
         id: doc_id,
         embeddings_count: doc.embeddings_count,
         content_length: doc.content_length,
-        content: Some(content),
+        content: Some(doc.content.into()),
         metadata: doc.metadata,
       })
     })
     .transpose()
 }
 
-#[op]
-async fn op_cloud_vectordb_get_document_blobs(
+#[op2(async)]
+#[serde]
+pub async fn op_cloud_vectordb_get_document_blobs(
   state: Rc<RefCell<OpState>>,
-  rid: ResourceId,
-  collection_id: String,
-  doc_id: String,
-  blob_keys: Vec<String>,
-  encoding: Option<String>,
-) -> Result<HashMap<String, StringOrBuffer>> {
+  #[smi] rid: ResourceId,
+  #[string] collection_id: String,
+  #[string] doc_id: String,
+  #[serde] blob_keys: Vec<String>,
+) -> Result<HashMap<String, ToJsBuffer>> {
   let resource = get_db_resource(state, rid)?;
   let blobs = resource.db.borrow().get_document_blobs(
     collection_id.as_str().into(),
@@ -259,25 +260,21 @@ async fn op_cloud_vectordb_get_document_blobs(
     blob_keys.iter().map(|k| k.as_str().into()).collect(),
   )?;
 
-  blobs
-    .into_iter()
-    .filter_map(|b| {
-      b.1.map(|c| match encoding.as_ref() {
-        Some(e) if e == "base-64" => Ok((b.0, encoded_buffer(&c, &encoding)?)),
-        None => Ok((b.0, encoded_buffer(&c, &encoding)?)),
-        _ => bail!("Only base-64 encoding is supported"),
-      })
-    })
-    .collect()
+  Ok(
+    blobs
+      .into_iter()
+      .filter_map(|b| b.1.map(|c| (b.0, c.into())))
+      .collect(),
+  )
 }
 
-#[op]
-async fn op_cloud_vectordb_set_document_embeddings(
+#[op2(async)]
+pub async fn op_cloud_vectordb_set_document_embeddings(
   state: Rc<RefCell<OpState>>,
-  rid: ResourceId,
-  collection_id: String,
-  doc_id: String,
-  embeddings: Vec<query::Embeddings>,
+  #[smi] rid: ResourceId,
+  #[string] collection_id: String,
+  #[string] doc_id: String,
+  #[serde] embeddings: Vec<query::Embeddings>,
 ) -> Result<()> {
   let resource = get_db_resource(state, rid)?;
   resource.db.borrow_mut().set_document_embeddings(
@@ -288,12 +285,12 @@ async fn op_cloud_vectordb_set_document_embeddings(
   Ok(())
 }
 
-#[op]
-async fn op_cloud_vectordb_delete_document(
+#[op2(async)]
+pub async fn op_cloud_vectordb_delete_document(
   state: Rc<RefCell<OpState>>,
-  rid: ResourceId,
-  collection_id: String,
-  doc_id: String,
+  #[smi] rid: ResourceId,
+  #[string] collection_id: String,
+  #[string] doc_id: String,
 ) -> Result<()> {
   let resource = get_db_resource(state, rid)?;
   resource
@@ -303,14 +300,15 @@ async fn op_cloud_vectordb_delete_document(
   Ok(())
 }
 
-#[op]
-async fn op_cloud_vectordb_search_collection(
+#[op2(async)]
+#[serde]
+pub async fn op_cloud_vectordb_search_collection(
   state: Rc<RefCell<OpState>>,
-  rid: ResourceId,
-  collection_id: String,
-  query: Vec<f32>,
-  k: usize,
-  options: search::Options,
+  #[smi] rid: ResourceId,
+  #[string] collection_id: String,
+  #[serde] query: Vec<f32>,
+  #[bigint] k: usize,
+  #[serde] options: search::Options,
 ) -> Result<search::Result> {
   let resource = get_db_resource(state, rid)?;
   let db = resource.db.borrow();
@@ -343,33 +341,22 @@ async fn op_cloud_vectordb_search_collection(
 
       let (content, context) = match options.include_chunk_content {
         true => {
-          let chunk = encoded_buffer(
-            &doc.content[start..end],
-            &options.content_encoding,
-          )?;
+          let chunk: ToJsBuffer = doc.content[start..end].to_vec().into();
 
-          let before_ctx = options
-            .before_context
-            .and_then(|size| {
-              if start > 0 {
-                Some(encoded_buffer(
-                  &doc.content[0.max(start - size)..start],
-                  &options.content_encoding,
-                ))
-              } else {
-                None
-              }
-            })
-            .transpose()?;
-          let after_ctx = options
-            .after_context
-            .map(|size| {
-              encoded_buffer(
-                &doc.content[end..(end + size).min(doc.content.len())],
-                &options.content_encoding,
-              )
-            })
-            .transpose()?;
+          let before_ctx = options.before_context.and_then(|size| {
+            if start > 0 {
+              Some(Into::<ToJsBuffer>::into(
+                doc.content[0.max(start - size)..start].to_vec(),
+              ))
+            } else {
+              None
+            }
+          });
+          let after_ctx = options.after_context.map(|size| {
+            Into::<ToJsBuffer>::into(
+              doc.content[end..(end + size).min(doc.content.len())].to_vec(),
+            )
+          });
 
           let ctx = if before_ctx.is_none() && before_ctx.is_none() {
             None
@@ -407,10 +394,10 @@ async fn op_cloud_vectordb_search_collection(
   })
 }
 
-#[op]
-async fn op_cloud_vectordb_compact_and_flush(
+#[op2(async)]
+pub async fn op_cloud_vectordb_compact_and_flush(
   state: Rc<RefCell<OpState>>,
-  rid: ResourceId,
+  #[smi] rid: ResourceId,
 ) -> Result<()> {
   let resource = get_db_resource(state, rid)?;
   resource.db.borrow().compact_and_flush()?;
@@ -435,23 +422,4 @@ fn get_db_resource(
       .resource_table
       .get::<VectorDatabaseResource>(rid)?,
   )
-}
-
-fn encoded_buffer(
-  content: &[u8],
-  encoding: &Option<String>,
-) -> Result<StringOrBuffer> {
-  match encoding.as_ref() {
-    Some(e) if e == "utf-8" => Ok(StringOrBuffer::String(
-      simdutf8::basic::from_utf8(&content)
-        .context("decoding content to utf-8")?
-        .to_owned(),
-    )),
-    Some(e) if e == "base-64" => {
-      Ok(StringOrBuffer::String(base64::encode(content)))
-    }
-    _ => Ok(StringOrBuffer::Buffer(ZeroCopyBuf::ToV8(Some(
-      content.to_vec().into_boxed_slice(),
-    )))),
-  }
 }

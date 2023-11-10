@@ -3,7 +3,7 @@ use super::response::ParsedHttpResponse;
 use super::websocket::{self};
 use anyhow::Result;
 use axum::response::Response;
-use deno_core::ZeroCopyBuf;
+use deno_core::ToJsBuffer;
 use http::{Method, Request};
 use hyper::body::HttpBody;
 use hyper::Body;
@@ -17,7 +17,7 @@ pub struct HttpRequest {
   pub url: String,
   pub method: String,
   pub headers: Vec<(String, String)>,
-  pub body: Option<ZeroCopyBuf>,
+  pub body: Option<ToJsBuffer>,
 }
 
 #[derive(Clone, Default)]
@@ -78,9 +78,7 @@ impl From<&str> for HttpRequest {
       method: "GET".to_owned(),
       url: "http://0.0.0.0/".to_owned(),
       headers: vec![],
-      body: Some(ZeroCopyBuf::ToV8(Some(
-        body.to_owned().as_bytes().to_vec().into(),
-      ))),
+      body: Some(body.to_owned().as_bytes().to_vec().into()),
     }
   }
 }
@@ -91,16 +89,14 @@ impl From<(Method, &str)> for HttpRequest {
       method: method.as_str().to_owned(),
       url: "http://0.0.0.0/".to_owned(),
       headers: vec![],
-      body: Some(ZeroCopyBuf::ToV8(Some(
-        body.to_owned().as_bytes().to_vec().into(),
-      ))),
+      body: Some(body.to_owned().as_bytes().to_vec().into()),
     }
   }
 }
 
 pub async fn read_http_body_to_buffer(
   req: &mut Request<Body>,
-) -> Result<Option<ZeroCopyBuf>> {
+) -> Result<Option<ToJsBuffer>> {
   match *req.method() {
     // Note(sagar): Deno's Request doesn't support body in GET/HEAD
     Method::GET | Method::HEAD => Ok(None),
@@ -122,7 +118,7 @@ pub async fn read_http_body_to_buffer(
       }
 
       if has_body {
-        Ok(Some(ZeroCopyBuf::ToV8(Some(body.into_boxed_slice()))))
+        Ok(Some(body.into()))
       } else {
         Ok(None)
       }

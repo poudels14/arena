@@ -3,8 +3,7 @@ use super::response::ParsedHttpResponse;
 use super::{errors, request};
 use anyhow::{anyhow, Result};
 use axum::response::Response;
-use deno_core::{op, OpState, ResourceId, ZeroCopyBuf};
-use deno_core::{Resource, StringOrBuffer};
+use deno_core::{op2, OpState, Resource, ResourceId};
 use digest::Digest;
 use fastwebsockets::upgrade::upgrade;
 use fastwebsockets::{FragmentCollector, Frame, OpCode, Payload};
@@ -63,15 +62,17 @@ impl From<mpsc::Sender<WebsocketMessage>> for WebsocketOutgoingStream {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct WebsocketMessage {
-  pub payload: Option<StringOrBuffer>,
+  pub payload: Option<Vec<u8>>,
+  pub is_text: bool,
   pub close: bool,
 }
 
-#[op]
+#[op2(async)]
+#[serde]
 pub(crate) async fn op_websocket_recv(
   state: Rc<RefCell<OpState>>,
-  receiver_rid: ResourceId,
-  sender_rid: ResourceId,
+  #[smi] receiver_rid: ResourceId,
+  #[smi] sender_rid: ResourceId,
 ) -> Result<Option<WebsocketMessage>> {
   let receiver = {
     state
@@ -87,8 +88,16 @@ pub(crate) async fn op_websocket_recv(
       // None will be received if the mpsc sender is dropped
       // So, close the incoming stream and "close" both incoming/outgoing
       // streams
-      state.borrow_mut().resource_table.close(receiver_rid)?;
-      state.borrow_mut().resource_table.close(sender_rid)?;
+      state
+        .borrow_mut()
+        .resource_table
+        .take::<WebsocketIncomingStream>(receiver_rid)?
+        .close();
+      state
+        .borrow_mut()
+        .resource_table
+        .take::<WebsocketOutgoingStream>(sender_rid)?
+        .close();
 
       Ok(Some(WebsocketMessage {
         close: true,
@@ -98,11 +107,11 @@ pub(crate) async fn op_websocket_recv(
   }
 }
 
-#[op]
+#[op2(async)]
 pub(crate) async fn op_websocket_send(
   state: Rc<RefCell<OpState>>,
-  sender_rid: ResourceId,
-  value: WebsocketMessage,
+  #[smi] sender_rid: ResourceId,
+  #[serde] value: WebsocketMessage,
 ) -> u16 {
   let sender = {
     state
@@ -195,9 +204,8 @@ pub fn handle_websocket(
               OpCode::Text => {
                 in_tx
                   .send(WebsocketMessage {
-                    payload: Some(StringOrBuffer::String(
-                      simdutf8::basic::from_utf8(&frame.payload)?.to_owned(),
-                    )),
+                    payload: Some(frame.payload.to_vec()),
+                    is_text: true,
                     close: false,
                   })
                   .await
@@ -206,9 +214,10 @@ pub fn handle_websocket(
               OpCode::Binary => {
                 in_tx
                   .send(WebsocketMessage {
-                    payload: Some(StringOrBuffer::Buffer(ZeroCopyBuf::ToV8(Some(
-                      (&frame.payload).to_vec().into(),
-                    )))),
+                    payload: Some(
+                      frame.payload.to_vec().into(),
+                    ),
+                    is_text: false,
                     close: false,
                   })
                   .await
@@ -224,17 +233,15 @@ pub fn handle_websocket(
         },
         out_data = out_rx.recv() => {
           if let Some(msg) = out_data {
-            let (opcode, payload) = msg
+            let opcode = match msg.is_text {
+              true => OpCode::Text,
+              false => OpCode::Binary
+              };
+
+              let payload = msg
               .payload
-              .map(|payload| match payload {
-                StringOrBuffer::String(text) => {
-                  (OpCode::Text, Payload::Owned(text.into()))
-                }
-                StringOrBuffer::Buffer(data) => {
-                  (OpCode::Binary, Payload::Owned(data.to_vec()))
-                }
-              })
-              .unwrap_or((OpCode::Continuation, Payload::Owned(vec![])));
+              .map(|payload| Payload::Owned(payload))
+              .unwrap_or( Payload::Owned(vec![]));
 
             let frame = match msg.close {
               true => Frame::close(0, &payload),

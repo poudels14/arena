@@ -6,6 +6,7 @@ import * as base64 from "ext:deno_web/05_base64.js";
 import * as filereader from "ext:deno_web/10_filereader.js";
 import * as message_port from "ext:deno_web/13_message_port.js";
 import * as compression from "ext:deno_web/14_compression.js";
+import * as _ from "ext:deno_fetch/27_eventsource.js";
 
 import * as setup from "ext:runtime/setup.js";
 import * as http from "ext:runtime/http.js";

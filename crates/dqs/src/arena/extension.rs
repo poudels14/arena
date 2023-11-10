@@ -1,11 +1,9 @@
 use anyhow::Context;
 use anyhow::Result;
 use common::deno::extensions::BuiltinExtension;
-use deno_core::op;
-use deno_core::Extension;
-use deno_core::ExtensionFileSource;
-use deno_core::ExtensionFileSourceCode;
-use deno_core::OpState;
+use deno_core::{
+  op2, Extension, ExtensionFileSource, ExtensionFileSourceCode, Op, OpState,
+};
 use serde_json::json;
 use serde_json::Value;
 use uuid::Uuid;
@@ -16,26 +14,25 @@ use super::MainModule;
 #[allow(dead_code)]
 pub fn extension() -> BuiltinExtension {
   BuiltinExtension {
-    extension: Some(
-      Extension::builder("arena/dqs/runtime")
-        .ops(vec![
-          op_arena_get_base_dir::decl(),
-          op_arena_load_env::decl(),
-        ])
-        .js(vec![ExtensionFileSource {
-          specifier: "setup",
-          code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
-            "./setup.js"
-          )),
-        }])
-        .force_op_registration()
-        .build(),
-    ),
+    extension: Some(Extension {
+      name: "arena/dqs/runtime",
+      ops: vec![op_arena_get_base_dir::DECL, op_arena_load_env::DECL].into(),
+      js_files: vec![ExtensionFileSource {
+        specifier: "setup",
+        code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
+          "./setup.js"
+        )),
+      }]
+      .into(),
+      enabled: true,
+      ..Default::default()
+    }),
     ..Default::default()
   }
 }
 
-#[op(fast)]
+#[op2]
+#[string]
 pub fn op_arena_get_base_dir(state: &mut OpState) -> Result<String> {
   let state = state.borrow::<ArenaRuntimeState>();
   state
@@ -51,8 +48,9 @@ pub fn op_arena_get_base_dir(state: &mut OpState) -> Result<String> {
     })
 }
 
-#[op(fast)]
-fn op_arena_load_env(state: &mut OpState) -> Result<Value> {
+#[op2]
+#[serde]
+fn op_arena_load_env(state: &mut OpState) -> Result<serde_json::Value> {
   let state = state.borrow::<ArenaRuntimeState>();
   let mut variables = state.env_variables.to_vec();
 

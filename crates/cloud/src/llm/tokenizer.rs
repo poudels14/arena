@@ -1,8 +1,8 @@
 use anyhow::{anyhow, bail, Result};
-use deno_core::{op, OpState, Resource, ResourceId, StringOrBuffer};
+use deno_core::{op2, OpState, Resource, ResourceId};
 use http::{HeaderMap, HeaderValue};
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::json;
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::Write;
@@ -23,16 +23,17 @@ impl Resource for TokenizerResource {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct TokenizerOptions {
+pub struct TokenizerOptions {
   truncate: Option<bool>,
   max_length: Option<usize>,
 }
 
-#[op]
-async fn op_cloud_llm_hf_new_pretrained_tokenizer(
+#[op2(async)]
+#[smi]
+pub async fn op_cloud_llm_hf_new_pretrained_tokenizer(
   state: Rc<RefCell<OpState>>,
-  model_name: String,
-  options: TokenizerOptions,
+  #[string] model_name: String,
+  #[serde] options: TokenizerOptions,
 ) -> Result<ResourceId> {
   let mut tokenizer = Tokenizer::from_file(
     from_pretrained(
@@ -48,14 +49,16 @@ async fn op_cloud_llm_hf_new_pretrained_tokenizer(
   tokenizer.with_padding(None);
 
   if let Some(max_length) = options.max_length {
-    tokenizer.with_truncation(Some(TruncationParams {
-      max_length,
-      ..Default::default()
-    }));
+    tokenizer
+      .with_truncation(Some(TruncationParams {
+        max_length,
+        ..Default::default()
+      }))
+      .unwrap();
   }
   match options.truncate {
     Some(truncate) if !truncate => {
-      tokenizer.with_truncation(None);
+      tokenizer.with_truncation(None).unwrap();
     }
     _ => {}
   }
@@ -65,28 +68,22 @@ async fn op_cloud_llm_hf_new_pretrained_tokenizer(
   }))
 }
 
-#[op]
-async fn op_cloud_llm_hf_encode<'a>(
+#[op2(async)]
+#[serde]
+pub async fn op_cloud_llm_hf_encode<'a>(
   state: Rc<RefCell<OpState>>,
-  tokenizer_id: ResourceId,
-  text: StringOrBuffer,
-) -> Result<Value> {
+  #[smi] tokenizer_id: ResourceId,
+  #[string] text: String,
+) -> Result<serde_json::Value> {
   let tokenizer = state
     .borrow()
     .resource_table
     .get::<TokenizerResource>(tokenizer_id)?
     .clone();
 
-  let text_str = match text {
-    StringOrBuffer::String(t) => t,
-    StringOrBuffer::Buffer(buf) => {
-      simdutf8::basic::from_utf8(&buf)?.to_string()
-    }
-  };
-
   let encoding = tokenizer
     .tokenizer
-    .encode(text_str, false)
+    .encode(text, false)
     .map_err(|e| anyhow!("{:?}", e))?;
 
   Ok(json!({

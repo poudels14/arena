@@ -6,17 +6,18 @@ use common::deno::permissions::PermissionsContainer;
 use common::deno::resolver::fs::FsModuleResolver;
 use common::deno::{self, RuntimeConfig};
 use deno_core::{
-  op, v8, ExtensionFileSource, ExtensionFileSourceCode, FastString, JsRealm,
-  ModuleLoader, OpState,
+  op2, v8, ExtensionFileSource, ExtensionFileSourceCode, FastString,
+  ModuleLoader, Op, OpState,
 };
 use deno_core::{Extension, JsRuntime, Snapshot};
 use deno_fetch::CreateHttpClientOptions;
 use derivative::Derivative;
-use serde_json::{json, Value};
+use serde_json::json;
 use std::cell::RefCell;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::Arc;
 use tracing::error;
 use url::Url;
 
@@ -99,7 +100,7 @@ impl IsolatedRuntime {
       deno_console::deno_console::init_ops(),
       deno_url::deno_url::init_ops(),
       deno_web::deno_web::init_ops::<PermissionsContainer>(
-        deno_web::BlobStore::default(),
+        Arc::new(deno_web::BlobStore::default()),
         Default::default(),
       ),
       deno_fetch::deno_fetch::init_ops::<PermissionsContainer>(
@@ -113,16 +114,20 @@ impl IsolatedRuntime {
           file_fetch_handler: Rc::new(deno_fetch::DefaultFileFetchHandler),
         },
       ),
-      Extension::builder("arena/core/permissions")
-        .state(move |state| {
+      Extension {
+        name: "arena/core/permissions",
+        op_state_fn: Some(Box::new(move |state| {
           state.put::<PermissionsContainer>(permissions.to_owned());
           state.put::<RuntimeConfig>(config);
-        })
-        .build(),
+        })),
+        enabled: true,
+        ..Default::default()
+      },
       // Note(sagar): put ArenaConfig in the state so that other extensions
       // can use it
-      Extension::builder("arena/config")
-        .state(move |state| {
+      Extension {
+        name: "arena/config",
+        op_state_fn: Some(Box::new(move |state| {
           state.put::<ArenaConfig>(arena_config.to_owned());
           if let Some(egress_addr) = egress_addr {
             let mut client = deno::fetch::get_default_http_client_builder(
@@ -143,8 +148,10 @@ impl IsolatedRuntime {
             client = client.local_address(egress_addr);
             state.put::<reqwest::Client>(client.build().unwrap());
           }
-        })
-        .build(),
+        })),
+        enabled: true,
+        ..Default::default()
+      },
       Self::get_setup_extension(&options),
     ];
 
@@ -316,16 +323,6 @@ impl IsolatedRuntime {
       .map_err(|e| anyhow!("V8 error: {:?}", e))
   }
 
-  /// Initializes a Javascript function in the context of this runtime
-  #[allow(dead_code)]
-  pub fn init_js_function(
-    &mut self,
-    code: &str,
-    realm: Option<JsRealm>,
-  ) -> Result<super::function::Function> {
-    super::function::Function::new(self.runtime.clone(), code, realm)
-  }
-
   fn get_setup_extension(config: &RuntimeOptions) -> Extension {
     let mut js_files = Vec::new();
 
@@ -362,16 +359,19 @@ impl IsolatedRuntime {
       ),
     });
 
-    Extension::builder("arena")
-      .ops(vec![op_load_arena_config::decl()])
-      .js(js_files)
-      .force_op_registration()
-      .build()
+    Extension {
+      name: "arena",
+      ops: vec![op_load_arena_config::DECL].into(),
+      js_files: js_files.into(),
+      enabled: true,
+      ..Default::default()
+    }
   }
 }
 
-#[op]
-pub fn op_load_arena_config(state: &mut OpState) -> Result<Value> {
+#[op2]
+#[serde]
+pub fn op_load_arena_config(state: &mut OpState) -> Result<serde_json::Value> {
   let config = state.borrow_mut::<ArenaConfig>();
   Ok(json!(config))
 }

@@ -3,15 +3,15 @@
 use super::digest;
 use deno_core::error::type_error;
 use deno_core::error::AnyError;
-use deno_core::op;
-use deno_core::OpState;
-use deno_core::ResourceId;
-use deno_core::ZeroCopyBuf;
+use deno_core::{op2, OpState, ResourceId, ToJsBuffer};
 use rand::Rng;
 use std::rc::Rc;
 
-#[op(fast)]
-pub fn op_node_create_hash(state: &mut OpState, algorithm: &str) -> u32 {
+#[op2(fast)]
+pub fn op_node_create_hash(
+  state: &mut OpState,
+  #[string] algorithm: &str,
+) -> u32 {
   state
     .resource_table
     .add(match digest::Context::new(algorithm) {
@@ -20,8 +20,12 @@ pub fn op_node_create_hash(state: &mut OpState, algorithm: &str) -> u32 {
     })
 }
 
-#[op(fast)]
-pub fn op_node_hash_update(state: &mut OpState, rid: u32, data: &[u8]) -> bool {
+#[op2(fast)]
+pub fn op_node_hash_update(
+  state: &mut OpState,
+  #[smi] rid: u32,
+  #[anybuffer] data: &[u8],
+) -> bool {
   let context = match state.resource_table.get::<digest::Context>(rid) {
     Ok(context) => context,
     _ => return false,
@@ -30,11 +34,11 @@ pub fn op_node_hash_update(state: &mut OpState, rid: u32, data: &[u8]) -> bool {
   true
 }
 
-#[op(fast)]
+#[op2(fast)]
 pub fn op_node_hash_update_str(
   state: &mut OpState,
-  rid: u32,
-  data: &str,
+  #[smi] rid: u32,
+  #[string] data: &str,
 ) -> bool {
   let context = match state.resource_table.get::<digest::Context>(rid) {
     Ok(context) => context,
@@ -44,21 +48,23 @@ pub fn op_node_hash_update_str(
   true
 }
 
-#[op]
+#[op2]
+#[serde]
 pub fn op_node_hash_digest(
   state: &mut OpState,
-  rid: ResourceId,
-) -> Result<ZeroCopyBuf, AnyError> {
+  #[smi] rid: ResourceId,
+) -> Result<ToJsBuffer, AnyError> {
   let context = state.resource_table.take::<digest::Context>(rid)?;
   let context = Rc::try_unwrap(context)
     .map_err(|_| type_error("Hash context is already in use"))?;
   Ok(context.digest()?.into())
 }
 
-#[op]
+#[op2]
+#[string]
 pub fn op_node_hash_digest_hex(
   state: &mut OpState,
-  rid: ResourceId,
+  #[smi] rid: ResourceId,
 ) -> Result<String, AnyError> {
   let context = state.resource_table.take::<digest::Context>(rid)?;
   let context = Rc::try_unwrap(context)
@@ -67,7 +73,7 @@ pub fn op_node_hash_digest_hex(
   Ok(hex::encode(digest))
 }
 
-#[op]
-pub fn op_node_generate_secret(buf: &mut [u8]) {
+#[op2(fast)]
+pub fn op_node_generate_secret(#[buffer] buf: &mut [u8]) {
   rand::thread_rng().fill(buf);
 }

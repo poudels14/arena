@@ -1,15 +1,9 @@
 use super::super::utils::fs::{resolve_read_path, resolve_write_path};
 use super::BuiltinExtension;
 use anyhow::anyhow;
-use anyhow::bail;
 use anyhow::Result;
-use deno_core::op;
-use deno_core::ExtensionFileSource;
-use deno_core::ExtensionFileSourceCode;
-use deno_core::OpState;
-use deno_core::StringOrBuffer;
+use deno_core::{op2, JsBuffer, OpState, ToJsBuffer};
 use serde_json::json;
-use serde_json::Value;
 use std::cell::RefCell;
 use std::io::Write;
 use std::os::unix::prelude::MetadataExt;
@@ -39,16 +33,11 @@ deno_core::extension!(
     op_fs_read_file_string_async,
     op_fs_write_file_sync,
   ],
-  customizer = |ext: &mut deno_core::ExtensionBuilder| {
-    ext.js(vec![ExtensionFileSource {
-      specifier: "setup",
-      code: ExtensionFileSourceCode::IncludedInBinary(include_str!("./fs.js")),
-    }]);
-    ext.force_op_registration();
-  }
+  js = [dir "src/deno/extensions/fs", "fs.js"]
 );
 
-#[op(fast)]
+#[op2]
+#[string]
 fn op_fs_cwd_sync(state: &mut OpState) -> Result<String> {
   let resolved_path = resolve_read_path(state, &Path::new("."))?;
   resolved_path
@@ -57,8 +46,12 @@ fn op_fs_cwd_sync(state: &mut OpState) -> Result<String> {
     .ok_or(anyhow!("Couldn't get current directory"))
 }
 
-#[op(fast)]
-fn op_fs_lstat_sync(state: &mut OpState, path: String) -> Result<Value> {
+#[op2]
+#[serde]
+fn op_fs_lstat_sync(
+  state: &mut OpState,
+  #[string] path: String,
+) -> Result<serde_json::Value> {
   let resolved_path = resolve_read_path(state, &Path::new(&path))?;
   let m = std::fs::metadata(resolved_path)?;
   Ok(json!({
@@ -83,8 +76,12 @@ fn op_fs_lstat_sync(state: &mut OpState, path: String) -> Result<Value> {
   }))
 }
 
-#[op(fast)]
-fn op_fs_realpath_sync(state: &mut OpState, path: String) -> Result<String> {
+#[op2]
+#[string]
+fn op_fs_realpath_sync(
+  state: &mut OpState,
+  #[string] path: String,
+) -> Result<String> {
   let resolved_path = resolve_read_path(state, &Path::new(&path))?;
   resolved_path
     .canonicalize()?
@@ -93,10 +90,11 @@ fn op_fs_realpath_sync(state: &mut OpState, path: String) -> Result<String> {
     .ok_or(anyhow!("Couldn't get current directory"))
 }
 
-#[op(fast)]
+#[op2]
+#[serde]
 fn op_fs_readdir_sync(
   state: &mut OpState,
-  path: String,
+  #[string] path: String,
 ) -> Result<Vec<String>> {
   let resolved_path = resolve_read_path(state, &Path::new(&path))?;
   Ok(
@@ -108,15 +106,18 @@ fn op_fs_readdir_sync(
   )
 }
 
-#[op(fast)]
-fn op_fs_file_exists_sync(state: &mut OpState, path: String) -> Result<bool> {
+#[op2(fast)]
+fn op_fs_file_exists_sync(
+  state: &mut OpState,
+  #[string] path: String,
+) -> Result<bool> {
   resolve_read_path(state, &Path::new(&path)).map(|f| f.exists())
 }
 
-#[op(fast)]
+#[op2(fast)]
 fn op_fs_mkdir_sync(
   state: &mut OpState,
-  path: String,
+  #[string] path: String,
   recursive: bool,
 ) -> Result<()> {
   let resolved_path = resolve_read_path(state, &Path::new(&path))?;
@@ -127,63 +128,48 @@ fn op_fs_mkdir_sync(
   .map_err(|e| anyhow!("{}", e))
 }
 
-#[op(fast)]
+#[op2]
+#[serde]
 fn op_fs_read_file_sync(
   state: &mut OpState,
-  path: String,
-  encoding: Option<String>,
-) -> Result<StringOrBuffer> {
+  #[string] path: String,
+) -> Result<ToJsBuffer> {
   let resolved_path = resolve_read_path(state, &Path::new(&path))?;
-  match encoding.as_deref() {
-    Some("utf8") | Some("utf-8") => Ok(StringOrBuffer::String(
-      std::fs::read_to_string(resolved_path)?,
-    )),
-    None => Ok(StringOrBuffer::Buffer(std::fs::read(resolved_path)?.into())),
-    Some(e) => bail!("Unsupported encoding: {:?}", e),
-  }
+  Ok(std::fs::read(resolved_path)?.into())
 }
 
-#[op]
+#[op2(async)]
+#[serde]
 async fn op_fs_read_file_async(
   state: Rc<RefCell<OpState>>,
-  path: String,
-  encoding: Option<String>,
-) -> Result<StringOrBuffer> {
+  #[string] path: String,
+) -> Result<ToJsBuffer> {
   let resolved_path = {
     let mut state = state.borrow_mut();
     resolve_read_path(&mut state, &Path::new(&path))
   }?;
 
-  match encoding.as_deref() {
-    Some("utf8") | Some("utf-8") => Ok(StringOrBuffer::String(
-      tokio::fs::read_to_string(resolved_path).await?,
-    )),
-    None => Ok(StringOrBuffer::Buffer(
-      tokio::fs::read(resolved_path).await?.into(),
-    )),
-    Some(e) => bail!("Unsupported encoding: {:?}", e),
-  }
+  Ok(tokio::fs::read(resolved_path).await?.into())
 }
 
-#[op]
+#[op2(async)]
+#[string]
 async fn op_fs_read_file_string_async(
   state: Rc<RefCell<OpState>>,
-  path: String,
-) -> Result<StringOrBuffer> {
+  #[string] path: String,
+) -> Result<String> {
   let resolved_path = {
     let mut state = state.borrow_mut();
     resolve_read_path(&mut state, &Path::new(&path))
   }?;
-  Ok(StringOrBuffer::String(
-    tokio::fs::read_to_string(resolved_path).await?,
-  ))
+  Ok(tokio::fs::read_to_string(resolved_path).await?)
 }
 
-#[op(fast)]
+#[op2(fast)]
 fn op_fs_write_file_sync(
   state: &mut OpState,
-  path: String,
-  data: StringOrBuffer,
+  #[string] path: String,
+  #[buffer] data: JsBuffer,
 ) -> Result<()> {
   let resolved_path = resolve_write_path(state, &Path::new(&path))?;
   let mut file = std::fs::File::create(resolved_path)?;

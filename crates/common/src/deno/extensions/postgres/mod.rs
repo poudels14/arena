@@ -10,12 +10,12 @@ use crate::resolve_from_file;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Result;
-use deno_core::op;
+use deno_core::op2;
 use deno_core::serde::{Deserialize, Serialize};
 use deno_core::serde_json::Value;
 use deno_core::Extension;
 use deno_core::Resource;
-use deno_core::{OpState, ResourceId};
+use deno_core::{Op, OpState, ResourceId};
 use heck::ToLowerCamelCase;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -35,14 +35,17 @@ pub fn extension() -> BuiltinExtension {
 }
 
 fn init() -> Extension {
-  Extension::builder("arena/runtime/postgres")
-    .ops(vec![
-      op_postgres_create_connection::decl(),
-      op_postgres_is_connected::decl(),
-      op_postgres_execute_query::decl(),
-    ])
-    .force_op_registration()
-    .build()
+  Extension {
+    name: "arena/runtime/postgres",
+    ops: vec![
+      op_postgres_create_connection::DECL,
+      op_postgres_is_connected::DECL,
+      op_postgres_execute_query::DECL,
+    ]
+    .into(),
+    enabled: true,
+    ..Default::default()
+  }
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -125,10 +128,11 @@ impl Resource for PostgresConnectionResource {
   }
 }
 
-#[op]
+#[op2(async)]
+#[smi]
 pub async fn op_postgres_create_connection(
   state: Rc<RefCell<OpState>>,
-  config: ConnectionConfig,
+  #[serde] config: ConnectionConfig,
 ) -> Result<ResourceId> {
   let connection_string = match config.credential {
     Some(cred) => {
@@ -165,10 +169,10 @@ pub async fn op_postgres_create_connection(
   Ok(resource_id)
 }
 
-#[op]
+#[op2(fast)]
 pub fn op_postgres_is_connected(
   state: &mut OpState,
-  rid: ResourceId,
+  #[smi] rid: ResourceId,
 ) -> Result<bool> {
   let resource = state
     .resource_table
@@ -181,13 +185,14 @@ pub fn op_postgres_is_connected(
   )
 }
 
-#[op]
+#[op2(async)]
+#[serde]
 pub async fn op_postgres_execute_query(
   state: Rc<RefCell<OpState>>,
-  rid: ResourceId,
-  query: String,
-  params: Vec<postgres::Param>,
-  options: Option<QueryOptions>,
+  #[smi] rid: ResourceId,
+  #[string] query: String,
+  #[serde] params: Vec<postgres::Param>,
+  #[serde] options: Option<QueryOptions>,
 ) -> Result<QueryResponse> {
   let resource = state
     .borrow_mut()

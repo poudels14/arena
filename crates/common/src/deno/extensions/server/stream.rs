@@ -1,11 +1,11 @@
 use super::resources::{HttpConnection, StreamServer};
 use super::HttpServerConfig;
 use anyhow::Result;
-use deno_core::{op, OpState, ResourceId};
+use deno_core::{op2, OpState, ResourceId};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-#[op]
+#[op2(async)]
 pub(crate) async fn op_http_listen(state: Rc<RefCell<OpState>>) -> Result<()> {
   let config = { state.borrow().borrow::<HttpServerConfig>().clone() };
   let listener = match config {
@@ -19,7 +19,8 @@ pub(crate) async fn op_http_listen(state: Rc<RefCell<OpState>>) -> Result<()> {
   Ok(())
 }
 
-#[op]
+#[op2(async)]
+#[serde]
 pub(crate) async fn op_http_accept(
   state: Rc<RefCell<OpState>>,
 ) -> Result<Option<ResourceId>> {
@@ -45,3 +46,20 @@ pub(crate) async fn op_http_accept(
     None => Ok(None),
   }
 }
+
+// TODO(sagar): remove this
+// #[op2(async)]
+// pub(crate) async fn op_http_shutdown(
+//   state: Rc<RefCell<OpState>>,
+//   #[smi] rid: ResourceId,
+// ) -> Result<()> {
+//   println!("shutdown rid = {}", rid);
+//   let connection = state
+//     .borrow_mut()
+//     .resource_table
+//     .take::<HttpConnection>(rid)?;
+//   let mut stream = connection.req_stream.try_borrow_mut()?;
+//   stream.close();
+
+//   Ok(())
+// }

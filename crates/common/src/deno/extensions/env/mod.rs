@@ -3,39 +3,38 @@ use crate::arena::ArenaConfig;
 use crate::deno::RuntimeConfig;
 use crate::dotenv;
 use anyhow::Result;
-use deno_core::op;
+use deno_core::op2;
+use deno_core::Extension;
 use deno_core::ExtensionFileSource;
 use deno_core::ExtensionFileSourceCode;
+use deno_core::Op;
 use deno_core::OpState;
 use serde_json::json;
-use serde_json::Value;
 
 pub fn extension() -> BuiltinExtension {
   BuiltinExtension {
-    extension: Some(self::env::init_ops_and_esm()),
+    extension: Some(Extension {
+      ops: vec![op_load_env::DECL].into(),
+      js_files: vec![ExtensionFileSource {
+        specifier: "setup",
+        code: ExtensionFileSourceCode::IncludedInBinary(
+          r#"
+          Object.assign(globalThis.process.env, Arena.core.ops.op_load_env());
+          "#,
+        ),
+      }]
+      .into(),
+      enabled: true,
+      ..Default::default()
+    }),
     runtime_modules: vec![],
     snapshot_modules: vec![],
   }
 }
 
-deno_core::extension!(
-  env,
-  ops = [op_load_env],
-  customizer = |ext: &mut deno_core::ExtensionBuilder| {
-    ext.js(vec![ExtensionFileSource {
-      specifier: "setup",
-      code: ExtensionFileSourceCode::IncludedInBinary(
-        r#"
-        Object.assign(globalThis.process.env, Arena.core.ops.op_load_env());
-        "#,
-      ),
-    }]);
-    ext.force_op_registration();
-  }
-);
-
-#[op]
-fn op_load_env(state: &mut OpState) -> Result<Value> {
+#[op2]
+#[serde]
+fn op_load_env(state: &mut OpState) -> Result<serde_json::Value> {
   let mut env_vars = {
     state
       .try_borrow::<ArenaConfig>()

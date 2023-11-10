@@ -4,23 +4,21 @@ use common::deno::extensions::{
 };
 use common::deno::loader::BuiltInModuleLoader;
 use common::resolve_from_root;
-use deno_core::anyhow::Result;
-use deno_core::ExtensionFileSource;
-use deno_core::{anyhow, JsRuntime, OpState, RuntimeOptions};
+use deno_core::anyhow::{self, Result};
+use deno_core::{
+  Extension, ExtensionFileSource, JsRuntimeForSnapshot, RuntimeOptions,
+};
 use std::env;
 use std::path::Path;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::Arc;
 use url::Url;
 
 struct Permissions;
 
 impl deno_web::TimersPermission for Permissions {
   fn allow_hrtime(&mut self) -> bool {
-    unreachable!("snapshotting!")
-  }
-
-  fn check_unstable(&self, _state: &OpState, _api_name: &'static str) {
     unreachable!("snapshotting!")
   }
 }
@@ -74,6 +72,13 @@ fn generate_prod_snapshot(path: &Path) {
           ),
         ),
         (
+          "@arena/dqs/plugin/workflow/lib",
+          resolve_from_root!(
+            "../../js/arena-runtime/dist/dqs/plugin/workflow/lib.js",
+            true
+          ),
+        ),
+        (
           "@arena/dqs/utils",
           resolve_from_root!("../../js/arena-runtime/dist/dqs/utils.js", true),
         ),
@@ -95,21 +100,24 @@ fn generate_prod_snapshot(path: &Path) {
   std::fs::write(path, snapshot).unwrap();
 }
 
-fn get_basic_runtime() -> JsRuntime {
-  deno_core::extension!(runtime,
-    deps = [
-      deno_webidl,
-      deno_console,
-      deno_url,
-      deno_web,
-      deno_fetch
+fn get_basic_runtime() -> JsRuntimeForSnapshot {
+  let runtime_ext = Extension {
+    name: "runtime",
+    deps: &[
+      "deno_webidl",
+      "deno_console",
+      "deno_url",
+      "deno_web",
+      "deno_fetch",
     ],
-    esm = [
-      dir "../../js/arena-runtime/core/",
-      "http.js"
-    ],
-    customizer = |ext: &mut deno_core::ExtensionBuilder| {
-      ext.esm(vec![ExtensionFileSource {
+    esm_files: vec![
+      ExtensionFileSource {
+        specifier: "ext:runtime/http.js",
+        code: deno_core::ExtensionFileSourceCode::IncludedInBinary(
+          include_str!("../../js/arena-runtime/core/http.js"),
+        ),
+      },
+      ExtensionFileSource {
         specifier: "ext:runtime/setup.js",
         code: deno_core::ExtensionFileSourceCode::IncludedInBinary(
           include_str!("setup.js"),
@@ -120,20 +128,23 @@ fn get_basic_runtime() -> JsRuntime {
         code: deno_core::ExtensionFileSourceCode::IncludedInBinary(
           include_str!("main.js"),
         ),
-      }]);
-      ext.esm_entry_point("ext:runtime/main.js");
-    }
-  );
+      },
+    ]
+    .into(),
+    esm_entry_point: Some("ext:runtime/main.js"),
+    enabled: true,
+    ..Default::default()
+  };
 
-  let runtime = JsRuntime::new(RuntimeOptions {
+  let runtime = JsRuntimeForSnapshot::new(RuntimeOptions {
     extensions: vec![
       // Note(sagar): deno_webidl, deno_url, deno_web need to be included for
       // timer (setTimeout, etc) to work
-      deno_webidl::deno_webidl::init_js_only(),
-      deno_console::deno_console::init_js_only(),
+      deno_webidl::deno_webidl::init_ops_and_esm(),
+      deno_console::deno_console::init_ops_and_esm(),
       deno_url::deno_url::init_ops_and_esm(),
       deno_web::deno_web::init_ops_and_esm::<Permissions>(
-        deno_web::BlobStore::default(),
+        Arc::new(deno_web::BlobStore::default()),
         Default::default(),
       ),
       deno_fetch::deno_fetch::init_ops_and_esm::<Permissions>(
@@ -147,9 +158,8 @@ fn get_basic_runtime() -> JsRuntime {
           file_fetch_handler: Rc::new(deno_fetch::DefaultFileFetchHandler),
         },
       ),
-      runtime::init_ops_and_esm(),
+      runtime_ext,
     ],
-    will_snapshot: true,
     module_loader: Some(Rc::new(BuiltInModuleLoader {})),
     ..Default::default()
   });

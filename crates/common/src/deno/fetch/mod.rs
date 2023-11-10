@@ -1,6 +1,7 @@
 // credit: deno
 use deno_core::error::{type_error, AnyError};
 use deno_fetch::CreateHttpClientOptions;
+use deno_tls::SocketUse;
 use http::header::USER_AGENT;
 use http::HeaderMap;
 use reqwest::redirect::Policy;
@@ -17,6 +18,7 @@ pub fn get_default_http_client_builder(
     options.ca_certs,
     options.unsafely_ignore_certificate_errors,
     options.client_cert_chain_and_key,
+    SocketUse::GeneralSsl,
   )?;
 
   let mut alpn_protocols = vec![];

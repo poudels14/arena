@@ -3,7 +3,7 @@ mod digest;
 
 use super::BuiltinExtension;
 use crate::resolve_from_root;
-use deno_core::{op, Extension};
+use deno_core::{op2, Extension, Op};
 use std::path::PathBuf;
 
 pub enum NodeModules {
@@ -59,21 +59,25 @@ pub fn extension(module_filter: Option<Vec<&'static str>>) -> BuiltinExtension {
 }
 
 pub fn init_ops() -> Extension {
-  Extension::builder("arena/runtime/node")
-    .ops(vec![
-      op_node_build_os::decl(),
-      crypto::op_node_create_hash::decl(),
-      crypto::op_node_hash_update::decl(),
-      crypto::op_node_hash_update_str::decl(),
-      crypto::op_node_hash_digest::decl(),
-      crypto::op_node_hash_digest_hex::decl(),
-      crypto::op_node_generate_secret::decl(),
-    ])
-    .force_op_registration()
-    .build()
+  Extension {
+    name: "arena/runtime/node",
+    ops: vec![
+      op_node_build_os::DECL,
+      crypto::op_node_create_hash::DECL,
+      crypto::op_node_hash_update::DECL,
+      crypto::op_node_hash_update_str::DECL,
+      crypto::op_node_hash_digest::DECL,
+      crypto::op_node_hash_digest_hex::DECL,
+      crypto::op_node_generate_secret::DECL,
+    ]
+    .into(),
+    enabled: true,
+    ..Default::default()
+  }
 }
 
-#[op]
+#[op2]
+#[string]
 fn op_node_build_os() -> String {
   env!("TARGET").split('-').nth(2).unwrap().to_string()
 }

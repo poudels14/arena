@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::rc::Rc;
 
 use anyhow::Result;
-use deno_core::{op, OpState, Resource, ResourceId};
+use deno_core::{op2, OpState, Resource, ResourceId};
 use serde::{Deserialize, Serialize};
 
 use super::{Access, AclEntity};
@@ -29,23 +29,25 @@ pub struct Acl {
   pub access: Access,
 }
 
-#[op]
-fn op_cloud_acl_new_checker(
+#[op2]
+#[smi]
+pub fn op_cloud_acl_new_checker(
   state: &mut OpState,
-  acls: Vec<Acl>,
+  #[serde] acls: Vec<Acl>,
 ) -> Result<ResourceId> {
   Ok(state.resource_table.add(AclChecker { acls: acls.into() }))
 }
 
-#[op]
+#[op2]
+#[serde]
 fn op_cloud_acl_filter_entity_by_access(
   state: &mut OpState,
-  checker_id: ResourceId,
-  identity: Identity,
-  access: Access,
+  #[smi] checker_id: ResourceId,
+  #[serde] identity: Identity,
+  #[serde] access: Access,
   // workspace of the entities being filtered
-  workspace_id: &str,
-  entities: Vec<AclEntity>,
+  #[string] workspace_id: &str,
+  #[serde] entities: Vec<AclEntity>,
 ) -> Result<Vec<AclEntity>> {
   let checker = state.resource_table.get::<AclChecker>(checker_id)?;
   Ok(

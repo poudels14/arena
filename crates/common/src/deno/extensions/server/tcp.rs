@@ -7,7 +7,7 @@ use super::{executor, request};
 use anyhow::Result;
 use axum::response::{IntoResponse, Response};
 use deno_core::CancelFuture;
-use deno_core::{op, CancelHandle, OpState, ResourceId};
+use deno_core::{op2, CancelHandle, OpState, ResourceId};
 use futures::future::{pending, select, Either};
 use futures::never::Never;
 use futures::FutureExt;
@@ -35,7 +35,7 @@ use tower_http::compression::{
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::services::ServeFile;
 
-#[op]
+#[op2(async)]
 pub(crate) async fn op_http_listen(state: Rc<RefCell<OpState>>) -> Result<()> {
   let config = state.borrow().borrow::<HttpServerConfig>().clone();
 
@@ -58,7 +58,8 @@ pub(crate) async fn op_http_listen(state: Rc<RefCell<OpState>>) -> Result<()> {
   }
 }
 
-#[op]
+#[op2(async)]
+#[smi]
 pub(crate) async fn op_http_accept(
   state: Rc<RefCell<OpState>>,
 ) -> Result<ResourceId> {
@@ -69,7 +70,7 @@ pub(crate) async fn op_http_accept(
 
   let (tcp_stream, _) = server.listener.borrow_mut().accept().await?;
   let (tx, rx) =
-    mpsc::channel::<(HttpRequest, oneshot::Sender<ParsedHttpResponse>)>(10);
+    mpsc::channel::<(HttpRequest, oneshot::Sender<ParsedHttpResponse>)>(100);
 
   let cors = CorsLayer::new()
     .allow_methods([Method::GET])
@@ -155,6 +156,18 @@ pub(crate) async fn op_http_accept(
       });
   Ok(connection_rid)
 }
+
+// TODO(sagar): remove this
+// #[op2(async)]
+// pub(crate) async fn op_http_shutdown(
+//   state: Rc<RefCell<OpState>>,
+// ) -> Result<()> {
+//   let mut state = state.borrow_mut();
+//   let server = state.try_take::<TcpServer>();
+//   drop(server);
+
+//   Ok(())
+// }
 
 pub async fn handle_request<'a>(
   req_sender: mpsc::Sender<(HttpRequest, oneshot::Sender<ParsedHttpResponse>)>,

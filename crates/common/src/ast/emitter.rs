@@ -63,12 +63,12 @@ fn create_emitter<'a>(
 ) -> Emitter<'a, Box<JsWriter<'a, &'a mut Vec<u8>>>, SourceMap> {
   let cm = Rc::new(SourceMap::default());
   let wr = Box::new(JsWriter::new(cm.clone(), "", buf, None));
-  let cfg = swc_ecma_codegen::Config {
-    minify: false,
-    ascii_only: false,
-    omit_last_semi: true,
-    target: EsVersion::Es2021,
-  };
+  let cfg = swc_ecma_codegen::Config::default()
+    .with_minify(false)
+    .with_ascii_only(false)
+    .with_omit_last_semi(true)
+    .with_target(EsVersion::Es2021);
+
   swc_ecma_codegen::Emitter {
     cfg,
     comments: None,

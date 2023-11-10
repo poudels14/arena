@@ -2,6 +2,5 @@ mod loaders;
 mod runtime;
 mod transpiler;
 
-pub mod function;
-
+pub use loaders::{FsModuleLoader, ModuleLoaderOption};
 pub use runtime::{IsolatedRuntime, RuntimeOptions};

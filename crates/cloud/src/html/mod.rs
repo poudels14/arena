@@ -5,9 +5,7 @@ use std::rc::Rc;
 
 use anyhow::bail;
 use anyhow::Result;
-use deno_core::op;
-use deno_core::OpState;
-use deno_core::StringOrBuffer;
+use deno_core::{op2, OpState};
 use html5ever::tendril::SliceExt;
 use html5ever::tendril::Tendril;
 use html5ever::tokenizer::{
@@ -31,11 +29,12 @@ pub struct ExtractTextOptions {
   skip_whitespaces: bool,
 }
 
-#[op]
-async fn op_cloud_html_extract_text(
+#[op2(async)]
+#[serde]
+pub async fn op_cloud_html_extract_text(
   _state: Rc<RefCell<OpState>>,
-  html: StringOrBuffer,
-  options: ExtractTextOptions,
+  #[string] html: String,
+  #[serde] options: ExtractTextOptions,
 ) -> Result<Vec<String>> {
   let extractor = TextExtractor::new(Default::default());
 

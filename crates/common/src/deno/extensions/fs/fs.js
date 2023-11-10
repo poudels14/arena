@@ -26,9 +26,21 @@
       mkdirSync(dir, options = {}) {
         return core.ops.op_fs_mkdir_sync(dir, options.recursive || false);
       },
-      readFileSync: (...args) => core.ops.op_fs_read_file_sync(...args),
-      readFile(...args) {
-        return core.opAsync("op_fs_read_file_async", ...args);
+      readFileSync: (path, encoding) => {
+        const data = core.ops.op_fs_read_file_sync(path);
+        if (encoding) {
+          const decoder = new TextDecoder(encoding);
+          return decoder.decode(data);
+        }
+        return data;
+      },
+      readFile(path, encoding) {
+        const data = core.opAsync("op_fs_read_file_async", path);
+        if (encoding) {
+          const decoder = new TextDecoder(encoding);
+          return decoder.decode(data);
+        }
+        return data;
       },
       readToString(...args) {
         return core.opAsync("op_fs_read_file_string_async", ...args);
