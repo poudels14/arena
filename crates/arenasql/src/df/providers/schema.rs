@@ -3,15 +3,18 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use datafusion::catalog::schema::SchemaProvider as DfSchemaProvider;
-use datafusion::datasource::TableProvider;
-use datafusion::error::{DataFusionError, Result};
+use datafusion::datasource::TableProvider as DfTableProvider;
+use datafusion::error::Result;
 
 use crate::schema::{Column, Table, TableId};
-use crate::storage::Transaction;
+use crate::storage::{Serializer, Transaction};
+use crate::{df_execution_error, next_table_id_key, table_schema_key};
+
+use super::table::TableProvider;
 
 pub struct SchemaProvider {
   pub(super) catalog: String,
-  pub(super) name: String,
+  pub(super) schema: String,
   pub(super) transaction: Arc<dyn Transaction>,
 }
 
@@ -25,43 +28,37 @@ impl DfSchemaProvider for SchemaProvider {
     unimplemented!()
   }
 
-  async fn table(&self, name: &str) -> Option<Arc<dyn TableProvider>> {
-    let bytes = self.transaction.get(
-      format!("m_schema_{}_{}_{}", self.catalog, self.name, name).as_bytes(),
-    );
-
-    match bytes {
-      Ok(bytes) => {
-        bytes.and_then(|b| match bincode::deserialize::<Table>(&b) {
-          Ok(schema) => Some(Arc::new(super::table::TableProvider::new(
-            schema,
-            self.transaction.clone(),
-          )) as Arc<dyn TableProvider>),
-          Err(e) => {
-            tracing::error!("Error deserializing table schema: {:?}", e);
-            None
-          }
-        })
-      }
-      Err(e) => {
-        tracing::error!("Error getting table schema from storage: {:?}", e);
-        None
-      }
-    }
+  async fn table(&self, name: &str) -> Option<Arc<dyn DfTableProvider>> {
+    self
+      .transaction
+      .get_or_log_error(table_schema_key!(self.catalog, self.schema, name))
+      .and_then(|bytes| {
+        Serializer::FixedInt
+          .deserialize_or_log_error(&bytes)
+          .map(|table| {
+            Arc::new(TableProvider::new(table, self.transaction.clone()))
+              as Arc<dyn DfTableProvider>
+          })
+      })
   }
 
   #[allow(unused_variables)]
   fn register_table(
     &self,
     name: String,
-    table: Arc<dyn TableProvider>,
-  ) -> Result<Option<Arc<dyn TableProvider>>> {
-    let next_table_id = self
+    table: Arc<dyn DfTableProvider>,
+  ) -> Result<Option<Arc<dyn DfTableProvider>>> {
+    let serializer = Serializer::FixedInt;
+    let new_table_id = self
       .transaction
-      .get_for_update("m_next_table_id".as_bytes(), true)
-      .map_err(|e| DataFusionError::Execution(e.to_string()))?
-      .map(|bytes| bincode::deserialize::<TableId>(&bytes).unwrap())
-      .unwrap_or(1);
+      .get_for_update(next_table_id_key!(), true)
+      .map_err(|e| df_execution_error!("Storage error: {}", e.to_string()))?
+      .map(|bytes| {
+        serializer.deserialize::<TableId>(&bytes).map_err(|e| {
+          df_execution_error!("Serialization error: {}", e.to_string())
+        })
+      })
+      .unwrap_or(Ok(1))?;
 
     let columns = table
       .schema()
@@ -72,40 +69,42 @@ impl DfSchemaProvider for SchemaProvider {
       .collect();
 
     let table = Table {
-      id: next_table_id,
+      id: new_table_id,
       name: name.to_owned(),
       columns,
       constraints: vec![],
     };
 
-    bincode::serialize::<Table>(&table)
-      .map_err(|e| {
-        DataFusionError::Execution("Error serializing table schema".to_owned())
+    serializer
+      .serialize::<Table>(&table)
+      .and_then(|table| {
+        serializer
+          .serialize(&(new_table_id + 1))
+          .map(|id| (id, table))
       })
-      .and_then(|value| {
+      .map_err(|e| {
+        df_execution_error!("Serialization error: {}", e.to_string())
+      })
+      .and_then(|(next_table_id, table_bytes)| {
         self
           .transaction
           .put_all(
             vec![
+              (next_table_id_key!(), next_table_id.as_slice()),
               (
-                format!("m_schema_{}_{}_{}", self.catalog, self.name, name)
-                  .as_bytes(),
-                value.as_ref(),
-              ),
-              (
-                "m_next_table_id".as_bytes(),
-                bincode::serialize(&(next_table_id + 1)).unwrap().as_ref(),
+                table_schema_key!(self.catalog, self.schema, name),
+                table_bytes.as_slice(),
               ),
             ]
             .as_slice(),
           )
-          .map_err(|e| DataFusionError::Execution(e.to_string()))
+          .map_err(|e| df_execution_error!("Storage error: {}", e.to_string()))
       })?;
 
-    Ok(Some(Arc::new(super::table::TableProvider::new(
-      table,
-      self.transaction.clone(),
-    )) as Arc<dyn TableProvider>))
+    Ok(Some(
+      Arc::new(TableProvider::new(table, self.transaction.clone()))
+        as Arc<dyn DfTableProvider>,
+    ))
   }
 
   fn table_exist(&self, _name: &str) -> bool {

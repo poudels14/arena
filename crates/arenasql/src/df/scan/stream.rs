@@ -7,13 +7,15 @@ use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::physical_plan::RecordBatchStream;
 use futures::Stream;
 
-use crate::schema::{DataWithValue, RowConverter, Table};
-use crate::storage::{self, Transaction};
+use crate::schema::{RowConverter, SerializedCell, Table};
+use crate::storage::{Serializer, Transaction};
+use crate::table_rows_prefix_key;
 
 pub struct RowStream {
   pub(super) table: Arc<Table>,
   pub(super) schema: SchemaRef,
   pub(super) transaction: Arc<dyn Transaction>,
+  pub(super) serializer: Serializer,
   pub(super) done: bool,
 }
 
@@ -35,7 +37,7 @@ impl Stream for RowStream {
     }
     let raw_rows = self
       .transaction
-      .scan(&format!("t{}_r", self.table.id).into_bytes())
+      .scan(&table_rows_prefix_key!(self.table.id))
       .unwrap();
 
     if raw_rows.is_empty() {
@@ -46,10 +48,12 @@ impl Stream for RowStream {
     let rows = raw_rows
       .iter()
       .map(|(_key, value)| {
-        storage::serde::deserialize::<Vec<DataWithValue<Vec<u8>>>>(&value)
+        self
+          .serializer
+          .deserialize::<Vec<SerializedCell<Vec<u8>>>>(&value)
           .unwrap()
       })
-      .collect::<Vec<Vec<DataWithValue<Vec<u8>>>>>();
+      .collect::<Vec<Vec<SerializedCell<Vec<u8>>>>>();
 
     let col_arrays =
       RowConverter::convert_to_columns(&self.table, &self.schema, &rows);

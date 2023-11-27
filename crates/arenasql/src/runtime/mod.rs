@@ -1,11 +1,11 @@
 use derivative::Derivative;
 
-#[derive(Derivative, Clone)]
+#[derive(Derivative)]
 #[derivative(Debug)]
 pub struct RuntimeEnv {}
 
-impl RuntimeEnv {
-  pub fn new() -> Self {
+impl Default for RuntimeEnv {
+  fn default() -> Self {
     Self {}
   }
 }

@@ -11,7 +11,7 @@ pub enum Error {
   ParserError(String),
   TransactionFinished,
   StorageError(String),
-  SerdeError(&'static str),
+  SerdeError(String),
   ExecutionError(String),
   SystemError(&'static str),
   DataFusionError(String),
@@ -41,4 +41,17 @@ impl From<DataFusionError> for Error {
   fn from(e: DataFusionError) -> Self {
     Self::DataFusionError(e.to_string())
   }
+}
+
+impl From<bincode::Error> for Error {
+  fn from(e: bincode::Error) -> Self {
+    Self::SerdeError(e.to_string())
+  }
+}
+
+#[macro_export]
+macro_rules! df_execution_error {
+    ($($arg:tt)*) => {
+      datafusion::error::DataFusionError::Execution(format!($($arg)*))
+    };
 }

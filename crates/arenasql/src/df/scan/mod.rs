@@ -15,6 +15,7 @@ use datafusion::physical_plan::{
 use derivative::Derivative;
 
 use self::stream::RowStream;
+use super::execution::TaskConfig;
 use crate::schema::Table;
 use crate::storage::Transaction;
 
@@ -70,12 +71,17 @@ impl ExecutionPlan for TableScaner {
   fn execute(
     &self,
     _partition: usize,
-    _context: Arc<TaskContext>,
+    context: Arc<TaskContext>,
   ) -> Result<SendableRecordBatchStream, DataFusionError> {
+    let task_config = context
+      .session_config()
+      .get_extension::<TaskConfig>()
+      .unwrap();
     Ok(Box::pin(RowStream {
       schema: self.schema(),
       table: self.table.clone(),
       transaction: self.transaction.clone(),
+      serializer: task_config.serializer.clone(),
       done: false,
     }))
   }

@@ -20,6 +20,7 @@ tracing-subscriber.workspace = true
 tracing-tree.workspace = true
 derivative.workspace = true
 once_cell.workspace = true
+env_logger.workspace = true
 libsql = { version = "0.1.11", features = ["core"] }
 libsql-sys = "0.2.14"
 datafusion = { version = "32.0.0", features = [] }

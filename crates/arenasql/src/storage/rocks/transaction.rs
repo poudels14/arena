@@ -1,33 +1,30 @@
 use std::sync::{Arc, Mutex};
 
 use derivative::Derivative;
-use rocksdb::{Direction, IteratorMode, TransactionOptions, WriteOptions};
+use rocksdb::{
+  Direction, IteratorMode, OptimisticTransactionOptions, WriteOptions,
+};
 use rocksdb::{ReadOptions, Transaction as RocksTransaction};
 
-use super::{RocksDatabase, StorageInner};
+use super::kv::RocksDatabase;
 use crate::error::Error;
-use crate::runtime::RuntimeEnv;
 use crate::Result as DatabaseResult;
 
 #[derive(Derivative, Clone)]
 #[allow(unused)]
 pub struct Transaction {
-  runtime: RuntimeEnv,
-  db: Arc<StorageInner>,
+  kv: Arc<RocksDatabase>,
   txn: Arc<Mutex<Option<RocksTransaction<'static, RocksDatabase>>>>,
 }
 
 unsafe impl Send for Transaction {}
 
 impl Transaction {
-  pub(super) fn new(
-    runtime: RuntimeEnv,
-    db: Arc<StorageInner>,
-  ) -> DatabaseResult<Self> {
-    let db = db.clone();
-    let mut txn_opt = TransactionOptions::default();
-    txn_opt.set_lock_timeout(10_000);
-    let txn = db.rocks.transaction_opt(&WriteOptions::default(), &txn_opt);
+  pub(super) fn new(kv: Arc<RocksDatabase>) -> DatabaseResult<Self> {
+    let kv = kv.clone();
+    let mut txn_opt = OptimisticTransactionOptions::default();
+    txn_opt.set_snapshot(true);
+    let txn = kv.transaction_opt(&WriteOptions::default(), &txn_opt);
     let txn = Arc::new(Mutex::new(Some(unsafe {
       std::mem::transmute::<
         RocksTransaction<'_, RocksDatabase>,
@@ -35,7 +32,7 @@ impl Transaction {
       >(txn)
     })));
 
-    Ok(Self { runtime, db, txn })
+    Ok(Self { kv, txn })
   }
 }
 
@@ -45,12 +42,9 @@ impl crate::storage::Transaction for Transaction {
     key: &[u8],
     updater: &dyn Fn(Option<Vec<u8>>) -> Vec<u8>,
   ) -> DatabaseResult<Vec<u8>> {
-    let mut txn_opt = TransactionOptions::default();
-    txn_opt.set_lock_timeout(10_000);
-    let txn = self
-      .db
-      .rocks
-      .transaction_opt(&WriteOptions::default(), &txn_opt);
+    let mut txn_opt = OptimisticTransactionOptions::default();
+    txn_opt.set_snapshot(true);
+    let txn = self.kv.transaction_opt(&WriteOptions::default(), &txn_opt);
     Ok(txn.get_for_update(key, true).and_then(|old| {
       let new_value = updater(old);
       txn

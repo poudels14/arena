@@ -13,6 +13,13 @@ pub trait Transaction: Send + Sync {
 
   fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>>;
 
+  fn get_or_log_error(&self, key: &[u8]) -> Option<Vec<u8>> {
+    self.get(key).unwrap_or_else(|e| {
+      tracing::error!("Error loading key-value from storage: {:?}", e);
+      None
+    })
+  }
+
   fn get_for_update(
     &self,
     key: &[u8],
@@ -21,7 +28,9 @@ pub trait Transaction: Send + Sync {
 
   fn scan(&self, prefix: &[u8]) -> Result<Vec<(Box<[u8]>, Box<[u8]>)>>;
 
-  fn put(&self, key: &[u8], value: &[u8]) -> Result<()>;
+  fn put(&self, key: &[u8], value: &[u8]) -> Result<()> {
+    self.put_all(&vec![(key, value)])
+  }
 
   fn put_all(&self, rows: &[(&[u8], &[u8])]) -> Result<()>;
 

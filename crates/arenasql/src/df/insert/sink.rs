@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use datafusion::arrow::datatypes::SchemaRef;
-use datafusion::error::{DataFusionError, Result};
+use datafusion::error::Result;
 use datafusion::execution::TaskContext;
 use datafusion::physical_plan::insert::DataSink;
 use datafusion::physical_plan::{
@@ -12,8 +12,12 @@ use datafusion::physical_plan::{
 use derivative::Derivative;
 use futures::StreamExt;
 
+use crate::df::execution::TaskConfig;
 use crate::schema::{RowConverter, Table};
-use crate::storage::{self, Transaction};
+use crate::storage::Transaction;
+use crate::{
+  df_execution_error, last_row_id_of_table_key, table_rows_prefix_key,
+};
 
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]
@@ -43,8 +47,12 @@ impl DataSink for Sink {
   async fn write_all(
     &self,
     data: Vec<SendableRecordBatchStream>,
-    _context: &Arc<TaskContext>,
+    context: &Arc<TaskContext>,
   ) -> Result<u64> {
+    let task_config = context
+      .session_config()
+      .get_extension::<TaskConfig>()
+      .unwrap();
     let mut modified_rows_count = 0;
     for mut d in data {
       let r = d.next().await;
@@ -52,18 +60,21 @@ impl DataSink for Sink {
         if let Err(e) = batch {
           return Err(e);
         }
-        let batch = batch.unwrap();
+        let batch = batch?;
         let row_count = batch.num_rows();
         modified_rows_count += row_count;
 
         let rows = RowConverter::convert_to_rows(&self.table, &batch);
 
         for row in rows.iter() {
-          let row_bytes = storage::serde::serialize(&row).unwrap();
+          let row_bytes =
+            task_config.serializer.serialize(&row).map_err(|e| {
+              df_execution_error!("Serialization error: {}", e.to_string())
+            })?;
           self
             .transaction
             .atomic_update(
-              &format!("m_t{}_row_id", self.table.id).into_bytes(),
+              &last_row_id_of_table_key!(self.table.id),
               &|old: Option<Vec<u8>>| {
                 let new_row_id = old
                   .map(|b| u64::from_be_bytes(b.try_into().unwrap()))
@@ -74,16 +85,12 @@ impl DataSink for Sink {
             )
             .and_then(|row_id| {
               self.transaction.put(
-                &vec![format!("t{}_r", self.table.id).into_bytes(), row_id]
-                  .concat(),
+                &vec![table_rows_prefix_key!(self.table.id), row_id].concat(),
                 &row_bytes,
               )
             })
             .map_err(|e| {
-              DataFusionError::Execution(format!(
-                "Storage error: {}",
-                e.to_string()
-              ))
+              df_execution_error!("Storage error: {}", e.to_string())
             })?;
         }
       }

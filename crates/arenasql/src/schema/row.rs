@@ -1,37 +1,22 @@
 use std::sync::Arc;
 
-use datafusion::arrow::array::{
-  Array, ArrayRef, BooleanArray, Float32Array, Float64Array, Int32Array,
-  Int64Array, StringArray,
-};
+use datafusion::arrow::array::{ArrayRef, Int32Array, StringArray};
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::arrow::record_batch::RecordBatch;
 use itertools::Itertools;
 
-use super::{DataType, DataWithValue, Table};
+use super::{DataType, SerializedCell, Table};
 
 pub type RowId = i64;
-
-#[macro_export]
-macro_rules! data_with_value {
-  ($data:ident, $arr_type:ident, $mapper:expr) => {
-    $data
-      .as_any()
-      .downcast_ref::<$arr_type>()
-      .unwrap()
-      .iter()
-      .map($mapper)
-      .collect()
-  };
-}
 
 pub struct RowConverter {}
 
 impl RowConverter {
+  // TODO: maybe just return raw bytes instead of SerializedCell?
   pub fn convert_to_rows<'a>(
     table: &Table,
     batch: &'a RecordBatch,
-  ) -> Vec<Vec<DataWithValue<&'a [u8]>>> {
+  ) -> Vec<Vec<SerializedCell<&'a [u8]>>> {
     let row_count = batch.num_rows();
     let col_count = table.columns.len();
 
@@ -41,11 +26,11 @@ impl RowConverter {
       .flat_map(|col| {
         let values = batch
           .column_by_name(&col.name)
-          .map(|b| Self::convert_to_data_type_value_vec(&col.data_type, b))
-          .unwrap_or(vec![DataWithValue::Null; row_count]);
+          .map(|b| SerializedCell::array_ref_to_vec(&col.data_type, b))
+          .unwrap_or(vec![SerializedCell::Null; row_count]);
         values
       })
-      .collect::<Vec<DataWithValue<&[u8]>>>();
+      .collect::<Vec<SerializedCell<&[u8]>>>();
 
     let mut flat_rows_vec = Vec::with_capacity(flat_cols_vec.len());
 
@@ -61,13 +46,13 @@ impl RowConverter {
       .chunks(col_count)
       .into_iter()
       .map(|chunk| chunk.collect())
-      .collect::<Vec<Vec<DataWithValue<&'a [u8]>>>>()
+      .collect::<Vec<Vec<SerializedCell<&'a [u8]>>>>()
   }
 
   pub fn convert_to_columns(
     table: &Table,
     schema: &SchemaRef,
-    rows: &Vec<Vec<DataWithValue<Vec<u8>>>>,
+    rows: &Vec<Vec<SerializedCell<Vec<u8>>>>,
   ) -> Vec<ArrayRef> {
     let selected_col_indices = schema
       .fields
@@ -85,7 +70,7 @@ impl RowConverter {
     let all_values = rows
       .iter()
       .flatten()
-      .collect::<Vec<&DataWithValue<Vec<u8>>>>();
+      .collect::<Vec<&SerializedCell<Vec<u8>>>>();
 
     let row_count = rows.len();
     let col_count = table.columns.len();
@@ -117,58 +102,5 @@ impl RowConverter {
         },
       )
       .collect::<Vec<ArrayRef>>();
-  }
-
-  fn convert_to_data_type_value_vec<'a>(
-    data_type: &DataType,
-    data: &'a ArrayRef,
-  ) -> Vec<DataWithValue<&'a [u8]>> {
-    match data_type {
-      DataType::Null => (0..data.len())
-        .into_iter()
-        .map(|_| DataWithValue::Null)
-        .collect(),
-
-      DataType::Boolean => {
-        data_with_value!(data, BooleanArray, |v| v
-          .map(|v| DataWithValue::Boolean(v))
-          .unwrap_or_default())
-      }
-      DataType::Int32 => {
-        data_with_value!(data, Int32Array, |v| v
-          .map(|v| DataWithValue::Int32(v))
-          .unwrap_or_default())
-      }
-      DataType::Int64 => {
-        data_with_value!(data, Int64Array, |v| v
-          .map(|v| DataWithValue::Int64(v))
-          .unwrap_or_default())
-      }
-      DataType::Float32 => {
-        data_with_value!(data, Float32Array, |v| v
-          .map(|v| DataWithValue::Float32(v))
-          .unwrap_or_default())
-      }
-      DataType::Float64 => {
-        data_with_value!(data, Float64Array, |v| v
-          .map(|v| DataWithValue::Float64(v))
-          .unwrap_or_default())
-      }
-      DataType::Varchar { len: _ } | DataType::Text => {
-        data.as_any().downcast_ref::<StringArray>();
-
-        data
-          .as_any()
-          .downcast_ref::<StringArray>()
-          .unwrap()
-          .iter()
-          .map(|v| {
-            v.map(|v| DataWithValue::Blob(v.as_bytes()))
-              .unwrap_or_default()
-          })
-          .collect()
-      }
-      _ => unimplemented!(),
-    }
   }
 }

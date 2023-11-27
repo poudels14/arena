@@ -1,7 +1,7 @@
 use datafusion::arrow::datatypes::Field;
 use serde::{Deserialize, Serialize};
 
-use super::{DataType, DataWithValue};
+use super::{DataType, SerializedCell};
 
 pub type ColumnId = u16;
 
@@ -11,11 +11,11 @@ pub struct Column {
   pub name: String,
   pub data_type: DataType,
   pub nullable: bool,
-  pub default_value: Option<DataWithValue<Vec<u8>>>,
+  pub default_value: Option<SerializedCell<Vec<u8>>>,
 }
 
 impl Column {
-  pub fn from_field(idx: u16, field: &Field) -> Self {
+  pub fn from_field(idx: ColumnId, field: &Field) -> Self {
     Column {
       id: idx,
       name: field.name().to_owned(),
