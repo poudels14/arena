@@ -1,12 +1,12 @@
 use rocksdb::{
-  DBCompressionType, MultiThreaded, OptimisticTransactionDB, Options,
+  Cache, DBCompressionType, MultiThreaded, OptimisticTransactionDB, Options,
 };
 
 use crate::Result;
 
 pub(super) type RocksDatabase = OptimisticTransactionDB<MultiThreaded>;
 
-pub fn open(path: &str) -> Result<RocksDatabase> {
+pub fn open(path: &str, cache: Option<Cache>) -> Result<RocksDatabase> {
   let mut opts = Options::default();
   opts.create_if_missing(true);
   opts.create_missing_column_families(true);
@@ -20,6 +20,9 @@ pub fn open(path: &str) -> Result<RocksDatabase> {
   opts.set_enable_blob_gc(true);
   // this isn't neessary in WAL mode but set it anyways
   opts.set_atomic_flush(true);
+  if let Some(cache) = cache {
+    opts.set_row_cache(&cache);
+  }
 
   let rocks: RocksDatabase = OptimisticTransactionDB::open(&opts, path)?;
   Ok(rocks)

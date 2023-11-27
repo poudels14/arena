@@ -84,6 +84,7 @@ impl crate::storage::Transaction for Transaction {
     let txn = txn.ok_or(Error::TransactionFinished)?;
 
     let mut opts = ReadOptions::default();
+    opts.set_readahead_size(4 * 1024 * 1024);
     opts.set_prefix_same_as_start(true);
     // TODO: pass this as option
     opts.fill_cache(false);

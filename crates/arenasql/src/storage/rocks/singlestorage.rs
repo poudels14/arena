@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use derivative::Derivative;
+pub use rocksdb::Cache;
 use rocksdb::FlushOptions;
 
 use crate::storage::{StorageProvider, Transaction};
@@ -16,7 +17,14 @@ pub struct RocksStorage {
 
 impl RocksStorage {
   pub fn new(path: &str) -> DatabaseResult<Self> {
-    let kv = super::kv::open(path)?;
+    Self::new_with_cache(path, None)
+  }
+
+  pub fn new_with_cache(
+    path: &str,
+    cache: Option<Cache>,
+  ) -> DatabaseResult<Self> {
+    let kv = super::kv::open(path, cache)?;
     Ok(Self { kv: Arc::new(kv) })
   }
 
