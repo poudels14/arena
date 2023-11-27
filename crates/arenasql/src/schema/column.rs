@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{DataType, SerializedCell};
 
-pub type ColumnId = u16;
+pub type ColumnId = u8;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Column {

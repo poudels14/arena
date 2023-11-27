@@ -6,7 +6,7 @@ use datafusion::catalog::schema::SchemaProvider as DfSchemaProvider;
 use datafusion::datasource::TableProvider as DfTableProvider;
 use datafusion::error::Result;
 
-use crate::schema::{Column, Table, TableId};
+use crate::schema::{Column, ColumnId, Table, TableId};
 use crate::storage::{Serializer, Transaction};
 use crate::{df_execution_error, next_table_id_key, table_schema_key};
 
@@ -65,7 +65,7 @@ impl DfSchemaProvider for SchemaProvider {
       .fields
       .iter()
       .enumerate()
-      .map(|(idx, field)| Column::from_field(idx as u16, field))
+      .map(|(idx, field)| Column::from_field(idx as ColumnId, field))
       .collect();
 
     let table = Table {

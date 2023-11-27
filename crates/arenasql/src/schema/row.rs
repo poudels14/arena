@@ -3,7 +3,10 @@ use std::sync::Arc;
 use datafusion::arrow::array::{ArrayRef, Int32Array, StringArray};
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::arrow::record_batch::RecordBatch;
+use datafusion::error::Result;
 use itertools::Itertools;
+
+use crate::error::null_constraint_violation;
 
 use super::{DataType, SerializedCell, Table};
 
@@ -16,37 +19,49 @@ impl RowConverter {
   pub fn convert_to_rows<'a>(
     table: &Table,
     batch: &'a RecordBatch,
-  ) -> Vec<Vec<SerializedCell<&'a [u8]>>> {
+  ) -> Result<Vec<Vec<SerializedCell<&'a [u8]>>>> {
     let row_count = batch.num_rows();
     let col_count = table.columns.len();
 
-    let flat_cols_vec = table
+    let mut serialized_col_vecs = table
       .columns
       .iter()
-      .flat_map(|col| {
-        let values = batch
-          .column_by_name(&col.name)
-          .map(|b| SerializedCell::array_ref_to_vec(&col.data_type, b))
-          .unwrap_or(vec![SerializedCell::Null; row_count]);
-        values
+      .map(|col| {
+        let values = batch.column_by_name(&col.name).map(|columns_data| {
+          let cell =
+            SerializedCell::array_ref_to_vec(&table, &col, columns_data);
+          cell
+        });
+        match values {
+          Some(arr) => arr,
+          None => {
+            if !col.nullable {
+              return Err(null_constraint_violation(&table.name, &col.name));
+            } else {
+              Ok(
+                (0..row_count)
+                  .into_iter()
+                  .map(|_| SerializedCell::Null)
+                  .collect(),
+              )
+            }
+          }
+        }
       })
-      .collect::<Vec<SerializedCell<&[u8]>>>();
+      .collect::<Result<Vec<Vec<SerializedCell<&[u8]>>>>>()?;
 
-    let mut flat_rows_vec = Vec::with_capacity(flat_cols_vec.len());
-
+    // Convert col * row array to row * column
+    let mut flat_rows_vec = Vec::with_capacity(row_count);
     for ridx in 0..row_count {
+      let mut row = Vec::with_capacity(col_count);
       for cidx in 0..col_count {
-        flat_rows_vec.push(flat_cols_vec[cidx * row_count + ridx].clone());
+        row.push(std::mem::take(&mut serialized_col_vecs[cidx][ridx]))
       }
+      flat_rows_vec.push(row);
     }
 
     // TODO: return iterator for perf
-    flat_rows_vec
-      .into_iter()
-      .chunks(col_count)
-      .into_iter()
-      .map(|chunk| chunk.collect())
-      .collect::<Vec<Vec<SerializedCell<&'a [u8]>>>>()
+    Ok(flat_rows_vec)
   }
 
   pub fn convert_to_columns(

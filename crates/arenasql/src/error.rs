@@ -55,3 +55,10 @@ macro_rules! df_execution_error {
       datafusion::error::DataFusionError::Execution(format!($($arg)*))
     };
 }
+
+pub fn null_constraint_violation(table: &str, column: &str) -> DataFusionError {
+  DataFusionError::Execution(format!(
+    r#"null value in column "{}" of relation "{}" violates not-null constraint"#,
+    column, table
+  ))
+}

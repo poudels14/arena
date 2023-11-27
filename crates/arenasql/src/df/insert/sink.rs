@@ -64,7 +64,7 @@ impl DataSink for Sink {
         let row_count = batch.num_rows();
         modified_rows_count += row_count;
 
-        let rows = RowConverter::convert_to_rows(&self.table, &batch);
+        let rows = RowConverter::convert_to_rows(&self.table, &batch)?;
 
         for row in rows.iter() {
           let row_bytes =

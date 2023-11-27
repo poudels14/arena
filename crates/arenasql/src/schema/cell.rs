@@ -2,9 +2,11 @@ use datafusion::arrow::array::{
   ArrayRef, BooleanArray, Float32Array, Float64Array, Int32Array, Int64Array,
   StringArray,
 };
+use datafusion::error::Result;
 use serde::{Deserialize, Serialize};
 
-use super::DataType;
+use super::{Column, DataType, Table};
+use crate::error::null_constraint_violation;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[repr(u8)]
@@ -44,10 +46,15 @@ macro_rules! data_with_value {
 
 impl SerializedCell<Vec<u8>> {
   pub fn array_ref_to_vec<'a>(
-    data_type: &DataType,
+    table: &Table,
+    column: &Column,
     data: &'a ArrayRef,
-  ) -> Vec<SerializedCell<&'a [u8]>> {
-    match data_type {
+  ) -> Result<Vec<SerializedCell<&'a [u8]>>> {
+    if !column.nullable && data.null_count() > 0 {
+      return Err(null_constraint_violation(&table.name, &column.name));
+    }
+
+    Ok(match &column.data_type {
       DataType::Null => (0..data.len())
         .into_iter()
         .map(|_| SerializedCell::Null)
@@ -89,7 +96,7 @@ impl SerializedCell<Vec<u8>> {
         })
         .collect(),
       _ => unimplemented!(),
-    }
+    })
   }
 
   pub fn vec_to_array_ref<'a>(
