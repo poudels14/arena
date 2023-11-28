@@ -45,9 +45,14 @@ impl RowStream {
         .map_err(|e| {
           df_execution_error!("Serialization error: {}", e.to_string())
         })?;
-      self.projection.iter().for_each(|idx| {
-        column_list_builders[*idx].append(unsafe { row.get_unchecked(*idx) });
-      });
+      self
+        .projection
+        .iter()
+        .enumerate()
+        .for_each(|(builder_idx, col_idx)| {
+          column_list_builders[builder_idx]
+            .append(unsafe { row.get_unchecked(*col_idx) });
+        });
       raw_rows.next();
     }
 
