@@ -1,7 +1,7 @@
-use std::sync::Arc;
-
 use crate::Result;
 
+use super::KeyValueProvider;
+
 pub trait StorageProvider: Send + Sync {
-  fn begin_transaction(&self) -> Result<Arc<dyn super::Transaction>>;
+  fn begin_transaction(&self) -> Result<Box<dyn KeyValueProvider>>;
 }

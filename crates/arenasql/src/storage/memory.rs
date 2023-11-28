@@ -1,6 +1,4 @@
-use std::sync::Arc;
-
-use super::StorageProvider;
+use super::{KeyValueProvider, StorageProvider};
 use crate::Result;
 
 pub struct MemoryStorageProvider {}
@@ -12,7 +10,7 @@ impl Default for MemoryStorageProvider {
 }
 
 impl StorageProvider for MemoryStorageProvider {
-  fn begin_transaction(&self) -> Result<Arc<dyn super::Transaction>> {
+  fn begin_transaction(&self) -> Result<Box<dyn KeyValueProvider>> {
     unimplemented!()
   }
 }

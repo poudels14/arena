@@ -12,7 +12,7 @@ use crate::storage::Transaction;
 pub trait CatalogListProvider {
   fn get_catalog_list(
     &self,
-    transaction: Arc<dyn Transaction>,
+    transaction: Transaction,
   ) -> Option<Arc<dyn DfCatalogList>>;
 }
 
@@ -21,7 +21,7 @@ pub struct EmptyCatalogListProvider;
 impl CatalogListProvider for EmptyCatalogListProvider {
   fn get_catalog_list(
     &self,
-    _transaction: Arc<dyn Transaction>,
+    _transaction: Transaction,
   ) -> Option<Arc<dyn DfCatalogList>> {
     None
   }
@@ -44,7 +44,7 @@ impl SingleCatalogListProvider {
 impl CatalogListProvider for SingleCatalogListProvider {
   fn get_catalog_list(
     &self,
-    transaction: Arc<dyn Transaction>,
+    transaction: Transaction,
   ) -> Option<Arc<dyn DfCatalogList>> {
     Some(Arc::new(SingleCatalogList {
       catalog: self.catalog.clone(),

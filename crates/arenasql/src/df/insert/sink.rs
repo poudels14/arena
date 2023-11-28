@@ -25,7 +25,7 @@ pub struct Sink {
   pub table: Arc<Table>,
   pub schema: SchemaRef,
   #[derivative(Debug = "ignore")]
-  pub transaction: Arc<dyn Transaction>,
+  pub transaction: Transaction,
 }
 
 impl DisplayAs for Sink {
@@ -66,13 +66,13 @@ impl DataSink for Sink {
 
         let rows = RowConverter::convert_to_rows(&self.table, &batch)?;
 
+        let transaction = self.transaction.lock();
         for row in rows.iter() {
           let row_bytes =
             task_config.serializer.serialize(&row).map_err(|e| {
               df_execution_error!("Serialization error: {}", e.to_string())
             })?;
-          self
-            .transaction
+          transaction
             .atomic_update(
               &last_row_id_of_table_key!(self.table.id),
               &|old: Option<Vec<u8>>| {
@@ -84,7 +84,7 @@ impl DataSink for Sink {
               },
             )
             .and_then(|row_id| {
-              self.transaction.put(
+              transaction.put(
                 &vec![table_rows_prefix_key!(self.table.id), row_id].concat(),
                 &row_bytes,
               )

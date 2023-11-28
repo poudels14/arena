@@ -10,7 +10,7 @@ use sqlparser::ast::Statement as SQLStatement;
 use super::config::TaskConfig;
 use super::transaction::Transaction;
 use super::SessionConfig;
-use crate::{Error, Result};
+use crate::{storage, Error, Result};
 
 #[derive(Clone)]
 pub struct SessionContext {
@@ -50,7 +50,9 @@ impl SessionContext {
   }
 
   pub fn begin_transaction(&self) -> Result<Transaction> {
-    let txn = self.config.storage_provider.begin_transaction()?;
+    let txn = storage::Transaction::new(
+      self.config.storage_provider.begin_transaction()?,
+    );
     let catalog_list = self
       .config
       .catalog_list_provider

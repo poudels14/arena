@@ -171,3 +171,70 @@ impl SerializedCell<Vec<u8>> {
     }
   }
 }
+
+impl<'a> SerializedCell<&'a [u8]> {
+  #[inline]
+  pub fn as_bool(&self) -> Option<bool> {
+    match self {
+      SerializedCell::Null => None,
+      SerializedCell::Boolean(value) => Some(*value),
+      _ => unreachable!(),
+    }
+  }
+
+  #[inline]
+  pub fn as_i32(&self) -> Option<i32> {
+    match self {
+      SerializedCell::Null => None,
+      SerializedCell::Int32(value) => Some(*value),
+      _ => unreachable!(),
+    }
+  }
+
+  #[inline]
+  pub fn as_i64(&self) -> Option<i64> {
+    match self {
+      SerializedCell::Null => None,
+      SerializedCell::Int64(value) => Some(*value),
+      _ => unreachable!(),
+    }
+  }
+
+  #[inline]
+  pub fn as_f32(&self) -> Option<f32> {
+    match self {
+      SerializedCell::Null => None,
+      SerializedCell::Float32(value) => Some(*value),
+      _ => unreachable!(),
+    }
+  }
+
+  #[inline]
+  pub fn as_f64(&self) -> Option<f64> {
+    match self {
+      SerializedCell::Null => None,
+      SerializedCell::Float64(value) => Some(*value),
+      _ => unreachable!(),
+    }
+  }
+
+  #[inline]
+  pub fn as_bytes(&self) -> Option<&'a [u8]> {
+    match self {
+      SerializedCell::Null => None,
+      SerializedCell::Blob(value) => Some(value),
+      _ => unreachable!(),
+    }
+  }
+
+  #[inline]
+  pub fn as_str(&self) -> Option<&'a str> {
+    match self {
+      SerializedCell::Null => None,
+      SerializedCell::Blob(bytes) => unsafe {
+        Some(std::str::from_utf8_unchecked(bytes))
+      },
+      v => unreachable!("Trying to convert {:?} to string", &v),
+    }
+  }
+}

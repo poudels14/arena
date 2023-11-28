@@ -4,10 +4,10 @@ use derivative::Derivative;
 pub use rocksdb::Cache;
 use rocksdb::FlushOptions;
 
-use crate::storage::{StorageProvider, Transaction};
-use crate::Result as DatabaseResult;
-
 use super::kv::RocksDatabase;
+use super::KeyValueProvider;
+use crate::storage::{self, StorageProvider};
+use crate::Result as DatabaseResult;
 
 #[derive(Derivative)]
 #[derivative(Debug, Clone)]
@@ -30,13 +30,7 @@ impl RocksStorage {
 
   pub fn get_db_size(&self) -> DatabaseResult<usize> {
     let live_files = self.kv.live_files()?;
-    let total_size = live_files
-      .iter()
-      .map(|f| {
-        println!("file = {:?}", f);
-        f.size
-      })
-      .sum();
+    let total_size = live_files.iter().map(|f| f.size).sum();
     Ok(total_size)
   }
 
@@ -52,7 +46,9 @@ impl RocksStorage {
 }
 
 impl StorageProvider for RocksStorage {
-  fn begin_transaction(&self) -> DatabaseResult<Arc<dyn Transaction>> {
-    Ok(Arc::new(super::Transaction::new(self.kv.clone())?))
+  fn begin_transaction(
+    &self,
+  ) -> DatabaseResult<Box<dyn storage::KeyValueProvider>> {
+    Ok(Box::new(KeyValueProvider::new(self.kv.clone())?))
   }
 }

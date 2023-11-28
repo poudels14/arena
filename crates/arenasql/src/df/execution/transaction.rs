@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::execution::context::{
   SQLOptions, SessionContext as DfSessionContext,
@@ -11,7 +9,7 @@ use crate::{storage, Error, Result};
 
 #[allow(unused)]
 pub struct Transaction {
-  pub(super) txn: Arc<dyn storage::Transaction>,
+  pub(super) txn: storage::Transaction,
   pub(super) sql_options: SQLOptions,
   pub(super) ctxt: DfSessionContext,
 }

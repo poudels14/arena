@@ -20,14 +20,11 @@ pub struct TableProvider {
   table: Arc<schema::Table>,
   schema: SchemaRef,
   constraints: Option<Constraints>,
-  transaction: Arc<dyn Transaction>,
+  transaction: Transaction,
 }
 
 impl TableProvider {
-  pub(super) fn new(
-    table: schema::Table,
-    transaction: Arc<dyn Transaction>,
-  ) -> Self {
+  pub(super) fn new(table: schema::Table, transaction: Transaction) -> Self {
     let fields: Vec<Field> =
       table.columns.iter().map(|col| col.to_field()).collect();
     let schema_ref = SchemaRef::new(Schema::new(fields));
@@ -72,6 +69,9 @@ impl DfTableProvider for TableProvider {
     let projected_schema = project_schema(&self.schema, projection).unwrap();
     Ok(Arc::new(scan::TableScaner {
       table: self.table.clone(),
+      projection: projection
+        .map(|p| p.to_vec())
+        .unwrap_or_else(|| (0..self.table.columns.len()).collect()),
       projected_schema,
       transaction: self.transaction.clone(),
       filters: filters.to_vec(),

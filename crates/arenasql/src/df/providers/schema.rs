@@ -15,7 +15,7 @@ use super::table::TableProvider;
 pub struct SchemaProvider {
   pub(super) catalog: String,
   pub(super) schema: String,
-  pub(super) transaction: Arc<dyn Transaction>,
+  pub(super) transaction: Transaction,
 }
 
 #[async_trait]
@@ -29,8 +29,8 @@ impl DfSchemaProvider for SchemaProvider {
   }
 
   async fn table(&self, name: &str) -> Option<Arc<dyn DfTableProvider>> {
-    self
-      .transaction
+    let transaction = self.transaction.lock();
+    transaction
       .get_or_log_error(table_schema_key!(self.catalog, self.schema, name))
       .and_then(|bytes| {
         Serializer::FixedInt
@@ -48,9 +48,9 @@ impl DfSchemaProvider for SchemaProvider {
     name: String,
     table: Arc<dyn DfTableProvider>,
   ) -> Result<Option<Arc<dyn DfTableProvider>>> {
+    let transaction = self.transaction.lock();
     let serializer = Serializer::FixedInt;
-    let new_table_id = self
-      .transaction
+    let new_table_id = transaction
       .get_for_update(next_table_id_key!(), true)
       .map_err(|e| df_execution_error!("Storage error: {}", e.to_string()))?
       .map(|bytes| {
@@ -86,8 +86,7 @@ impl DfSchemaProvider for SchemaProvider {
         df_execution_error!("Serialization error: {}", e.to_string())
       })
       .and_then(|(next_table_id, table_bytes)| {
-        self
-          .transaction
+        transaction
           .put_all(
             vec![
               (next_table_id_key!(), next_table_id.as_slice()),
@@ -107,7 +106,10 @@ impl DfSchemaProvider for SchemaProvider {
     ))
   }
 
-  fn table_exist(&self, _name: &str) -> bool {
-    unimplemented!()
+  fn table_exist(&self, name: &str) -> bool {
+    let txn = self.transaction.lock();
+    txn
+      .get_or_log_error(table_schema_key!(self.catalog, self.schema, name))
+      .is_some()
   }
 }

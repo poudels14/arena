@@ -8,7 +8,7 @@ pub mod rocks;
 pub use memory::MemoryStorageProvider;
 pub use provider::StorageProvider;
 pub use serializer::*;
-pub use transaction::Transaction;
+pub use transaction::{KeyValueProvider, Transaction};
 
 #[macro_export]
 macro_rules! table_schema_key {

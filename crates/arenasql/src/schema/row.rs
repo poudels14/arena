@@ -6,9 +6,8 @@ use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::error::Result;
 use itertools::Itertools;
 
-use crate::error::null_constraint_violation;
-
 use super::{DataType, SerializedCell, Table};
+use crate::error::null_constraint_violation;
 
 pub type RowId = i64;
 

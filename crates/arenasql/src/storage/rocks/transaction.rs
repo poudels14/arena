@@ -1,42 +1,55 @@
-use std::sync::{Arc, Mutex};
+use std::cell::UnsafeCell;
+use std::sync::Arc;
 
-use derivative::Derivative;
 use rocksdb::{
   Direction, IteratorMode, OptimisticTransactionOptions, WriteOptions,
 };
 use rocksdb::{ReadOptions, Transaction as RocksTransaction};
 
+use super::iterator::RawIterator as RocksRawIterator;
 use super::kv::RocksDatabase;
-use crate::error::Error;
+use crate::storage::transaction::RawIterator;
 use crate::Result as DatabaseResult;
 
-#[derive(Derivative, Clone)]
-#[allow(unused)]
-pub struct Transaction {
+/// The rocks db transaction is stored in UnsafeCell for interior
+/// mutability since transaction.commit() requires owned object.
+/// It's okay to use unsafe cell here since the transaction manager
+/// ensures thread safety
+pub struct KeyValueProvider<'a> {
   kv: Arc<RocksDatabase>,
-  txn: Arc<Mutex<Option<RocksTransaction<'static, RocksDatabase>>>>,
+  txn: UnsafeCell<Option<RocksTransaction<'a, RocksDatabase>>>,
 }
 
-unsafe impl Send for Transaction {}
-
-impl Transaction {
+impl<'a> KeyValueProvider<'a> {
   pub(super) fn new(kv: Arc<RocksDatabase>) -> DatabaseResult<Self> {
-    let kv = kv.clone();
+    let db = kv.clone();
     let mut txn_opt = OptimisticTransactionOptions::default();
     txn_opt.set_snapshot(true);
-    let txn = kv.transaction_opt(&WriteOptions::default(), &txn_opt);
-    let txn = Arc::new(Mutex::new(Some(unsafe {
+    let txn = db.transaction_opt(&WriteOptions::default(), &txn_opt);
+
+    let txn = unsafe {
       std::mem::transmute::<
         RocksTransaction<'_, RocksDatabase>,
         RocksTransaction<'static, RocksDatabase>,
       >(txn)
-    })));
+    };
 
-    Ok(Self { kv, txn })
+    Ok(Self {
+      kv,
+      txn: UnsafeCell::new(Some(txn)),
+    })
+  }
+
+  #[inline]
+  fn txn(&self) -> &RocksTransaction<'a, RocksDatabase> {
+    unsafe { self.txn.get().as_ref() }
+      .unwrap()
+      .as_ref()
+      .unwrap()
   }
 }
 
-impl crate::storage::Transaction for Transaction {
+impl<'a> crate::storage::KeyValueProvider for KeyValueProvider<'a> {
   fn atomic_update(
     &self,
     key: &[u8],
@@ -55,9 +68,7 @@ impl crate::storage::Transaction for Transaction {
   }
 
   fn get(&self, key: &[u8]) -> DatabaseResult<Option<Vec<u8>>> {
-    let txn = self.txn.lock().unwrap();
-    let txn = txn.as_ref();
-    Ok(txn.ok_or(Error::TransactionFinished)?.get(key)?)
+    Ok(self.txn().get(key)?)
   }
 
   fn get_for_update(
@@ -65,34 +76,33 @@ impl crate::storage::Transaction for Transaction {
     key: &[u8],
     exclusive: bool,
   ) -> DatabaseResult<Option<Vec<u8>>> {
-    let txn = self.txn.lock().unwrap();
-    let txn = txn.as_ref();
-
     let mut opts = ReadOptions::default();
     opts.fill_cache(true);
-    Ok(
-      txn
-        .ok_or(Error::TransactionFinished)?
-        .get_for_update_opt(key, exclusive, &opts)?,
-    )
+    Ok(self.txn().get_for_update_opt(key, exclusive, &opts)?)
   }
 
   fn scan(&self, prefix: &[u8]) -> DatabaseResult<Vec<(Box<[u8]>, Box<[u8]>)>> {
-    let txn = self.txn.lock().unwrap();
-    let txn = txn.as_ref();
-
-    let txn = txn.ok_or(Error::TransactionFinished)?;
-
     let mut opts = ReadOptions::default();
     opts.set_readahead_size(4 * 1024 * 1024);
     opts.set_prefix_same_as_start(true);
     // TODO: pass this as option
     opts.fill_cache(false);
-    let iter = txn.iterator_opt(
+    let iter = self.txn().iterator_opt(
       IteratorMode::From(prefix.as_ref(), Direction::Forward),
       opts,
     );
     Ok(iter.collect::<Result<Vec<(Box<[u8]>, Box<[u8]>)>, rocksdb::Error>>()?)
+  }
+
+  fn scan_raw(&self, prefix: &[u8]) -> DatabaseResult<Box<dyn RawIterator>> {
+    let txn = unsafe {
+      std::mem::transmute::<
+        &UnsafeCell<Option<RocksTransaction<'a, RocksDatabase>>>,
+        &UnsafeCell<Option<RocksTransaction<'static, RocksDatabase>>>,
+      >(&self.txn)
+    };
+
+    Ok(Box::new(RocksRawIterator::new(&txn, prefix)))
   }
 
   fn put(&self, key: &[u8], value: &[u8]) -> DatabaseResult<()> {
@@ -100,10 +110,7 @@ impl crate::storage::Transaction for Transaction {
   }
 
   fn put_all(&self, rows: &[(&[u8], &[u8])]) -> DatabaseResult<()> {
-    let txn = self.txn.lock().unwrap();
-    let txn = txn.as_ref();
-
-    let txn = txn.ok_or(Error::TransactionFinished)?;
+    let txn = self.txn();
     Ok(
       rows
         .into_iter()
@@ -113,21 +120,18 @@ impl crate::storage::Transaction for Transaction {
     )
   }
 
+  /// Once a rocksdb transaction is committed, it shouldn't be used
+  /// again. If used again, it will panic
   fn commit(&self) -> DatabaseResult<()> {
-    let mut txn = self.txn.lock().unwrap();
-    let txn = std::mem::replace(&mut *txn, None);
-    Ok(txn.ok_or(Error::TransactionFinished)?.commit()?)
+    let t =
+      unsafe { std::mem::replace(self.txn.get().as_mut().unwrap(), None) }
+        .unwrap();
+    Ok(t.commit()?)
   }
 
+  /// Once a rocksdb transaction is rolled back, it shouldn't be used
+  /// again. If used again, it will panic
   fn rollback(&self) -> DatabaseResult<()> {
-    let mut txn = self.txn.lock().unwrap();
-    let txn = std::mem::replace(&mut *txn, None);
-    Ok(txn.ok_or(Error::TransactionFinished)?.rollback()?)
-  }
-
-  fn done(&self) -> DatabaseResult<bool> {
-    let txn = self.txn.lock().unwrap();
-    let txn = txn.as_ref();
-    Ok(txn.is_none())
+    Ok(self.txn().rollback()?)
   }
 }

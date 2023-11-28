@@ -23,9 +23,11 @@ use crate::storage::Transaction;
 #[derivative(Debug)]
 pub struct TableScaner {
   pub(crate) table: Arc<Table>,
+  /// vec of selected columns by index
+  pub(crate) projection: Vec<usize>,
   pub(crate) projected_schema: SchemaRef,
   #[derivative(Debug = "ignore")]
-  pub(crate) transaction: Arc<dyn Transaction>,
+  pub(crate) transaction: Transaction,
   pub(crate) filters: Vec<Expr>,
   pub(crate) limit: Option<usize>,
 }
@@ -79,6 +81,7 @@ impl ExecutionPlan for TableScaner {
       .unwrap();
     Ok(Box::pin(RowStream {
       schema: self.schema(),
+      projection: self.projection.clone(),
       table: self.table.clone(),
       transaction: self.transaction.clone(),
       serializer: task_config.serializer.clone(),
