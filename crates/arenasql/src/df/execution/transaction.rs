@@ -16,7 +16,7 @@ pub struct Transaction {
 
 impl Transaction {
   pub async fn execute_sql(&self, sql: &str) -> Result<Vec<RecordBatch>> {
-    let mut stmts = crate::ast::parse(sql)?;
+    let mut stmts = crate::parser::parse(sql)?;
     if stmts.len() != 1 {
       return Err(Error::InvalidQuery(
         "In a transaction, one and only one statement should be executed"

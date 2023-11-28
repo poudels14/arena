@@ -1,6 +1,6 @@
-mod ast;
 mod df;
 mod error;
+mod parser;
 
 pub mod runtime;
 pub mod schema;
