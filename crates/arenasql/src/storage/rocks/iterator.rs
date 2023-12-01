@@ -27,7 +27,7 @@ impl<'a> RawIterator<'a> {
     opts.set_readahead_size(4 * 1024 * 1024);
     opts.set_prefix_same_as_start(true);
     // TODO: pass this as option
-    opts.fill_cache(false);
+    opts.fill_cache(true);
     let mut iter = txn.raw_iterator_opt(opts);
     iter.seek(prefix);
 

@@ -86,7 +86,7 @@ impl<'a> crate::storage::KeyValueProvider for KeyValueProvider<'a> {
     opts.set_readahead_size(4 * 1024 * 1024);
     opts.set_prefix_same_as_start(true);
     // TODO: pass this as option
-    opts.fill_cache(false);
+    opts.fill_cache(true);
     let iter = self.txn().iterator_opt(
       IteratorMode::From(prefix.as_ref(), Direction::Forward),
       opts,
