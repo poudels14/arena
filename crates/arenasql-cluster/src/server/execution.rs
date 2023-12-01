@@ -16,6 +16,8 @@ use crate::pgwire::{datatype, rowconverter};
 use crate::to_query_execution_error;
 
 impl ArenaSqlCluster {
+  // TODO: to improve performance, instead of returning response from this
+  // function, send the rows directly to client
   pub async fn execute_query<'a, C>(
     &self,
     client: &C,
@@ -78,7 +80,7 @@ impl ArenaSqlCluster {
     let schema = Arc::new(fields);
 
     let row_stream = response.stream.flat_map(|batch| {
-      tokio_stream::iter(match batch {
+      futures::stream::iter(match batch {
         Ok(batch) => rowconverter::convert_to_rows(&batch),
         Err(e) => vec![Err(to_query_execution_error!(e))],
       })

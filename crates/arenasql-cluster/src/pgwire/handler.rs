@@ -82,9 +82,7 @@ impl SimpleQueryHandler for ArenaSqlCluster {
     C: ClientInfo + Unpin + Send + Sync,
   {
     let parsed_query = self.parser.parse_sql(query, &[Type::ANY]).await?;
-    tokio::pin! {
-      let results_fut = self.execute_query(client, &parsed_query);
-    }
+    let results_fut = self.execute_query(client, &parsed_query);
 
     match results_fut.await {
       Ok(response) => Ok(response),

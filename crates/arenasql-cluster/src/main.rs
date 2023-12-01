@@ -15,6 +15,13 @@ use tokio::runtime::Builder;
 
 use crate::server::ArenaSqlCluster;
 
+#[cfg(not(target_env = "msvc"))]
+use tikv_jemallocator::Jemalloc;
+
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
+
 /// arenasql-cluster
 #[derive(Parser, Debug)]
 #[command(version)]
