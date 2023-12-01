@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use datafusion::arrow::datatypes::Field;
 use serde::{Deserialize, Serialize};
 
@@ -25,11 +27,15 @@ impl Column {
     }
   }
 
-  pub fn to_field(&self) -> Field {
+  pub fn to_field(&self, table_name: &str) -> Field {
     Field::new(
       self.name.clone(),
       self.data_type.clone().into(),
       self.nullable,
     )
+    .with_metadata(HashMap::from([
+      ("table".to_owned(), table_name.to_owned()),
+      ("type".to_owned(), self.data_type.to_string()),
+    ]))
   }
 }

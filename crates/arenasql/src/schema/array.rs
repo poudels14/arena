@@ -25,9 +25,6 @@ pub enum ColumnArrayBuilder {
 impl ColumnArrayBuilder {
   pub fn from(data_type: &DataType, capacity: usize) -> ColumnArrayBuilder {
     match data_type {
-      DataType::Null => {
-        ColumnArrayBuilder::Null(NullBuilder::with_capacity(capacity))
-      }
       DataType::Boolean => {
         ColumnArrayBuilder::Boolean(BooleanBuilder::with_capacity(capacity))
       }

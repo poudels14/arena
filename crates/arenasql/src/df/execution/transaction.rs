@@ -1,10 +1,10 @@
-use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::execution::context::{
   SQLOptions, SessionContext as DfSessionContext,
 };
-use datafusion::physical_plan::collect;
+use datafusion::physical_plan::execute_stream;
 use sqlparser::ast::Statement as SQLStatement;
 
+use super::response::ExecutionResponse;
 use crate::{storage, Error, Result};
 
 #[allow(unused)]
@@ -15,7 +15,7 @@ pub struct Transaction {
 }
 
 impl Transaction {
-  pub async fn execute_sql(&self, sql: &str) -> Result<Vec<RecordBatch>> {
+  pub async fn execute_sql(&self, sql: &str) -> Result<ExecutionResponse> {
     let mut stmts = crate::parser::parse(sql)?;
     if stmts.len() != 1 {
       return Err(Error::InvalidQuery(
@@ -23,10 +23,13 @@ impl Transaction {
           .to_owned(),
       ));
     }
-    self.execute(stmts.pop().unwrap()).await
+    self.execute(stmts.pop().unwrap().into()).await
   }
 
-  pub async fn execute(&self, stmt: SQLStatement) -> Result<Vec<RecordBatch>> {
+  pub async fn execute(
+    &self,
+    stmt: Box<SQLStatement>,
+  ) -> Result<ExecutionResponse> {
     let plan = self
       .ctxt
       .state()
@@ -36,10 +39,13 @@ impl Transaction {
       .await?;
 
     self.sql_options.verify_plan(&plan)?;
-    let df = self.ctxt.execute_logical_plan(plan).await?;
-    let plan = df.create_physical_plan().await.unwrap();
+    let df = self.ctxt.execute_logical_plan(plan.clone()).await?;
+    let physical_plan = df.create_physical_plan().await?;
 
-    return Ok(collect(plan.clone(), self.ctxt.task_ctx().into()).await?);
+    Ok(ExecutionResponse::from(
+      plan,
+      execute_stream(physical_plan, self.ctxt.task_ctx().into())?,
+    ))
   }
 
   pub fn commit(self) -> Result<()> {

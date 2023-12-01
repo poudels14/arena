@@ -9,13 +9,13 @@ use datafusion::execution::TaskContext;
 use datafusion::logical_expr::Expr;
 use datafusion::physical_expr::PhysicalSortExpr;
 use datafusion::physical_plan::{
-  DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning,
-  SendableRecordBatchStream, Statistics,
+  DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, Statistics,
 };
 use derivative::Derivative;
 
-use self::stream::RowStream;
+pub use self::stream::RowsStream;
 use super::execution::TaskConfig;
+use super::RecordBatchStream;
 use crate::schema::Table;
 use crate::storage::Transaction;
 
@@ -74,12 +74,13 @@ impl ExecutionPlan for TableScaner {
     &self,
     _partition: usize,
     context: Arc<TaskContext>,
-  ) -> Result<SendableRecordBatchStream, DataFusionError> {
+  ) -> Result<RecordBatchStream, DataFusionError> {
     let task_config = context
       .session_config()
       .get_extension::<TaskConfig>()
       .unwrap();
-    Ok(Box::pin(RowStream {
+
+    Ok(Box::pin(RowsStream {
       schema: self.schema(),
       projection: self.projection.clone(),
       table: self.table.clone(),

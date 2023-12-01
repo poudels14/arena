@@ -1,0 +1,17 @@
+[package]
+name = "arenasql-cluster"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+tokio-stream.workspace = true
+dashmap.workspace = true
+uuid.workspace = true
+derivative.workspace = true
+sqlparser = { version = "0.38.0", features = ["serde"] }
+parking_lot = "0.12.1"
+pgwire = "0.16.1"
+arenasql = { path = "../arenasql" }

@@ -1,19 +1,22 @@
 use std::sync::Arc;
 
-use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::execution::context::{
   SQLOptions, SessionConfig as DfSessionConfig,
   SessionContext as DfSessionContext, SessionState as DfSessionState,
 };
+use derivative::Derivative;
 use sqlparser::ast::Statement as SQLStatement;
 
 use super::config::TaskConfig;
+use super::planner::ArenaQueryPlanner;
 use super::transaction::Transaction;
-use super::SessionConfig;
+use super::{response::ExecutionResponse, SessionConfig};
 use crate::{storage, Error, Result};
 
-#[derive(Clone)]
+#[derive(Clone, Derivative)]
+#[derivative(Debug)]
 pub struct SessionContext {
+  #[derivative(Debug = "ignore")]
   config: Arc<SessionConfig>,
   df_session_config: DfSessionConfig,
 }
@@ -39,8 +42,8 @@ impl SessionContext {
 
   pub async fn execute(
     &self,
-    stmts: Vec<SQLStatement>,
-  ) -> Result<Vec<Vec<RecordBatch>>> {
+    stmts: Vec<Box<SQLStatement>>,
+  ) -> Result<Vec<ExecutionResponse>> {
     let mut stmt_results = Vec::with_capacity(stmts.len());
     for stmt in stmts {
       let txn = self.begin_transaction()?;
@@ -64,7 +67,8 @@ impl SessionContext {
       self.df_session_config.clone(),
       self.config.df_runtime.clone(),
       catalog_list.unwrap(),
-    );
+    )
+    .with_query_planner(Arc::new(ArenaQueryPlanner::new()));
 
     let sql_options = SQLOptions::new();
     Ok(Transaction {

@@ -6,13 +6,12 @@ use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::error::Result;
 use datafusion::execution::TaskContext;
 use datafusion::physical_plan::insert::DataSink;
-use datafusion::physical_plan::{
-  DisplayAs, DisplayFormatType, SendableRecordBatchStream,
-};
+use datafusion::physical_plan::{DisplayAs, DisplayFormatType};
 use derivative::Derivative;
 use futures::StreamExt;
 
 use crate::df::execution::TaskConfig;
+use crate::df::RecordBatchStream;
 use crate::schema::{RowConverter, Table};
 use crate::storage::Transaction;
 use crate::{
@@ -46,7 +45,7 @@ impl DisplayAs for Sink {
 impl DataSink for Sink {
   async fn write_all(
     &self,
-    data: Vec<SendableRecordBatchStream>,
+    data: Vec<RecordBatchStream>,
     context: &Arc<TaskContext>,
   ) -> Result<u64> {
     let task_config = context

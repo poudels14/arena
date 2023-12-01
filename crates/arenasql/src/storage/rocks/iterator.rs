@@ -3,7 +3,7 @@ use std::cell::UnsafeCell;
 use rocksdb::DBRawIteratorWithThreadMode;
 use rocksdb::{ReadOptions, Transaction as RocksTransaction};
 
-use super::kv::RocksDatabase;
+use super::storage::RocksDatabase;
 use crate::storage::transaction;
 
 pub struct RawIterator<'a> {

@@ -9,7 +9,7 @@ use datafusion::catalog::{
 use super::schema::SchemaProvider;
 use crate::storage::Transaction;
 
-pub trait CatalogListProvider {
+pub trait CatalogListProvider: Send + Sync {
   fn get_catalog_list(
     &self,
     transaction: Transaction,

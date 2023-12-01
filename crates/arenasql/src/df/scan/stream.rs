@@ -6,22 +6,29 @@ use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::error::Result;
 use datafusion::physical_plan::RecordBatchStream;
+use derivative::Derivative;
 use futures::Stream;
 
 use crate::schema::{ColumnArrayBuilder, SerializedCell, Table};
 use crate::storage::{Serializer, Transaction};
 use crate::{df_execution_error, table_rows_prefix_key};
 
-pub struct RowStream {
+#[allow(dead_code)]
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub struct RowsStream {
   pub(super) table: Arc<Table>,
   pub(crate) projection: Vec<usize>,
   pub(super) schema: SchemaRef,
+  #[derivative(Debug = "ignore")]
   pub(super) transaction: Transaction,
+  #[derivative(Debug = "ignore")]
   pub(super) serializer: Serializer,
   pub(super) done: bool,
 }
 
-impl RowStream {
+#[allow(dead_code)]
+impl RowsStream {
   fn poll_data(&mut self) -> Result<Option<RecordBatch>> {
     let transaction = self.transaction.lock();
 
@@ -67,13 +74,13 @@ impl RowStream {
   }
 }
 
-impl RecordBatchStream for RowStream {
+impl RecordBatchStream for RowsStream {
   fn schema(&self) -> SchemaRef {
     self.schema.clone()
   }
 }
 
-impl Stream for RowStream {
+impl Stream for RowsStream {
   type Item = Result<RecordBatch>;
 
   fn poll_next(

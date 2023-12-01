@@ -7,7 +7,7 @@ use rocksdb::{
 use rocksdb::{ReadOptions, Transaction as RocksTransaction};
 
 use super::iterator::RawIterator as RocksRawIterator;
-use super::kv::RocksDatabase;
+use super::storage::RocksDatabase;
 use crate::storage::transaction::RawIterator;
 use crate::Result as DatabaseResult;
 

@@ -25,8 +25,11 @@ pub struct TableProvider {
 
 impl TableProvider {
   pub(super) fn new(table: schema::Table, transaction: Transaction) -> Self {
-    let fields: Vec<Field> =
-      table.columns.iter().map(|col| col.to_field()).collect();
+    let fields: Vec<Field> = table
+      .columns
+      .iter()
+      .map(|col| col.to_field(&table.name))
+      .collect();
     let schema_ref = SchemaRef::new(Schema::new(fields));
     Self {
       table: Arc::new(table),

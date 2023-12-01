@@ -1,7 +1,6 @@
 mod iterator;
-mod kv;
-mod singlestorage;
+mod storage;
 mod transaction;
 
-pub use singlestorage::{Cache, RocksStorage as SingleRocksStorage};
+pub use storage::{Cache, RocksStorage};
 pub use transaction::KeyValueProvider;

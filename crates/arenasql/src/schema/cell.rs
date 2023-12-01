@@ -5,7 +5,7 @@ use datafusion::arrow::array::{
 use datafusion::error::Result;
 use serde::{Deserialize, Serialize};
 
-use super::{Column, DataType, Table};
+use super::{Column, DataType};
 use crate::error::null_constraint_violation;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -46,20 +46,15 @@ macro_rules! data_with_value {
 
 impl SerializedCell<Vec<u8>> {
   pub fn array_ref_to_vec<'a>(
-    table: &Table,
+    table_name: &str,
     column: &Column,
     data: &'a ArrayRef,
   ) -> Result<Vec<SerializedCell<&'a [u8]>>> {
     if !column.nullable && data.null_count() > 0 {
-      return Err(null_constraint_violation(&table.name, &column.name));
+      return Err(null_constraint_violation(table_name, &column.name));
     }
 
     Ok(match &column.data_type {
-      DataType::Null => (0..data.len())
-        .into_iter()
-        .map(|_| SerializedCell::Null)
-        .collect(),
-
       DataType::Boolean => {
         data_with_value!(data, BooleanArray, |v| v
           .map(|v| SerializedCell::Boolean(v))
@@ -85,16 +80,12 @@ impl SerializedCell<Vec<u8>> {
           .map(|v| SerializedCell::Float64(v))
           .unwrap_or_default())
       }
-      DataType::Varchar { len: _ } | DataType::Text => data
-        .as_any()
-        .downcast_ref::<StringArray>()
-        .unwrap()
-        .iter()
-        .map(|v| {
+      DataType::Varchar { len: _ } | DataType::Text => {
+        data_with_value!(data, StringArray, |v| {
           v.map(|v| SerializedCell::Blob(v.as_bytes()))
             .unwrap_or_default()
         })
-        .collect(),
+      }
       _ => unimplemented!(),
     })
   }

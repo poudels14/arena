@@ -1,13 +1,18 @@
+use std::path::Path;
 use std::sync::Arc;
 
 use derivative::Derivative;
 pub use rocksdb::Cache;
-use rocksdb::FlushOptions;
+use rocksdb::{
+  DBCompressionType, FlushOptions, MultiThreaded, OptimisticTransactionDB,
+  Options as RocksOptions,
+};
 
-use super::kv::RocksDatabase;
 use super::KeyValueProvider;
 use crate::storage::{self, StorageProvider};
 use crate::Result as DatabaseResult;
+
+pub(super) type RocksDatabase = OptimisticTransactionDB<MultiThreaded>;
 
 #[derive(Derivative)]
 #[derivative(Debug, Clone)]
@@ -16,15 +21,32 @@ pub struct RocksStorage {
 }
 
 impl RocksStorage {
-  pub fn new(path: &str) -> DatabaseResult<Self> {
+  pub fn new<P: AsRef<Path>>(path: P) -> DatabaseResult<Self> {
     Self::new_with_cache(path, None)
   }
 
-  pub fn new_with_cache(
-    path: &str,
+  pub fn new_with_cache<P: AsRef<Path>>(
+    path: P,
     cache: Option<Cache>,
   ) -> DatabaseResult<Self> {
-    let kv = super::kv::open(path, cache)?;
+    let mut opts = RocksOptions::default();
+    opts.create_if_missing(true);
+    opts.create_missing_column_families(true);
+    opts.set_compression_type(DBCompressionType::Lz4);
+    opts.set_max_background_jobs(0);
+
+    // enable blob files
+    opts.set_enable_blob_files(true);
+    // TODO: set min blob size so that vector embeddings aren't stored in
+    // blobs but documents are
+    opts.set_enable_blob_gc(true);
+    // this isn't neessary in WAL mode but set it anyways
+    opts.set_atomic_flush(true);
+    if let Some(cache) = cache {
+      opts.set_row_cache(&cache);
+    }
+
+    let kv: RocksDatabase = OptimisticTransactionDB::open(&opts, path)?;
     Ok(Self { kv: Arc::new(kv) })
   }
 
