@@ -30,7 +30,7 @@ impl Transaction {
 
   pub fn commit(self) -> Result<()> {
     if self.inner.is_locked() {
-      return Err(Error::ExecutionError(
+      return Err(Error::InvalidTransactionState(
         "Transaction can't be committed because it's currently locked"
           .to_owned(),
       ));
@@ -40,7 +40,7 @@ impl Transaction {
 
   pub fn rollback(self) -> Result<()> {
     if self.inner.is_locked() {
-      return Err(Error::ExecutionError(
+      return Err(Error::InvalidTransactionState(
         "Transaction can't be rolled back because it's currently locked"
           .to_owned(),
       ));
@@ -111,14 +111,14 @@ impl LockedTransaction {
   #[inline]
   pub(super) fn commit(&mut self) -> Result<()> {
     unsafe { std::mem::replace(self.transaction.get().as_mut().unwrap(), None) }
-      .ok_or(Error::TransactionFinished)?
+      .ok_or_else(Self::transaction_closed_error)?
       .commit()
   }
 
   #[inline]
   pub(super) fn rollback(&self) -> Result<()> {
     unsafe { std::mem::replace(self.transaction.get().as_mut().unwrap(), None) }
-      .ok_or(Error::TransactionFinished)?
+      .ok_or_else(Self::transaction_closed_error)?
       .rollback()
   }
 
@@ -127,7 +127,11 @@ impl LockedTransaction {
     unsafe { self.transaction.get().as_ref() }
       .unwrap()
       .as_ref()
-      .ok_or(Error::TransactionFinished)
+      .ok_or_else(Self::transaction_closed_error)
+  }
+
+  fn transaction_closed_error() -> Error {
+    Error::InvalidTransactionState("Transaction already closed".to_owned())
   }
 }
 

@@ -18,7 +18,7 @@ impl Transaction {
   pub async fn execute_sql(&self, sql: &str) -> Result<ExecutionResponse> {
     let mut stmts = crate::parser::parse(sql)?;
     if stmts.len() != 1 {
-      return Err(Error::InvalidQuery(
+      return Err(Error::UnsupportedOperation(
         "In a transaction, one and only one statement should be executed"
           .to_owned(),
       ));

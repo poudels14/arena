@@ -61,7 +61,9 @@ impl SessionContext {
       .catalog_list_provider
       .get_catalog_list(txn.clone());
     if catalog_list.is_none() {
-      return Err(Error::SystemError("Valid catalog provider must be set"));
+      return Err(Error::InternalError(
+        "Valid catalog provider must be set".to_owned(),
+      ));
     }
     let state = DfSessionState::new_with_config_rt_and_catalog_list(
       self.df_session_config.clone(),

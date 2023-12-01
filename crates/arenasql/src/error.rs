@@ -5,16 +5,45 @@ use sqlparser::parser;
 
 #[derive(Debug, Clone)]
 pub enum Error {
-  InvalidQuery(String),
-  UnsupportedQuery(&'static str),
-  InvalidOperation(String),
+  UnsupportedOperation(String),
   ParserError(String),
-  TransactionFinished,
-  StorageError(String),
+  InvalidTransactionState(String),
+  IOError(String),
   SerdeError(String),
-  ExecutionError(String),
-  SystemError(&'static str),
+  InternalError(String),
   DataFusionError(String),
+}
+
+impl Error {
+  /// PostgresSQL code
+  /// https://www.postgresql.org/docs/current/errcodes-appendix.html
+  pub fn code(&self) -> &'static str {
+    match self {
+      // syntax_error
+      Self::ParserError(_) => "42601",
+      // invalid_transaction_state
+      Self::InvalidTransactionState(_) => "25000",
+      // internal_error
+      Self::UnsupportedOperation(_)
+      | Self::IOError(_)
+      | Self::SerdeError(_)
+      | Self::InternalError(_)
+      | Self::DataFusionError(_) => "XX000",
+    }
+  }
+
+  /// Error message
+  pub fn message(&self) -> &str {
+    match self {
+      Self::ParserError(msg)
+      | Self::UnsupportedOperation(msg)
+      | Self::IOError(msg)
+      | Self::SerdeError(msg)
+      | Self::InternalError(msg)
+      | Self::InvalidTransactionState(msg)
+      | Self::DataFusionError(msg) => msg,
+    }
+  }
 }
 
 impl std::error::Error for Error {}
@@ -33,7 +62,7 @@ impl From<parser::ParserError> for Error {
 
 impl From<rocksdb::Error> for Error {
   fn from(e: rocksdb::Error) -> Self {
-    Self::StorageError(e.into_string())
+    Self::IOError(e.into_string())
   }
 }
 
