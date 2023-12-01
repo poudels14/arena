@@ -9,7 +9,8 @@ members = [
   "vectordb",
   "cloud",
   "dagger",
-  "database",
+  "arenasql",
+  "arenasql-cluster",
 ]
 resolver = "2"
 

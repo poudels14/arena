@@ -15,3 +15,7 @@ sqlparser = { version = "0.38.0", features = ["serde"] }
 parking_lot = "0.12.1"
 pgwire = "0.16.1"
 arenasql = { path = "../arenasql" }
+clap = "4.4"
+log = "0.4"
+env_logger = "0.10.1"
+num_cpus = "1.16.0"
