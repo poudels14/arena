@@ -35,7 +35,7 @@ impl<'a> RawIterator<'a> {
   }
 }
 
-impl<'a> transaction::RawIterator for RawIterator<'a> {
+impl<'a> crate::storage::RawIterator for RawIterator<'a> {
   #[inline]
   fn key(&self) -> Option<&[u8]> {
     self.iter.key()

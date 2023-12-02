@@ -1,3 +1,4 @@
+mod kvprovider;
 mod memory;
 mod provider;
 mod serializer;
@@ -5,10 +6,11 @@ mod transaction;
 
 pub mod rocks;
 
+pub use kvprovider::{KeyValueProvider, RawIterator};
 pub use memory::MemoryStorageProvider;
 pub use provider::StorageProvider;
 pub use serializer::*;
-pub use transaction::{KeyValueProvider, Transaction};
+pub use transaction::Transaction;
 
 #[macro_export]
 macro_rules! table_schema_key {

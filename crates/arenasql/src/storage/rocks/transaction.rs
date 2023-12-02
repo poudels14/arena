@@ -8,7 +8,7 @@ use rocksdb::{ReadOptions, Transaction as RocksTransaction};
 
 use super::iterator::RawIterator as RocksRawIterator;
 use super::storage::RocksDatabase;
-use crate::storage::transaction::RawIterator;
+use crate::storage::RawIterator;
 use crate::Result as DatabaseResult;
 
 /// The rocks db transaction is stored in UnsafeCell for interior
