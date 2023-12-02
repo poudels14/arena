@@ -90,12 +90,7 @@ impl ExecutionPlan for TableScaner {
     }))
   }
 
-  fn statistics(&self) -> Statistics {
-    Statistics {
-      num_rows: None,
-      total_byte_size: None,
-      column_statistics: None,
-      is_exact: false,
-    }
+  fn statistics(&self) -> Result<Statistics, DataFusionError> {
+    Ok(Statistics::new_unknown(&self.projected_schema))
   }
 }

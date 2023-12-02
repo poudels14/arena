@@ -124,6 +124,7 @@ impl DfTableProvider for TableProvider {
         transaction: self.transaction.clone(),
       }),
       sink_schema,
+      None,
     )))
   }
 }

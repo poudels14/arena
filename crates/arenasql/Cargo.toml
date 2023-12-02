@@ -25,8 +25,8 @@ async-trait.workspace = true
 simdutf8.workspace = true
 libsql = { version = "0.1.11", features = ["core"] }
 libsql-sys = "0.2.14"
-datafusion = { version = "32.0.0", features = [] }
-sqlparser = { version = "0.38.0", features = ["serde"] }
+datafusion = { version = "33.0.0", features = [] }
+sqlparser = { version = "0.39.0", features = ["serde"] }
 rocksdb = { version = "0.21.0", default-features = false, features = [
   "lz4",
   "multi-threaded-cf",
