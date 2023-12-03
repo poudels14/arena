@@ -3,6 +3,8 @@ use postgres_types::Type;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 
+use crate::Error;
+
 #[derive(
   Debug, Display, Clone, Serialize, Deserialize, EnumString, PartialEq,
 )]
@@ -61,18 +63,32 @@ impl DataType {
   }
 }
 
-impl From<&DfDataType> for DataType {
-  fn from(value: &DfDataType) -> Self {
+impl TryFrom<&DfDataType> for DataType {
+  type Error = Error;
+  fn try_from(value: &DfDataType) -> Result<Self, Self::Error> {
     match value {
-      DfDataType::Boolean => Self::Boolean,
-      DfDataType::Int32 => Self::Int32,
-      DfDataType::Int64 => Self::Int64,
-      DfDataType::UInt64 => Self::UInt64,
-      DfDataType::Utf8 => Self::Text,
-      DfDataType::Float32 => Self::Float32,
-      DfDataType::Float64 => Self::Float64,
-      DfDataType::Decimal128(p, s) => Self::Decimal { p: *p, s: *s },
-      v => unimplemented!("Data type [{}] not supported", v),
+      DfDataType::Boolean => Ok(Self::Boolean),
+      DfDataType::Int32 => Ok(Self::Int32),
+      DfDataType::Int64 => Ok(Self::Int64),
+      DfDataType::UInt64 => Ok(Self::UInt64),
+      DfDataType::Utf8 => Ok(Self::Text),
+      DfDataType::Float32 => Ok(Self::Float32),
+      DfDataType::Float64 => Ok(Self::Float64),
+      DfDataType::Decimal128(p, s) => Ok(Self::Decimal { p: *p, s: *s }),
+      // Note: We use Decimal256 to represent data types not supported
+      // in datafusion like JSONB and don't actually support Decimal128
+      DfDataType::Decimal256(p, s) => match (p, s) {
+        (76, 1) => Ok(Self::Jsonb),
+        _ => Err(Error::UnsupportedDataType(format!(
+          "Data type [Decimal256({}, {})] not supported",
+          p, s
+        ))),
+      },
+      DfDataType::Binary => Ok(Self::Binary),
+      v => Err(Error::UnsupportedDataType(format!(
+        "Data type [{}] not supported",
+        v
+      ))),
     }
   }
 }
@@ -83,11 +99,14 @@ impl Into<DfDataType> for DataType {
       Self::Boolean => DfDataType::Boolean,
       Self::Int32 => DfDataType::Int32,
       Self::Int64 => DfDataType::Int64,
+      Self::UInt64 => DfDataType::UInt64,
       Self::Text => DfDataType::Utf8,
       Self::Float32 => DfDataType::Float32,
       Self::Float64 => DfDataType::Float64,
       Self::Decimal { p, s } => DfDataType::Decimal128(p, s),
-      v => unimplemented!("Data type [{:?}] not supported", v),
+      Self::Binary => DfDataType::Binary,
+      Self::Jsonb => DfDataType::Utf8,
+      Self::Varchar { .. } => DfDataType::Utf8,
     }
   }
 }

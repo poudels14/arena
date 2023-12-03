@@ -6,6 +6,7 @@ use sqlparser::parser;
 #[derive(Debug, Clone)]
 pub enum Error {
   UnsupportedOperation(String),
+  UnsupportedDataType(String),
   ParserError(String),
   InvalidTransactionState(String),
   IOError(String),
@@ -25,6 +26,7 @@ impl Error {
       Self::InvalidTransactionState(_) => "25000",
       // internal_error
       Self::UnsupportedOperation(_)
+      | Self::UnsupportedDataType(_)
       | Self::IOError(_)
       | Self::SerdeError(_)
       | Self::InternalError(_)
@@ -37,6 +39,7 @@ impl Error {
     match self {
       Self::ParserError(msg)
       | Self::UnsupportedOperation(msg)
+      | Self::UnsupportedDataType(msg)
       | Self::IOError(msg)
       | Self::SerdeError(msg)
       | Self::InternalError(msg)
@@ -75,6 +78,12 @@ impl From<DataFusionError> for Error {
 impl From<bincode::Error> for Error {
   fn from(e: bincode::Error) -> Self {
     Self::SerdeError(e.to_string())
+  }
+}
+
+impl From<Error> for DataFusionError {
+  fn from(err: Error) -> Self {
+    DataFusionError::External(Box::new(err))
   }
 }
 

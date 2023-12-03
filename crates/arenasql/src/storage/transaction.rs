@@ -1,138 +1,122 @@
-use std::cell::UnsafeCell;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use derivative::Derivative;
-use parking_lot::{Mutex, MutexGuard};
+use strum_macros::FromRepr;
 
+use super::kvprovider::KeyValueProvider;
+use super::operators::StorageOperator;
+use super::Serializer;
 use crate::{Error, Result};
-
-use super::kvprovider::{KeyValueProvider, RawIterator};
 
 #[derive(Derivative, Clone)]
 #[allow(unused)]
 pub struct Transaction {
-  inner: Arc<Mutex<LockedTransaction>>,
+  kv: Arc<Box<dyn KeyValueProvider>>,
+  serializer: Serializer,
+  state: Arc<AtomicUsize>,
+}
+
+#[derive(Debug, FromRepr)]
+#[repr(usize)]
+pub(super) enum TransactionState {
+  Unknown = 0,
+  Free = 1,
+  Locked = 2,
+  Closed = 3,
 }
 
 unsafe impl Send for Transaction {}
 unsafe impl Sync for Transaction {}
 
 impl Transaction {
-  pub fn new(kv: Box<dyn KeyValueProvider>) -> Self {
+  pub fn new(kv: Box<dyn KeyValueProvider>, serializer: Serializer) -> Self {
+    let state = Arc::new(AtomicUsize::new(TransactionState::Free as usize));
     Self {
-      inner: Arc::new(Mutex::new(LockedTransaction {
-        transaction: UnsafeCell::new(Some(kv)),
-      })),
+      kv: Arc::new(kv),
+      serializer,
+      state,
     }
   }
 
-  pub fn lock<'a>(&'a self) -> MutexGuard<'a, LockedTransaction> {
-    self.inner.lock()
-  }
-
-  pub fn commit(self) -> Result<()> {
-    if self.inner.is_locked() {
-      return Err(Error::InvalidTransactionState(
-        "Transaction can't be committed because it's currently locked"
-          .to_owned(),
-      ));
+  pub fn lock<'a>(&'a self) -> Result<StorageOperator> {
+    match TransactionState::from_repr(self.state.load(Ordering::SeqCst)) {
+      Some(TransactionState::Locked) => {
+        return Err(Error::InvalidTransactionState(
+          "Failed to acquire transaction [aready locked]".to_owned(),
+        ));
+      }
+      Some(TransactionState::Closed) => {
+        return Err(Error::InvalidTransactionState(
+          "Transaction already closed".to_owned(),
+        ));
+      }
+      Some(TransactionState::Free) => {}
+      s => {
+        return Err(Error::InvalidTransactionState(format!(
+          "Invalid transaction state: {:?}",
+          s
+        )))
+      }
     }
-    self.inner.lock().commit()
-  }
 
-  pub fn rollback(self) -> Result<()> {
-    if self.inner.is_locked() {
-      return Err(Error::InvalidTransactionState(
-        "Transaction can't be rolled back because it's currently locked"
-          .to_owned(),
-      ));
-    }
-    self.inner.lock().rollback()
-  }
+    let _ = self
+      .state
+      .compare_exchange(
+        TransactionState::Free as usize,
+        TransactionState::Locked as usize,
+        Ordering::Acquire,
+        Ordering::Relaxed,
+      )
+      .map_err(|_| {
+        Error::IOError("Failed to acquire transaction lock".to_owned())
+      })?;
 
-  pub fn done(&self) -> Result<bool> {
-    Ok(self.inner.lock().txn().is_err())
-  }
-}
-
-/// Uses interior mutability to store the KeyValue provider trait
-/// because owned reference to the trait is required in order to
-/// commit the transaction
-pub struct LockedTransaction {
-  transaction: UnsafeCell<Option<Box<dyn KeyValueProvider>>>,
-}
-
-impl LockedTransaction {
-  pub fn atomic_update(
-    &self,
-    key: &[u8],
-    updater: &dyn Fn(Option<Vec<u8>>) -> Vec<u8>,
-  ) -> Result<Vec<u8>> {
-    self.txn()?.atomic_update(key, updater)
-  }
-
-  pub fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>> {
-    self.txn()?.get(key).map_err(|e| e.to_owned())
-  }
-
-  pub fn get_or_log_error(&self, key: &[u8]) -> Option<Vec<u8>> {
-    self.txn().and_then(|txn| txn.get(key)).unwrap_or_else(|e| {
-      tracing::error!("Error loading key-value from storage: {:?}", e);
-      None
+    Ok(StorageOperator {
+      kv: self.kv.clone(),
+      serializer: self.serializer.clone(),
+      lock: self.state.clone(),
     })
   }
 
-  pub fn get_for_update(
-    &self,
-    key: &[u8],
-    exclusive: bool,
-  ) -> Result<Option<Vec<u8>>> {
-    self.txn()?.get_for_update(key, exclusive)
+  pub fn commit(&self) -> Result<()> {
+    self.close_transaction()?;
+    self.kv.commit()
   }
 
-  #[inline]
-  pub fn scan(&self, prefix: &[u8]) -> Result<Vec<(Box<[u8]>, Box<[u8]>)>> {
-    self.txn()?.scan(prefix)
+  pub fn rollback(self) -> Result<()> {
+    self.close_transaction()?;
+    self.kv.rollback()
   }
 
-  #[inline]
-  pub fn scan_raw(&self, prefix: &[u8]) -> Result<Box<dyn RawIterator>> {
-    self.txn()?.scan_raw(prefix)
-  }
+  /// transaction should be free when calling this
+  fn close_transaction(&self) -> Result<()> {
+    match TransactionState::from_repr(self.state.load(Ordering::SeqCst)) {
+      Some(TransactionState::Closed) => {
+        return Err(Error::InvalidTransactionState(
+          "Transaction already closed".to_owned(),
+        ));
+      }
+      Some(TransactionState::Locked) => {
+        return Err(Error::InvalidTransactionState(
+          "Cannot close a locked transaction".to_owned(),
+        ));
+      }
+      _ => {}
+    }
 
-  #[inline]
-  pub fn put(&self, key: &[u8], value: &[u8]) -> Result<()> {
-    self.txn()?.put(key, value)
-  }
-
-  #[inline]
-  pub fn put_all(&self, rows: &[(&[u8], &[u8])]) -> Result<()> {
-    self.txn()?.put_all(rows)
-  }
-
-  #[inline]
-  pub(super) fn commit(&mut self) -> Result<()> {
-    unsafe { std::mem::replace(self.transaction.get().as_mut().unwrap(), None) }
-      .ok_or_else(Self::transaction_closed_error)?
-      .commit()
-  }
-
-  #[inline]
-  pub(super) fn rollback(&self) -> Result<()> {
-    unsafe { std::mem::replace(self.transaction.get().as_mut().unwrap(), None) }
-      .ok_or_else(Self::transaction_closed_error)?
-      .rollback()
-  }
-
-  #[inline]
-  fn txn<'a>(&'a self) -> Result<&Box<dyn KeyValueProvider>> {
-    unsafe { self.transaction.get().as_ref() }
-      .unwrap()
-      .as_ref()
-      .ok_or_else(Self::transaction_closed_error)
-  }
-
-  fn transaction_closed_error() -> Error {
-    Error::InvalidTransactionState("Transaction already closed".to_owned())
+    let state = self
+      .state
+      .compare_exchange(
+        TransactionState::Free as usize,
+        TransactionState::Closed as usize,
+        Ordering::Acquire,
+        Ordering::Relaxed,
+      )
+      .unwrap_or(TransactionState::Unknown as usize);
+    if state != TransactionState::Free as usize {
+      return Err(Error::IOError("Failed to close transaction".to_owned()));
+    }
+    Ok(())
   }
 }

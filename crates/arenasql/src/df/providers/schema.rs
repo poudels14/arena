@@ -6,11 +6,9 @@ use datafusion::catalog::schema::SchemaProvider as DfSchemaProvider;
 use datafusion::datasource::TableProvider as DfTableProvider;
 use datafusion::error::Result;
 
-use crate::schema::{Column, ColumnId, Table, TableId};
-use crate::storage::{Serializer, Transaction};
-use crate::{df_execution_error, next_table_id_key, table_schema_key};
-
 use super::table::TableProvider;
+use crate::schema::Table;
+use crate::storage::Transaction;
 
 pub struct SchemaProvider {
   pub(super) catalog: String,
@@ -28,17 +26,14 @@ impl DfSchemaProvider for SchemaProvider {
     unimplemented!()
   }
 
+  // Note: for each insert, this table gets called twice
   async fn table(&self, name: &str) -> Option<Arc<dyn DfTableProvider>> {
-    let transaction = self.transaction.lock();
-    transaction
-      .get_or_log_error(table_schema_key!(self.catalog, self.schema, name))
-      .and_then(|bytes| {
-        Serializer::FixedInt
-          .deserialize_or_log_error(&bytes)
-          .map(|table| {
-            Arc::new(TableProvider::new(table, self.transaction.clone()))
-              as Arc<dyn DfTableProvider>
-          })
+    let storage_handler = self.transaction.lock().ok()?;
+    storage_handler
+      .get_table_schema(&self.catalog, &self.schema, name)
+      .map(|table| {
+        Arc::new(TableProvider::new(table, self.transaction.clone()))
+          as Arc<dyn DfTableProvider>
       })
   }
 
@@ -48,58 +43,12 @@ impl DfSchemaProvider for SchemaProvider {
     name: String,
     table: Arc<dyn DfTableProvider>,
   ) -> Result<Option<Arc<dyn DfTableProvider>>> {
-    let transaction = self.transaction.lock();
-    let serializer = Serializer::FixedInt;
-    let new_table_id = transaction
-      .get_for_update(next_table_id_key!(), true)
-      .map_err(|e| df_execution_error!("Storage error: {}", e.to_string()))?
-      .map(|bytes| {
-        serializer.deserialize::<TableId>(&bytes).map_err(|e| {
-          df_execution_error!("Serialization error: {}", e.to_string())
-        })
-      })
-      .unwrap_or(Ok(1))?;
+    let storage_handler = self.transaction.lock()?;
 
-    let columns = table
-      .schema()
-      .fields
-      .iter()
-      .enumerate()
-      .map(|(idx, field)| Column::from_field(idx as ColumnId, field))
-      .collect();
+    let new_table_id = storage_handler.get_next_table_id()?;
+    let table = Table::new(new_table_id, &name, table)?;
 
-    let table = Table {
-      id: new_table_id,
-      name: name.to_owned(),
-      columns,
-      constraints: vec![],
-    };
-
-    serializer
-      .serialize::<Table>(&table)
-      .and_then(|table| {
-        serializer
-          .serialize(&(new_table_id + 1))
-          .map(|id| (id, table))
-      })
-      .map_err(|e| {
-        df_execution_error!("Serialization error: {}", e.to_string())
-      })
-      .and_then(|(next_table_id, table_bytes)| {
-        transaction
-          .put_all(
-            vec![
-              (next_table_id_key!(), next_table_id.as_slice()),
-              (
-                table_schema_key!(self.catalog, self.schema, name),
-                table_bytes.as_slice(),
-              ),
-            ]
-            .as_slice(),
-          )
-          .map_err(|e| df_execution_error!("Storage error: {}", e.to_string()))
-      })?;
-
+    storage_handler.put_table_schema(&self.catalog, &self.schema, &table)?;
     Ok(Some(
       Arc::new(TableProvider::new(table, self.transaction.clone()))
         as Arc<dyn DfTableProvider>,
@@ -107,9 +56,10 @@ impl DfSchemaProvider for SchemaProvider {
   }
 
   fn table_exist(&self, name: &str) -> bool {
-    let txn = self.transaction.lock();
-    txn
-      .get_or_log_error(table_schema_key!(self.catalog, self.schema, name))
-      .is_some()
+    self
+      .transaction
+      .lock()
+      .map(|txn| txn.has_table(&self.catalog, &self.schema, name))
+      .unwrap_or(false)
   }
 }

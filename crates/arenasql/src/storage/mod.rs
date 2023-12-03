@@ -1,12 +1,13 @@
 mod kvprovider;
 mod memory;
+mod operators;
 mod provider;
 mod serializer;
 mod transaction;
 
 pub mod rocks;
 
-pub use kvprovider::{KeyValueProvider, RawIterator};
+pub use kvprovider::{KeyValueGroup, KeyValueProvider, RawIterator};
 pub use memory::MemoryStorageProvider;
 pub use provider::StorageProvider;
 pub use serializer::*;
@@ -20,9 +21,9 @@ macro_rules! table_schema_key {
 }
 
 #[macro_export]
-macro_rules! next_table_id_key {
+macro_rules! last_table_id_key {
   () => {
-    "m_next_table_id".as_bytes()
+    "m_last_table_id".as_bytes()
   };
 }
 

@@ -1,6 +1,10 @@
+use std::sync::Arc;
+
+use datafusion::datasource::TableProvider as DfTableProvider;
 use serde::{Deserialize, Serialize};
 
-use super::Column;
+use super::{Column, ColumnId, Constraint};
+use crate::Result;
 
 pub type TableId = u16;
 
@@ -12,12 +16,34 @@ pub struct Table {
   pub constraints: Vec<Constraint>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[repr(u8)]
-pub enum Constraint {
-  /// Columns with the given indices form a composite primary key (they are
-  /// jointly unique and not nullable):
-  PrimaryKey(Vec<usize>) = 1,
-  /// Columns with the given indices form a composite unique key:
-  Unique(Vec<usize>) = 2,
+impl Table {
+  pub fn new(
+    id: TableId,
+    name: &str,
+    provider: Arc<dyn DfTableProvider>,
+  ) -> Result<Self> {
+    let columns = provider
+      .schema()
+      .fields
+      .iter()
+      .enumerate()
+      .map(|(idx, field)| Column::from_field(idx as ColumnId, field))
+      .collect::<Result<Vec<Column>>>()?;
+
+    Ok(Table {
+      id,
+      name: name.to_owned(),
+      columns,
+      constraints: provider
+        .constraints()
+        .map(|constraints| {
+          constraints
+            .as_ref()
+            .into_iter()
+            .map(|c| Constraint::from(c))
+            .collect()
+        })
+        .unwrap_or_default(),
+    })
+  }
 }

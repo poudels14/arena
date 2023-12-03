@@ -11,7 +11,6 @@ use futures::Stream;
 
 use crate::schema::{ColumnArrayBuilder, SerializedCell, Table};
 use crate::storage::{Serializer, Transaction};
-use crate::{df_execution_error, table_rows_prefix_key};
 
 #[allow(dead_code)]
 #[derive(Derivative)]
@@ -30,11 +29,9 @@ pub struct RowsStream {
 #[allow(dead_code)]
 impl RowsStream {
   fn poll_data(&mut self) -> Result<Option<RecordBatch>> {
-    let transaction = self.transaction.lock();
+    let transaction = self.transaction.lock()?;
 
-    let mut raw_rows = transaction
-      .scan_raw(&table_rows_prefix_key!(self.table.id))
-      .map_err(|e| df_execution_error!("Storage error: {}", e.to_string()))?;
+    let mut raw_rows = transaction.scan_raw(&self.table)?;
 
     let mut column_list_builders: Vec<ColumnArrayBuilder> = self
       .projection
@@ -48,10 +45,8 @@ impl RowsStream {
     while let Some((_key, value)) = raw_rows.get() {
       let row = self
         .serializer
-        .deserialize::<Vec<SerializedCell<&[u8]>>>(value)
-        .map_err(|e| {
-          df_execution_error!("Serialization error: {}", e.to_string())
-        })?;
+        .deserialize::<Vec<SerializedCell<&[u8]>>>(value)?;
+
       self
         .projection
         .iter()

@@ -4,12 +4,12 @@ use std::sync::Arc;
 use derivative::Derivative;
 pub use rocksdb::Cache;
 use rocksdb::{
-  DBCompressionType, FlushOptions, MultiThreaded, OptimisticTransactionDB,
-  Options as RocksOptions,
+  ColumnFamilyDescriptor, DBCompressionType, FlushOptions, MultiThreaded,
+  OptimisticTransactionDB, Options as RocksOptions,
 };
 
 use super::KeyValueProvider;
-use crate::storage::{self, StorageProvider};
+use crate::storage::{self, KeyValueGroup, StorageProvider};
 use crate::Result as DatabaseResult;
 
 pub(super) type RocksDatabase = OptimisticTransactionDB<MultiThreaded>;
@@ -46,7 +46,28 @@ impl RocksStorage {
       opts.set_row_cache(&cache);
     }
 
-    let kv: RocksDatabase = OptimisticTransactionDB::open(&opts, path)?;
+    let kv: RocksDatabase = OptimisticTransactionDB::open_cf_descriptors(
+      &opts,
+      path,
+      vec![
+        ColumnFamilyDescriptor::new(
+          KeyValueGroup::Locks.to_string(),
+          RocksOptions::default(),
+        ),
+        ColumnFamilyDescriptor::new(
+          KeyValueGroup::Schemas.to_string(),
+          RocksOptions::default(),
+        ),
+        ColumnFamilyDescriptor::new(
+          KeyValueGroup::Indexes.to_string(),
+          RocksOptions::default(),
+        ),
+        ColumnFamilyDescriptor::new(
+          KeyValueGroup::Rows.to_string(),
+          RocksOptions::default(),
+        ),
+      ],
+    )?;
     Ok(Self { kv: Arc::new(kv) })
   }
 

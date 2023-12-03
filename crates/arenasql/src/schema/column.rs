@@ -4,6 +4,7 @@ use datafusion::arrow::datatypes::Field;
 use serde::{Deserialize, Serialize};
 
 use super::{DataType, SerializedCell};
+use crate::Result;
 
 pub type ColumnId = u8;
 
@@ -17,14 +18,14 @@ pub struct Column {
 }
 
 impl Column {
-  pub fn from_field(idx: ColumnId, field: &Field) -> Self {
-    Column {
+  pub fn from_field(idx: ColumnId, field: &Field) -> Result<Self> {
+    Ok(Column {
       id: idx,
       name: field.name().to_owned(),
-      data_type: DataType::try_from(field.data_type()).unwrap(),
+      data_type: DataType::try_from(field.data_type())?,
       nullable: field.is_nullable(),
       default_value: None,
-    }
+    })
   }
 
   pub fn to_field(&self, table_name: &str) -> Field {

@@ -1,5 +1,6 @@
 mod df;
 mod error;
+pub(crate) mod utils;
 
 pub mod parser;
 pub mod runtime;

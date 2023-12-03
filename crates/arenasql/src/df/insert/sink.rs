@@ -12,13 +12,10 @@ use datafusion::physical_plan::{DisplayAs, DisplayFormatType};
 use derivative::Derivative;
 use futures::StreamExt;
 
-use crate::df::execution::TaskConfig;
 use crate::df::RecordBatchStream;
-use crate::schema::{RowConverter, Table};
+use crate::schema::Table;
 use crate::storage::Transaction;
-use crate::{
-  df_execution_error, last_row_id_of_table_key, table_rows_prefix_key,
-};
+use crate::utils::rowconverter;
 
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]
@@ -56,50 +53,21 @@ impl DataSink for Sink {
   async fn write_all(
     &self,
     mut data: RecordBatchStream,
-    context: &Arc<TaskContext>,
+    _context: &Arc<TaskContext>,
   ) -> Result<u64> {
-    let task_config = context
-      .session_config()
-      .get_extension::<TaskConfig>()
-      .unwrap();
     let mut modified_rows_count = 0;
 
     if let Some(batch) = data.next().await {
-      if let Err(e) = batch {
-        return Err(e);
-      }
       let batch = batch?;
       let row_count = batch.num_rows();
       modified_rows_count += row_count;
 
-      let rows = RowConverter::convert_to_rows(&self.table, &batch)?;
+      let rows = rowconverter::convert_to_rows(&self.table, &batch)?;
 
-      let transaction = self.transaction.lock();
+      let storage_handler = self.transaction.lock()?;
       for row in rows.iter() {
-        let row_bytes =
-          task_config.serializer.serialize(&row).map_err(|e| {
-            df_execution_error!("Serialization error: {}", e.to_string())
-          })?;
-        transaction
-          .atomic_update(
-            &last_row_id_of_table_key!(self.table.id),
-            &|old: Option<Vec<u8>>| {
-              let new_row_id = old
-                .map(|b| u64::from_be_bytes(b.try_into().unwrap()))
-                .unwrap_or(0)
-                + 1;
-              new_row_id.to_be_bytes().to_vec()
-            },
-          )
-          .and_then(|row_id| {
-            transaction.put(
-              &vec![table_rows_prefix_key!(self.table.id), row_id].concat(),
-              &row_bytes,
-            )
-          })
-          .map_err(|e| {
-            df_execution_error!("Storage error: {}", e.to_string())
-          })?;
+        let row_id = storage_handler.generate_next_row_id(&self.table)?;
+        storage_handler.insert_row(&self.table, &row_id, &row)?;
       }
     }
     Ok(modified_rows_count as u64)

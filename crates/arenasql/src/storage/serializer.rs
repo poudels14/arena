@@ -74,7 +74,7 @@ impl Serializer {
     match self.deserialize::<T>(bytes) {
       Ok(v) => Some(v),
       Err(e) => {
-        tracing::error!("Error deserializing: {:?}", e);
+        eprintln!("Error deserializing: {:?}", e);
         return None;
       }
     }

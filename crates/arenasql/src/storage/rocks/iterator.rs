@@ -1,10 +1,10 @@
 use std::cell::UnsafeCell;
+use std::sync::Arc;
 
-use rocksdb::DBRawIteratorWithThreadMode;
+use rocksdb::{BoundColumnFamily, DBRawIteratorWithThreadMode};
 use rocksdb::{ReadOptions, Transaction as RocksTransaction};
 
 use super::storage::RocksDatabase;
-use crate::storage::transaction;
 
 pub struct RawIterator<'a> {
   pub(super) iter:
@@ -14,6 +14,7 @@ pub struct RawIterator<'a> {
 impl<'a> RawIterator<'a> {
   pub(super) fn new(
     txn: &UnsafeCell<Option<RocksTransaction<'static, RocksDatabase>>>,
+    cf: &Arc<BoundColumnFamily<'static>>,
     prefix: &[u8],
   ) -> Self {
     let txn = unsafe { txn.get().as_ref() }
@@ -28,7 +29,7 @@ impl<'a> RawIterator<'a> {
     opts.set_prefix_same_as_start(true);
     // TODO: pass this as option
     opts.fill_cache(true);
-    let mut iter = txn.raw_iterator_opt(opts);
+    let mut iter = txn.raw_iterator_cf_opt(cf, opts);
     iter.seek(prefix);
 
     Self { iter }
@@ -47,7 +48,7 @@ impl<'a> crate::storage::RawIterator for RawIterator<'a> {
   }
 
   #[inline]
-  fn get(&self) -> Option<(&[u8], &[u8])> {
+  fn get(&mut self) -> Option<(&[u8], &[u8])> {
     self.iter.item()
   }
 

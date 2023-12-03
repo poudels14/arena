@@ -53,13 +53,14 @@ impl SessionContext {
   }
 
   pub fn begin_transaction(&self) -> Result<Transaction> {
-    let txn = storage::Transaction::new(
+    let storage_txn = storage::Transaction::new(
       self.config.storage_provider.begin_transaction()?,
+      self.config.serializer.clone(),
     );
     let catalog_list = self
       .config
       .catalog_list_provider
-      .get_catalog_list(txn.clone());
+      .get_catalog_list(storage_txn.clone());
     if catalog_list.is_none() {
       return Err(Error::InternalError(
         "Valid catalog provider must be set".to_owned(),
@@ -74,7 +75,7 @@ impl SessionContext {
 
     let sql_options = SQLOptions::new();
     Ok(Transaction {
-      txn,
+      storage_txn,
       sql_options,
       ctxt: DfSessionContext::new_with_state(state),
     })
