@@ -28,24 +28,25 @@ impl QueryPlanner for ArenaQueryPlanner {
     session_state: &SessionState,
   ) -> Result<Arc<dyn ExecutionPlan>> {
     match logical_plan {
+      LogicalPlan::EmptyRelation(_) => {}
       LogicalPlan::Dml(stmt) => {
         match stmt.op {
-          WriteOp::InsertInto => Ok(()),
-          _ => Err(DataFusionError::NotImplemented(
-            "Unsupported Dml query".to_owned(),
-          )),
-        }?;
-        self
-          .df_planner
-          .create_physical_plan(logical_plan, session_state)
-          .await
+          WriteOp::InsertInto => {}
+          _ => {
+            return Err(DataFusionError::NotImplemented(
+              "Unsupported Dml query".to_owned(),
+            ))
+          }
+        };
       }
-      _ => {
-        self
-          .df_planner
-          .create_physical_plan(logical_plan, session_state)
-          .await
+      LogicalPlan::Ddl(_stmt) => {
+        panic!();
       }
+      _ => {}
     }
+    self
+      .df_planner
+      .create_physical_plan(logical_plan, session_state)
+      .await
   }
 }

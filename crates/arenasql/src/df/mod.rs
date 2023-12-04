@@ -1,7 +1,6 @@
 use datafusion::arrow::record_batch;
 use datafusion::physical_plan::SendableRecordBatchStream;
 
-pub(crate) mod execution;
 mod insert;
 pub(crate) mod providers;
 mod scan;

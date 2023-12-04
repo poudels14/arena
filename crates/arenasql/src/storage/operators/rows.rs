@@ -4,6 +4,7 @@ use crate::storage::KeyValueGroup;
 use crate::{table_rows_prefix_key, Result};
 
 impl StorageOperator {
+  #[inline]
   pub fn insert_row<'a>(
     &self,
     table: &Table,

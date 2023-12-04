@@ -14,8 +14,8 @@ use datafusion::physical_plan::{
 use derivative::Derivative;
 
 pub use self::stream::RowsStream;
-use super::execution::TaskConfig;
 use super::RecordBatchStream;
+use crate::execution::TaskConfig;
 use crate::schema::Table;
 use crate::storage::Transaction;
 

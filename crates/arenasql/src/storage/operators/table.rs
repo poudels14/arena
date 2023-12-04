@@ -7,6 +7,7 @@ use crate::{
 };
 
 impl StorageOperator {
+  #[inline]
   pub fn get_next_table_id(&self) -> Result<TableId> {
     let serializer = Serializer::FixedInt;
     self

@@ -5,6 +5,7 @@ use crate::{last_row_id_of_table_key, Result};
 use super::StorageOperator;
 
 impl StorageOperator {
+  #[inline]
   pub fn generate_next_row_id(&self, table: &Table) -> Result<Vec<u8>> {
     self.kv.atomic_update(
       KeyValueGroup::Locks,

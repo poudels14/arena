@@ -1,5 +1,6 @@
 mod df;
 mod error;
+mod execution;
 pub(crate) mod utils;
 
 pub mod parser;
@@ -10,11 +11,11 @@ pub mod storage;
 pub type Result<T> = std::result::Result<T, error::Error>;
 pub type Error = error::Error;
 
-pub use df::execution::{SessionConfig, SessionContext, Transaction};
 pub use df::providers::{CatalogListProvider, SingleCatalogListProvider};
+pub use execution::{SessionConfig, SessionContext, Transaction};
 
 pub mod response {
-  pub use crate::df::execution::response::*;
+  pub use crate::execution::response::*;
 }
 
 pub mod records {

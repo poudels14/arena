@@ -32,13 +32,17 @@ unsafe impl Sync for Transaction {}
 impl Transaction {
   pub fn new(kv: Box<dyn KeyValueProvider>, serializer: Serializer) -> Self {
     let state = Arc::new(AtomicUsize::new(TransactionState::Free as usize));
+    let kv = Arc::new(kv);
     Self {
-      kv: Arc::new(kv),
+      kv,
       serializer,
       state,
     }
   }
 
+  // TODO: return mutexlock or some type that is not Send+Sync
+  // and gets dropped when it's out of scope so that deadlock error
+  // is easily prevented
   pub fn lock<'a>(&'a self) -> Result<StorageOperator> {
     match TransactionState::from_repr(self.state.load(Ordering::SeqCst)) {
       Some(TransactionState::Locked) => {
