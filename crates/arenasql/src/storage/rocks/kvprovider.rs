@@ -8,9 +8,9 @@ use rocksdb::{
 use rocksdb::{ReadOptions, Transaction as RocksTransaction};
 use strum::IntoEnumIterator;
 
-use super::iterator::RawIterator as RocksRawIterator;
+use super::iterator::PrefixIterator as RocksRawIterator;
 use super::storage::RocksDatabase;
-use crate::storage::{KeyValueGroup, RawIterator};
+use crate::storage::{KeyValueGroup, PrefixIterator};
 use crate::{Error, Result as DatabaseResult};
 
 /// The rocks db transaction is stored in UnsafeCell for interior
@@ -113,33 +113,15 @@ impl crate::storage::KeyValueProvider for KeyValueProvider {
     )?)
   }
 
-  fn scan(
+  fn scan_with_prefix<'a>(
     &self,
     group: KeyValueGroup,
-    prefix: &[u8],
-  ) -> DatabaseResult<Vec<(Box<[u8]>, Box<[u8]>)>> {
-    let mut opts = ReadOptions::default();
-    opts.set_readahead_size(4 * 1024 * 1024);
-    opts.set_prefix_same_as_start(true);
-    // TODO: pass this as option
-    opts.fill_cache(true);
-    let iter = self.get_txn().iterator_cf_opt(
-      &self.cfs[group as usize],
-      opts,
-      IteratorMode::From(prefix.as_ref(), Direction::Forward),
-    );
-    Ok(iter.collect::<Result<Vec<(Box<[u8]>, Box<[u8]>)>, rocksdb::Error>>()?)
-  }
-
-  fn scan_raw(
-    &self,
-    group: KeyValueGroup,
-    prefix: &[u8],
-  ) -> DatabaseResult<Box<dyn RawIterator>> {
+    prefix: &'a [u8],
+  ) -> DatabaseResult<Box<dyn PrefixIterator>> {
     Ok(Box::new(RocksRawIterator::new(
       &self.transaction,
       &self.cfs[group as usize],
-      prefix,
+      prefix.to_vec(),
     )))
   }
 

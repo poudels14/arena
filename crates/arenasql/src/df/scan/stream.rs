@@ -31,7 +31,7 @@ impl RowsStream {
   fn poll_data(&mut self) -> Result<Option<RecordBatch>> {
     let transaction = self.transaction.lock()?;
 
-    let mut raw_rows = transaction.scan_raw(&self.table)?;
+    let mut raw_rows = transaction.scan_table(&self.table)?;
 
     let mut column_list_builders: Vec<ColumnArrayBuilder> = self
       .projection
@@ -42,6 +42,7 @@ impl RowsStream {
       })
       .collect();
 
+    // TODO: try if sending rows in batches improves perf
     while let Some((_key, value)) = raw_rows.get() {
       let row = self
         .serializer

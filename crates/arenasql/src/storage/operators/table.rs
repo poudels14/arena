@@ -1,6 +1,6 @@
 use super::StorageOperator;
 use crate::schema::{Table, TableId};
-use crate::storage::RawIterator;
+use crate::storage::PrefixIterator;
 use crate::storage::{KeyValueGroup, Serializer};
 use crate::{
   last_table_id_key, table_rows_prefix_key, table_schema_key, Result,
@@ -66,9 +66,9 @@ impl StorageOperator {
     )
   }
 
-  pub fn scan_raw(&self, table: &Table) -> Result<Box<dyn RawIterator>> {
+  pub fn scan_table(&self, table: &Table) -> Result<Box<dyn PrefixIterator>> {
     self
       .kv
-      .scan_raw(KeyValueGroup::Rows, &table_rows_prefix_key!(table.id))
+      .scan_with_prefix(KeyValueGroup::Rows, &table_rows_prefix_key!(table.id))
   }
 }

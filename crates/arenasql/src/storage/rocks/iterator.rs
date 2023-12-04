@@ -6,16 +6,17 @@ use rocksdb::{ReadOptions, Transaction as RocksTransaction};
 
 use super::storage::RocksDatabase;
 
-pub struct RawIterator<'a> {
-  pub(super) iter:
-    DBRawIteratorWithThreadMode<'a, RocksTransaction<'a, RocksDatabase>>,
+pub struct PrefixIterator<'a> {
+  prefix: Vec<u8>,
+  iter: DBRawIteratorWithThreadMode<'a, RocksTransaction<'a, RocksDatabase>>,
+  done: bool,
 }
 
-impl<'a> RawIterator<'a> {
+impl<'a> PrefixIterator<'a> {
   pub(super) fn new(
     txn: &UnsafeCell<Option<RocksTransaction<'static, RocksDatabase>>>,
     cf: &Arc<BoundColumnFamily<'static>>,
-    prefix: &[u8],
+    prefix: Vec<u8>,
   ) -> Self {
     let txn = unsafe { txn.get().as_ref() }
       .as_ref()
@@ -30,30 +31,51 @@ impl<'a> RawIterator<'a> {
     // TODO: pass this as option
     opts.fill_cache(true);
     let mut iter = txn.raw_iterator_cf_opt(cf, opts);
-    iter.seek(prefix);
+    iter.seek(&prefix);
 
-    Self { iter }
+    Self {
+      prefix,
+      iter,
+      done: false,
+    }
   }
 }
 
-impl<'a> crate::storage::RawIterator for RawIterator<'a> {
+impl<'a> crate::storage::PrefixIterator for PrefixIterator<'a> {
   #[inline]
   fn key(&self) -> Option<&[u8]> {
-    self.iter.key()
+    if self.done {
+      None
+    } else {
+      self.iter.key()
+    }
   }
 
   #[inline]
-  fn value(&self) -> Option<&[u8]> {
-    self.iter.value()
-  }
-
-  #[inline]
-  fn get(&mut self) -> Option<(&[u8], &[u8])> {
-    self.iter.item()
+  fn get(&self) -> Option<(&[u8], &[u8])> {
+    if self.done {
+      None
+    } else {
+      self.iter.item()
+    }
   }
 
   #[inline]
   fn next(&mut self) {
-    self.iter.next();
+    if !self.done {
+      self.iter.next();
+      let next_key = self.iter.key();
+      // If prefix doesn't match, mark it as done
+      if !next_key
+        .map(|key| {
+          // return true if prefix matches
+          key.len() >= self.prefix.len()
+            && key[0..self.prefix.len()] == *self.prefix
+        })
+        .unwrap_or(false)
+      {
+        self.done = true;
+      }
+    }
   }
 }

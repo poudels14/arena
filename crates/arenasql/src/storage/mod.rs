@@ -7,7 +7,7 @@ mod transaction;
 
 pub mod rocks;
 
-pub use kvprovider::{KeyValueGroup, KeyValueProvider, RawIterator};
+pub use kvprovider::{KeyValueGroup, KeyValueProvider, PrefixIterator};
 pub use memory::MemoryStorageProvider;
 pub use provider::StorageProvider;
 pub use serializer::*;

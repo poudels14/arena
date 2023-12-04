@@ -2,12 +2,10 @@ use strum_macros::{Display, EnumIter, EnumString};
 
 use crate::Result;
 
-pub trait RawIterator {
+pub trait PrefixIterator {
   fn key(&self) -> Option<&[u8]>;
 
-  fn value(&self) -> Option<&[u8]>;
-
-  fn get(&mut self) -> Option<(&[u8], &[u8])>;
+  fn get(&self) -> Option<(&[u8], &[u8])>;
 
   fn next(&mut self);
 }
@@ -56,17 +54,13 @@ pub trait KeyValueProvider {
     exclusive: bool,
   ) -> Result<Option<Vec<u8>>>;
 
-  fn scan(
-    &self,
-    group: KeyValueGroup,
-    prefix: &[u8],
-  ) -> Result<Vec<(Box<[u8]>, Box<[u8]>)>>;
-
-  fn scan_raw(
+  /// This scan will return values as long as prefix matches
+  /// If prefix doesn't match, iterator is done and it returns None
+  fn scan_with_prefix(
     &self,
     _group: KeyValueGroup,
     _prefix: &[u8],
-  ) -> Result<Box<dyn RawIterator>> {
+  ) -> Result<Box<dyn PrefixIterator>> {
     unimplemented!()
   }
 
