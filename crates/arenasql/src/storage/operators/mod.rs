@@ -1,3 +1,4 @@
+mod indexes;
 mod rowid;
 mod rows;
 mod table;

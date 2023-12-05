@@ -1,6 +1,9 @@
+#[cfg(test)]
+mod tests;
+
 mod df;
 mod error;
-mod execution;
+pub(crate) mod execution;
 pub(crate) mod utils;
 
 pub mod parser;

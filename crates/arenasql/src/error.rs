@@ -3,12 +3,20 @@ use std::fmt;
 use datafusion::error::DataFusionError;
 use sqlparser::parser;
 
+use crate::schema::{Column, SerializedCell};
+
 #[derive(Debug, Clone)]
 pub enum Error {
   UnsupportedOperation(String),
   UnsupportedDataType(String),
   ParserError(String),
   InvalidTransactionState(String),
+  UniqueConstaintViolated {
+    // name of the unique index
+    constraint: String,
+    columns: Vec<Column>,
+    data: Vec<SerializedCell<Vec<u8>>>,
+  },
   IOError(String),
   SerdeError(String),
   InternalError(String),
@@ -24,6 +32,8 @@ impl Error {
       Self::ParserError(_) => "42601",
       // invalid_transaction_state
       Self::InvalidTransactionState(_) => "25000",
+      // unique_violation
+      Self::UniqueConstaintViolated { .. } => "23505",
       // internal_error
       Self::UnsupportedOperation(_)
       | Self::UnsupportedDataType(_)
@@ -35,7 +45,7 @@ impl Error {
   }
 
   /// Error message
-  pub fn message(&self) -> &str {
+  pub fn message(&self) -> String {
     match self {
       Self::ParserError(msg)
       | Self::UnsupportedOperation(msg)
@@ -44,7 +54,11 @@ impl Error {
       | Self::SerdeError(msg)
       | Self::InternalError(msg)
       | Self::InvalidTransactionState(msg)
-      | Self::DataFusionError(msg) => msg,
+      | Self::DataFusionError(msg) => msg.to_owned(),
+      Self::UniqueConstaintViolated { constraint, .. } => format!(
+        "duplicate key value violates unique constraint \"{}\"",
+        constraint
+      ),
     }
   }
 }

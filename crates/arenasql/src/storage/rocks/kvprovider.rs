@@ -1,10 +1,7 @@
 use std::cell::UnsafeCell;
 use std::sync::Arc;
 
-use rocksdb::{
-  BoundColumnFamily, Direction, IteratorMode, OptimisticTransactionOptions,
-  WriteOptions,
-};
+use rocksdb::{BoundColumnFamily, OptimisticTransactionOptions, WriteOptions};
 use rocksdb::{ReadOptions, Transaction as RocksTransaction};
 use strum::IntoEnumIterator;
 

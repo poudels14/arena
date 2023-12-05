@@ -9,16 +9,10 @@ pub mod rocks;
 
 pub use kvprovider::{KeyValueGroup, KeyValueProvider, PrefixIterator};
 pub use memory::MemoryStorageProvider;
+pub use operators::StorageOperator;
 pub use provider::StorageProvider;
 pub use serializer::*;
 pub use transaction::Transaction;
-
-#[macro_export]
-macro_rules! table_schema_key {
-  ($catalog:expr, $schema:expr, $table:expr) => {
-    format!("m_schema_c{}_s{}_t{}", $catalog, $schema, $table).as_bytes()
-  };
-}
 
 #[macro_export]
 macro_rules! last_table_id_key {
@@ -28,9 +22,37 @@ macro_rules! last_table_id_key {
 }
 
 #[macro_export]
+macro_rules! last_table_index_id_key {
+  () => {
+    "m_last_table_index_id".as_bytes()
+  };
+}
+
+#[macro_export]
 macro_rules! last_row_id_of_table_key {
   ($table_id:expr) => {
     format!("m_t{}_last_rowid", $table_id).into_bytes()
+  };
+}
+
+#[macro_export]
+macro_rules! table_schema_key {
+  ($catalog:expr, $schema:expr, $table:expr) => {
+    format!("m_schema_c{}_s{}_t{}", $catalog, $schema, $table).as_bytes()
+  };
+}
+
+#[macro_export]
+macro_rules! table_index_schema_prefix {
+  ($table:expr) => {
+    format!("m_index_t{}_i", $table).as_bytes()
+  };
+}
+
+#[macro_export]
+macro_rules! table_index_schema_key {
+  ($table:expr, $index_name: expr) => {
+    format!("m_index_t{}_i{}", $table, $index_name).as_bytes()
   };
 }
 

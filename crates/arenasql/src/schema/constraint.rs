@@ -10,6 +10,15 @@ pub enum Constraint {
   Unique(Vec<usize>),
 }
 
+impl Constraint {
+  pub fn needs_index(&self) -> bool {
+    match self {
+      Self::PrimaryKey(_) => true,
+      Self::Unique(_) => true,
+    }
+  }
+}
+
 impl From<&DfConstraint> for Constraint {
   fn from(value: &DfConstraint) -> Self {
     match value {

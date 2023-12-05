@@ -229,3 +229,17 @@ impl<'a> SerializedCell<&'a [u8]> {
     }
   }
 }
+
+impl<'a> From<&SerializedCell<&'a [u8]>> for SerializedCell<Vec<u8>> {
+  fn from(cell: &SerializedCell<&'a [u8]>) -> Self {
+    match *cell {
+      SerializedCell::Null => Self::Null,
+      SerializedCell::Boolean(v) => Self::Boolean(v),
+      SerializedCell::Int32(v) => Self::Int32(v),
+      SerializedCell::Int64(v) => Self::Int64(v),
+      SerializedCell::Float32(v) => Self::Float32(v),
+      SerializedCell::Float64(v) => Self::Float64(v),
+      SerializedCell::Blob(blob) => Self::Blob(blob.to_vec()),
+    }
+  }
+}

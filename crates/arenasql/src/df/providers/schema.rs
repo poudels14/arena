@@ -44,9 +44,18 @@ impl DfSchemaProvider for SchemaProvider {
     table: Arc<dyn DfTableProvider>,
   ) -> Result<Option<Arc<dyn DfTableProvider>>> {
     let storage_handler = self.transaction.lock()?;
-
     let new_table_id = storage_handler.get_next_table_id()?;
-    let table = Table::new(new_table_id, &name, table)?;
+
+    let mut table = Table::new(new_table_id, &name, table)?;
+    let constraints = table.constraints.clone();
+    constraints
+      .iter()
+      .filter(|constraint| constraint.needs_index())
+      .map(|constraint| {
+        let index_id = storage_handler.get_next_table_index_id()?;
+        table.add_index(index_id, constraint)
+      })
+      .collect::<crate::Result<Vec<()>>>()?;
 
     storage_handler.put_table_schema(&self.catalog, &self.schema, &table)?;
     Ok(Some(

@@ -1,11 +1,11 @@
+use std::sync::Arc;
+
 mod config;
 mod context;
 mod planner;
 mod transaction;
 
 pub mod response;
-
-use std::sync::Arc;
 
 pub use config::{SessionConfig, TaskConfig};
 pub use context::SessionContext;

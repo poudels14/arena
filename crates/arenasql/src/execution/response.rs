@@ -6,7 +6,7 @@ use derivative::Derivative;
 use futures::StreamExt;
 
 use crate::records::RecordBatchStream;
-use crate::Result as ArenaResult;
+use crate::{Error, Result as ArenaResult};
 
 #[derive(Derivative)]
 #[derivative(Debug)]
@@ -39,14 +39,22 @@ impl ExecutionResponse {
       }),
       LogicalPlan::Dml(_) => {
         let schema = stream.schema();
-        let result: Vec<Result<RecordBatch, DataFusionError>> =
+        let mut result: Vec<Result<RecordBatch, DataFusionError>> =
           stream.collect().await;
+
+        if result.len() != 1 {
+          return Err(Error::InternalError(format!(
+            "Only one result expected from Dml query but got {}",
+            result.len()
+          )));
+        }
+        let batch = result.pop().unwrap()?;
 
         Ok(Self {
           stmt_type: Type::Dml,
           stream: Box::pin(RecordBatchStreamAdapter::new(
             schema,
-            futures::stream::iter(result),
+            futures::stream::iter(vec![Ok(batch)]),
           )),
         })
       }
