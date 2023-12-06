@@ -10,8 +10,8 @@ use derivative::Derivative;
 use futures::Stream;
 
 use super::filter::Filter;
+use super::unique_index_iterator;
 use crate::df::scan::heap_iterator::HeapIterator;
-use crate::df::scan::index_iterator::UniqueIndexIterator;
 use crate::schema::{ColumnArrayBuilder, RowId, SerializedCell, Table};
 use crate::storage::{Serializer, Transaction};
 
@@ -52,7 +52,7 @@ impl RowsStream {
       Filter::find_index_with_lowest_cost(&self.table.indexes, &self.filters);
 
     let mut rows_iterator = if let Some(index) = index_with_lowest_cost {
-      Box::new(UniqueIndexIterator::new(
+      Box::new(unique_index_iterator::new(
         &self.table,
         index,
         &self.filters,

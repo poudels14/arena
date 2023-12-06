@@ -1,7 +1,7 @@
 pub(crate) mod filter;
 mod heap_iterator;
-mod index_iterator;
 mod stream;
+mod unique_index_iterator;
 
 use std::any::Any;
 use std::sync::Arc;
