@@ -2,7 +2,7 @@ use strum_macros::{Display, EnumIter, EnumString};
 
 use crate::Result;
 
-pub trait PrefixIterator {
+pub trait RowIterator {
   fn key(&self) -> Option<&[u8]>;
 
   fn get(&self) -> Option<(&[u8], &[u8])>;
@@ -60,7 +60,7 @@ pub trait KeyValueProvider {
     &self,
     _group: KeyValueGroup,
     _prefix: &[u8],
-  ) -> Result<Box<dyn PrefixIterator>> {
+  ) -> Result<Box<dyn RowIterator>> {
     unimplemented!()
   }
 

@@ -9,7 +9,10 @@ use datafusion::physical_plan::RecordBatchStream;
 use derivative::Derivative;
 use futures::Stream;
 
-use crate::schema::{ColumnArrayBuilder, SerializedCell, Table};
+use super::filter::Filter;
+use crate::df::scan::heap_iterator::HeapIterator;
+use crate::df::scan::index_iterator::UniqueIndexIterator;
+use crate::schema::{ColumnArrayBuilder, RowId, SerializedCell, Table};
 use crate::storage::{Serializer, Transaction};
 
 #[allow(dead_code)]
@@ -19,6 +22,7 @@ pub struct RowsStream {
   pub(super) table: Arc<Table>,
   pub(crate) projection: Vec<usize>,
   pub(super) schema: SchemaRef,
+  pub(super) filters: Vec<Filter>,
   #[derivative(Debug = "ignore")]
   pub(super) transaction: Transaction,
   #[derivative(Debug = "ignore")]
@@ -28,10 +32,12 @@ pub struct RowsStream {
 
 #[allow(dead_code)]
 impl RowsStream {
-  fn poll_data(&mut self) -> Result<Option<RecordBatch>> {
-    let transaction = self.transaction.lock()?;
+  fn scan_index(&mut self) -> Result<Vec<RowId>> {
+    Ok(vec![])
+  }
 
-    let mut raw_rows = transaction.scan_table(&self.table)?;
+  fn scan_table(&mut self) -> Result<Option<RecordBatch>> {
+    let transaction = self.transaction.lock()?;
 
     let mut column_list_builders: Vec<ColumnArrayBuilder> = self
       .projection
@@ -42,8 +48,22 @@ impl RowsStream {
       })
       .collect();
 
+    let index_with_lowest_cost =
+      Filter::find_index_with_lowest_cost(&self.table.indexes, &self.filters);
+
+    let mut rows_iterator = if let Some(index) = index_with_lowest_cost {
+      Box::new(UniqueIndexIterator::new(
+        &self.table,
+        index,
+        &self.filters,
+        &transaction,
+      )?)
+    } else {
+      HeapIterator::new(&self.table, &transaction)?
+    };
+
     // TODO: try if sending rows in batches improves perf
-    while let Some((_key, value)) = raw_rows.get() {
+    while let Some((_key, value)) = rows_iterator.get() {
       let row = self
         .serializer
         .deserialize::<Vec<SerializedCell<&[u8]>>>(value)?;
@@ -56,7 +76,7 @@ impl RowsStream {
           column_list_builders[builder_idx]
             .append(unsafe { row.get_unchecked(*col_idx) });
         });
-      raw_rows.next();
+      rows_iterator.next();
     }
 
     let col_arrays = column_list_builders
@@ -64,6 +84,7 @@ impl RowsStream {
       .map(|b| b.finish())
       .collect();
 
+    drop(rows_iterator);
     drop(transaction);
     self.done = true;
     Ok(Some(RecordBatch::try_new(self.schema(), col_arrays)?))
@@ -86,6 +107,6 @@ impl Stream for RowsStream {
     if self.done {
       return Poll::Ready(None);
     }
-    return Poll::Ready(self.poll_data().transpose());
+    return Poll::Ready(self.scan_table().transpose());
   }
 }

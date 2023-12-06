@@ -7,12 +7,13 @@ use datafusion::common::{Column, Constraints, SchemaError};
 use datafusion::datasource::TableProvider as DfTableProvider;
 use datafusion::error::{DataFusionError, Result};
 use datafusion::execution::context::SessionState;
-use datafusion::logical_expr::{Expr, TableType};
+use datafusion::logical_expr::{Expr, TableProviderFilterPushDown, TableType};
 use datafusion::physical_plan::insert::FileSinkExec;
 use datafusion::physical_plan::{project_schema, ExecutionPlan};
 
 use super::super::scan;
 use crate::df::insert;
+use crate::df::scan::filter::Filter;
 use crate::schema;
 use crate::storage::Transaction;
 
@@ -31,10 +32,17 @@ impl TableProvider {
       .map(|col| col.to_field(&table.name))
       .collect();
     let schema_ref = SchemaRef::new(Schema::new(fields));
+
+    let constraints = table.constraints.as_ref().map(|constraints| {
+      Constraints::new_unverified(
+        constraints.iter().map(|c| c.into()).collect(),
+      )
+    });
+
     Self {
       table: Arc::new(table),
       schema: schema_ref,
-      constraints: None,
+      constraints,
       transaction,
     }
   }
@@ -62,6 +70,36 @@ impl DfTableProvider for TableProvider {
     None
   }
 
+  fn supports_filters_pushdown(
+    &self,
+    filters: &[&Expr],
+  ) -> Result<Vec<TableProviderFilterPushDown>> {
+    filters
+      .iter()
+      .map(|expr| {
+        let filter = Filter::for_table(&self.table, *expr)?;
+        Ok(
+          self
+            .table
+            .indexes
+            .iter()
+            .find_map(|index| {
+              if filter.is_supported_by_index(index) {
+                // Since the filtering during scan is still in progress,
+                // return Inexact such that datafusion also re-applies
+                // the filters
+                // TODO: make this Exact
+                Some(TableProviderFilterPushDown::Exact)
+              } else {
+                None
+              }
+            })
+            .unwrap_or(TableProviderFilterPushDown::Unsupported),
+        )
+      })
+      .collect::<Result<Vec<_>>>()
+  }
+
   async fn scan(
     &self,
     _state: &SessionState,
@@ -77,7 +115,10 @@ impl DfTableProvider for TableProvider {
         .unwrap_or_else(|| (0..self.table.columns.len()).collect()),
       projected_schema,
       transaction: self.transaction.clone(),
-      filters: filters.to_vec(),
+      filters: filters
+        .iter()
+        .map(|expr| Filter::for_table(&self.table, expr))
+        .collect::<crate::Result<Vec<Filter>>>()?,
       limit,
     }))
   }

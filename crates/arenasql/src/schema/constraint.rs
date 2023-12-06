@@ -29,3 +29,16 @@ impl From<&DfConstraint> for Constraint {
     }
   }
 }
+
+impl Into<DfConstraint> for &Constraint {
+  fn into(self) -> DfConstraint {
+    match self {
+      Constraint::PrimaryKey(projection) => {
+        DfConstraint::PrimaryKey(projection.clone())
+      }
+      Constraint::Unique(projection) => {
+        DfConstraint::Unique(projection.clone())
+      }
+    }
+  }
+}

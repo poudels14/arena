@@ -4,12 +4,11 @@ use crate::storage::KeyValueGroup;
 use crate::{table_rows_prefix_key, Result};
 
 impl StorageOperator {
-  #[inline]
-  pub fn insert_row<'a>(
+  pub fn insert_row(
     &self,
     table: &Table,
     row_id: &[u8],
-    row: &Row<&'a [u8]>,
+    row: &Row<&[u8]>,
   ) -> Result<()> {
     let row_bytes = self.serializer.serialize(&row)?;
     self.kv.put(

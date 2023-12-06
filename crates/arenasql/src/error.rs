@@ -17,6 +17,7 @@ pub enum Error {
     columns: Vec<Column>,
     data: Vec<SerializedCell<Vec<u8>>>,
   },
+  UnsupportedQueryFilter(String),
   IOError(String),
   SerdeError(String),
   InternalError(String),
@@ -37,6 +38,7 @@ impl Error {
       // internal_error
       Self::UnsupportedOperation(_)
       | Self::UnsupportedDataType(_)
+      | Self::UnsupportedQueryFilter(_)
       | Self::IOError(_)
       | Self::SerdeError(_)
       | Self::InternalError(_)
@@ -50,6 +52,7 @@ impl Error {
       Self::ParserError(msg)
       | Self::UnsupportedOperation(msg)
       | Self::UnsupportedDataType(msg)
+      | Self::UnsupportedQueryFilter(msg)
       | Self::IOError(msg)
       | Self::SerdeError(msg)
       | Self::InternalError(msg)

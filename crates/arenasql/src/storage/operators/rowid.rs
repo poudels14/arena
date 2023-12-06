@@ -1,4 +1,4 @@
-use crate::schema::Table;
+use crate::schema::{RowId, Table};
 use crate::storage::KeyValueGroup;
 use crate::{last_row_id_of_table_key, Result};
 
@@ -12,10 +12,9 @@ impl StorageOperator {
       &last_row_id_of_table_key!(table.id),
       &|old: Option<Vec<u8>>| {
         let new_row_id = old
-          .map(|b| u64::from_be_bytes(b.try_into().unwrap()))
-          .unwrap_or(0)
-          + 1;
-        Ok(new_row_id.to_be_bytes().to_vec())
+          .map(|b| RowId::deserialize(&b).add(1))
+          .unwrap_or_default();
+        Ok(new_row_id.serialize())
       },
     )
   }

@@ -3,6 +3,7 @@ use datafusion::arrow::array::{
   StringArray,
 };
 use datafusion::error::Result;
+use datafusion::scalar::ScalarValue;
 use serde::{Deserialize, Serialize};
 
 use super::{Column, DataType};
@@ -45,6 +46,28 @@ macro_rules! data_with_value {
 }
 
 impl SerializedCell<Vec<u8>> {
+  pub fn from_scalar(scalar: &ScalarValue) -> Self {
+    match scalar {
+      ScalarValue::Null => Self::Null,
+      ScalarValue::Boolean(v) => {
+        v.map(|v| Self::Boolean(v)).unwrap_or_default()
+      }
+      ScalarValue::Int32(v) => v.map(|v| Self::Int32(v)).unwrap_or_default(),
+      ScalarValue::Int64(v) => v.map(|v| Self::Int64(v)).unwrap_or_default(),
+      ScalarValue::Float32(v) => {
+        v.map(|v| Self::Float32(v)).unwrap_or_default()
+      }
+      ScalarValue::Float64(v) => {
+        v.map(|v| Self::Float64(v)).unwrap_or_default()
+      }
+      ScalarValue::Utf8(v) | ScalarValue::LargeUtf8(v) => v
+        .as_ref()
+        .map(|v| Self::Blob(v.as_bytes().to_vec()))
+        .unwrap_or_default(),
+      _ => unimplemented!(),
+    }
+  }
+
   pub fn array_ref_to_vec<'a>(
     table_name: &str,
     column: &Column,

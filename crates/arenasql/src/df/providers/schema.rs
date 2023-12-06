@@ -49,13 +49,17 @@ impl DfSchemaProvider for SchemaProvider {
     let mut table = Table::new(new_table_id, &name, table)?;
     let constraints = table.constraints.clone();
     constraints
-      .iter()
-      .filter(|constraint| constraint.needs_index())
-      .map(|constraint| {
-        let index_id = storage_handler.get_next_table_index_id()?;
-        table.add_index(index_id, constraint)
+      .map(|constraints| {
+        constraints
+          .iter()
+          .filter(|constraint| constraint.needs_index())
+          .map(|constraint| {
+            let index_id = storage_handler.get_next_table_index_id()?;
+            table.add_index(index_id, constraint)
+          })
+          .collect::<crate::Result<Vec<()>>>()
       })
-      .collect::<crate::Result<Vec<()>>>()?;
+      .transpose()?;
 
     storage_handler.put_table_schema(&self.catalog, &self.schema, &table)?;
     Ok(Some(

@@ -7,7 +7,7 @@ mod transaction;
 
 pub mod rocks;
 
-pub use kvprovider::{KeyValueGroup, KeyValueProvider, PrefixIterator};
+pub use kvprovider::{KeyValueGroup, KeyValueProvider, RowIterator};
 pub use memory::MemoryStorageProvider;
 pub use operators::StorageOperator;
 pub use provider::StorageProvider;
@@ -43,23 +43,29 @@ macro_rules! table_schema_key {
 }
 
 #[macro_export]
-macro_rules! table_index_schema_prefix {
-  ($table:expr) => {
-    format!("m_index_t{}_i", $table).as_bytes()
+macro_rules! index_rows_prefix_key {
+  ($index_id:expr) => {
+    vec!["i".as_bytes(), &$index_id.to_be_bytes(), "_".as_bytes()].concat()
   };
 }
 
 #[macro_export]
-macro_rules! table_index_schema_key {
-  ($table:expr, $index_name: expr) => {
-    format!("m_index_t{}_i{}", $table, $index_name).as_bytes()
+macro_rules! index_rows_key {
+  ($index_id:expr, $index_row:expr) => {
+    vec![
+      "i".as_bytes(),
+      &$index_id.to_be_bytes(),
+      "_".as_bytes(),
+      $index_row,
+    ]
+    .concat()
   };
 }
 
 #[macro_export]
 macro_rules! table_rows_prefix_key {
   ($table_id:expr) => {
-    vec!["t".as_bytes(), &$table_id.to_be_bytes(), "_r".as_bytes()].concat()
+    vec!["t".as_bytes(), &$table_id.to_be_bytes(), "_".as_bytes()].concat()
   };
 }
 
@@ -69,7 +75,7 @@ macro_rules! table_row_key {
     &vec![
       "t".as_bytes(),
       $table_id.to_be_bytes(),
-      "{}_r".as_bytes(),
+      "_".as_bytes(),
       row_id,
     ]
     .concat()

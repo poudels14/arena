@@ -7,7 +7,7 @@ use strum::IntoEnumIterator;
 
 use super::iterator::PrefixIterator as RocksRawIterator;
 use super::storage::RocksDatabase;
-use crate::storage::{KeyValueGroup, PrefixIterator};
+use crate::storage::{KeyValueGroup, RowIterator};
 use crate::{Error, Result as DatabaseResult};
 
 /// The rocks db transaction is stored in UnsafeCell for interior
@@ -110,11 +110,11 @@ impl crate::storage::KeyValueProvider for KeyValueProvider {
     )?)
   }
 
-  fn scan_with_prefix<'a>(
+  fn scan_with_prefix(
     &self,
     group: KeyValueGroup,
-    prefix: &'a [u8],
-  ) -> DatabaseResult<Box<dyn PrefixIterator>> {
+    prefix: &[u8],
+  ) -> DatabaseResult<Box<dyn RowIterator>> {
     Ok(Box::new(RocksRawIterator::new(
       &self.transaction,
       &self.cfs[group as usize],

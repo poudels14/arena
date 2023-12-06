@@ -1,9 +1,10 @@
 use super::StorageOperator;
 use crate::schema::{Row, SerializedCell, Table, TableIndexId};
 use crate::storage::{KeyValueGroup, Serializer};
-use crate::{last_table_index_id_key, Error, Result};
+use crate::{index_rows_key, last_table_index_id_key, Error, Result};
 
 impl StorageOperator {
+  /// Table index id is unique to the database
   #[inline]
   pub fn get_next_table_index_id(&self) -> Result<TableIndexId> {
     let serializer = Serializer::FixedInt;
@@ -38,11 +39,8 @@ impl StorageOperator {
         self
           .serializer
           .serialize::<Vec<&SerializedCell<&[u8]>>>(&projected_cells)?;
-      let index_key = vec![
-        format!("t{}_i{}_", table.id, table_index.id).as_bytes(),
-        &serialized_projected_row,
-      ]
-      .concat();
+      let index_key =
+        index_rows_key!(table_index.id, &serialized_projected_row);
       if !table_index.allow_duplicates {
         if self.kv.get(KeyValueGroup::Indexes, &index_key)?.is_some() {
           return Err(Error::UniqueConstaintViolated {

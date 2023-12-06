@@ -41,7 +41,7 @@ impl<'a> PrefixIterator<'a> {
   }
 }
 
-impl<'a> crate::storage::PrefixIterator for PrefixIterator<'a> {
+impl<'a> crate::storage::RowIterator for PrefixIterator<'a> {
   #[inline]
   fn key(&self) -> Option<&[u8]> {
     if self.done {

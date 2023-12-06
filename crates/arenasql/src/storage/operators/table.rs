@@ -1,10 +1,7 @@
 use super::StorageOperator;
 use crate::schema::{Table, TableId};
-use crate::storage::PrefixIterator;
 use crate::storage::{KeyValueGroup, Serializer};
-use crate::{
-  last_table_id_key, table_rows_prefix_key, table_schema_key, Result,
-};
+use crate::{last_table_id_key, table_schema_key, Result};
 
 impl StorageOperator {
   #[inline]
@@ -64,11 +61,5 @@ impl StorageOperator {
       table_schema_key!(catalog, schema, &table.name),
       &table_bytes,
     )
-  }
-
-  pub fn scan_table(&self, table: &Table) -> Result<Box<dyn PrefixIterator>> {
-    self
-      .kv
-      .scan_with_prefix(KeyValueGroup::Rows, &table_rows_prefix_key!(table.id))
   }
 }

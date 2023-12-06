@@ -14,7 +14,7 @@ pub struct Table {
   pub id: TableId,
   pub name: String,
   pub columns: Vec<Column>,
-  pub constraints: Vec<Constraint>,
+  pub constraints: Option<Vec<Constraint>>,
   pub indexes: Vec<TableIndex>,
 }
 
@@ -36,16 +36,13 @@ impl Table {
       id,
       name: name.to_owned(),
       columns,
-      constraints: provider
-        .constraints()
-        .map(|constraints| {
-          constraints
-            .as_ref()
-            .into_iter()
-            .map(|c| Constraint::from(c))
-            .collect()
-        })
-        .unwrap_or_default(),
+      constraints: provider.constraints().map(|constraints| {
+        constraints
+          .as_ref()
+          .into_iter()
+          .map(|c| Constraint::from(c))
+          .collect()
+      }),
       indexes: vec![],
     })
   }
@@ -60,10 +57,9 @@ impl Table {
       Constraint::Unique(projection) => (projection, false),
     };
 
-    let mut index_name =
-      self.columns.iter().fold(self.name.clone(), |agg, col| {
-        agg + "_" + &col.name.to_snake_case()
-      }) + "_key";
+    let mut index_name = columns.iter().fold(self.name.clone(), |agg, col| {
+      agg + "_" + &self.columns[*col].name.to_snake_case()
+    }) + "_key";
 
     let index_name_overlap_count = self
       .indexes
@@ -88,6 +84,13 @@ impl Table {
     projection
       .iter()
       .map(|proj| self.columns[*proj].clone())
+      .collect()
+  }
+
+  pub fn project_columns_names(&self, projection: &[usize]) -> Vec<&String> {
+    projection
+      .iter()
+      .map(|proj| &self.columns[*proj].name)
       .collect()
   }
 }
