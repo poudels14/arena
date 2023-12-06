@@ -5,6 +5,7 @@ use rocksdb::{BoundColumnFamily, DBRawIteratorWithThreadMode};
 use rocksdb::{ReadOptions, Transaction as RocksTransaction};
 
 use super::storage::RocksDatabase;
+use crate::storage::RowIterator;
 
 pub struct PrefixIterator<'a> {
   prefix: Vec<u8>,
@@ -30,14 +31,30 @@ impl<'a> PrefixIterator<'a> {
     opts.set_prefix_same_as_start(true);
     // TODO: pass this as option
     opts.fill_cache(true);
-    let mut iter = txn.raw_iterator_cf_opt(cf, opts);
-    iter.seek(&prefix);
+    let mut rocks_iter = txn.raw_iterator_cf_opt(cf, opts);
+    rocks_iter.seek(&prefix);
 
-    Self {
+    let mut iter = Self {
       prefix,
-      iter,
+      iter: rocks_iter,
       done: false,
+    };
+
+    // If the first key doesn't match the prefix, mark it as done
+    if !iter.matches_prefix(iter.key()) {
+      iter.done = true
     }
+    iter
+  }
+
+  fn matches_prefix(&self, key: Option<&[u8]>) -> bool {
+    key
+      .map(|key| {
+        // return true if prefix matches
+        key.len() >= self.prefix.len()
+          && key[0..self.prefix.len()] == *self.prefix
+      })
+      .unwrap_or(false)
   }
 }
 
@@ -66,14 +83,7 @@ impl<'a> crate::storage::RowIterator for PrefixIterator<'a> {
       self.iter.next();
       let next_key = self.iter.key();
       // If prefix doesn't match, mark it as done
-      if !next_key
-        .map(|key| {
-          // return true if prefix matches
-          key.len() >= self.prefix.len()
-            && key[0..self.prefix.len()] == *self.prefix
-        })
-        .unwrap_or(false)
-      {
+      if !self.matches_prefix(next_key) {
         self.done = true;
       }
     }
