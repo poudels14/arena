@@ -52,12 +52,12 @@ impl RowsStream {
       Filter::find_index_with_lowest_cost(&self.table.indexes, &self.filters);
 
     let mut rows_iterator = if let Some(index) = index_with_lowest_cost {
-      Box::new(unique_index_iterator::new(
+      unique_index_iterator::new(
         &self.table,
         index,
         &self.filters,
         &transaction,
-      )?)
+      )?
     } else {
       HeapIterator::new(&self.table, &transaction)?
     };

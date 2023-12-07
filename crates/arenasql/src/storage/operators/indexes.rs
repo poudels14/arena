@@ -1,7 +1,7 @@
 use super::StorageOperator;
 use crate::schema::{Row, SerializedCell, Table, TableIndexId};
 use crate::storage::{KeyValueGroup, Serializer};
-use crate::{index_rows_key, last_table_index_id_key, Error, Result};
+use crate::{index_row_key, last_table_index_id_key, Error, Result};
 
 impl StorageOperator {
   /// Table index id is unique to the database
@@ -39,8 +39,7 @@ impl StorageOperator {
         self
           .serializer
           .serialize::<Vec<&SerializedCell<&[u8]>>>(&projected_cells)?;
-      let index_key =
-        index_rows_key!(table_index.id, &serialized_projected_row);
+      let index_key = index_row_key!(table_index.id, &serialized_projected_row);
       if !table_index.allow_duplicates {
         if self.kv.get(KeyValueGroup::Indexes, &index_key)?.is_some() {
           return Err(Error::UniqueConstaintViolated {

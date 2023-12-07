@@ -50,7 +50,7 @@ macro_rules! index_rows_prefix_key {
 }
 
 #[macro_export]
-macro_rules! index_rows_key {
+macro_rules! index_row_key {
   ($index_id:expr, $index_row:expr) => {
     vec![
       "i".as_bytes(),

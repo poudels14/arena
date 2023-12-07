@@ -6,7 +6,8 @@ use crate::runtime::RuntimeEnv;
 use crate::storage::rocks;
 use crate::{SessionConfig, SessionContext, SingleCatalogListProvider};
 
-mod unique_column;
+mod insert;
+mod select;
 
 pub(super) fn create_session_context() -> SessionContext {
   let runtime = RuntimeEnv::default();

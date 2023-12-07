@@ -1549,7 +1549,6 @@ dependencies = [
  "colored",
  "common",
  "deno_core",
- "dqs",
  "env_logger",
  "indexmap 1.9.3",
  "jsruntime",
@@ -2294,7 +2293,6 @@ name = "dqs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-trait",
  "axum",
  "axum-extra",
  "bytes",

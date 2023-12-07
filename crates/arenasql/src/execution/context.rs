@@ -17,7 +17,7 @@ use crate::{storage, Error, Result};
 #[derivative(Debug)]
 pub struct SessionContext {
   #[derivative(Debug = "ignore")]
-  config: Arc<SessionConfig>,
+  pub config: Arc<SessionConfig>,
   df_session_config: DfSessionConfig,
 }
 

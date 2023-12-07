@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use datafusion::logical_expr::{BinaryExpr, Expr, Like, Operator};
+use datafusion::logical_expr::{Expr, Like, Operator};
 
 use crate::schema::{SerializedCell, Table, TableIndex};
 use crate::{Error, Result};
@@ -9,7 +9,9 @@ use crate::{Error, Result};
 pub enum Filter {
   BinaryExpr {
     projected_columns: Vec<usize>,
-    expr: BinaryExpr,
+    left: Box<Expr>,
+    op: Operator,
+    right: Box<Expr>,
   },
   IsNotNull {
     projected_columns: Vec<usize>,
@@ -31,7 +33,7 @@ impl Filter {
       expr.to_columns()?.iter().map(|c| c.name.clone()).collect();
 
     // ordered projected columns
-    let projected_columns = table
+    let projected_columns: Vec<usize> = table
       .columns
       .iter()
       .enumerate()
@@ -39,10 +41,18 @@ impl Filter {
       .map(|p| p.0)
       .collect();
 
+    // TODO: support more than 1 projected column?
+    assert!(
+      projected_columns.len() < 2,
+      "Only one project column supported so far"
+    );
+
     match expr {
       Expr::BinaryExpr(e) => Ok(Self::BinaryExpr {
         projected_columns,
-        expr: e.clone(),
+        left: e.left.clone(),
+        op: e.op.clone(),
+        right: e.right.clone(),
       }),
       Expr::IsNotNull(e) => Ok(Self::IsNotNull {
         projected_columns,
@@ -81,7 +91,50 @@ impl Filter {
   /// Returns whether this filter does '=' comparision
   pub fn is_eq(&self) -> bool {
     match self {
-      Self::BinaryExpr { expr, .. } => match expr.op {
+      Self::BinaryExpr { op, .. } => match op {
+        Operator::Eq => true,
+        _ => false,
+      },
+      _ => false,
+    }
+  }
+
+  /// Returns the literal used in '=' expression if the
+  /// filter is of type '=', else returns `None`.
+  pub fn get_binary_eq_literal(&self) -> Option<SerializedCell<Vec<u8>>> {
+    match self {
+      Self::BinaryExpr {
+        op, left, right, ..
+      } => match op {
+        Operator::Eq => match right.as_ref() {
+          Expr::Literal(lit) => Some(SerializedCell::from_scalar(lit)),
+          _ => match left.as_ref() {
+            Expr::Literal(lit) => Some(SerializedCell::from_scalar(lit)),
+            _ => None,
+          },
+        },
+        _ => None,
+      },
+      _ => None,
+    }
+  }
+
+  pub fn is_supported_by_index(&self, index: &TableIndex) -> bool {
+    self
+      .get_column_projection()
+      .iter()
+      .zip(index.columns.iter())
+      .fold(true, |agg, (filter_col, index_col)| {
+        agg && filter_col == index_col
+      })
+  }
+
+  /// This is used to keep track of whether the filter will be properly
+  /// applied to the rows during scanning such that datafusion doesn't
+  /// have to re-apply the filter
+  pub fn is_filter_pushdown_suported(&self) -> bool {
+    match self {
+      Self::BinaryExpr { op, .. } => match op {
         Operator::Eq => true,
         _ => false,
       },
@@ -121,19 +174,11 @@ impl Filter {
     if matched_cols == index.columns.len() && self.is_eq() {
       return self.get_operator_cost() * 1.0;
     }
+    // TODO: penalize the index if the index doesn't have all the
+    // columns used in the filter
 
     // TODO: use estimated row count instead of 10_000
     self.get_operator_cost() * 10_000.0 / matched_cols as f32
-  }
-
-  pub fn is_supported_by_index(&self, index: &TableIndex) -> bool {
-    self
-      .get_column_projection()
-      .iter()
-      .zip(index.columns.iter())
-      .fold(true, |agg, (filter_col, index_col)| {
-        agg && filter_col == index_col
-      })
   }
 
   /// Returns the minimum cost of using the filters on the given index
@@ -168,23 +213,5 @@ impl Filter {
         }
       })
       .map(|(index, _)| index)
-  }
-
-  /// Returns the literal used in '=' expression if the
-  /// filter is of type '=', else returns `None`.
-  pub fn get_binary_eq_literal(&self) -> Option<SerializedCell<Vec<u8>>> {
-    match self {
-      Self::BinaryExpr { expr, .. } => match expr.op {
-        Operator::Eq => match expr.right.as_ref() {
-          Expr::Literal(lit) => Some(SerializedCell::from_scalar(lit)),
-          _ => match expr.left.as_ref() {
-            Expr::Literal(lit) => Some(SerializedCell::from_scalar(lit)),
-            _ => None,
-          },
-        },
-        _ => None,
-      },
-      _ => None,
-    }
   }
 }

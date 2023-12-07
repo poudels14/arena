@@ -9,7 +9,7 @@ use crate::{storage, Error, Result};
 
 #[allow(unused)]
 pub struct Transaction {
-  pub(super) storage_txn: storage::Transaction,
+  pub(crate) storage_txn: storage::Transaction,
   pub(super) sql_options: SQLOptions,
   pub(super) ctxt: DfSessionContext,
 }

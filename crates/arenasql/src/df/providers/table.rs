@@ -84,11 +84,9 @@ impl DfTableProvider for TableProvider {
             .indexes
             .iter()
             .find_map(|index| {
-              if filter.is_supported_by_index(index) {
-                // Since the filtering during scan is still in progress,
-                // return Inexact such that datafusion also re-applies
-                // the filters
-                // TODO: make this Exact
+              if filter.is_filter_pushdown_suported()
+                && filter.is_supported_by_index(index)
+              {
                 Some(TableProviderFilterPushDown::Exact)
               } else {
                 None
@@ -141,10 +139,7 @@ impl DfTableProvider for TableProvider {
           .find(|c| c.name == *field.name())
           .map(|c| c.id as usize);
         idx.ok_or(DataFusionError::SchemaError(SchemaError::FieldNotFound {
-          field: Box::new(Column {
-            name: field.name().to_owned(),
-            relation: None,
-          }),
+          field: Box::new(Column::new_unqualified(field.name().to_owned())),
           valid_fields: vec![],
         }))
       })
