@@ -222,6 +222,7 @@ dependencies = [
  "dashmap",
  "datafusion",
  "derivative",
+ "derive_builder",
  "env_logger",
  "futures",
  "itertools 0.12.0",

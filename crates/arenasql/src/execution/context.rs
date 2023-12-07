@@ -11,7 +11,7 @@ use super::config::TaskConfig;
 use super::planner::ArenaQueryPlanner;
 use super::transaction::Transaction;
 use super::{response::ExecutionResponse, SessionConfig};
-use crate::{storage, Error, Result};
+use crate::{Error, Result};
 
 #[derive(Clone, Derivative)]
 #[derivative(Debug)]
@@ -25,11 +25,10 @@ impl SessionContext {
   pub fn with_config(config: SessionConfig) -> Self {
     let mut df_session_config = DfSessionConfig::new()
       .with_information_schema(false)
-      .with_default_catalog_and_schema(&config.catalog, &config.schema)
+      .with_default_catalog_and_schema(&config.catalog, &config.default_schema)
       .with_create_default_catalog_and_schema(false)
       .with_extension(Arc::new(TaskConfig {
         runtime: config.runtime.clone(),
-        serializer: config.serializer.clone(),
       }));
     df_session_config.options_mut().sql_parser.dialect =
       "PostgreSQL".to_owned();
@@ -53,10 +52,11 @@ impl SessionContext {
   }
 
   pub fn begin_transaction(&self) -> Result<Transaction> {
-    let storage_txn = storage::Transaction::new(
-      self.config.storage_provider.begin_transaction()?,
-      self.config.serializer.clone(),
-    );
+    let storage_txn = self
+      .config
+      .storage_factory
+      .being_transaction(&self.config.default_schema)?;
+
     let catalog_list = self
       .config
       .catalog_list_provider

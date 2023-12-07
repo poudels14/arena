@@ -1,9 +1,10 @@
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Instant;
 
 use arenasql::records::RecordBatch;
 use arenasql::runtime::RuntimeEnv;
-use arenasql::storage::rocks;
+use arenasql::storage::{rocks, StorageFactoryBuilder};
 use arenasql::{Result, SingleCatalogListProvider};
 use arenasql::{SessionConfig, SessionContext};
 use futures::TryStreamExt;
@@ -14,16 +15,22 @@ async fn main() -> Result<()> {
 
   let runtime = RuntimeEnv::default();
   let storage = Arc::new(rocks::RocksStorage::new_with_cache(
-    "_db_path",
+    Path::new("_db_path").to_path_buf(),
     Some(rocks::Cache::new_lru_cache(50 * 1025 * 1024)),
   )?);
+
+  let storage_factory = StorageFactoryBuilder::default()
+    .catalog("arena".to_owned())
+    .kv_provider(storage)
+    .build()
+    .unwrap();
 
   let session_context = SessionContext::with_config(SessionConfig {
     runtime: runtime.into(),
     df_runtime: Default::default(),
     catalog: "arena".to_owned(),
-    schema: "workspace1".to_owned(),
-    storage_provider: storage.clone(),
+    default_schema: "workspace1".to_owned(),
+    storage_factory: Arc::new(storage_factory),
     catalog_list_provider: Arc::new(SingleCatalogListProvider::new(
       "arena",
       "workspace1",

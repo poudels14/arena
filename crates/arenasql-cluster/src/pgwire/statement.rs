@@ -26,7 +26,7 @@ impl CommandString for Box<SQLStatement> {
       | SQLStatement::CreateTable { .. } => "CREATE",
       SQLStatement::Delete { .. } => "DELETE",
       SQLStatement::AlterIndex { .. } => "ALTER",
-      query => unimplemented!("SQL query not supported: {}", query),
+      stmt => unimplemented!("Command not supported: {}", stmt),
     }
   }
 }

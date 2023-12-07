@@ -3,10 +3,11 @@ use std::sync::Arc;
 use tempdir::TempDir;
 
 use crate::runtime::RuntimeEnv;
-use crate::storage::rocks;
+use crate::storage::{rocks, StorageFactoryBuilder};
 use crate::{SessionConfig, SessionContext, SingleCatalogListProvider};
 
 mod insert;
+mod schema;
 mod select;
 
 pub(super) fn create_session_context() -> SessionContext {
@@ -27,8 +28,14 @@ pub(super) fn create_session_context() -> SessionContext {
     runtime: runtime.into(),
     df_runtime: Default::default(),
     catalog: catalog.to_owned(),
-    schema: schema.to_owned(),
-    storage_provider: storage.clone(),
+    default_schema: schema.to_owned(),
+    storage_factory: Arc::new(
+      StorageFactoryBuilder::default()
+        .catalog(catalog.to_owned())
+        .kv_provider(storage)
+        .build()
+        .unwrap(),
+    ),
     catalog_list_provider: Arc::new(SingleCatalogListProvider::new(
       catalog, schema,
     )),

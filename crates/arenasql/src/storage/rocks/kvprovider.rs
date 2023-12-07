@@ -66,7 +66,7 @@ impl KeyValueProvider {
   }
 }
 
-impl crate::storage::KeyValueProvider for KeyValueProvider {
+impl crate::storage::KeyValueStore for KeyValueProvider {
   /// Updates the value of the given key atomically and returns the new value
   fn atomic_update(
     &self,

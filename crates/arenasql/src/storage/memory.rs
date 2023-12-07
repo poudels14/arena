@@ -1,16 +1,16 @@
-use super::{KeyValueProvider, StorageProvider};
+use super::{KeyValueStore, KeyValueStoreProvider};
 use crate::Result;
 
-pub struct MemoryStorageProvider {}
+pub struct MemoryKeyValueStoreProvider {}
 
-impl Default for MemoryStorageProvider {
+impl Default for MemoryKeyValueStoreProvider {
   fn default() -> Self {
     Self {}
   }
 }
 
-impl StorageProvider for MemoryStorageProvider {
-  fn begin_transaction(&self) -> Result<Box<dyn KeyValueProvider>> {
+impl KeyValueStoreProvider for MemoryKeyValueStoreProvider {
+  fn new_transaction(&self) -> Result<Box<dyn KeyValueStore>> {
     unimplemented!()
   }
 }

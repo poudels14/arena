@@ -2,19 +2,27 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use derivative::Derivative;
+use parking_lot::Mutex;
 use strum_macros::FromRepr;
 
-use super::kvprovider::KeyValueProvider;
-use super::operators::StorageOperator;
-use super::Serializer;
+use super::handler::StorageHandler;
+use super::kvstore::KeyValueStore;
+use super::schema::SchemaLock;
+use super::{SchemaFactory, Serializer};
 use crate::{Error, Result};
 
 #[derive(Derivative, Clone)]
 #[allow(unused)]
 pub struct Transaction {
-  kv: Arc<Box<dyn KeyValueProvider>>,
-  serializer: Serializer,
+  pub(crate) schema_factory: Arc<SchemaFactory>,
+  pub serializer: Serializer,
+  kv: Arc<Box<dyn KeyValueStore>>,
   state: Arc<AtomicUsize>,
+  /// Hold all the locks acquired by this transaction
+  /// until the transaction is dropped (committed/rolled back)
+  /// Using parking_lot Mutex here since it's very unlikely to
+  /// be contended
+  locks: Arc<Mutex<Vec<SchemaLock>>>,
 }
 
 #[derive(Debug, FromRepr)]
@@ -26,24 +34,59 @@ pub(super) enum TransactionState {
   Closed = 3,
 }
 
+pub struct TransactionLock {
+  lock: Option<Arc<AtomicUsize>>,
+}
+
+impl Default for TransactionLock {
+  fn default() -> Self {
+    Self { lock: None }
+  }
+}
+
+impl Drop for TransactionLock {
+  fn drop(&mut self) {
+    if let Some(lock) = self.lock.take() {
+      let _ = lock.compare_exchange(
+        TransactionState::Locked as usize,
+        TransactionState::Free as usize,
+        Ordering::Acquire,
+        Ordering::Relaxed,
+      );
+    }
+  }
+}
+
 unsafe impl Send for Transaction {}
 unsafe impl Sync for Transaction {}
 
 impl Transaction {
-  pub fn new(kv: Box<dyn KeyValueProvider>, serializer: Serializer) -> Self {
-    let state = Arc::new(AtomicUsize::new(TransactionState::Free as usize));
-    let kv = Arc::new(kv);
+  pub(super) fn new(
+    schema_factory: Arc<SchemaFactory>,
+    kv: Arc<Box<dyn KeyValueStore>>,
+    serializer: Serializer,
+  ) -> Self {
     Self {
+      schema_factory,
       kv,
       serializer,
-      state,
+      state: Arc::new(AtomicUsize::new(TransactionState::Free as usize)),
+      locks: Arc::new(Mutex::new(vec![])),
     }
+  }
+
+  pub fn acquire_table_lock(&self, table: &str) -> Result<()> {
+    let lock = self.schema_factory.lock_table_for_write(&table)?;
+    self.locks.lock().push(lock);
+    Ok(())
   }
 
   // TODO: return mutexlock or some type that is not Send+Sync
   // and gets dropped when it's out of scope so that deadlock error
   // is easily prevented
-  pub fn lock<'a>(&'a self) -> Result<StorageOperator> {
+  // TODO: change this to read/write lock since SELECT that uses more
+  // than one table will need more than 1 lock at once
+  pub fn lock<'a>(&'a self) -> Result<StorageHandler> {
     match TransactionState::from_repr(self.state.load(Ordering::SeqCst)) {
       Some(TransactionState::Locked) => {
         return Err(Error::InvalidTransactionState(
@@ -76,10 +119,12 @@ impl Transaction {
         Error::IOError("Failed to acquire transaction lock".to_owned())
       })?;
 
-    Ok(StorageOperator {
+    Ok(StorageHandler {
       kv: self.kv.clone(),
       serializer: self.serializer.clone(),
-      lock: self.state.clone(),
+      lock: TransactionLock {
+        lock: Some(self.state.clone()),
+      },
     })
   }
 

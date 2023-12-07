@@ -13,7 +13,7 @@ use super::filter::Filter;
 use super::unique_index_iterator;
 use crate::df::scan::heap_iterator::HeapIterator;
 use crate::schema::{ColumnArrayBuilder, RowId, SerializedCell, Table};
-use crate::storage::{Serializer, Transaction};
+use crate::storage::Transaction;
 
 #[allow(dead_code)]
 #[derive(Derivative)]
@@ -25,8 +25,6 @@ pub struct RowsStream {
   pub(super) filters: Vec<Filter>,
   #[derivative(Debug = "ignore")]
   pub(super) transaction: Transaction,
-  #[derivative(Debug = "ignore")]
-  pub(super) serializer: Serializer,
   pub(super) done: bool,
 }
 
@@ -65,6 +63,7 @@ impl RowsStream {
     // TODO: try if sending rows in batches improves perf
     while let Some((_key, value)) = rows_iterator.get() {
       let row = self
+        .transaction
         .serializer
         .deserialize::<Vec<SerializedCell<&[u8]>>>(value)?;
 

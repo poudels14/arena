@@ -25,7 +25,10 @@ pub struct TableProvider {
 }
 
 impl TableProvider {
-  pub(super) fn new(table: schema::Table, transaction: Transaction) -> Self {
+  pub(super) fn new(
+    table: Arc<schema::Table>,
+    transaction: Transaction,
+  ) -> Self {
     let fields: Vec<Field> = table
       .columns
       .iter()
@@ -40,7 +43,7 @@ impl TableProvider {
     });
 
     Self {
-      table: Arc::new(table),
+      table,
       schema: schema_ref,
       constraints,
       transaction,

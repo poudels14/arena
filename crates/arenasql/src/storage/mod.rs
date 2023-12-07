@@ -1,16 +1,20 @@
-mod kvprovider;
+mod factory;
+mod handler;
+mod kvstore;
 mod memory;
-mod operators;
-mod provider;
+mod schema;
 mod serializer;
 mod transaction;
 
 pub mod rocks;
 
-pub use kvprovider::{KeyValueGroup, KeyValueProvider, RowIterator};
-pub use memory::MemoryStorageProvider;
-pub use operators::StorageOperator;
-pub use provider::StorageProvider;
+pub use factory::{StorageFactory, StorageFactoryBuilder};
+pub use handler::StorageHandler;
+pub use kvstore::{
+  KeyValueGroup, KeyValueStore, KeyValueStoreProvider, RowIterator,
+};
+pub use memory::MemoryKeyValueStoreProvider;
+pub use schema::SchemaFactory;
 pub use serializer::*;
 pub use transaction::Transaction;
 
@@ -32,6 +36,13 @@ macro_rules! last_table_index_id_key {
 macro_rules! last_row_id_of_table_key {
   ($table_id:expr) => {
     format!("m_t{}_last_rowid", $table_id).into_bytes()
+  };
+}
+
+#[macro_export]
+macro_rules! table_schemas_prefix_key {
+  ($catalog:expr, $schema:expr) => {
+    format!("m_schema_c{}_s{}_t", $catalog, $schema).as_bytes()
   };
 }
 

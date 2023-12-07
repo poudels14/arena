@@ -13,7 +13,7 @@ macro_rules! execute {
   };
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn eq_filter_returns_single_row_iterator() {
   let session = create_session_context();
   let txn = session.begin_transaction().unwrap();
@@ -40,9 +40,10 @@ async fn eq_filter_returns_single_row_iterator() {
   let table = storage
     .get_table_schema(
       &session.config.catalog,
-      &session.config.schema,
+      &session.config.default_schema,
       "unique_column",
     )
+    .unwrap()
     .unwrap();
 
   let id_index = table.indexes.get(0).unwrap();
@@ -56,8 +57,7 @@ async fn eq_filter_returns_single_row_iterator() {
       as Box<dyn RowIterator>;
 
   let mut count = 0;
-  while let Some((key, _)) = rows_iterator.get() {
-    println!("KEY = {:?}", key);
+  while let Some((_key, _)) = rows_iterator.get() {
     count += 1;
     rows_iterator.next()
   }
@@ -65,7 +65,7 @@ async fn eq_filter_returns_single_row_iterator() {
   assert_eq!(count, 1)
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn le_filter_returns_multi_row_iterator() {
   let session = create_session_context();
   let txn = session.begin_transaction().unwrap();
@@ -93,9 +93,10 @@ async fn le_filter_returns_multi_row_iterator() {
   let table = storage
     .get_table_schema(
       &session.config.catalog,
-      &session.config.schema,
+      &session.config.default_schema,
       "unique_column",
     )
+    .unwrap()
     .unwrap();
 
   let id_index = table.indexes.get(0).unwrap();

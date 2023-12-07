@@ -1,1 +1,1 @@
-mod unique_column;
+mod unique_rows;

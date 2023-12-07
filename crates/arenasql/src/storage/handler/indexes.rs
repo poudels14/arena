@@ -1,9 +1,9 @@
-use super::StorageOperator;
+use super::StorageHandler;
 use crate::schema::{Row, SerializedCell, Table, TableIndexId};
 use crate::storage::{KeyValueGroup, Serializer};
 use crate::{index_row_key, last_table_index_id_key, Error, Result};
 
-impl StorageOperator {
+impl StorageHandler {
   /// Table index id is unique to the database
   #[inline]
   pub fn get_next_table_index_id(&self) -> Result<TableIndexId> {

@@ -2,12 +2,8 @@ use strum_macros::{Display, EnumIter, EnumString};
 
 use crate::Result;
 
-pub trait RowIterator {
-  fn key(&self) -> Option<&[u8]>;
-
-  fn get(&self) -> Option<(&[u8], &[u8])>;
-
-  fn next(&mut self);
+pub trait KeyValueStoreProvider: Send + Sync {
+  fn new_transaction(&self) -> Result<Box<dyn KeyValueStore>>;
 }
 
 /// Use different key value groups to store different type of data.
@@ -30,10 +26,18 @@ pub enum KeyValueGroup {
   Rows = 3,
 }
 
+pub trait RowIterator {
+  fn key(&self) -> Option<&[u8]>;
+
+  fn get(&self) -> Option<(&[u8], &[u8])>;
+
+  fn next(&mut self);
+}
+
 /// This is the interface to write key/values to the database.
 /// The implementation of this trait doesn't have to be thread
 /// safe since the transaction manager ensures the thread safety.
-pub trait KeyValueProvider {
+pub trait KeyValueStore {
   /// Update the value of the given key atomically.
   /// This should return error if the key was modified
   /// by another transaction after the value was read first by

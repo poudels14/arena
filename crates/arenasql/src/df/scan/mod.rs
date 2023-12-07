@@ -18,7 +18,6 @@ use derivative::Derivative;
 use self::filter::Filter;
 pub use self::stream::RowsStream;
 use super::RecordBatchStream;
-use crate::execution::TaskConfig;
 use crate::schema::Table;
 use crate::storage::Transaction;
 
@@ -76,20 +75,14 @@ impl ExecutionPlan for TableScaner {
   fn execute(
     &self,
     _partition: usize,
-    context: Arc<TaskContext>,
+    _context: Arc<TaskContext>,
   ) -> Result<RecordBatchStream, DataFusionError> {
-    let task_config = context
-      .session_config()
-      .get_extension::<TaskConfig>()
-      .unwrap();
-
     Ok(Box::pin(RowsStream {
       table: self.table.clone(),
       schema: self.schema(),
       projection: self.projection.clone(),
       filters: self.filters.clone(),
       transaction: self.transaction.clone(),
-      serializer: task_config.serializer.clone(),
       done: false,
     }))
   }

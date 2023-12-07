@@ -50,11 +50,7 @@ impl CatalogListProvider for SingleCatalogListProvider {
       catalog: self.catalog.clone(),
       provider: Arc::new(CatalogProvider {
         schema: self.schema.clone(),
-        schema_provider: Arc::new(SchemaProvider {
-          catalog: self.catalog.to_owned(),
-          schema: self.schema.to_owned(),
-          transaction,
-        }),
+        schema_provider: Arc::new(SchemaProvider::new(transaction)),
       }),
     }))
   }

@@ -1,9 +1,9 @@
-use super::StorageOperator;
+use super::StorageHandler;
 use crate::schema::{Row, Table};
 use crate::storage::KeyValueGroup;
 use crate::{table_rows_prefix_key, Result};
 
-impl StorageOperator {
+impl StorageHandler {
   pub fn insert_row(
     &self,
     table: &Table,

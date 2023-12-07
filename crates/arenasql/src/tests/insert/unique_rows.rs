@@ -1,6 +1,6 @@
 use crate::tests::create_session_context;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn dont_throw_when_inserting_unique_row() {
   let session = create_session_context();
   let txn = session.begin_transaction().unwrap();
@@ -32,7 +32,7 @@ async fn dont_throw_when_inserting_unique_row() {
   assert!(result.is_ok())
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn throw_when_inserting_duplicate_row() {
   let session = create_session_context();
   let txn = session.begin_transaction().unwrap();

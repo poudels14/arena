@@ -1,6 +1,6 @@
 use super::filter::Filter;
 use crate::schema::{SerializedCell, Table, TableIndex};
-use crate::storage::{KeyValueGroup, RowIterator, StorageOperator};
+use crate::storage::{KeyValueGroup, RowIterator, StorageHandler};
 use crate::{
   index_row_key, index_rows_prefix_key, table_rows_prefix_key, Result,
 };
@@ -9,7 +9,7 @@ use crate::{
 pub struct UniqueIndexIterator<'a> {
   table: &'a Table,
   index: &'a TableIndex,
-  storage: &'a StorageOperator,
+  storage: &'a StorageHandler,
   index_prefix: Vec<u8>,
   index_iter: Box<dyn RowIterator>,
   scan_filters: Option<Vec<Filter>>,
@@ -20,7 +20,7 @@ pub fn new<'a>(
   table: &'a Table,
   index: &'a TableIndex,
   filters: &'a Vec<Filter>,
-  storage: &'a StorageOperator,
+  storage: &'a StorageHandler,
 ) -> Result<Box<UniqueIndexIterator<'a>>> {
   let prefix_filters = index
     .columns

@@ -6,16 +6,17 @@ use crate::df::providers::catlog::{
   CatalogListProvider, EmptyCatalogListProvider,
 };
 use crate::runtime::RuntimeEnv;
-use crate::storage::{MemoryStorageProvider, Serializer, StorageProvider};
+use crate::storage::{
+  MemoryKeyValueStoreProvider, Serializer, StorageFactory,
+  StorageFactoryBuilder,
+};
 
-#[derive(Clone)]
 pub struct SessionConfig {
   pub runtime: Arc<RuntimeEnv>,
   pub df_runtime: Arc<DfRuntimeEnv>,
   pub catalog: String,
-  pub schema: String,
-  pub serializer: Serializer,
-  pub storage_provider: Arc<dyn StorageProvider>,
+  pub default_schema: String,
+  pub storage_factory: Arc<StorageFactory>,
   pub catalog_list_provider: Arc<dyn CatalogListProvider>,
 }
 
@@ -26,10 +27,16 @@ impl Default for SessionConfig {
     Self {
       runtime: Arc::new(RuntimeEnv::default()),
       catalog: default_catalog.to_owned(),
-      schema: default_schema.to_owned(),
+      default_schema: default_schema.to_owned(),
       df_runtime: Arc::new(DfRuntimeEnv::default()),
-      serializer: Serializer::default(),
-      storage_provider: Arc::new(MemoryStorageProvider::default()),
+      storage_factory: Arc::new(
+        StorageFactoryBuilder::default()
+          .catalog(default_catalog.clone())
+          .serializer(Serializer::VarInt)
+          .kv_provider(Arc::new(MemoryKeyValueStoreProvider::default()))
+          .build()
+          .unwrap(),
+      ),
       catalog_list_provider: Arc::new(EmptyCatalogListProvider),
     }
   }
@@ -39,5 +46,4 @@ impl Default for SessionConfig {
 #[derive(Clone)]
 pub struct TaskConfig {
   pub(crate) runtime: Arc<RuntimeEnv>,
-  pub(crate) serializer: Serializer,
 }

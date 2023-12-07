@@ -9,7 +9,7 @@ use rocksdb::{
 };
 
 use super::KeyValueProvider;
-use crate::storage::{self, KeyValueGroup, StorageProvider};
+use crate::storage::{self, KeyValueGroup, KeyValueStoreProvider};
 use crate::Result as DatabaseResult;
 
 pub(super) type RocksDatabase = OptimisticTransactionDB<MultiThreaded>;
@@ -102,10 +102,8 @@ impl RocksStorage {
   }
 }
 
-impl StorageProvider for RocksStorage {
-  fn begin_transaction(
-    &self,
-  ) -> DatabaseResult<Box<dyn storage::KeyValueProvider>> {
+impl KeyValueStoreProvider for RocksStorage {
+  fn new_transaction(&self) -> DatabaseResult<Box<dyn storage::KeyValueStore>> {
     Ok(Box::new(KeyValueProvider::new(self.kv.clone())?))
   }
 }
