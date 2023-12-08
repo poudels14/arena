@@ -1,8 +1,9 @@
 mod factory;
 mod handler;
 mod kvstore;
+mod locks;
 mod memory;
-mod schema;
+mod schema_factory;
 mod serializer;
 mod transaction;
 
@@ -14,7 +15,7 @@ pub use kvstore::{
   KeyValueGroup, KeyValueStore, KeyValueStoreProvider, RowIterator,
 };
 pub use memory::MemoryKeyValueStoreProvider;
-pub use schema::SchemaFactory;
+pub use schema_factory::SchemaFactory;
 pub use serializer::*;
 pub use transaction::Transaction;
 

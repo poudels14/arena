@@ -10,6 +10,13 @@ mod insert;
 mod schema;
 mod select;
 
+#[macro_export]
+macro_rules! execute_query {
+  ($txn:tt, $query:expr) => {
+    $txn.execute_sql(&format!($query)).await
+  };
+}
+
 pub(super) fn create_session_context() -> SessionContext {
   let runtime = RuntimeEnv::default();
 
@@ -22,8 +29,8 @@ pub(super) fn create_session_context() -> SessionContext {
     .unwrap(),
   );
 
-  let catalog = "test_catalog";
-  let schema = "test_schema";
+  let catalog = "test";
+  let schema = "public";
   SessionContext::with_config(SessionConfig {
     runtime: runtime.into(),
     df_runtime: Default::default(),

@@ -22,8 +22,8 @@ pub fn new<'a>(
   filters: &'a Vec<Filter>,
   storage: &'a StorageHandler,
 ) -> Result<Box<UniqueIndexIterator<'a>>> {
-  let prefix_filters = index
-    .columns
+  let index_columns = index.columns();
+  let prefix_filters = index_columns
     .iter()
     .map(|col| {
       filters.iter().find_map(|filter| {
@@ -53,7 +53,7 @@ pub fn new<'a>(
       // number of `=` filters being used is less than that length, then
       // prefix doesn't match. So, update the first byte of the serialized
       // filter
-      let length_byte = storage.serializer.serialize(&index.columns.len())?;
+      let length_byte = storage.serializer.serialize(&index_columns.len())?;
 
       // Note: don't expect number of columns in the index to be more than
       // 20, so it can definitely fit in the first byte [value = ~200]
@@ -121,6 +121,8 @@ impl<'a> RowIterator for UniqueIndexIterator<'a> {
       //   .deserialize::<Vec<SerializedCell<&[u8]>>>(&serialized_index_row)
       // .unwrap();
 
+      // TODO: use polars Dataframe for index filtering and potentially
+      // replace all filtering done by datafusion if polars is faster
       let next_value = self
         .storage
         .kv

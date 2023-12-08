@@ -34,17 +34,17 @@ impl StorageHandler {
     row: &Row<&[u8]>,
   ) -> Result<()> {
     for table_index in table.indexes.iter() {
-      let projected_cells = row.project(&table_index.columns);
+      let projected_cells = row.project(&table_index.columns());
       let serialized_projected_row =
         self
           .serializer
           .serialize::<Vec<&SerializedCell<&[u8]>>>(&projected_cells)?;
       let index_key = index_row_key!(table_index.id, &serialized_projected_row);
-      if !table_index.allow_duplicates {
+      if table_index.is_unique() {
         if self.kv.get(KeyValueGroup::Indexes, &index_key)?.is_some() {
           return Err(Error::UniqueConstaintViolated {
             data: projected_cells.iter().map(|c| (*c).into()).collect(),
-            columns: table.project_columns(&table_index.columns),
+            columns: table.project_columns(&table_index.columns()),
             constraint: table_index.name.clone(),
           });
         }

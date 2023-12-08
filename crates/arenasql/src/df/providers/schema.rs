@@ -2,26 +2,22 @@ use std::any::Any;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use dashmap::DashMap;
 use datafusion::catalog::schema::SchemaProvider as DfSchemaProvider;
 use datafusion::datasource::TableProvider as DfTableProvider;
 use datafusion::error::Result;
+use tokio::runtime::Handle;
 
 use super::table::TableProvider;
-use crate::schema::Table;
+use crate::schema::{IndexType, Table};
 use crate::storage::Transaction;
 
 pub struct SchemaProvider {
   transaction: Transaction,
-  new_tables: DashMap<String, Arc<Table>>,
 }
 
 impl SchemaProvider {
   pub fn new(transaction: Transaction) -> Self {
-    Self {
-      transaction,
-      new_tables: DashMap::new(),
-    }
+    Self { transaction }
   }
 }
 
@@ -32,19 +28,12 @@ impl DfSchemaProvider for SchemaProvider {
   }
 
   fn table_names(&self) -> Vec<String> {
-    unimplemented!()
+    self.transaction.table_names()
   }
 
   // Note: for each insert, this table gets called twice
   async fn table(&self, name: &str) -> Option<Arc<dyn DfTableProvider>> {
-    // Note: need to look for the table in the `new_tables` map first to
-    // prevent deadlock that happens when `schema_factory.get_table` is called
-    // from the same transaction that holds the table lock
-    let table = self
-      .new_tables
-      .get(name)
-      .map(|kv| kv.value().clone())
-      .or_else(|| self.transaction.schema_factory.get_table(name))?;
+    let table = self.transaction.get_table(name)?;
     Some(
       Arc::new(TableProvider::new(table, self.transaction.clone()))
         as Arc<dyn DfTableProvider>,
@@ -57,7 +46,15 @@ impl DfSchemaProvider for SchemaProvider {
     name: String,
     table: Arc<dyn DfTableProvider>,
   ) -> Result<Option<Arc<dyn DfTableProvider>>> {
-    self.transaction.acquire_table_lock(&name)?;
+    let schema_factory = &self.transaction.schema_factory;
+    let mut table_lock = tokio::task::block_in_place(|| {
+      Handle::current().block_on(async {
+        self
+          .transaction
+          .acquire_table_schema_write_lock(&name)
+          .await
+      })
+    })?;
 
     let storage_handler = self.transaction.lock()?;
     let new_table_id = storage_handler.get_next_table_id()?;
@@ -71,13 +68,16 @@ impl DfSchemaProvider for SchemaProvider {
           .filter(|constraint| constraint.needs_index())
           .map(|constraint| {
             let index_id = storage_handler.get_next_table_index_id()?;
-            table.add_index(index_id, constraint)
+            table.add_index(
+              index_id,
+              IndexType::from_constraint(constraint),
+              None,
+            )
           })
           .collect::<crate::Result<Vec<()>>>()
       })
       .transpose()?;
 
-    let schema_factory = &self.transaction.schema_factory;
     storage_handler.put_table_schema(
       &schema_factory.catalog,
       &schema_factory.schema,
@@ -85,7 +85,8 @@ impl DfSchemaProvider for SchemaProvider {
     )?;
 
     let table = Arc::new(table);
-    self.new_tables.insert(table.name.to_owned(), table.clone());
+    table_lock.table = Some(table.clone());
+    self.transaction.hold_table_write_lock(table_lock)?;
 
     Ok(Some(
       Arc::new(TableProvider::new(table, self.transaction.clone()))
@@ -94,8 +95,6 @@ impl DfSchemaProvider for SchemaProvider {
   }
 
   fn table_exist(&self, name: &str) -> bool {
-    // Note: check the new_table first to avoid deadlock
-    self.new_tables.contains_key(name)
-      || self.transaction.schema_factory.get_table(name).is_some()
+    self.transaction.get_table(name).is_some()
   }
 }

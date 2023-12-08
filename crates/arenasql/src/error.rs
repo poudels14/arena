@@ -5,6 +5,13 @@ use sqlparser::parser;
 
 use crate::schema::{Column, SerializedCell};
 
+#[macro_export]
+macro_rules! bail {
+  ($err:expr) => {
+    return Err($err);
+  };
+}
+
 #[derive(Debug, Clone)]
 pub enum Error {
   UnsupportedOperation(String),
@@ -17,7 +24,17 @@ pub enum Error {
     columns: Vec<Column>,
     data: Vec<SerializedCell<Vec<u8>>>,
   },
+  NullConstraintViolated {
+    table: String,
+    column: String,
+  },
+  RelationAlreadyExists(String),
+  RelationDoesntExist(String),
+  SchemaDoesntExist(String),
+  ColumnDoesntExist(String),
   UnsupportedQueryFilter(String),
+  UnsupportedQuery(String),
+  InvalidQuery(String),
   IOError(String),
   SerdeError(String),
   InternalError(String),
@@ -39,6 +56,13 @@ impl Error {
       Self::UnsupportedOperation(_)
       | Self::UnsupportedDataType(_)
       | Self::UnsupportedQueryFilter(_)
+      | Self::UnsupportedQuery(_)
+      | Self::InvalidQuery(_)
+      | Self::NullConstraintViolated { .. }
+      | Self::RelationAlreadyExists(_)
+      | Self::RelationDoesntExist(_)
+      | Self::SchemaDoesntExist(_)
+      | Self::ColumnDoesntExist(_)
       | Self::IOError(_)
       | Self::SerdeError(_)
       | Self::InternalError(_)
@@ -53,6 +77,8 @@ impl Error {
       | Self::UnsupportedOperation(msg)
       | Self::UnsupportedDataType(msg)
       | Self::UnsupportedQueryFilter(msg)
+      | Self::UnsupportedQuery(msg)
+      | Self::InvalidQuery(msg)
       | Self::IOError(msg)
       | Self::SerdeError(msg)
       | Self::InternalError(msg)
@@ -62,6 +88,24 @@ impl Error {
         "duplicate key value violates unique constraint \"{}\"",
         constraint
       ),
+      Self::NullConstraintViolated { table, column } => {
+        format!(
+          r#"null value in column "{}" of relation "{}" violates not-null constraint"#,
+          column, table,
+        )
+      }
+      Self::RelationAlreadyExists(rel) => {
+        format!(r#"relation "{rel}" already exists"#)
+      }
+      Self::RelationDoesntExist(rel) => {
+        format!(r#"relation "{rel}" does not exist"#)
+      }
+      Self::SchemaDoesntExist(schema) => {
+        format!(r#"schema "{schema}" does not exist"#)
+      }
+      Self::ColumnDoesntExist(col) => {
+        format!(r#"column "{col}" does not exist"#)
+      }
     }
   }
 }
@@ -105,15 +149,15 @@ impl From<Error> for DataFusionError {
 }
 
 #[macro_export]
-macro_rules! df_execution_error {
-    ($($arg:tt)*) => {
-      datafusion::error::DataFusionError::Execution(format!($($arg)*))
-    };
+macro_rules! df_error {
+  ($err:expr) => {
+    datafusion::error::DataFusionError::External(Box::new($err))
+  };
 }
 
 pub fn null_constraint_violation(table: &str, column: &str) -> DataFusionError {
-  DataFusionError::Execution(format!(
-    r#"null value in column "{}" of relation "{}" violates not-null constraint"#,
-    column, table
-  ))
+  DataFusionError::External(Box::new(Error::NullConstraintViolated {
+    table: table.to_owned(),
+    column: column.to_owned(),
+  }))
 }

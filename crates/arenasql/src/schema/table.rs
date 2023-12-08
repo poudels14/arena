@@ -4,7 +4,9 @@ use datafusion::datasource::TableProvider as DfTableProvider;
 use inflector::Inflector;
 use serde::{Deserialize, Serialize};
 
-use super::{Column, ColumnId, Constraint, TableIndex, TableIndexId};
+use super::{
+  Column, ColumnId, Constraint, IndexType, TableIndex, TableIndexId,
+};
 use crate::Result;
 
 pub type TableId = u16;
@@ -50,31 +52,33 @@ impl Table {
   pub fn add_index(
     &mut self,
     index_id: TableIndexId,
-    constraint: &Constraint,
+    index_type: IndexType,
+    index_name: Option<String>,
   ) -> Result<()> {
-    let (columns, allow_duplicates) = match constraint {
-      Constraint::PrimaryKey(projection) => (projection, false),
-      Constraint::Unique(projection) => (projection, false),
-    };
+    let index_name = index_name.unwrap_or_else(|| {
+      let mut index_name = index_type
+        .columns()
+        .iter()
+        .fold(self.name.clone(), |agg, col| {
+          agg + "_" + &self.columns[*col].name.to_snake_case()
+        })
+        + "_key";
 
-    let mut index_name = columns.iter().fold(self.name.clone(), |agg, col| {
-      agg + "_" + &self.columns[*col].name.to_snake_case()
-    }) + "_key";
-
-    let index_name_overlap_count = self
-      .indexes
-      .iter()
-      .filter(|idx| idx.name.starts_with(&index_name))
-      .count();
-    if index_name_overlap_count > 0 {
-      index_name += &format!("_{}", index_name_overlap_count);
-    }
+      let index_name_overlap_count = self
+        .indexes
+        .iter()
+        .filter(|idx| idx.name.starts_with(&index_name))
+        .count();
+      if index_name_overlap_count > 0 {
+        index_name += &format!("_{}", index_name_overlap_count);
+      }
+      index_name
+    });
 
     let index = TableIndex {
       id: index_id,
       name: index_name,
-      columns: columns.to_vec(),
-      allow_duplicates,
+      index_type,
     };
     self.indexes.push(index);
     Ok(())

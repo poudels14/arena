@@ -1,83 +1,69 @@
+use std::ops::Deref;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use derivative::Derivative;
+use derive_builder::Builder;
 use parking_lot::Mutex;
-use strum_macros::FromRepr;
 
 use super::handler::StorageHandler;
 use super::kvstore::KeyValueStore;
-use super::schema::SchemaLock;
+use super::locks::{TableSchemaWriteLock, TransactionLock, TransactionState};
 use super::{SchemaFactory, Serializer};
+use crate::schema::Table;
 use crate::{Error, Result};
 
-#[derive(Derivative, Clone)]
+#[derive(Builder, Derivative, Clone)]
 #[allow(unused)]
 pub struct Transaction {
   pub(crate) schema_factory: Arc<SchemaFactory>,
   pub serializer: Serializer,
-  kv: Arc<Box<dyn KeyValueStore>>,
+  kv_store: Arc<Box<dyn KeyValueStore>>,
+  #[builder(
+    setter(skip),
+    default = "Arc::new(AtomicUsize::new(TransactionState::Free as usize))"
+  )]
   state: Arc<AtomicUsize>,
   /// Hold all the locks acquired by this transaction
   /// until the transaction is dropped (committed/rolled back)
   /// Using parking_lot Mutex here since it's very unlikely to
   /// be contended
-  locks: Arc<Mutex<Vec<SchemaLock>>>,
-}
-
-#[derive(Debug, FromRepr)]
-#[repr(usize)]
-pub(super) enum TransactionState {
-  Unknown = 0,
-  Free = 1,
-  Locked = 2,
-  Closed = 3,
-}
-
-pub struct TransactionLock {
-  lock: Option<Arc<AtomicUsize>>,
-}
-
-impl Default for TransactionLock {
-  fn default() -> Self {
-    Self { lock: None }
-  }
-}
-
-impl Drop for TransactionLock {
-  fn drop(&mut self) {
-    if let Some(lock) = self.lock.take() {
-      let _ = lock.compare_exchange(
-        TransactionState::Locked as usize,
-        TransactionState::Free as usize,
-        Ordering::Acquire,
-        Ordering::Relaxed,
-      );
-    }
-  }
+  #[builder(setter(skip), default = "Arc::new(Mutex::new(vec![]))")]
+  acquired_locks: Arc<Mutex<Vec<TableSchemaWriteLock>>>,
 }
 
 unsafe impl Send for Transaction {}
 unsafe impl Sync for Transaction {}
 
 impl Transaction {
-  pub(super) fn new(
-    schema_factory: Arc<SchemaFactory>,
-    kv: Arc<Box<dyn KeyValueStore>>,
-    serializer: Serializer,
-  ) -> Self {
-    Self {
-      schema_factory,
-      kv,
-      serializer,
-      state: Arc::new(AtomicUsize::new(TransactionState::Free as usize)),
-      locks: Arc::new(Mutex::new(vec![])),
+  #[inline]
+  pub async fn acquire_table_schema_write_lock(
+    &self,
+    table_name: &str,
+  ) -> Result<TableSchemaWriteLock> {
+    // If the transaction has an existing lock for the table, return it
+    // else, acquire it from lock factory
+    if let Some(lock) = self
+      .acquired_locks
+      .lock()
+      .iter()
+      .find(|t| t.lock.deref().deref() == table_name)
+    {
+      return Ok(lock.clone());
     }
+    self
+      .schema_factory
+      .schema_locks
+      .acquire_table_schema_write_lock(table_name)
+      .await
   }
 
-  pub fn acquire_table_lock(&self, table: &str) -> Result<()> {
-    let lock = self.schema_factory.lock_table_for_write(&table)?;
-    self.locks.lock().push(lock);
+  // Holds the write lock to the table until this transaction is dropped
+  pub fn hold_table_write_lock(
+    &self,
+    lock: TableSchemaWriteLock,
+  ) -> Result<()> {
+    self.acquired_locks.lock().push(lock);
     Ok(())
   }
 
@@ -120,22 +106,44 @@ impl Transaction {
       })?;
 
     Ok(StorageHandler {
-      kv: self.kv.clone(),
+      kv: self.kv_store.clone(),
       serializer: self.serializer.clone(),
-      lock: TransactionLock {
-        lock: Some(self.state.clone()),
-      },
+      lock: TransactionLock::new(Some(self.state.clone())),
     })
+  }
+
+  pub fn get_table(&self, name: &str) -> Option<Arc<Table>> {
+    self.schema_factory.get_table(name).or_else(|| {
+      self.acquired_locks.lock().iter().find_map(|t| {
+        t.table
+          .as_ref()
+          .filter(|t| t.name == name)
+          .map(|t| t.clone())
+      })
+    })
+  }
+
+  pub fn table_names(&self) -> Vec<String> {
+    vec![
+      self.schema_factory.table_names(),
+      self
+        .acquired_locks
+        .lock()
+        .iter()
+        .filter_map(|t| t.table.as_ref().map(|t| t.name.clone()))
+        .collect(),
+    ]
+    .concat()
   }
 
   pub fn commit(&self) -> Result<()> {
     self.close_transaction()?;
-    self.kv.commit()
+    self.kv_store.commit()
   }
 
   pub fn rollback(self) -> Result<()> {
     self.close_transaction()?;
-    self.kv.rollback()
+    self.kv_store.rollback()
   }
 
   /// transaction should be free when calling this

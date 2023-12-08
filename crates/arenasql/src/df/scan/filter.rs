@@ -123,7 +123,7 @@ impl Filter {
     self
       .get_column_projection()
       .iter()
-      .zip(index.columns.iter())
+      .zip(index.columns().iter())
       .fold(true, |agg, (filter_col, index_col)| {
         agg && filter_col == index_col
       })
@@ -162,16 +162,17 @@ impl Filter {
   /// if first column doesn't match,
   /// cost = n [because of entire index scan] * row_filter_cost
   pub fn estimate_cost(&self, index: &TableIndex) -> f32 {
+    let index_columns = index.columns();
     let matched_cols = self
       .get_column_projection()
       .iter()
-      .zip(index.columns.iter())
+      .zip(index_columns.iter())
       .take_while(|(filter_col, index_col)| filter_col == index_col)
       .count();
 
     // If the filter is '=', it doesn't require index scan,
     // so, the cost is O(1)
-    if matched_cols == index.columns.len() && self.is_eq() {
+    if matched_cols == index_columns.len() && self.is_eq() {
       return self.get_operator_cost() * 1.0;
     }
     // TODO: penalize the index if the index doesn't have all the

@@ -5,7 +5,7 @@ mod table;
 
 use std::sync::Arc;
 
-use super::transaction::TransactionLock;
+use super::locks::TransactionLock;
 use super::{KeyValueGroup, KeyValueStore, Serializer};
 
 /// Uses interior mutability to store the KeyValue provider trait

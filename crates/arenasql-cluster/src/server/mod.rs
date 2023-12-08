@@ -5,7 +5,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use arenasql::runtime::RuntimeEnv;
-use arenasql::storage::{Serializer, StorageFactoryBuilder};
 use arenasql::{SessionConfig, SessionContext, SingleCatalogListProvider};
 use tokio::sync::Mutex;
 use uuid::Uuid;
@@ -57,7 +56,7 @@ impl ArenaSqlCluster {
     catalog: String,
     schema: String,
   ) -> ArenaClusterResult<Arc<AuthenticatedSession>> {
-    let storage_provider = self
+    let storage_factory = self
       .storage
       .get(&catalog)?
       .ok_or_else(|| ArenaClusterError::CatalogNotFound(catalog.clone()))?;
@@ -70,13 +69,7 @@ impl ArenaSqlCluster {
       df_runtime: Default::default(),
       catalog: catalog.to_string(),
       default_schema: schema.clone(),
-      storage_factory: StorageFactoryBuilder::default()
-        .catalog(catalog.clone())
-        .serializer(Serializer::VarInt)
-        .kv_provider(storage_provider)
-        .build()
-        .unwrap()
-        .into(),
+      storage_factory,
       catalog_list_provider,
       ..Default::default()
     });

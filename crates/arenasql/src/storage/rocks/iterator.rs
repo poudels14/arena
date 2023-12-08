@@ -47,6 +47,7 @@ impl<'a> PrefixIterator<'a> {
     iter
   }
 
+  #[inline]
   fn matches_prefix(&self, key: Option<&[u8]>) -> bool {
     key
       .map(|key| {

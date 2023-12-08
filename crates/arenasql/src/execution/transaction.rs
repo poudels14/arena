@@ -5,6 +5,7 @@ use datafusion::physical_plan::execute_stream;
 use sqlparser::ast::Statement as SQLStatement;
 
 use super::response::ExecutionResponse;
+use crate::execution::plans;
 use crate::{storage, Error, Result};
 
 #[allow(unused)]
@@ -30,23 +31,33 @@ impl Transaction {
     &self,
     stmt: Box<SQLStatement>,
   ) -> Result<ExecutionResponse> {
-    let state = self.ctxt.state();
-
-    // TODO: creating physical plan from SQL is expensive
-    // look into caching physical plans
-    let plan = state
-      .statement_to_plan(datafusion::sql::parser::Statement::Statement(stmt))
-      .await?;
-
-    self.sql_options.verify_plan(&plan)?;
-    let df = self.ctxt.execute_logical_plan(plan.clone()).await?;
-    let physical_plan = df.create_physical_plan().await?;
-
-    ExecutionResponse::create(
-      plan,
-      execute_stream(physical_plan, self.ctxt.task_ctx().into())?,
+    let (logical_plan, physical_plan) = match plans::get_custom_execution_plan(
+      &self.ctxt,
+      &self.storage_txn,
+      &stmt,
     )
-    .await
+    .await?
+    {
+      Some(plan) => (None, plan),
+      None => {
+        let state = self.ctxt.state();
+        // TODO: creating physical plan from SQL is expensive
+        // look into caching physical plans
+        let plan = state
+          .statement_to_plan(datafusion::sql::parser::Statement::Statement(
+            stmt.clone(),
+          ))
+          .await?;
+
+        self.sql_options.verify_plan(&plan)?;
+        let df = self.ctxt.execute_logical_plan(plan.clone()).await?;
+        (Some(plan), df.create_physical_plan().await?)
+      }
+    };
+
+    let response =
+      execute_stream(physical_plan.clone(), self.ctxt.task_ctx().into())?;
+    ExecutionResponse::create(response, logical_plan).await
   }
 
   pub fn commit(self) -> Result<()> {

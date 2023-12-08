@@ -4,21 +4,16 @@ use datafusion::scalar::ScalarValue;
 
 use crate::df::scan::filter::Filter;
 use crate::df::scan::unique_index_iterator;
+use crate::execute_query;
 use crate::storage::RowIterator;
 use crate::tests::create_session_context;
-
-macro_rules! execute {
-  ($txn:tt, $query:literal) => {
-    $txn.execute_sql(&format!($query)).await
-  };
-}
 
 #[tokio::test(flavor = "multi_thread")]
 async fn eq_filter_returns_single_row_iterator() {
   let session = create_session_context();
   let txn = session.begin_transaction().unwrap();
 
-  execute!(
+  execute_query!(
     txn,
     r#"CREATE TABLE IF NOT EXISTS unique_column (
       id VARCHAR(50) UNIQUE,
@@ -27,7 +22,7 @@ async fn eq_filter_returns_single_row_iterator() {
   )
   .unwrap();
 
-  execute!(
+  execute_query!(
     txn,
     r#"INSERT INTO unique_column
       VALUES('random_id_1', 'name 1'),
@@ -70,7 +65,7 @@ async fn le_filter_returns_multi_row_iterator() {
   let session = create_session_context();
   let txn = session.begin_transaction().unwrap();
 
-  execute!(
+  execute_query!(
     txn,
     r#"CREATE TABLE IF NOT EXISTS unique_column (
       id VARCHAR(50) UNIQUE,
@@ -79,7 +74,7 @@ async fn le_filter_returns_multi_row_iterator() {
   )
   .unwrap();
 
-  execute!(
+  execute_query!(
     txn,
     r#"INSERT INTO unique_column
       VALUES

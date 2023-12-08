@@ -3,13 +3,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use arenasql::storage::rocks::{self, RocksStorage};
+use arenasql::storage::{self, Serializer, StorageFactoryBuilder};
 use dashmap::DashMap;
 
 use crate::error::{ArenaClusterError, ArenaClusterResult};
 
 pub struct StorageFactory {
   path: PathBuf,
-  storages: DashMap<String, Arc<RocksStorage>>,
+  storages: DashMap<String, Arc<storage::StorageFactory>>,
 }
 
 impl StorageFactory {
@@ -27,7 +28,7 @@ impl StorageFactory {
   pub fn get(
     &self,
     db_name: &str,
-  ) -> ArenaClusterResult<Option<Arc<RocksStorage>>> {
+  ) -> ArenaClusterResult<Option<Arc<storage::StorageFactory>>> {
     let storage = self.storages.get(db_name);
     match storage {
       Some(storage) => Ok(Some(storage.value().clone())),
@@ -44,8 +45,18 @@ impl StorageFactory {
               )
               .map_err(|_| ArenaClusterError::StorageError)?,
             );
-            self.storages.insert(db_name.to_string(), kv.clone());
-            Ok(Some(kv))
+
+            let factory = Arc::new(
+              StorageFactoryBuilder::default()
+                .catalog(db_name.to_owned())
+                .serializer(Serializer::VarInt)
+                .kv_provider(kv)
+                .build()
+                .unwrap(),
+            );
+
+            self.storages.insert(db_name.to_string(), factory.clone());
+            Ok(Some(factory))
           }
         }
       }
