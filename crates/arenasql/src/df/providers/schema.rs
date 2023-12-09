@@ -28,12 +28,12 @@ impl DfSchemaProvider for SchemaProvider {
   }
 
   fn table_names(&self) -> Vec<String> {
-    self.transaction.table_names()
+    self.transaction.state().table_names()
   }
 
   // Note: for each insert, this table gets called twice
   async fn table(&self, name: &str) -> Option<Arc<dyn DfTableProvider>> {
-    let table = self.transaction.get_table(name)?;
+    let table = self.transaction.state().get_table(name)?;
     Some(
       Arc::new(TableProvider::new(table, self.transaction.clone()))
         as Arc<dyn DfTableProvider>,
@@ -46,16 +46,6 @@ impl DfSchemaProvider for SchemaProvider {
     name: String,
     table: Arc<dyn DfTableProvider>,
   ) -> Result<Option<Arc<dyn DfTableProvider>>> {
-    let schema_factory = &self.transaction.schema_factory;
-    let mut table_lock = tokio::task::block_in_place(|| {
-      Handle::current().block_on(async {
-        self
-          .transaction
-          .acquire_table_schema_write_lock(&name)
-          .await
-      })
-    })?;
-
     let storage_handler = self.transaction.lock()?;
     let new_table_id = storage_handler.get_next_table_id()?;
 
@@ -78,15 +68,21 @@ impl DfSchemaProvider for SchemaProvider {
       })
       .transpose()?;
 
+    let state = &self.transaction.state();
+    let table = Arc::new(table);
+    let mut schema_lock = tokio::task::block_in_place(|| {
+      Handle::current()
+        .block_on(async { state.acquire_table_schema_write_lock(&name).await })
+    })?;
+
     storage_handler.put_table_schema(
-      &schema_factory.catalog,
-      &schema_factory.schema,
+      &state.catalog(),
+      &state.schema(),
       &table,
     )?;
 
-    let table = Arc::new(table);
-    table_lock.table = Some(table.clone());
-    self.transaction.hold_table_write_lock(table_lock)?;
+    schema_lock.table = Some(table.clone());
+    state.hold_table_schema_lock(schema_lock)?;
 
     Ok(Some(
       Arc::new(TableProvider::new(table, self.transaction.clone()))
@@ -95,6 +91,6 @@ impl DfSchemaProvider for SchemaProvider {
   }
 
   fn table_exist(&self, name: &str) -> bool {
-    self.transaction.get_table(name).is_some()
+    self.transaction.state().get_table(name).is_some()
   }
 }

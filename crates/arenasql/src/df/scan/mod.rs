@@ -10,10 +10,12 @@ use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::error::DataFusionError;
 use datafusion::execution::TaskContext;
 use datafusion::physical_expr::PhysicalSortExpr;
+use datafusion::physical_plan::stream::RecordBatchStreamAdapter;
 use datafusion::physical_plan::{
   DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, Statistics,
 };
 use derivative::Derivative;
+use futures::StreamExt;
 
 use self::filter::Filter;
 pub use self::stream::RowsStream;
@@ -77,14 +79,20 @@ impl ExecutionPlan for TableScaner {
     _partition: usize,
     _context: Arc<TaskContext>,
   ) -> Result<RecordBatchStream, DataFusionError> {
-    Ok(Box::pin(RowsStream {
+    let mut row_stream = RowsStream {
       table: self.table.clone(),
       schema: self.schema(),
       projection: self.projection.clone(),
       filters: self.filters.clone(),
       transaction: self.transaction.clone(),
       done: false,
-    }))
+    };
+
+    let schema = self.schema();
+    let stream =
+      futures::stream::once(async move { row_stream.scan_table().await })
+        .boxed();
+    Ok(Box::pin(RecordBatchStreamAdapter::new(schema, stream)))
   }
 
   fn statistics(&self) -> Result<Statistics, DataFusionError> {

@@ -1,20 +1,25 @@
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::Arc;
 
 use dashmap::DashMap;
 use derivative::Derivative;
 use derive_builder::Builder;
 use parking_lot::Mutex;
+use tokio::sync::oneshot;
 
-use super::locks::{SchemaLocks, SchemaLocksBuilder};
-use super::schema_factory::SchemaFactoryBuilder;
-use super::transaction::TransactionBuilder;
-use super::{KeyValueStoreProvider, SchemaFactory, Serializer, Transaction};
-use crate::Result;
+use super::schema_factory::{SchemaFactory, SchemaFactoryBuilder};
+use super::state::{StorageFactoryState, StorageFactoryStateBuilder};
+use crate::storage::locks::{SchemaLocks, SchemaLocksBuilder};
+use crate::storage::transaction::{
+  TransactionBuilder, TransactionStateBuilder,
+};
+use crate::storage::{KeyValueStoreProvider, Serializer, Transaction};
+use crate::{bail, Error, Result};
 
 #[derive(Builder, Derivative)]
 #[derivative(Debug)]
 pub struct StorageFactory {
+  #[builder(setter(custom))]
   catalog: String,
 
   #[builder(default = "Serializer::VarInt")]
@@ -29,22 +34,25 @@ pub struct StorageFactory {
   #[builder(setter(skip), default = "DashMap::new()")]
   schemas: DashMap<String, Arc<SchemaFactory>>,
 
-  /// If this is set to true, another transaction will load table
-  /// schemas from store to get the updated copy. This is used to
-  /// trigger reload when table schemas are updated
-  #[builder(setter(skip), default = "Arc::new(AtomicBool::new(false))")]
-  schema_reload_flag: Arc<AtomicBool>,
-
   #[builder(setter(skip), default = "DashMap::new()")]
   schema_lock_factories: DashMap<String, SchemaLocks>,
+
+  #[builder(private)]
+  wait_signal: Arc<tokio::sync::Mutex<Option<oneshot::Receiver<()>>>>,
+
+  #[builder(private)]
+  state: StorageFactoryState,
 }
 
 impl StorageFactory {
   pub fn being_transaction(&self, schema: &str) -> Result<Transaction> {
-    let kv_store = self.kv_provider.new_transaction()?;
+    if self.state.shutdown_triggered() {
+      bail!(Error::DatabaseClosed);
+    }
 
+    let kv_store = self.kv_provider.new_transaction()?;
     // Clear all schemas for now, it's easier
-    if self.schema_reload_flag.load(Ordering::Acquire) {
+    if self.state.should_reload_schema() {
       self.schemas.clear();
     }
 
@@ -61,7 +69,6 @@ impl StorageFactory {
               .catalog(self.catalog.clone())
               .schema(schema.to_string())
               .kv_store_provider(self.kv_provider.clone())
-              .schema_reload_flag(self.schema_reload_flag.clone())
               .schema_locks(self.get_schema_locks(&schema))
               .build()
               .unwrap();
@@ -75,14 +82,34 @@ impl StorageFactory {
       }
     };
 
+    let txn_state = TransactionStateBuilder::default()
+      .schema_factory(schema_factory)
+      .storage_factory_state(self.state.clone())
+      .build()
+      .unwrap();
+    self.state.increase_active_transaction_count();
     Ok(
       TransactionBuilder::default()
-        .schema_factory(schema_factory)
         .kv_store(Arc::new(kv_store))
         .serializer(self.serializer.clone())
+        .state(Arc::new(txn_state))
         .build()
         .unwrap(),
     )
+  }
+
+  /// This waits for all transactions using this storage to complete
+  pub async fn graceful_shutdown(&self) -> Result<()> {
+    self.state.trigger_shutdown();
+    let lock = self.wait_signal.lock().await.take();
+    if let Some(signal) = lock {
+      signal.await.map_err(|_| {
+        Error::InternalError(
+          "Error waiting for transactions to close".to_owned(),
+        )
+      })?;
+    }
+    Ok(())
   }
 
   // Note: This is NOT thread safe. So, this shouldn't be called
@@ -91,15 +118,31 @@ impl StorageFactory {
     match self.schema_lock_factories.get(schema) {
       Some(locks) => locks.value().clone(),
       _ => {
-        let locks = SchemaLocksBuilder::default()
-          .schema_reload_flag(self.schema_reload_flag.clone())
-          .build()
-          .unwrap();
+        let locks = SchemaLocksBuilder::default().build().unwrap();
         self
           .schema_lock_factories
           .insert(schema.to_owned(), locks.clone());
         locks
       }
     }
+  }
+}
+
+impl StorageFactoryBuilder {
+  pub fn catalog(&mut self, catalog: String) -> &mut Self {
+    self.catalog = Some(catalog);
+
+    let (tx, rx) = oneshot::channel();
+    self.wait_signal = Some(Arc::new(tokio::sync::Mutex::new(Some(rx))));
+    self.state = Some(
+      StorageFactoryStateBuilder::default()
+        .schema_reload_triggered(Arc::new(AtomicBool::new(false)))
+        .shutdown_triggered(Arc::new(AtomicBool::new(false)))
+        .shutdown_signal(Arc::new(Mutex::new(Some(tx))))
+        .active_transactions_count(Arc::new(AtomicUsize::new(0)))
+        .build()
+        .unwrap(),
+    );
+    self
   }
 }

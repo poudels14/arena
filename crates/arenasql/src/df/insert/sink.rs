@@ -55,6 +55,9 @@ impl DataSink for Sink {
     mut data: RecordBatchStream,
     _context: &Arc<TaskContext>,
   ) -> Result<u64> {
+    // TODO: acquire read lock on the table schema so that
+    // the table schema can't be updated by any other transaction
+    // when this write is happening
     let mut modified_rows_count = 0;
 
     if let Some(batch) = data.next().await {

@@ -78,7 +78,7 @@ pub async fn get_custom_execution_plan(
         bail!(Error::RelationDoesntExist(table_name));
       }
 
-      let table = transaction.get_table(&table_name).unwrap();
+      let table = transaction.state().get_table(&table_name).unwrap();
       let column_projection = columns
         .to_vec()
         .iter()

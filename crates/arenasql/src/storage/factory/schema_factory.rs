@@ -1,21 +1,20 @@
 use std::collections::HashMap;
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use derivative::Derivative;
 use derive_builder::Builder;
 
-use super::locks::SchemaLocks;
-use super::{KeyValueStoreProvider, Serializer, StorageHandler};
 use crate::schema::Table;
+use crate::storage::locks::SchemaLocks;
+use crate::storage::{KeyValueStoreProvider, Serializer, StorageHandler};
 use crate::Result;
 
 #[derive(Derivative, Builder)]
 #[derivative(Debug)]
 pub struct SchemaFactory {
-  pub(crate) catalog: String,
+  pub catalog: String,
 
-  pub(crate) schema: String,
+  pub schema: String,
 
   #[derivative(Debug = "ignore")]
   kv_store_provider: Arc<dyn KeyValueStoreProvider>,
@@ -26,9 +25,7 @@ pub struct SchemaFactory {
   #[builder(setter(skip), default = "HashMap::new()")]
   tables: HashMap<String, Arc<Table>>,
 
-  schema_reload_flag: Arc<AtomicBool>,
-
-  pub(super) schema_locks: SchemaLocks,
+  pub schema_locks: SchemaLocks,
 }
 
 impl SchemaFactory {
@@ -36,8 +33,8 @@ impl SchemaFactory {
     let kv = self.kv_store_provider.new_transaction()?;
     let storage_handler = StorageHandler {
       kv: Arc::new(kv),
-      lock: Default::default(),
       serializer: self.serializer.clone(),
+      transaction_state: None,
     };
 
     let all_tables =

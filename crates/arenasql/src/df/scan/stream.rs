@@ -1,18 +1,14 @@
-use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{Context, Poll};
 
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::error::Result;
-use datafusion::physical_plan::RecordBatchStream;
 use derivative::Derivative;
-use futures::Stream;
 
 use super::filter::Filter;
 use super::unique_index_iterator;
 use crate::df::scan::heap_iterator::HeapIterator;
-use crate::schema::{ColumnArrayBuilder, RowId, SerializedCell, Table};
+use crate::schema::{ColumnArrayBuilder, SerializedCell, Table};
 use crate::storage::Transaction;
 
 #[allow(dead_code)]
@@ -28,13 +24,15 @@ pub struct RowsStream {
   pub(super) done: bool,
 }
 
+impl RowsStream {
+  fn schema(&self) -> SchemaRef {
+    self.schema.clone()
+  }
+}
+
 #[allow(dead_code)]
 impl RowsStream {
-  fn scan_index(&mut self) -> Result<Vec<RowId>> {
-    Ok(vec![])
-  }
-
-  fn scan_table(&mut self) -> Result<Option<RecordBatch>> {
+  pub async fn scan_table(&mut self) -> Result<RecordBatch> {
     let transaction = self.transaction.lock()?;
 
     let mut column_list_builders: Vec<ColumnArrayBuilder> = self
@@ -86,26 +84,6 @@ impl RowsStream {
     drop(rows_iterator);
     drop(transaction);
     self.done = true;
-    Ok(Some(RecordBatch::try_new(self.schema(), col_arrays)?))
-  }
-}
-
-impl RecordBatchStream for RowsStream {
-  fn schema(&self) -> SchemaRef {
-    self.schema.clone()
-  }
-}
-
-impl Stream for RowsStream {
-  type Item = Result<RecordBatch>;
-
-  fn poll_next(
-    mut self: Pin<&mut Self>,
-    _cx: &mut Context<'_>,
-  ) -> Poll<Option<Self::Item>> {
-    if self.done {
-      return Poll::Ready(None);
-    }
-    return Poll::Ready(self.scan_table().transpose());
+    Ok(RecordBatch::try_new(self.schema(), col_arrays)?)
   }
 }

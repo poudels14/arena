@@ -35,9 +35,10 @@ pub enum Error {
   UnsupportedQueryFilter(String),
   UnsupportedQuery(String),
   InvalidQuery(String),
+  InternalError(String),
+  DatabaseClosed,
   IOError(String),
   SerdeError(String),
-  InternalError(String),
   DataFusionError(String),
 }
 
@@ -66,6 +67,7 @@ impl Error {
       | Self::IOError(_)
       | Self::SerdeError(_)
       | Self::InternalError(_)
+      | Self::DatabaseClosed
       | Self::DataFusionError(_) => "XX000",
     }
   }
@@ -106,6 +108,7 @@ impl Error {
       Self::ColumnDoesntExist(col) => {
         format!(r#"column "{col}" does not exist"#)
       }
+      Self::DatabaseClosed => format!(r#"database already closed"#),
     }
   }
 }

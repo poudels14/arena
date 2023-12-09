@@ -92,23 +92,22 @@ impl ExecutionPlan for CreateIndexExecutionPlan {
         false => IndexType::NonUnique(columns),
       };
 
-      let mut table_lock = transaction
-        .acquire_table_schema_write_lock(&table.name)
-        .await?;
+      let state = transaction.state();
+      let mut table_lock =
+        state.acquire_table_schema_write_lock(&table.name).await?;
 
       let storage_handler = transaction.lock()?;
       let index_id = storage_handler.get_next_table_index_id()?;
       table.add_index(index_id, index_type, index_name)?;
 
-      let schema_factory = &transaction.schema_factory;
       storage_handler.put_table_schema(
-        &schema_factory.catalog,
-        &schema_factory.schema,
+        &state.catalog(),
+        &state.schema(),
         &table,
       )?;
 
       table_lock.table = Some(Arc::new(table));
-      transaction.hold_table_write_lock(table_lock)?;
+      state.hold_table_schema_lock(table_lock)?;
 
       Ok(RecordBatch::new_empty(Arc::new(Schema::empty())))
     })
