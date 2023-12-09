@@ -61,7 +61,19 @@ impl TransactionState {
     &self,
     lock: TableSchemaWriteLock,
   ) -> Result<()> {
-    self.locked_tables.lock().push(lock);
+    let mut locked_tables = self.locked_tables.lock();
+    let existing_index = locked_tables.iter().position(|l| {
+      l.table
+        .as_ref()
+        .map(|t| *t.name == *lock.lock.deref().deref())
+        .unwrap_or(false)
+    });
+    // Remove the table from the locked tables if it exist
+    // so that the list will have updated data
+    if let Some(index) = existing_index {
+      locked_tables.remove(index);
+    }
+    locked_tables.push(lock);
     Ok(())
   }
 
