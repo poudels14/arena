@@ -2,7 +2,7 @@ use crate::schema::{DataFrame, Row, Table};
 use crate::storage::{KeyValueGroup, StorageHandler};
 use crate::{table_rows_prefix_key, Result};
 
-pub(crate) struct HeapIterator<'a> {
+pub struct HeapIterator<'a> {
   storage: &'a StorageHandler,
   table: &'a Table,
   column_projection: &'a Vec<usize>,

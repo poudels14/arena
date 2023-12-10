@@ -6,7 +6,7 @@ use crate::{
 };
 
 #[allow(unused)]
-pub struct UniqueIndexIterator<'a> {
+pub struct IndexIterator<'a> {
   storage: &'a StorageHandler,
   table: &'a Table,
   index: &'a TableIndex,
@@ -14,14 +14,14 @@ pub struct UniqueIndexIterator<'a> {
   filters: &'a Vec<Filter>,
 }
 
-impl<'a> UniqueIndexIterator<'a> {
+impl<'a> IndexIterator<'a> {
   pub fn new(
     storage: &'a StorageHandler,
     table: &'a Table,
     index: &'a TableIndex,
     filters: &'a Vec<Filter>,
     column_projection: &'a Vec<usize>,
-  ) -> UniqueIndexIterator<'a> {
+  ) -> IndexIterator<'a> {
     Self {
       storage,
       table,
@@ -41,20 +41,32 @@ impl<'a> UniqueIndexIterator<'a> {
       .1
       .to_vec();
 
-    let requires_table_lookup = self.requires_table_lookup();
     let mut index_iter = self
       .storage
       .kv
       .scan_with_prefix(KeyValueGroup::Indexes, &index_scan_prefix)?;
 
-    if requires_table_lookup {
-      self.fill_dataframe_with_table_lookup(&mut index_iter, dataframe)
-    } else {
-      self.fill_dataframe_without_table_lookup(&mut index_iter, dataframe)
+    match (self.index.is_unique(), self.requires_table_lookup()) {
+      (true, false) => {
+        self.scan_unique_index_into_df(&mut index_iter, dataframe)
+      }
+      (true, true) => self.scan_unique_index_with_table_lookup_into_df(
+        &mut index_iter,
+        dataframe,
+      ),
+      (false, false) => {
+        self.scan_secondary_index_into_df(&mut index_iter, dataframe)
+      }
+      (false, true) => {
+        unimplemented!()
+      }
     }
   }
 
-  fn fill_dataframe_without_table_lookup(
+  /// This scans the unique index and fills the dataframe
+  /// This ONLY handles case where unique index is used and
+  /// all selected columns are present in the index
+  fn scan_unique_index_into_df(
     &self,
     index_iter: &mut Box<dyn KeyValueIterator>,
     dataframe: &mut DataFrame,
@@ -80,7 +92,44 @@ impl<'a> UniqueIndexIterator<'a> {
     Ok(())
   }
 
-  fn fill_dataframe_with_table_lookup(
+  /// This scans the non-unique index and fills the dataframe
+  /// This ONLY handles case where non-unique index is used and
+  /// all selected columns are present in the index
+  fn scan_secondary_index_into_df(
+    &self,
+    index_iter: &mut Box<dyn KeyValueIterator>,
+    dataframe: &mut DataFrame,
+  ) -> Result<()> {
+    let index_prefix = index_rows_prefix_key!(self.index.id);
+    let projection_on_index_columns =
+      self.valid_index_columns_projection(self.column_projection);
+    while let Some((index_row_with_prefix, _)) = index_iter.get() {
+      let index_row_bytes = &index_row_with_prefix[index_prefix.len()..];
+      let (index_columns, row_id) =
+        self
+          .storage
+          .serializer
+          .deserialize::<(Vec<SerializedCell<&[u8]>>, &[u8])>(
+            index_row_bytes,
+          )?;
+
+      let selected_columns = projection_on_index_columns
+        .iter()
+        .map(|proj| &index_columns[*proj])
+        .collect();
+
+      dataframe.append_row(row_id, &selected_columns);
+      index_iter.next();
+    }
+    Ok(())
+  }
+
+  /// This scans the unique index and looks up the table rows to
+  /// get columns that are not present in the index. This handles
+  /// the case where unique index is used but required looking up
+  /// the table because the index doesn't have all the columns selected
+  /// by the query
+  fn scan_unique_index_with_table_lookup_into_df(
     &self,
     index_iter: &mut Box<dyn KeyValueIterator>,
     dataframe: &mut DataFrame,

@@ -4,7 +4,7 @@ use datafusion::scalar::ScalarValue;
 
 use crate::execute_query;
 use crate::execution::filter::Filter;
-use crate::execution::iterators::unique_index_iterator::UniqueIndexIterator;
+use crate::execution::iterators::IndexIterator;
 use crate::schema::{DataFrame, DataType};
 use crate::tests::create_session_context;
 
@@ -50,7 +50,7 @@ async fn eq_filter_returns_single_row_iterator() {
   let column_projection = vec![0];
   let mut dataframe =
     DataFrame::with_capacity(100, vec![("id".to_owned(), DataType::Text)]);
-  let index_iterator = UniqueIndexIterator::new(
+  let index_iterator = IndexIterator::new(
     &storage,
     &table,
     id_index,
@@ -105,7 +105,7 @@ async fn le_filter_returns_multi_row_iterator() {
   let column_projection = vec![0];
   let mut dataframe =
     DataFrame::with_capacity(10, vec![("text".to_owned(), DataType::Text)]);
-  let rows_iterator = UniqueIndexIterator::new(
+  let rows_iterator = IndexIterator::new(
     &storage,
     &table,
     id_index,

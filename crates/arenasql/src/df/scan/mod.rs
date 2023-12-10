@@ -14,8 +14,7 @@ use futures::StreamExt;
 
 use super::{RecordBatch, RecordBatchStream};
 use crate::execution::filter::Filter;
-use crate::execution::iterators::heap_iterator::HeapIterator;
-use crate::execution::iterators::unique_index_iterator::UniqueIndexIterator;
+use crate::execution::iterators::{HeapIterator, IndexIterator};
 use crate::schema::{DataFrame, DataType, Table};
 use crate::storage::Transaction;
 
@@ -135,19 +134,12 @@ impl TableScaner {
     let mut dataframe =
     // TODO: customize the DF capacity based on statistics
       DataFrame::with_capacity(limit.unwrap_or(1_000), columns);
+
+    // TODO: if some filter is used, use index that has all the columns
+    // from the filter even if all the selected columns are not in the index
     if let Some(index) = maybe_use_index {
-      if index.is_unique() {
-        UniqueIndexIterator::new(
-          &storage,
-          &table,
-          index,
-          &filters,
-          &column_projection,
-        )
+      IndexIterator::new(&storage, &table, index, &filters, &column_projection)
         .fill_into(&mut dataframe)?;
-      } else {
-        unimplemented!()
-      }
     } else {
       HeapIterator::new(&storage, &table, &column_projection)
         .fill_into(&mut dataframe)?;
