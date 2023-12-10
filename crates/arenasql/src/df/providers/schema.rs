@@ -8,7 +8,7 @@ use datafusion::error::Result;
 use tokio::runtime::Handle;
 
 use super::table::TableProvider;
-use crate::schema::{IndexType, Table};
+use crate::schema::{IndexType, Table, TableIndex};
 use crate::storage::Transaction;
 
 pub struct SchemaProvider {
@@ -64,7 +64,7 @@ impl DfSchemaProvider for SchemaProvider {
               None,
             )
           })
-          .collect::<crate::Result<Vec<()>>>()
+          .collect::<crate::Result<Vec<TableIndex>>>()
       })
       .transpose()?;
 

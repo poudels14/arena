@@ -69,7 +69,14 @@ impl DataSink for Sink {
       let storage_handler = self.transaction.lock(true)?;
       for row in rows.iter() {
         let row_id = storage_handler.generate_next_row_id(&self.table)?;
-        storage_handler.add_row_to_indexes(&self.table, &row_id, row)?;
+        for table_index in &self.table.indexes {
+          storage_handler.add_row_to_index(
+            &self.table,
+            &table_index,
+            &row_id,
+            row,
+          )?;
+        }
         storage_handler.insert_row(&self.table, &row_id, &row)?;
       }
     }

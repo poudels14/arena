@@ -19,9 +19,9 @@ use derive_builder::Builder;
 use futures::StreamExt;
 use sqlparser::ast::Statement as SQLStatement;
 
-use crate::schema::{IndexType, Table};
-use crate::storage::Transaction;
-use crate::{bail, df_error, Error};
+use crate::schema::{IndexType, Row, Table, TableIndex};
+use crate::storage::{KeyValueGroup, StorageHandler, Transaction};
+use crate::{bail, df_error, table_rows_prefix_key, Error};
 
 #[derive(Builder, Derivative)]
 #[derivative(Debug)]
@@ -79,6 +79,7 @@ impl ExecutionPlan for CreateIndexExecutionPlan {
         .as_ref()
         .map(|n| table.indexes.iter().any(|idx| idx.name == *n))
         .unwrap_or(false);
+
       if index_with_same_name_exist {
         if if_not_exists {
           return Ok(RecordBatch::new_empty(Arc::new(Schema::empty())));
@@ -98,13 +99,15 @@ impl ExecutionPlan for CreateIndexExecutionPlan {
 
       let storage_handler = transaction.lock(true)?;
       let index_id = storage_handler.get_next_table_index_id()?;
-      table.add_index(index_id, index_type, index_name)?;
+      let new_index = table.add_index(index_id, index_type, index_name)?;
 
       storage_handler.put_table_schema(
         &state.catalog(),
         &state.schema(),
         &table,
       )?;
+
+      backfill_index_data(&storage_handler, &table, &new_index)?;
 
       table_lock.table = Some(Arc::new(table));
       state.hold_table_schema_lock(table_lock)?;
@@ -152,9 +155,24 @@ impl ExecutionPlan for CreateIndexExecutionPlan {
 }
 
 fn backfill_index_data(
-  _table: &Table,
-  _storage_handler: &StorageHandler,
+  storage_handler: &StorageHandler,
+  table: &Table,
+  new_index: &TableIndex,
 ) -> Result<()> {
+  let mut rows_iter = storage_handler
+    .kv
+    .scan_with_prefix(KeyValueGroup::Rows, &table_rows_prefix_key!(table.id))?;
+
+  let table_row_prefix = table_rows_prefix_key!(table.id);
+  while let Some((row_key, row_bytes)) = rows_iter.get() {
+    let row_id_bytes = &row_key[table_row_prefix.len()..];
+    let row = storage_handler
+      .serializer
+      .deserialize::<Row<&[u8]>>(row_bytes)?;
+
+    storage_handler.add_row_to_index(table, &new_index, row_id_bytes, &row)?;
+    rows_iter.next();
+  }
   // TODO
   Ok(())
 }

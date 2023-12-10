@@ -54,7 +54,7 @@ impl Table {
     index_id: TableIndexId,
     index_type: IndexType,
     index_name: Option<String>,
-  ) -> Result<()> {
+  ) -> Result<TableIndex> {
     let index_name = index_name.unwrap_or_else(|| {
       let mut index_name = index_type
         .columns()
@@ -80,8 +80,8 @@ impl Table {
       name: index_name,
       index_type,
     };
-    self.indexes.push(index);
-    Ok(())
+    self.indexes.push(index.clone());
+    Ok(index)
   }
 
   pub fn project_columns(&self, projection: &[usize]) -> Vec<Column> {

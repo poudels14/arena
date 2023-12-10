@@ -1,4 +1,4 @@
-use crate::schema::{DataFrame, SerializedCell, Table};
+use crate::schema::{DataFrame, Row, Table};
 use crate::storage::{KeyValueGroup, StorageHandler};
 use crate::{table_rows_prefix_key, Result};
 
@@ -33,12 +33,12 @@ impl<'a> HeapIterator<'a> {
       let row = self
         .storage
         .serializer
-        .deserialize::<Vec<SerializedCell<&[u8]>>>(row_bytes)?;
+        .deserialize::<Row<&[u8]>>(row_bytes)?;
 
       let columns = self
         .column_projection
         .iter()
-        .map(|proj| &row[*proj])
+        .map(|proj| &row.0[*proj])
         .collect();
 
       dataframe.append_row(row_id, &columns);

@@ -1,5 +1,5 @@
 use crate::execution::filter::Filter;
-use crate::schema::{DataFrame, RowId, SerializedCell, Table, TableIndex};
+use crate::schema::{DataFrame, Row, RowId, SerializedCell, Table, TableIndex};
 use crate::storage::{KeyValueGroup, KeyValueIterator, StorageHandler};
 use crate::{
   index_row_key, index_rows_prefix_key, table_row_key, Error, Result,
@@ -100,12 +100,12 @@ impl<'a> UniqueIndexIterator<'a> {
       let row = self
         .storage
         .serializer
-        .deserialize::<Vec<SerializedCell<&[u8]>>>(&row_bytes)?;
+        .deserialize::<Row<&[u8]>>(&row_bytes)?;
 
       let selected_columns = self
         .column_projection
         .iter()
-        .map(|proj| &row[*proj])
+        .map(|proj| &row.0[*proj])
         .collect();
 
       dataframe.append_row(&row_id, &selected_columns);
