@@ -5,7 +5,9 @@ use datafusion::scalar::ScalarValue;
 use crate::df::scan::filter::Filter;
 use crate::df::scan::unique_index_iterator;
 use crate::execute_query;
-use crate::storage::RowIterator;
+use crate::execution::filter::Filter;
+use crate::execution::iterators::unique_index_iterator::UniqueIndexIterator;
+use crate::schema::{DataFrame, DataType};
 use crate::tests::create_session_context;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -47,17 +49,19 @@ async fn eq_filter_returns_single_row_iterator() {
     .eq(Expr::Literal(ScalarValue::Utf8(Some("id_2".to_owned()))));
   let filters = vec![Filter::for_table(&table, &id_eq_expr).unwrap()];
 
-  let mut rows_iterator =
-    unique_index_iterator::new(&table, id_index, &filters, &storage).unwrap()
-      as Box<dyn RowIterator>;
+  let column_projection = vec![0];
+  let mut dataframe =
+    DataFrame::with_capacity(100, vec![("id".to_owned(), DataType::Text)]);
+  let index_iterator = UniqueIndexIterator::new(
+    &storage,
+    &table,
+    id_index,
+    &filters,
+    &column_projection,
+  );
 
-  let mut count = 0;
-  while let Some((_key, _)) = rows_iterator.get() {
-    count += 1;
-    rows_iterator.next()
-  }
-
-  assert_eq!(count, 1)
+  index_iterator.fill_into(&mut dataframe).unwrap();
+  assert_eq!(dataframe.row_count(), 1)
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -94,24 +98,26 @@ async fn le_filter_returns_multi_row_iterator() {
     .unwrap()
     .unwrap();
 
-  let id_index = table.indexes.get(0).unwrap();
-
   let id_eq_expr = Expr::Column(Column::new_unqualified("id"))
     .lt_eq(Expr::Literal(ScalarValue::Utf8(Some("id_2".to_owned()))));
 
   let filters = vec![Filter::for_table(&table, &id_eq_expr).unwrap()];
 
-  let mut rows_iterator =
-    unique_index_iterator::new(&table, id_index, &filters, &storage).unwrap()
-      as Box<dyn RowIterator>;
+  let id_index = table.indexes.get(0).unwrap();
+  let column_projection = vec![0];
+  let mut dataframe =
+    DataFrame::with_capacity(10, vec![("text".to_owned(), DataType::Text)]);
+  let rows_iterator = UniqueIndexIterator::new(
+    &storage,
+    &table,
+    id_index,
+    &filters,
+    &column_projection,
+  );
 
-  let mut count = 0;
-  while let Some(_) = rows_iterator.get() {
-    count += 1;
-    rows_iterator.next()
-  }
+  rows_iterator.fill_into(&mut dataframe).unwrap();
 
   // Since only '=' filter is applied during scanning right now,
   // other operator will return all rows
-  assert_eq!(count, 3)
+  assert_eq!(dataframe.row_count(), 3)
 }

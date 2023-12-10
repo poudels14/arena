@@ -1,6 +1,7 @@
+mod stream;
+
 pub(crate) mod filter;
 pub(crate) mod heap_iterator;
-mod stream;
 pub(crate) mod unique_index_iterator;
 
 use std::any::Any;
@@ -17,10 +18,11 @@ use datafusion::physical_plan::{
 use derivative::Derivative;
 use futures::StreamExt;
 
-use self::filter::Filter;
-pub use self::stream::RowsStream;
-use super::RecordBatchStream;
-use crate::schema::Table;
+use super::{RecordBatch, RecordBatchStream};
+use crate::execution::filter::Filter;
+use crate::execution::iterators::heap_iterator::HeapIterator;
+use crate::execution::iterators::unique_index_iterator::UniqueIndexIterator;
+use crate::schema::{DataFrame, DataType, Table};
 use crate::storage::Transaction;
 
 #[derive(Derivative, Clone)]
@@ -88,14 +90,85 @@ impl ExecutionPlan for TableScaner {
       done: false,
     };
 
-    let schema = self.schema();
-    let stream =
-      futures::stream::once(async move { row_stream.scan_table().await })
-        .boxed();
-    Ok(Box::pin(RecordBatchStreamAdapter::new(schema, stream)))
+    let scan_fut = Self::scan_table(
+      self.table.clone(),
+      self.projection.clone(),
+      self.schema(),
+      self.filters.clone(),
+      self.limit.clone(),
+      self.transaction.clone(),
+    );
+    let stream = futures::stream::once(async move { scan_fut.await }).boxed();
+    Ok(Box::pin(RecordBatchStreamAdapter::new(
+      self.schema(),
+      stream,
+    )))
   }
 
   fn statistics(&self) -> Result<Statistics, DataFusionError> {
     Ok(Statistics::new_unknown(&self.projected_schema))
+  }
+}
+
+impl TableScaner {
+  pub async fn scan_table(
+    table: Arc<Table>,
+    // List of selected column indexes
+    column_projection: Vec<usize>,
+    schema: SchemaRef,
+    filters: Vec<Filter>,
+    limit: Option<usize>,
+    // #[derivative(Debug = "ignore")]
+    transaction: Transaction,
+  ) -> Result<RecordBatch, DataFusionError> {
+    let storage = transaction.lock()?;
+    let index_with_lowest_cost =
+      Filter::find_index_with_lowest_cost(&table.indexes, &filters);
+
+    let maybe_use_index = index_with_lowest_cost.or_else(|| {
+      // If an index with lowest cost isn't found, check if there's
+      // an index that has all the columns the query needs
+      // TODO: what if there are more than one index with all columns?
+      table.indexes.iter().find(|index| {
+        let index_cols = index.columns();
+        column_projection
+          .iter()
+          .all(|proj| index_cols.contains(proj))
+      })
+    });
+
+    let columns = schema
+      .fields
+      .iter()
+      .map(|field| {
+        (
+          field.name().clone(),
+          DataType::try_from(field.data_type()).unwrap(),
+        )
+      })
+      .collect();
+    let mut dataframe =
+    // TODO: customize the DF capacity based on statistics
+      DataFrame::with_capacity(limit.unwrap_or(1_000), columns);
+    if let Some(index) = maybe_use_index {
+      if index.is_unique() {
+        UniqueIndexIterator::new(
+          &storage,
+          &table,
+          index,
+          &filters,
+          &column_projection,
+        )
+        .fill_into(&mut dataframe)?;
+      } else {
+        unimplemented!()
+      }
+    } else {
+      HeapIterator::new(&storage, &table, &column_projection)
+        .fill_into(&mut dataframe)?;
+    };
+
+    // TODO: try if sending rows in batches improves per
+    Ok(dataframe.to_record_batch(schema)?)
   }
 }

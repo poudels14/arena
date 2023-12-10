@@ -11,7 +11,7 @@ pub mod rocks;
 pub use factory::{StorageFactory, StorageFactoryBuilder};
 pub use handler::StorageHandler;
 pub use kvstore::{
-  KeyValueGroup, KeyValueStore, KeyValueStoreProvider, RowIterator,
+  KeyValueGroup, KeyValueIterator, KeyValueStore, KeyValueStoreProvider,
 };
 pub use memory::MemoryKeyValueStoreProvider;
 pub use serializer::*;
@@ -82,11 +82,11 @@ macro_rules! table_rows_prefix_key {
 #[macro_export]
 macro_rules! table_row_key {
   ($table_id:expr, $row_id:expr) => {
-    &vec![
+    vec![
       "t".as_bytes(),
-      $table_id.to_be_bytes(),
+      &$table_id.to_be_bytes(),
       "_".as_bytes(),
-      row_id,
+      $row_id,
     ]
     .concat()
   };

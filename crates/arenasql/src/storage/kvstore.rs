@@ -26,7 +26,7 @@ pub enum KeyValueGroup {
   Rows = 3,
 }
 
-pub trait RowIterator {
+pub trait KeyValueIterator {
   fn key(&self) -> Option<&[u8]>;
 
   fn get(&self) -> Option<(&[u8], &[u8])>;
@@ -64,7 +64,7 @@ pub trait KeyValueStore {
     &self,
     _group: KeyValueGroup,
     _prefix: &[u8],
-  ) -> Result<Box<dyn RowIterator>> {
+  ) -> Result<Box<dyn KeyValueIterator>> {
     unimplemented!()
   }
 

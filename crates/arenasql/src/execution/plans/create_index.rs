@@ -150,3 +150,11 @@ impl ExecutionPlan for CreateIndexExecutionPlan {
     Ok(Statistics::new_unknown(&Schema::empty()))
   }
 }
+
+fn backfill_index_data(
+  _table: &Table,
+  _storage_handler: &StorageHandler,
+) -> Result<()> {
+  // TODO
+  Ok(())
+}

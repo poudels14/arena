@@ -5,7 +5,7 @@ use rocksdb::{BoundColumnFamily, DBRawIteratorWithThreadMode};
 use rocksdb::{ReadOptions, Transaction as RocksTransaction};
 
 use super::storage::RocksDatabase;
-use crate::storage::RowIterator;
+use crate::storage::KeyValueIterator;
 
 pub struct PrefixIterator<'a> {
   prefix: Vec<u8>,
@@ -59,7 +59,7 @@ impl<'a> PrefixIterator<'a> {
   }
 }
 
-impl<'a> crate::storage::RowIterator for PrefixIterator<'a> {
+impl<'a> crate::storage::KeyValueIterator for PrefixIterator<'a> {
   #[inline]
   fn key(&self) -> Option<&[u8]> {
     if self.done {

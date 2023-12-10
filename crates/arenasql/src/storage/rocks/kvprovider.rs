@@ -7,7 +7,7 @@ use strum::IntoEnumIterator;
 
 use super::iterator::PrefixIterator as RocksRawIterator;
 use super::storage::RocksDatabase;
-use crate::storage::{KeyValueGroup, RowIterator};
+use crate::storage::{KeyValueGroup, KeyValueIterator};
 use crate::{Error, Result as DatabaseResult};
 
 /// The rocks db transaction is stored in UnsafeCell for interior
@@ -114,7 +114,7 @@ impl crate::storage::KeyValueStore for KeyValueProvider {
     &self,
     group: KeyValueGroup,
     prefix: &[u8],
-  ) -> DatabaseResult<Box<dyn RowIterator>> {
+  ) -> DatabaseResult<Box<dyn KeyValueIterator>> {
     Ok(Box::new(RocksRawIterator::new(
       &self.transaction,
       &self.cfs[group as usize],

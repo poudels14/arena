@@ -113,13 +113,6 @@ impl SerializedCell<Vec<u8>> {
     })
   }
 
-  pub fn vec_to_array_ref<'a>(
-    _data_type: &DataType,
-    _data: &'a ArrayRef,
-  ) -> Vec<SerializedCell<&'a [u8]>> {
-    unimplemented!()
-  }
-
   #[inline]
   pub fn as_bool(self) -> Option<bool> {
     match self {
