@@ -88,18 +88,24 @@ impl TransactionState {
   }
 
   pub fn get_table(&self, name: &str) -> Option<Arc<Table>> {
-    self.schema_factory.get_table(name).or_else(|| {
-      self.locked_tables.lock().iter().find_map(|t| {
+    // Note: need to check locked_tables first to check if the
+    // table was updated by the current transaction but the change
+    // hasn't been committed
+    self
+      .locked_tables
+      .lock()
+      .iter()
+      .find_map(|t| {
         t.table
           .as_ref()
           .filter(|t| t.name == name)
           .map(|t| t.clone())
       })
-    })
+      .or_else(|| self.schema_factory.get_table(name))
   }
 
   pub fn table_names(&self) -> Vec<String> {
-    vec![
+    let mut tables = vec![
       self.schema_factory.table_names(),
       self
         .locked_tables
@@ -108,7 +114,9 @@ impl TransactionState {
         .filter_map(|t| t.table.as_ref().map(|t| t.name.clone()))
         .collect(),
     ]
-    .concat()
+    .concat();
+    tables.dedup();
+    tables
   }
 
   pub fn lock(&self, exclusive: bool) -> Result<()> {

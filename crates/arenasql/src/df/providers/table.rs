@@ -13,7 +13,7 @@ use datafusion::physical_plan::{project_schema, ExecutionPlan};
 
 use super::super::scan;
 use crate::df::insert;
-use crate::df::scan::filter::Filter;
+use crate::execution::filter::Filter;
 use crate::schema;
 use crate::storage::Transaction;
 

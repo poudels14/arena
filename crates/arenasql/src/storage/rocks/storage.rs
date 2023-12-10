@@ -43,6 +43,8 @@ impl RocksStorage {
     // indexes_cf_options.set_arena_block_size(size)
     // indexes_cf_options.set_max_open_files(nfiles)
     opts.set_max_background_jobs(1);
+    // Dump stats every 1 min for now
+    opts.set_stats_dump_period_sec(60);
 
     // this isn't neessary in WAL mode but set it anyways
     opts.set_atomic_flush(true);

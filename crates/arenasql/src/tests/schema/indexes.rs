@@ -81,5 +81,6 @@ async fn create_index_with_same_name_in_same_txn_without_if_not_exist() {
     txn,
     r#"CREATE INDEX unique_column_id_key ON public.unique_column(id, name)"#
   );
-  assert!(res.is_ok());
+  // This should throw error since the index with same name already exist
+  assert!(res.is_err());
 }
