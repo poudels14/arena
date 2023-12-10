@@ -6,6 +6,8 @@ mod planner;
 mod plans;
 mod transaction;
 
+pub(crate) mod filter;
+pub(crate) mod iterators;
 pub mod response;
 
 pub use config::{SessionConfig, TaskConfig};

@@ -1,9 +1,3 @@
-mod stream;
-
-pub(crate) mod filter;
-pub(crate) mod heap_iterator;
-pub(crate) mod unique_index_iterator;
-
 use std::any::Any;
 use std::sync::Arc;
 
@@ -81,15 +75,6 @@ impl ExecutionPlan for TableScaner {
     _partition: usize,
     _context: Arc<TaskContext>,
   ) -> Result<RecordBatchStream, DataFusionError> {
-    let mut row_stream = RowsStream {
-      table: self.table.clone(),
-      schema: self.schema(),
-      projection: self.projection.clone(),
-      filters: self.filters.clone(),
-      transaction: self.transaction.clone(),
-      done: false,
-    };
-
     let scan_fut = Self::scan_table(
       self.table.clone(),
       self.projection.clone(),

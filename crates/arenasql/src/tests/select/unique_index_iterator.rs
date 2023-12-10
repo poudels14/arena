@@ -2,8 +2,6 @@ use datafusion::common::Column;
 use datafusion::logical_expr::Expr;
 use datafusion::scalar::ScalarValue;
 
-use crate::df::scan::filter::Filter;
-use crate::df::scan::unique_index_iterator;
 use crate::execute_query;
 use crate::execution::filter::Filter;
 use crate::execution::iterators::unique_index_iterator::UniqueIndexIterator;
