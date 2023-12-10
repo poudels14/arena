@@ -34,7 +34,7 @@ impl StorageHandler {
 impl Drop for StorageHandler {
   fn drop(&mut self) {
     if let Some(state) = &self.transaction_state {
-      state.unlock();
+      state.unlock().unwrap();
     }
   }
 }

@@ -33,7 +33,7 @@ async fn eq_filter_returns_single_row_iterator() {
   )
   .unwrap();
 
-  let storage = txn.storage_txn.lock().unwrap();
+  let storage = txn.storage_txn.lock(false).unwrap();
   let table = storage
     .get_table_schema(
       &session.config.catalog,
@@ -88,7 +88,7 @@ async fn le_filter_returns_multi_row_iterator() {
   )
   .unwrap();
 
-  let storage = txn.storage_txn.lock().unwrap();
+  let storage = txn.storage_txn.lock(false).unwrap();
   let table = storage
     .get_table_schema(
       &session.config.catalog,

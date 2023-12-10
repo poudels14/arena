@@ -96,7 +96,7 @@ impl ExecutionPlan for CreateIndexExecutionPlan {
       let mut table_lock =
         state.acquire_table_schema_write_lock(&table.name).await?;
 
-      let storage_handler = transaction.lock()?;
+      let storage_handler = transaction.lock(true)?;
       let index_id = storage_handler.get_next_table_index_id()?;
       table.add_index(index_id, index_type, index_name)?;
 

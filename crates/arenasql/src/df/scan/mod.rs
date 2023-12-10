@@ -121,7 +121,7 @@ impl TableScaner {
     // #[derivative(Debug = "ignore")]
     transaction: Transaction,
   ) -> Result<RecordBatch, DataFusionError> {
-    let storage = transaction.lock()?;
+    let storage = transaction.lock(false)?;
     let index_with_lowest_cost =
       Filter::find_index_with_lowest_cost(&table.indexes, &filters);
 

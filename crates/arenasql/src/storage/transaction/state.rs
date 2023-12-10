@@ -111,67 +111,102 @@ impl TransactionState {
     .concat()
   }
 
-  pub fn lock(&self) -> Result<()> {
-    match LockState::from_repr(self.lock.load(Ordering::SeqCst)) {
-      Some(LockState::Locked) => {
-        return Err(Error::InvalidTransactionState(
-          "Failed to acquire transaction [aready locked]".to_owned(),
-        ));
-      }
+  pub fn lock(&self, exclusive: bool) -> Result<()> {
+    let state = self.lock.load(Ordering::SeqCst);
+    match LockState::from_repr(state) {
       Some(LockState::Closed) => {
         return Err(Error::InvalidTransactionState(
           "Transaction already closed".to_owned(),
         ));
       }
       Some(LockState::Free) => {}
-      s => {
+      Some(LockState::WriteLocked) => {
+        return Err(Error::InvalidTransactionState(
+          "Failed to acquire transaction [active write lock]".to_owned(),
+        ));
+      }
+      Some(LockState::Unknown) => {
         return Err(Error::InvalidTransactionState(format!(
           "Invalid transaction state: {:?}",
-          s
+          state
         )))
+      }
+      // Throw error if exclusive/write lock is asked when the transaction
+      // is already has read locks. This prevents reading and writing at the
+      // same time
+      // Anything above 2 < (MAX-1) is read locked
+      None => {
+        if exclusive {
+          return Err(Error::InvalidTransactionState(
+            "Can't acquire exclusive lock when there are active read locks"
+              .to_owned(),
+          ));
+        }
       }
     }
 
-    self
-      .lock
-      .compare_exchange(
-        LockState::Free as usize,
-        LockState::Locked as usize,
-        Ordering::Acquire,
-        Ordering::Relaxed,
-      )
-      .map(|_| ())
-      .map_err(|_| {
-        Error::IOError("Failed to acquire transaction lock".to_owned())
-      })?;
-    Ok(())
+    match exclusive {
+      true => self
+        .lock
+        .compare_exchange(
+          LockState::Free as usize,
+          LockState::WriteLocked as usize,
+          Ordering::Acquire,
+          Ordering::Relaxed,
+        )
+        .map(|_| ())
+        .map_err(|_| {
+          Error::IOError("Failed to acquire transaction lock".to_owned())
+        }),
+      false => {
+        self.lock.fetch_add(1, Ordering::AcqRel);
+        Ok(())
+      }
+    }
   }
 
-  pub fn unlock(&self) {
-    let _ = self
-      .lock
-      .compare_exchange(
-        LockState::Locked as usize,
-        LockState::Free as usize,
-        Ordering::Acquire,
-        Ordering::Relaxed,
-      )
-      .unwrap();
+  pub fn unlock(&self) -> Result<()> {
+    let state = self.lock.load(Ordering::SeqCst);
+    match LockState::from_repr(state) {
+      Some(LockState::WriteLocked) => {
+        let _ = self
+          .lock
+          .compare_exchange(
+            LockState::WriteLocked as usize,
+            LockState::Free as usize,
+            Ordering::Acquire,
+            Ordering::Relaxed,
+          )
+          .unwrap();
+      }
+      // If read locked, reduce locks count
+      // Anything above 2 < (MAX-1) is read locked
+      None => {
+        self.lock.fetch_sub(1, Ordering::AcqRel);
+      }
+      _ => {
+        return Err(Error::InvalidTransactionState(format!(
+          "Invalid transaction state: {:?}",
+          state
+        )))
+      }
+    }
+    Ok(())
   }
 
   pub fn close(&self) -> Result<()> {
     match LockState::from_repr(self.lock.load(Ordering::SeqCst)) {
+      Some(LockState::Free) => {}
       Some(LockState::Closed) => {
         return Err(Error::InvalidTransactionState(
           "Transaction already closed".to_owned(),
         ));
       }
-      Some(LockState::Locked) => {
+      _ => {
         return Err(Error::InvalidTransactionState(
           "Cannot close a locked transaction".to_owned(),
         ));
       }
-      _ => {}
     }
 
     let state = self
@@ -199,6 +234,9 @@ impl TransactionState {
 pub(super) enum LockState {
   Unknown = 0,
   Free = 1,
-  Locked = 2,
-  Closed = 3,
+  // Any number between [2 - (MAX - 1)]
+  // means it's read locked
+  // ReadLocked => 2 <-> (MAX - 1),
+  WriteLocked = usize::MAX - 1,
+  Closed = usize::MAX,
 }

@@ -33,8 +33,8 @@ impl Transaction {
   // is easily prevented
   // TODO: change this to read/write lock since SELECT that uses more
   // than one table will need more than 1 lock at once
-  pub fn lock<'a>(&'a self) -> Result<StorageHandler> {
-    self.state.lock()?;
+  pub fn lock<'a>(&'a self, exclusive: bool) -> Result<StorageHandler> {
+    self.state.lock(exclusive)?;
     Ok(StorageHandler {
       kv: self.kv_store.clone(),
       serializer: self.serializer.clone(),

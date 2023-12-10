@@ -46,7 +46,7 @@ impl DfSchemaProvider for SchemaProvider {
     name: String,
     table: Arc<dyn DfTableProvider>,
   ) -> Result<Option<Arc<dyn DfTableProvider>>> {
-    let storage_handler = self.transaction.lock()?;
+    let storage_handler = self.transaction.lock(true)?;
     let new_table_id = storage_handler.get_next_table_id()?;
 
     let mut table = Table::new(new_table_id, &name, table)?;
