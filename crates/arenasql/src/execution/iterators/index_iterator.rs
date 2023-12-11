@@ -79,7 +79,7 @@ impl<'a> IndexIterator<'a> {
       let index_columns = self
         .storage
         .serializer
-        .deserialize::<Vec<SerializedCell<&[u8]>>>(index_row_bytes)?;
+        .deserialize::<Vec<SerializedCell<'_>>>(index_row_bytes)?;
 
       let selected_columns = projection_on_index_columns
         .iter()
@@ -109,9 +109,7 @@ impl<'a> IndexIterator<'a> {
         self
           .storage
           .serializer
-          .deserialize::<(Vec<SerializedCell<&[u8]>>, &[u8])>(
-            index_row_bytes,
-          )?;
+          .deserialize::<(Vec<SerializedCell<'_>>, &[u8])>(index_row_bytes)?;
 
       let selected_columns = projection_on_index_columns
         .iter()
@@ -146,15 +144,12 @@ impl<'a> IndexIterator<'a> {
           ))
         })?;
 
-      let row = self
-        .storage
-        .serializer
-        .deserialize::<Row<&[u8]>>(&row_bytes)?;
+      let row = self.storage.serializer.deserialize::<Row<'_>>(&row_bytes)?;
 
       let selected_columns = self
         .column_projection
         .iter()
-        .map(|proj| &row.0[*proj])
+        .map(|proj| &row[*proj])
         .collect();
 
       dataframe.append_row(&row_id, &selected_columns);
@@ -204,7 +199,7 @@ impl<'a> IndexIterator<'a> {
   /// the vec length at the begining of the serialized value, so that should
   /// be changed to match the number of index columns if the returned
   /// row doesn't have all the columns in the index)
-  fn select_eq_filters_for_prefix(&self) -> Vec<SerializedCell<Vec<u8>>> {
+  fn select_eq_filters_for_prefix(&'a self) -> Vec<SerializedCell<'a>> {
     self
       .index
       .columns()
@@ -224,19 +219,19 @@ impl<'a> IndexIterator<'a> {
       })
       .take_while(|lit| lit.is_some())
       .map(|v| v.unwrap())
-      .collect::<Vec<SerializedCell<Vec<u8>>>>()
+      .collect::<Vec<SerializedCell<'a>>>()
   }
 
-  fn generate_index_scan_prefix(
+  fn generate_index_scan_prefix<'b>(
     &self,
-    eq_filter_for_prefix: &Vec<SerializedCell<Vec<u8>>>,
+    eq_filter_for_prefix: &Vec<SerializedCell<'b>>,
   ) -> Result<Vec<u8>> {
     match eq_filter_for_prefix.len() > 0 {
       true => {
         let mut serialized_prefix_filters = self
           .storage
           .serializer
-          .serialize::<Vec<SerializedCell<Vec<u8>>>>(&eq_filter_for_prefix)?;
+          .serialize::<Vec<SerializedCell<'b>>>(&eq_filter_for_prefix)?;
         // When the Vec<cell> is serialized, first byte(s) is the length of
         // the Vec. So, if the index being used is a composite index but the
         // number of `=` filters being used is less than that length, then

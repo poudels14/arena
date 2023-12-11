@@ -124,12 +124,7 @@ impl TableScaner {
     let columns = schema
       .fields
       .iter()
-      .map(|field| {
-        (
-          field.name().clone(),
-          DataType::try_from(field.data_type()).unwrap(),
-        )
-      })
+      .map(|field| (field.name().clone(), DataType::from_field(field).unwrap()))
       .collect();
     let mut dataframe =
     // TODO: customize the DF capacity based on statistics

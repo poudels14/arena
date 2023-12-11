@@ -41,9 +41,6 @@ async fn throw_when_inserting_duplicate_row() {
     .execute_sql(
       r#"CREATE TABLE IF NOT EXISTS unique_column (
           id VARCHAR(50) UNIQUE
-          -- config DECIMAL(76, 1)
-          -- config arrow_typeof(fixedsizebinary 10)
-          -- config BYTEA
         )"#,
     )
     .await

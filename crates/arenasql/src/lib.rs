@@ -29,11 +29,15 @@ pub mod records {
   };
 }
 
+// Re-exports
+pub use bytes;
+pub use postgres_types;
+
 pub mod arrow {
   pub use datafusion::arrow::array::{
     Array, ArrayAccessor, ArrayIter, ArrayRef, BinaryArray, BinaryBuilder,
     BooleanArray, BooleanBuilder, Float32Array, Float32Builder, Float64Array,
     Float64Builder, Int32Array, Int32Builder, Int64Array, Int64Builder,
-    NullBuilder, StringArray, StringBuilder,
+    ListArray, NullBuilder, StringArray, StringBuilder,
   };
 }

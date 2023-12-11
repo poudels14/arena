@@ -1,5 +1,7 @@
 use super::StorageHandler;
-use crate::schema::{Row, SerializedCell, Table, TableIndex, TableIndexId};
+use crate::schema::{
+  Row, RowTrait, SerializedCell, Table, TableIndex, TableIndexId,
+};
 use crate::storage::{KeyValueGroup, Serializer};
 use crate::{index_row_key, last_table_index_id_key, Error, Result};
 
@@ -32,7 +34,7 @@ impl StorageHandler {
     table: &Table,
     table_index: &TableIndex,
     row_id_bytes: &[u8],
-    row: &Row<&[u8]>,
+    row: &Row<'_>,
   ) -> Result<()> {
     let projected_cells = row.project(&table_index.columns());
     let projected_cells_has_null = projected_cells.iter().any(|c| c.is_null());
@@ -43,13 +45,13 @@ impl StorageHandler {
       let serialized_index_key_columns =
         self
           .serializer
-          .serialize::<Vec<&SerializedCell<&[u8]>>>(&projected_cells)?;
+          .serialize::<Vec<&SerializedCell<'_>>>(&projected_cells)?;
       let index_key =
         index_row_key!(table_index.id, &serialized_index_key_columns);
 
       if self.kv.get(KeyValueGroup::Indexes, &index_key)?.is_some() {
         return Err(Error::UniqueConstaintViolated {
-          data: projected_cells.iter().map(|c| (*c).into()).collect(),
+          data: projected_cells.iter().map(|c| (*c).to_owned()).collect(),
           columns: table.project_columns(&table_index.columns()),
           constraint: table_index.name.clone(),
         });
@@ -62,7 +64,7 @@ impl StorageHandler {
       let serialized_index_key_columns =
         self
           .serializer
-          .serialize::<(Vec<&SerializedCell<&[u8]>>, &[u8])>(&(
+          .serialize::<(Vec<&SerializedCell<'_>>, &[u8])>(&(
             projected_cells,
             row_id_bytes,
           ))?;

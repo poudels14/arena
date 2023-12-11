@@ -101,7 +101,7 @@ impl Filter {
 
   /// Returns the literal used in '=' expression if the
   /// filter is of type '=', else returns `None`.
-  pub fn get_binary_eq_literal(&self) -> Option<SerializedCell<Vec<u8>>> {
+  pub fn get_binary_eq_literal<'a>(&'a self) -> Option<SerializedCell<'a>> {
     match self {
       Self::BinaryExpr {
         op, left, right, ..

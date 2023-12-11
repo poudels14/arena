@@ -3,7 +3,7 @@ use std::fmt;
 use datafusion::error::DataFusionError;
 use sqlparser::parser;
 
-use crate::schema::{Column, SerializedCell};
+use crate::schema::{Column, OwnedSerializedCell};
 
 #[macro_export]
 macro_rules! bail {
@@ -16,13 +16,14 @@ macro_rules! bail {
 pub enum Error {
   UnsupportedOperation(String),
   UnsupportedDataType(String),
+  InvalidDataType(String),
   ParserError(String),
   InvalidTransactionState(String),
   UniqueConstaintViolated {
     // name of the unique index
     constraint: String,
     columns: Vec<Column>,
-    data: Vec<SerializedCell<Vec<u8>>>,
+    data: Vec<OwnedSerializedCell>,
   },
   NullConstraintViolated {
     table: String,
@@ -56,6 +57,7 @@ impl Error {
       // internal_error
       Self::UnsupportedOperation(_)
       | Self::UnsupportedDataType(_)
+      | Self::InvalidDataType(_)
       | Self::UnsupportedQueryFilter(_)
       | Self::UnsupportedQuery(_)
       | Self::InvalidQuery(_)
@@ -78,6 +80,7 @@ impl Error {
       Self::ParserError(msg)
       | Self::UnsupportedOperation(msg)
       | Self::UnsupportedDataType(msg)
+      | Self::InvalidDataType(msg)
       | Self::UnsupportedQueryFilter(msg)
       | Self::UnsupportedQuery(msg)
       | Self::InvalidQuery(msg)

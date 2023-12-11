@@ -1,5 +1,3 @@
-use serde::{Deserialize, Serialize};
-
 use super::SerializedCell;
 
 #[derive(Debug, Clone)]
@@ -26,14 +24,14 @@ impl RowId {
   }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Row<T>(pub Vec<SerializedCell<T>>);
+pub type Row<'a> = Vec<SerializedCell<'a>>;
 
-impl<T> Row<T> {
-  pub fn project<'a>(
-    &'a self,
-    columns: &[usize],
-  ) -> Vec<&'a SerializedCell<T>> {
-    columns.iter().map(|col| &self.0[*col]).collect()
+pub trait RowTrait<'a> {
+  fn project(&'a self, columns: &[usize]) -> Vec<&'a SerializedCell<'a>>;
+}
+
+impl<'a> RowTrait<'a> for Vec<SerializedCell<'a>> {
+  fn project(&'a self, columns: &[usize]) -> Vec<&'a SerializedCell<'a>> {
+    columns.iter().map(|col| &self[*col]).collect()
   }
 }

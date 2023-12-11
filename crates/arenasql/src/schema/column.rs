@@ -1,9 +1,7 @@
-use std::collections::HashMap;
-
 use datafusion::arrow::datatypes::Field;
 use serde::{Deserialize, Serialize};
 
-use super::{DataType, SerializedCell};
+use super::{DataType, OwnedSerializedCell};
 use crate::Result;
 
 pub type ColumnId = u8;
@@ -14,7 +12,7 @@ pub struct Column {
   pub name: String,
   pub data_type: DataType,
   pub nullable: bool,
-  pub default_value: Option<SerializedCell<Vec<u8>>>,
+  pub default_value: Option<OwnedSerializedCell>,
 }
 
 impl Column {
@@ -22,21 +20,19 @@ impl Column {
     Ok(Column {
       id: idx,
       name: field.name().to_owned(),
-      data_type: DataType::try_from(field.data_type())?,
+      data_type: DataType::from_field(field)?,
       nullable: field.is_nullable(),
       default_value: None,
     })
   }
 
   pub fn to_field(&self, table_name: &str) -> Field {
-    Field::new(
-      self.name.clone(),
-      self.data_type.clone().into(),
-      self.nullable,
-    )
-    .with_metadata(HashMap::from([
+    let (data_type, mut metadata) = self.data_type.to_df_datatype();
+    metadata.extend([
       ("table".to_owned(), table_name.to_owned()),
       ("type".to_owned(), self.data_type.to_string()),
-    ]))
+    ]);
+    Field::new(self.name.clone(), data_type, self.nullable)
+      .with_metadata(metadata)
   }
 }

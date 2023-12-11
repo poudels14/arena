@@ -8,7 +8,7 @@ use crate::schema::{Row, SerializedCell, Table};
 pub fn convert_to_rows<'a>(
   table: &Table,
   batch: &'a RecordBatch,
-) -> Result<Vec<Row<&'a [u8]>>> {
+) -> Result<Vec<Row<'a>>> {
   let row_count = batch.num_rows();
   let col_count = table.columns.len();
 
@@ -37,7 +37,7 @@ pub fn convert_to_rows<'a>(
         }
       }
     })
-    .collect::<Result<Vec<Vec<SerializedCell<&[u8]>>>>>()?;
+    .collect::<Result<Vec<Vec<SerializedCell<'_>>>>>()?;
 
   // Convert col * row array to row * column
   let mut flat_rows_vec = Vec::with_capacity(row_count);
@@ -46,7 +46,7 @@ pub fn convert_to_rows<'a>(
     for cidx in 0..col_count {
       row.push(std::mem::take(&mut serialized_col_vecs[cidx][ridx]))
     }
-    flat_rows_vec.push(Row(row));
+    flat_rows_vec.push(row);
   }
 
   // TODO: return iterator for perf

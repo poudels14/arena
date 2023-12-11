@@ -8,7 +8,7 @@ impl StorageHandler {
     &self,
     table: &Table,
     row_id: &[u8],
-    row: &Row<&[u8]>,
+    row: &Row<'_>,
   ) -> Result<()> {
     let row_bytes = self.serializer.serialize(&row)?;
     self.kv.put(

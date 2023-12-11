@@ -1,10 +1,15 @@
 use std::sync::Arc;
 
-use arenasql::arrow;
+use arenasql::bytes::BufMut;
+use arenasql::postgres_types::{IsNull, ToSql};
 use arenasql::records::DatafusionDataType;
+use arenasql::{arrow, bytes, postgres_types};
 use arrow::Array;
 use pgwire::api::results::DataRowEncoder;
+use pgwire::api::Type;
 use pgwire::error::{PgWireError, PgWireResult};
+use pgwire::types::ToSqlText;
+use serde_json::json;
 
 use crate::error::ArenaClusterError;
 
@@ -56,9 +61,80 @@ impl<'a> ColumnEncoder for &Arc<dyn Array> {
       DatafusionDataType::Utf8 => {
         encode_all_fields!(arrow::StringArray, self, encoders)
       }
+      DatafusionDataType::List(_) => self
+        .as_any()
+        .downcast_ref::<arrow::ListArray>()
+        .unwrap()
+        .iter()
+        .zip(encoders)
+        .map(|(value, encoder)| {
+          let float_arr = value.map(|v| {
+            FloatArray(
+              v.as_any()
+                .downcast_ref::<arrow::Float32Array>()
+                .unwrap()
+                .iter()
+                .map(|v| v.unwrap())
+                .collect::<Vec<f32>>(),
+            )
+          });
+          encoder.encode_field_with_type_and_format(
+            &float_arr,
+            &Type::JSONB,
+            pgwire::api::results::FieldFormat::Text,
+          )
+        })
+        .collect(),
       dt => Err(PgWireError::ApiError(Box::new(
         ArenaClusterError::UnsupportedDataType(dt.to_string()),
       ))),
     }
+  }
+}
+
+#[derive(Debug)]
+struct FloatArray(Vec<f32>);
+
+impl ToSqlText for FloatArray {
+  fn to_sql_text(
+    &self,
+    _ty: &Type,
+    out: &mut bytes::BytesMut,
+  ) -> Result<postgres_types::IsNull, Box<dyn std::error::Error + Sync + Send>>
+  where
+    Self: Sized,
+  {
+    serde_json::ser::to_writer(out.writer(), &json!(self.0))?;
+    Ok(postgres_types::IsNull::No)
+  }
+}
+
+impl ToSql for FloatArray {
+  fn to_sql(
+    &self,
+    _ty: &Type,
+    out: &mut bytes::BytesMut,
+  ) -> Result<postgres_types::IsNull, Box<dyn std::error::Error + Sync + Send>>
+  where
+    Self: Sized,
+  {
+    serde_json::ser::to_writer(out.writer(), &json!(self.0))?;
+    Ok(IsNull::No)
+  }
+
+  fn to_sql_checked(
+    &self,
+    ty: &Type,
+    out: &mut bytes::BytesMut,
+  ) -> Result<postgres_types::IsNull, Box<dyn std::error::Error + Sync + Send>>
+  {
+    self.to_sql(ty, out)
+  }
+
+  fn accepts(_ty: &Type) -> bool
+  where
+    Self: Sized,
+  {
+    true
   }
 }

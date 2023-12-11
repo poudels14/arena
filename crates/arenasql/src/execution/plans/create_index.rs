@@ -168,7 +168,7 @@ fn backfill_index_data(
     let row_id_bytes = &row_key[table_row_prefix.len()..];
     let row = storage_handler
       .serializer
-      .deserialize::<Row<&[u8]>>(row_bytes)?;
+      .deserialize::<Row<'_>>(row_bytes)?;
 
     storage_handler.add_row_to_index(table, &new_index, row_id_bytes, &row)?;
     rows_iter.next();

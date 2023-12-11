@@ -30,15 +30,12 @@ impl<'a> HeapIterator<'a> {
     let table_row_prefix = table_rows_prefix_key!(self.table.id);
     while let Some((row_id_with_prefix, row_bytes)) = rows_iter.get() {
       let row_id = &row_id_with_prefix[table_row_prefix.len()..];
-      let row = self
-        .storage
-        .serializer
-        .deserialize::<Row<&[u8]>>(row_bytes)?;
+      let row = self.storage.serializer.deserialize::<Row<'_>>(row_bytes)?;
 
       let columns = self
         .column_projection
         .iter()
-        .map(|proj| &row.0[*proj])
+        .map(|proj| &row[*proj])
         .collect();
 
       dataframe.append_row(row_id, &columns);

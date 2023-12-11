@@ -37,7 +37,7 @@ impl DataFrame {
   pub fn append_row(
     &mut self,
     row_id: &[u8],
-    columns: &Vec<&SerializedCell<&[u8]>>,
+    columns: &Vec<&SerializedCell<'_>>,
   ) {
     self.row_ids.append_value(row_id);
     columns

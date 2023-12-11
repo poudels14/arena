@@ -13,7 +13,6 @@ async fn crate_table_with_json_column() {
     txn,
     r#"CREATE TABLE IF NOT EXISTS json_table (
       data JSONB
-      -- data DECIMAL(75, 2)
     )"#
   );
 

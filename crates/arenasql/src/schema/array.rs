@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use datafusion::arrow::array::{
   ArrayRef, BinaryBuilder, BooleanBuilder, Float32Builder, Float64Builder,
-  Int32Builder, Int64Builder, StringBuilder,
+  Int32Builder, Int64Builder, ListBuilder, StringBuilder,
 };
 
 use super::{DataType, SerializedCell};
@@ -15,6 +15,7 @@ pub enum ColumnArrayBuilder {
   Float64(Float64Builder),
   String(StringBuilder),
   Binary(BinaryBuilder),
+  Vector(ListBuilder<Float32Builder>),
 }
 
 impl ColumnArrayBuilder {
@@ -46,12 +47,18 @@ impl ColumnArrayBuilder {
       DataType::Binary => {
         ColumnArrayBuilder::Binary(BinaryBuilder::with_capacity(capacity, 1000))
       }
+      DataType::Vector { len } => {
+        ColumnArrayBuilder::Vector(ListBuilder::with_capacity(
+          Float32Builder::with_capacity(*len),
+          capacity,
+        ))
+      }
       v => unimplemented!("Not implemented for data type: {:?}", v),
     }
   }
 
   #[inline]
-  pub fn append(&mut self, value: &SerializedCell<&[u8]>) {
+  pub fn append(&mut self, value: &SerializedCell<'_>) {
     match self {
       Self::Boolean(ref mut builder) => builder.append_option(value.as_bool()),
       Self::Int32(ref mut builder) => builder.append_option(value.as_i32()),
@@ -60,6 +67,10 @@ impl ColumnArrayBuilder {
       Self::Float64(ref mut builder) => builder.append_option(value.as_f64()),
       Self::String(ref mut builder) => builder.append_option(value.as_str()),
       Self::Binary(ref mut builder) => builder.append_option(value.as_bytes()),
+      Self::Vector(ref mut builder) => {
+        let vector = value.as_vector().unwrap();
+        builder.append_option(Some(vector.clone().iter().map(|f| Some(*f))))
+      }
     }
   }
 
@@ -73,6 +84,7 @@ impl ColumnArrayBuilder {
       Self::Float64(mut v) => Arc::new(v.finish()) as ArrayRef,
       Self::String(mut v) => Arc::new(v.finish()) as ArrayRef,
       Self::Binary(mut v) => Arc::new(v.finish()) as ArrayRef,
+      Self::Vector(mut v) => Arc::new(v.finish()) as ArrayRef,
     }
   }
 }
