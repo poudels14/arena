@@ -67,12 +67,14 @@ impl SerializedCell<Vec<u8>> {
       _ => unimplemented!(),
     }
   }
+}
 
-  pub fn array_ref_to_vec<'a>(
+impl<'a> SerializedCell<&'a [u8]> {
+  pub fn array_ref_to_vec<'b>(
     table_name: &str,
     column: &Column,
-    data: &'a ArrayRef,
-  ) -> Result<Vec<SerializedCell<&'a [u8]>>> {
+    data: &'b ArrayRef,
+  ) -> Result<Vec<SerializedCell<&'b [u8]>>> {
     if !column.nullable && data.null_count() > 0 {
       return Err(null_constraint_violation(table_name, &column.name));
     }
@@ -109,77 +111,24 @@ impl SerializedCell<Vec<u8>> {
             .unwrap_or_default()
         })
       }
+      DataType::Jsonb => {
+        data_with_value!(data, StringArray, |v| {
+          v.map(|v| SerializedCell::Blob(v.as_bytes()))
+            .unwrap_or_default()
+        })
+      }
       _ => unimplemented!(),
     })
   }
 
   #[inline]
-  pub fn as_bool(self) -> Option<bool> {
+  pub fn is_null(&self) -> bool {
     match self {
-      SerializedCell::Null => None,
-      SerializedCell::Boolean(value) => Some(value),
-      _ => unreachable!(),
+      Self::Null => true,
+      _ => false,
     }
   }
 
-  #[inline]
-  pub fn as_i32(self) -> Option<i32> {
-    match self {
-      SerializedCell::Null => None,
-      SerializedCell::Int32(value) => Some(value),
-      _ => unreachable!(),
-    }
-  }
-
-  #[inline]
-  pub fn as_i64(self) -> Option<i64> {
-    match self {
-      SerializedCell::Null => None,
-      SerializedCell::Int64(value) => Some(value),
-      _ => unreachable!(),
-    }
-  }
-
-  #[inline]
-  pub fn as_f32(self) -> Option<f32> {
-    match self {
-      SerializedCell::Null => None,
-      SerializedCell::Float32(value) => Some(value),
-      _ => unreachable!(),
-    }
-  }
-
-  #[inline]
-  pub fn as_f64(self) -> Option<f64> {
-    match self {
-      SerializedCell::Null => None,
-      SerializedCell::Float64(value) => Some(value),
-      _ => unreachable!(),
-    }
-  }
-
-  #[inline]
-  pub fn as_bytes(self) -> Option<Vec<u8>> {
-    match self {
-      SerializedCell::Null => None,
-      SerializedCell::Blob(value) => Some(value),
-      _ => unreachable!(),
-    }
-  }
-
-  #[inline]
-  pub fn as_string(self) -> Option<String> {
-    match self {
-      SerializedCell::Null => None,
-      SerializedCell::Blob(bytes) => unsafe {
-        Some(String::from_utf8_unchecked(bytes))
-      },
-      v => unreachable!("Trying to convert {:?} to string", &v),
-    }
-  }
-}
-
-impl<'a> SerializedCell<&'a [u8]> {
   #[inline]
   pub fn as_bool(&self) -> Option<bool> {
     match self {

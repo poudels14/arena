@@ -35,7 +35,11 @@ impl StorageHandler {
     row: &Row<&[u8]>,
   ) -> Result<()> {
     let projected_cells = row.project(&table_index.columns());
-    if table_index.is_unique() {
+    let projected_cells_has_null = projected_cells.iter().any(|c| c.is_null());
+    // Note(sagar): if there's any index column with NULL value,
+    // don't check unique constraint
+    // TODO: support `UNIQUE NULLS NOT DISTINCT`
+    if table_index.is_unique() && !projected_cells_has_null {
       let serialized_index_key_columns =
         self
           .serializer
