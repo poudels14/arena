@@ -1,8 +1,11 @@
 use std::sync::Arc;
 
 use datafusion::arrow::array::{
-  ArrayRef, BooleanArray, Float32Array, Float64Array, Int32Array, Int64Array,
-  ListArray, StringArray,
+  as_boolean_array, as_generic_list_array, as_primitive_array, as_string_array,
+  ArrayRef,
+};
+use datafusion::arrow::datatypes::{
+  Float32Type, Float64Type, Int32Type, Int64Type,
 };
 use datafusion::error::Result;
 use datafusion::scalar::ScalarValue;
@@ -51,19 +54,6 @@ impl<'a> Default for SerializedCell<'a> {
   }
 }
 
-#[macro_export]
-macro_rules! data_with_value {
-  ($data:ident, $arr_type:ident, $mapper:expr) => {
-    $data
-      .as_any()
-      .downcast_ref::<$arr_type>()
-      .unwrap()
-      .iter()
-      .map($mapper)
-      .collect()
-  };
-}
-
 impl<'a> SerializedCell<'a> {
   pub fn from_scalar(scalar: &'a ScalarValue) -> Self {
     match scalar {
@@ -89,63 +79,58 @@ impl<'a> SerializedCell<'a> {
 }
 
 impl<'a> SerializedCell<'a> {
-  pub fn array_ref_to_vec<'b>(
+  /// Converts arrow column array to Vec of SerializedCell
+  pub fn column_array_to_vec<'b>(
     table_name: &str,
     column: &Column,
-    data: &'b ArrayRef,
+    array: &'b ArrayRef,
   ) -> Result<Vec<SerializedCell<'b>>> {
-    if !column.nullable && data.null_count() > 0 {
+    if !column.nullable && array.null_count() > 0 {
       return Err(null_constraint_violation(table_name, &column.name));
     }
 
     Ok(match &column.data_type {
-      DataType::Boolean => {
-        data_with_value!(data, BooleanArray, |v| v
-          .map(|v| SerializedCell::Boolean(v))
-          .unwrap_or_default())
-      }
-      DataType::Int32 => {
-        data_with_value!(data, Int32Array, |v| v
-          .map(|v| SerializedCell::Int32(v))
-          .unwrap_or_default())
-      }
-      DataType::Int64 => {
-        data_with_value!(data, Int64Array, |v| v
-          .map(|v| SerializedCell::Int64(v))
-          .unwrap_or_default())
-      }
-      DataType::Float32 => {
-        data_with_value!(data, Float32Array, |v| v
-          .map(|v| SerializedCell::Float32(v))
-          .unwrap_or_default())
-      }
-      DataType::Float64 => {
-        data_with_value!(data, Float64Array, |v| v
-          .map(|v| SerializedCell::Float64(v))
-          .unwrap_or_default())
-      }
-      DataType::Varchar { len: _ } | DataType::Text => {
-        data_with_value!(data, StringArray, |v| {
+      DataType::Boolean => as_boolean_array(array)
+        .iter()
+        .map(|v| v.map(|v| SerializedCell::Boolean(v)).unwrap_or_default())
+        .collect(),
+      DataType::Int32 => as_primitive_array::<Int32Type>(array)
+        .iter()
+        .map(|v| v.map(|v| SerializedCell::Int32(v)).unwrap_or_default())
+        .collect(),
+      DataType::Int64 => as_primitive_array::<Int64Type>(array)
+        .iter()
+        .map(|v| v.map(|v| SerializedCell::Int64(v)).unwrap_or_default())
+        .collect(),
+      DataType::Float32 => as_primitive_array::<Float32Type>(array)
+        .iter()
+        .map(|v| v.map(|v| SerializedCell::Float32(v)).unwrap_or_default())
+        .collect(),
+      DataType::Float64 => as_primitive_array::<Float64Type>(array)
+        .iter()
+        .map(|v| v.map(|v| SerializedCell::Float64(v)).unwrap_or_default())
+        .collect(),
+      DataType::Varchar { len: _ } | DataType::Text => as_string_array(array)
+        .iter()
+        .map(|v| {
           v.map(|v| SerializedCell::Blob(v.as_bytes()))
             .unwrap_or_default()
         })
-      }
-      DataType::Jsonb => {
-        data_with_value!(data, StringArray, |v| {
+        .collect(),
+      DataType::Jsonb => as_string_array(array)
+        .iter()
+        .map(|v| {
           v.map(|v| SerializedCell::Blob(v.as_bytes()))
             .unwrap_or_default()
         })
-      }
+        .collect(),
       DataType::Vector { len } => {
-        let vec: Result<Vec<SerializedCell<'b>>> = data_with_value!(
-          data,
-          ListArray,
-          |v| {
-            v.map(|v| {
+        let res: Result<Vec<SerializedCell<'b>>> =
+          as_generic_list_array::<i32>(array)
+            .iter()
+            .map(|maybe_vector| {
               let vector = Arc::new(
-                v.as_any()
-                  .downcast_ref::<Float32Array>()
-                  .unwrap()
+                as_primitive_array::<Float32Type>(&maybe_vector.unwrap())
                   .iter()
                   .map(|f| f.unwrap())
                   .collect::<Vec<f32>>(),
@@ -157,10 +142,8 @@ impl<'a> SerializedCell<'a> {
               }
               Ok(SerializedCell::Vector::<'b>(vector))
             })
-            .unwrap()
-          }
-        );
-        vec?
+            .collect();
+        res?
       }
       _ => unimplemented!(),
     })

@@ -18,7 +18,7 @@ pub fn convert_to_rows<'a>(
     .map(|col| {
       let values = batch.column_by_name(&col.name).map(|columns_data| {
         let cell =
-          SerializedCell::array_ref_to_vec(&table.name, &col, columns_data);
+          SerializedCell::column_array_to_vec(&table.name, &col, columns_data);
         cell
       });
       match values {
