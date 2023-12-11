@@ -6,6 +6,7 @@ use crate::runtime::RuntimeEnv;
 use crate::storage::{rocks, StorageFactoryBuilder};
 use crate::{SessionConfig, SessionContext, SingleCatalogListProvider};
 
+mod datatype;
 mod insert;
 mod schema;
 mod select;

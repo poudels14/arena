@@ -1,3 +1,5 @@
+use std::borrow::BorrowMut;
+
 use datafusion::execution::context::{
   SQLOptions, SessionContext as DfSessionContext,
 };
@@ -6,7 +8,7 @@ use sqlparser::ast::Statement as SQLStatement;
 
 use super::response::ExecutionResponse;
 use crate::execution::plans;
-use crate::{storage, Error, Result};
+use crate::{parser, storage, Error, Result};
 
 #[allow(unused)]
 pub struct Transaction {
@@ -43,9 +45,11 @@ impl Transaction {
         let state = self.ctxt.state();
         // TODO: creating physical plan from SQL is expensive
         // look into caching physical plans
+        let mut stmt = stmt.clone();
+        parser::cast_unsupported_data_types(stmt.borrow_mut())?;
         let plan = state
           .statement_to_plan(datafusion::sql::parser::Statement::Statement(
-            stmt.clone(),
+            stmt,
           ))
           .await?;
 
