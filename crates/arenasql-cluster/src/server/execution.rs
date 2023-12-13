@@ -13,7 +13,7 @@ use crate::error::ArenaClusterError;
 use crate::pgwire::statement::CommandString;
 use crate::pgwire::ArenaQuery;
 use crate::pgwire::{datatype, rowconverter};
-use crate::to_query_execution_error;
+use crate::query_execution_error;
 
 impl ArenaSqlCluster {
   // TODO: to improve performance, instead of returning response from this
@@ -36,26 +36,21 @@ impl ArenaSqlCluster {
 
     let mut results = Vec::with_capacity(query.stmts.len());
     for stmt in query.stmts.iter() {
-      let txn = session
-        .ctxt
-        .begin_transaction()
-        .map_err(|e| to_query_execution_error!(e))?;
-      let response = txn
-        .execute(stmt.clone())
-        .await
-        .map_err(|e| to_query_execution_error!(e))?;
+      let txn = session.ctxt.begin_transaction()?;
+      let response = txn.execute(stmt.clone()).await?;
 
       // Note: only commit non-query (eg: SELECT) transactions
       let response = match response.stmt_type {
+        // TODO: drop future/stream when connection drops?
         arenasql::response::Type::Query => Self::to_row_stream(response)?,
         _ => {
           let res = response
             .stream
             .try_collect::<Vec<RecordBatch>>()
             .await
-            .map_err(|e| to_query_execution_error!(e))?;
+            .map_err(|e| arenasql::Error::DataFusionError(e.into()))?;
 
-          txn.commit().map_err(|e| to_query_execution_error!(e))?;
+          txn.commit()?;
           Response::Execution(Tag::new_for_execution(
             stmt.command(),
             Some(res.iter().map(|b| b.num_rows()).sum()),
@@ -82,7 +77,7 @@ impl ArenaSqlCluster {
     let row_stream = response.stream.flat_map(|batch| {
       futures::stream::iter(match batch {
         Ok(batch) => rowconverter::convert_to_rows(&batch),
-        Err(e) => vec![Err(to_query_execution_error!(e))],
+        Err(e) => vec![Err(query_execution_error!(e.to_string()))],
       })
     });
     Ok(Response::Query(QueryResponse::new(schema, row_stream)))

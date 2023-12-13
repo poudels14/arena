@@ -33,8 +33,10 @@ sqlparser = { version = "0.39.0", features = ["serde"] }
 rocksdb = { version = "0.21.0", default-features = false, features = [
   "lz4",
   "multi-threaded-cf",
+  "jemalloc",
 ] }
 postgres-types = "0.2.6"
+pgwire = "0.16.1"
 strum = "0.25"
 strum_macros = "0.25"
 bincode = "1.3.3"

@@ -12,10 +12,8 @@ pub enum Error {
   SessionAlreadyExists,
   CatalogNotFound(String),
   InvalidConnection,
-  QueryError(String),
   UnsupportedDataType(String),
   StorageError,
-  RuntimeError,
 }
 
 impl std::error::Error for Error {}
@@ -68,12 +66,5 @@ macro_rules! query_execution_error {
       )
       .into(),
     )
-  };
-}
-
-#[macro_export]
-macro_rules! to_query_execution_error {
-  ($err:expr) => {
-    crate::query_execution_error!($err.to_string())
   };
 }

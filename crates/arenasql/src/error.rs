@@ -1,6 +1,8 @@
 use std::fmt;
+use std::sync::Arc;
 
 use datafusion::error::DataFusionError;
+use pgwire::error::{ErrorInfo, PgWireError};
 use sqlparser::parser;
 
 use crate::schema::{Column, OwnedSerializedCell};
@@ -40,7 +42,7 @@ pub enum Error {
   DatabaseClosed,
   IOError(String),
   SerdeError(String),
-  DataFusionError(String),
+  DataFusionError(Arc<DataFusionError>),
 }
 
 impl Error {
@@ -87,8 +89,7 @@ impl Error {
       | Self::IOError(msg)
       | Self::SerdeError(msg)
       | Self::InternalError(msg)
-      | Self::InvalidTransactionState(msg)
-      | Self::DataFusionError(msg) => msg.to_owned(),
+      | Self::InvalidTransactionState(msg) => msg.to_owned(),
       Self::UniqueConstaintViolated { constraint, .. } => format!(
         "duplicate key value violates unique constraint \"{}\"",
         constraint
@@ -112,6 +113,28 @@ impl Error {
         format!(r#"column "{col}" does not exist"#)
       }
       Self::DatabaseClosed => format!(r#"database already closed"#),
+      Self::DataFusionError(msg) => match msg.as_ref() {
+        DataFusionError::External(err) => {
+          if let Some(arena_err) = err.downcast_ref::<Error>() {
+            arena_err.message()
+          } else {
+            format!("Internal error")
+          }
+        }
+        DataFusionError::Context(msg, e) => match e.as_ref() {
+          DataFusionError::External(err) => {
+            if let Some(arena_err) = err.downcast_ref::<Error>() {
+              arena_err.message()
+            } else {
+              format!("Internal error")
+            }
+          }
+          _ => format!("Internal error"),
+        },
+        e => {
+          format!("Internal error")
+        }
+      },
     }
   }
 }
@@ -138,7 +161,7 @@ impl From<rocksdb::Error> for Error {
 
 impl From<DataFusionError> for Error {
   fn from(e: DataFusionError) -> Self {
-    Self::DataFusionError(e.to_string())
+    Self::DataFusionError(Arc::new(e))
   }
 }
 
@@ -151,6 +174,15 @@ impl From<bincode::Error> for Error {
 impl From<Error> for DataFusionError {
   fn from(err: Error) -> Self {
     DataFusionError::External(Box::new(err))
+  }
+}
+
+impl From<Error> for PgWireError {
+  fn from(err: Error) -> Self {
+    PgWireError::UserError(
+      ErrorInfo::new("ERROR".to_owned(), err.code().to_owned(), err.message())
+        .into(),
+    )
   }
 }
 
