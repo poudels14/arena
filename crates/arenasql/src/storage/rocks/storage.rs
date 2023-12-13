@@ -104,6 +104,15 @@ impl RocksStorage {
   }
 }
 
+impl Drop for RocksStorage {
+  fn drop(&mut self) {
+    // Note: wait for the flush to complete after the storage is dropped
+    let mut opts = FlushOptions::default();
+    opts.set_wait(true);
+    self.kv.flush_opt(&opts).unwrap();
+  }
+}
+
 impl KeyValueStoreProvider for RocksStorage {
   fn new_transaction(&self) -> DatabaseResult<Box<dyn storage::KeyValueStore>> {
     Ok(Box::new(KeyValueStore::new(self.kv.clone())?))
