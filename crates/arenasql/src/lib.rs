@@ -5,6 +5,7 @@ mod df;
 mod error;
 pub(crate) mod execution;
 pub(crate) mod utils;
+pub(crate) mod vectors;
 
 pub mod parser;
 pub mod runtime;

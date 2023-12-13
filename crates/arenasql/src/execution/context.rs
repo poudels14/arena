@@ -8,6 +8,7 @@ use derivative::Derivative;
 use sqlparser::ast::Statement as SQLStatement;
 
 use super::config::TaskConfig;
+use super::custom_functions;
 use super::planner::ArenaQueryPlanner;
 use super::transaction::Transaction;
 use super::{response::ExecutionResponse, SessionConfig};
@@ -73,11 +74,14 @@ impl SessionContext {
     )
     .with_query_planner(Arc::new(ArenaQueryPlanner::new()));
 
+    let session_context = DfSessionContext::new_with_state(state);
+    custom_functions::register_all(&session_context);
+
     let sql_options = SQLOptions::new();
     Ok(Transaction {
       storage_txn,
       sql_options,
-      ctxt: DfSessionContext::new_with_state(state),
+      ctxt: session_context,
     })
   }
 }

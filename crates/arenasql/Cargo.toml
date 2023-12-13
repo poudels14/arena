@@ -7,6 +7,9 @@ edition = "2021"
 name = "insert"
 harness = false
 
+[features]
+glam-dot = []
+
 [dependencies]
 futures.workspace = true
 anyhow.workspace = true
@@ -41,6 +44,9 @@ Inflector = "0.11.4"
 derive_builder = "0.12.0"
 tempdir = "0.3.7"
 parking_lot = "0.12.1"
+glam = "0.24.2"
+ultraviolet = "0.9.2"
+ordered-float = "4.2.0"
 
 
 [dev-dependencies]
