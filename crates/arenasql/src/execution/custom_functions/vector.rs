@@ -14,8 +14,8 @@ use crate::vectors::{SimilarityScorerFactory, SimilarityType};
 use crate::{bail, df_error, Error};
 
 macro_rules! invalid_query {
-  ($msg:expr) => {
-    df_error!(Error::InvalidQuery(format!($msg)))
+  ($($arg:tt)*) => {
+    df_error!(Error::InvalidQuery(format!($($arg)*)))
   };
 }
 
@@ -64,10 +64,12 @@ pub fn l2_distance(args: &[ColumnarValue]) -> Result<ColumnarValue> {
     )));
   }
 
-  let vector_length = vector_array.len();
+  let vector_length = vector_array.value_length(0) as usize;
   if vector_length != input_vector.len() {
     bail!(invalid_query!(
-      "Input vector length doesn't match column vector length"
+      "Input vector length \"{}\" doesn't match column vector length \'{}\"",
+      input_vector.len(),
+      vector_length
     ));
   }
 

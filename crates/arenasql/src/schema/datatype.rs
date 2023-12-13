@@ -67,7 +67,7 @@ impl DataType {
         Ok(Self::Jsonb)
       }
       DfDataType::Decimal256(p, s) if *p > 50 => Ok(Self::Vector {
-        len: 4 * (*s as usize * 50 + (*p - 50) as usize),
+        len: 4 * (*s as usize * 26 + (*p - 50) as usize),
       }),
       DfDataType::Decimal256(p, s) => Err(Error::UnsupportedDataType(format!(
         "Data type [Decimal256({}, {})] not supported",
