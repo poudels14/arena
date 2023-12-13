@@ -1,6 +1,6 @@
 mod iterator;
-mod kvprovider;
+mod kvstore;
 mod storage;
 
-pub use kvprovider::KeyValueProvider;
+pub use kvstore::KeyValueStore;
 pub use storage::{Cache, RocksStorage};

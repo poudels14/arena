@@ -14,13 +14,13 @@ use crate::{Error, Result as DatabaseResult};
 /// mutability since transaction.commit() requires owned object.
 /// It's okay to use unsafe cell here since the transaction manager
 /// ensures thread safety
-pub struct KeyValueProvider {
+pub struct KeyValueStore {
   kv: Arc<RocksDatabase>,
   transaction: UnsafeCell<Option<RocksTransaction<'static, RocksDatabase>>>,
   cfs: Vec<Arc<BoundColumnFamily<'static>>>,
 }
 
-impl KeyValueProvider {
+impl KeyValueStore {
   pub(super) fn new(kv: Arc<RocksDatabase>) -> DatabaseResult<Self> {
     let db = kv.clone();
     let mut txn_opt = OptimisticTransactionOptions::default();
@@ -66,7 +66,7 @@ impl KeyValueProvider {
   }
 }
 
-impl crate::storage::KeyValueStore for KeyValueProvider {
+impl crate::storage::KeyValueStore for KeyValueStore {
   /// Updates the value of the given key atomically and returns the new value
   fn atomic_update(
     &self,
