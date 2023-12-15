@@ -110,12 +110,13 @@ impl ArenaSqlCluster {
       .collect();
     let schema = Arc::new(fields);
 
-    let row_stream = response.stream.flat_map(|batch| {
+    let rows_schema = schema.clone();
+    let row_stream = response.stream.flat_map(move |batch| {
       futures::stream::iter(match batch {
-        Ok(batch) => rowconverter::convert_to_rows(&batch),
+        Ok(batch) => rowconverter::convert_to_rows(&schema, &batch),
         Err(e) => vec![Err(query_execution_error!(e.to_string()))],
       })
     });
-    Ok(Response::Query(QueryResponse::new(schema, row_stream)))
+    Ok(Response::Query(QueryResponse::new(rows_schema, row_stream)))
   }
 }

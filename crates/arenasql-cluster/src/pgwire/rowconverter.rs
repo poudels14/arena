@@ -6,23 +6,16 @@ use pgwire::error::PgWireResult;
 use pgwire::messages::data::DataRow;
 
 use super::encoder::ColumnEncoder;
-use crate::pgwire::datatype;
 
 pub fn convert_to_rows<'a>(
+  schema: &Arc<Vec<FieldInfo>>,
   batch: &'a RecordBatch,
 ) -> Vec<PgWireResult<DataRow>> {
-  let batch_fields = &batch.schema().fields;
-  let fields: Vec<FieldInfo> = batch_fields
-    .iter()
-    .map(|field| datatype::to_field_info(field.as_ref()))
-    .collect();
-  let schema = Arc::new(fields);
-
   let mut encoders = (0..batch.num_rows())
     .map(|_| DataRowEncoder::new(schema.clone()))
     .collect::<Vec<DataRowEncoder>>();
 
-  let column_arrays: Vec<Box<dyn ColumnEncoder>> = batch_fields
+  let column_arrays: Vec<Box<dyn ColumnEncoder>> = schema
     .iter()
     .map(|field| {
       batch

@@ -19,36 +19,44 @@ pub enum DataType {
   // Posgres Type::BYTEA
   #[strum(serialize = "BYTEA")]
   Binary = 2,
-  // Posgres Type::INT8
-  #[strum(serialize = "INT8")]
-  Int64 = 3,
-  // Posgres Type::INT4
-  #[strum(serialize = "UINT8")]
-  UInt64 = 4,
+  Int16 = 3,
   // Posgres Type::INT4
   #[strum(serialize = "INT4")]
-  Int32 = 5,
+  Int32 = 4,
+  // Posgres Type::INT4
+  #[strum(serialize = "UINT8")]
+  UInt32 = 5,
+  // Posgres Type::INT8
+  #[strum(serialize = "INT8")]
+  Int64 = 6,
   // Posgres Type::VARCHAR
   #[strum(serialize = "VARCHAR")]
-  Varchar { len: usize } = 6,
+  Varchar {
+    len: usize,
+  } = 7,
   // Posgres Type::TEXT
   #[strum(serialize = "TEXT")]
-  Text = 7,
+  Text = 8,
   // Posgres Type::FLOAT4
   #[strum(serialize = "FLOAT4")]
-  Float32 = 8,
+  Float32 = 9,
   // Posgres Type::FLOAT8
   #[strum(serialize = "FLOAT8")]
-  Float64 = 9,
+  Float64 = 10,
   // Posgres Type::NUMERIC
   #[strum(serialize = "NUMERIC")]
-  Decimal { p: u8, s: i8 } = 10,
+  Decimal {
+    p: u8,
+    s: i8,
+  } = 11,
   // Posgres Type::JSONB
   #[strum(serialize = "JSONB")]
-  Jsonb = 11,
+  Jsonb = 12,
   // Posgres Type::JSONB
   #[strum(serialize = "FLOAT4_ARRAY")]
-  Vector { len: usize } = 12,
+  Vector {
+    len: usize,
+  } = 13,
 }
 
 impl DataType {
@@ -56,8 +64,8 @@ impl DataType {
     match field.data_type() {
       DfDataType::Boolean => Ok(Self::Boolean),
       DfDataType::Int32 => Ok(Self::Int32),
+      DfDataType::UInt32 => Ok(Self::UInt32),
       DfDataType::Int64 => Ok(Self::Int64),
-      DfDataType::UInt64 => Ok(Self::UInt64),
       DfDataType::Utf8 => Ok(Self::Text),
       DfDataType::Float32 => Ok(Self::Float32),
       DfDataType::Float64 => Ok(Self::Float64),
@@ -98,9 +106,10 @@ impl DataType {
     match self {
       Self::Boolean => Type::BOOL.oid(),
       Self::Binary => Type::BYTEA.oid(),
-      Self::Int64 => Type::INT8.oid(),
-      Self::UInt64 => Type::INT8.oid(),
+      Self::Int16 => Type::INT2.oid(),
       Self::Int32 => Type::INT4.oid(),
+      Self::UInt32 => Type::INT8.oid(),
+      Self::Int64 => Type::INT8.oid(),
       Self::Varchar { .. } => Type::VARCHAR.oid(),
       Self::Text => Type::TEXT.oid(),
       Self::Float32 => Type::FLOAT4.oid(),
@@ -116,9 +125,10 @@ impl DataType {
   pub fn to_df_datatype(&self) -> (DfDataType, HashMap<String, String>) {
     match self {
       Self::Boolean => (DfDataType::Boolean, HashMap::new()),
+      Self::Int16 => (DfDataType::Int16, HashMap::new()),
       Self::Int32 => (DfDataType::Int32, HashMap::new()),
+      Self::UInt32 => (DfDataType::UInt32, HashMap::new()),
       Self::Int64 => (DfDataType::Int64, HashMap::new()),
-      Self::UInt64 => (DfDataType::UInt64, HashMap::new()),
       Self::Float32 => (DfDataType::Float32, HashMap::new()),
       Self::Float64 => (DfDataType::Float64, HashMap::new()),
       Self::Decimal { p, s } => {

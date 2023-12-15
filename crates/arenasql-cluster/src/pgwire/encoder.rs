@@ -43,11 +43,14 @@ impl<'a> ColumnEncoder for &Arc<dyn Array> {
       DatafusionDataType::Boolean => {
         encode_all_fields!(arrow::BooleanArray, self, encoders)
       }
-      DatafusionDataType::Binary => {
-        encode_all_fields!(arrow::BinaryArray, self, encoders)
+      DatafusionDataType::Int16 => {
+        encode_all_fields!(arrow::Int16Array, self, encoders)
       }
       DatafusionDataType::Int32 => {
         encode_all_fields!(arrow::Int32Array, self, encoders)
+      }
+      DatafusionDataType::UInt32 => {
+        encode_all_fields!(arrow::UInt32Array, self, encoders)
       }
       DatafusionDataType::Int64 => {
         encode_all_fields!(arrow::Int64Array, self, encoders)
@@ -57,6 +60,9 @@ impl<'a> ColumnEncoder for &Arc<dyn Array> {
       }
       DatafusionDataType::Float64 => {
         encode_all_fields!(arrow::Float64Array, self, encoders)
+      }
+      DatafusionDataType::Binary => {
+        encode_all_fields!(arrow::BinaryArray, self, encoders)
       }
       DatafusionDataType::Utf8 => {
         encode_all_fields!(arrow::StringArray, self, encoders)

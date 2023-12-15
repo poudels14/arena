@@ -31,7 +31,7 @@ pub mod records {
   pub use crate::df::stream;
   pub use crate::df::{RecordBatch, RecordBatchStream};
   pub use datafusion::arrow::datatypes::{
-    DataType as DatafusionDataType, Field as DatafusionField,
+    DataType as DatafusionDataType, Field as DatafusionField, SchemaRef,
   };
 }
 
@@ -43,7 +43,8 @@ pub mod arrow {
   pub use datafusion::arrow::array::{
     Array, ArrayAccessor, ArrayIter, ArrayRef, BinaryArray, BinaryBuilder,
     BooleanArray, BooleanBuilder, Float32Array, Float32Builder, Float64Array,
-    Float64Builder, Int32Array, Int32Builder, Int64Array, Int64Builder,
-    ListArray, NullBuilder, StringArray, StringBuilder,
+    Float64Builder, Int16Array, Int32Array, Int32Builder, Int64Array,
+    Int64Builder, ListArray, NullBuilder, StringArray, StringBuilder,
+    UInt16Array, UInt32Array, UInt64Array,
   };
 }

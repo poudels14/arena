@@ -20,17 +20,21 @@ use crate::{bail, df_error, Error};
 pub enum SerializedCell<'a> {
   Null = 1,
   Boolean(bool) = 2,
-  Int32(i32) = 3,
-  Int64(i64) = 4,
-  Float32(f32) = 5,
-  Float64(f64) = 6,
+  Int16(i16) = 3,
+  // Use i16 for u16 since pgwire doesn't support u16
+  // Same for u64
+  Int32(i32) = 4,
+  UInt32(u32) = 5,
+  Int64(i64) = 6,
+  Float32(f32) = 7,
+  Float64(f64) = 8,
   // Using the reference for bytes prevents data cloning during
   // deserialization
-  Blob(&'a [u8]) = 7,
+  Blob(&'a [u8]) = 9,
   // TODO: convert f32 to u16 when storing in order to store bfloat16
   // Vec<f32> can't be deserialized to &'a [f32] because converting [u8]
   // to f32 requires allocation
-  Vector(Arc<Vec<f32>>) = 8,
+  Vector(Arc<Vec<f32>>) = 10,
 }
 
 // Note: this should only be used when it's impossible to use
@@ -40,12 +44,14 @@ pub enum SerializedCell<'a> {
 pub enum OwnedSerializedCell {
   Null = 1,
   Boolean(bool) = 2,
-  Int32(i32) = 3,
-  Int64(i64) = 4,
-  Float32(f32) = 5,
-  Float64(f64) = 6,
-  Blob(Arc<Vec<u8>>) = 7,
-  Vector(Arc<Vec<f32>>) = 8,
+  Int16(i16) = 3,
+  Int32(i32) = 4,
+  UInt32(u32) = 5,
+  Int64(i64) = 6,
+  Float32(f32) = 7,
+  Float64(f64) = 8,
+  Blob(Arc<Vec<u8>>) = 9,
+  Vector(Arc<Vec<f32>>) = 10,
 }
 
 impl<'a> Default for SerializedCell<'a> {
@@ -155,7 +161,9 @@ impl<'a> SerializedCell<'a> {
     match *self {
       Self::Null => OwnedSerializedCell::Null,
       Self::Boolean(v) => OwnedSerializedCell::Boolean(v),
+      Self::Int16(v) => OwnedSerializedCell::Int16(v),
       Self::Int32(v) => OwnedSerializedCell::Int32(v),
+      Self::UInt32(v) => OwnedSerializedCell::UInt32(v),
       Self::Int64(v) => OwnedSerializedCell::Int64(v),
       Self::Float32(v) => OwnedSerializedCell::Float32(v),
       Self::Float64(v) => OwnedSerializedCell::Float64(v),
@@ -182,10 +190,28 @@ impl<'a> SerializedCell<'a> {
   }
 
   #[inline]
+  pub fn as_i16(&self) -> Option<i16> {
+    match self {
+      SerializedCell::Null => None,
+      SerializedCell::Int16(value) => Some(*value),
+      _ => unreachable!(),
+    }
+  }
+
+  #[inline]
   pub fn as_i32(&self) -> Option<i32> {
     match self {
       SerializedCell::Null => None,
       SerializedCell::Int32(value) => Some(*value),
+      _ => unreachable!(),
+    }
+  }
+
+  #[inline]
+  pub fn as_u32(&self) -> Option<u32> {
+    match self {
+      SerializedCell::Null => None,
+      SerializedCell::UInt32(value) => Some(*value),
       _ => unreachable!(),
     }
   }

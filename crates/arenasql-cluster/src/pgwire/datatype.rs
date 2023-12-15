@@ -21,8 +21,8 @@ fn derive_pg_type(
   match data_type {
     DatafusionDataType::Boolean => Type::BOOL,
     DatafusionDataType::Int32 => Type::INT4,
+    DatafusionDataType::UInt32 => Type::INT4,
     DatafusionDataType::Int64 => Type::INT8,
-    DatafusionDataType::UInt64 => Type::INT8,
     DatafusionDataType::Float32 => Type::FLOAT4,
     DatafusionDataType::Float64 => Type::FLOAT8,
     DatafusionDataType::Utf8

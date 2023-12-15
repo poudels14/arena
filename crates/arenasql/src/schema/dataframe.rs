@@ -1,35 +1,37 @@
-use datafusion::arrow::array::{ArrayBuilder, BinaryBuilder};
-use datafusion::arrow::datatypes::SchemaRef;
+use std::sync::Arc;
+
+use datafusion::arrow::array::{ArrayBuilder, ArrayRef, Int64Builder};
+use datafusion::arrow::datatypes::{
+  DataType as DfDataType, Field, Schema, SchemaRef,
+};
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::error::DataFusionError;
 
 use super::{ColumnArrayBuilder, DataType, SerializedCell};
+use crate::storage::Serializer;
 use crate::{Error, Result};
 
 pub struct DataFrame {
-  row_ids: BinaryBuilder,
+  row_ids: Int64Builder,
   column_builders: Vec<ColumnArrayBuilder>,
 }
 
 impl DataFrame {
   pub fn with_capacity(
     row_capacity: usize,
-    columns: Vec<(String, DataType)>,
+    columns: Vec<(
+      // column name
+      String,
+      DataType,
+    )>,
   ) -> Self {
     let column_builders: Vec<ColumnArrayBuilder> = columns
       .iter()
-      .map(|col| {
-        // TODO(sagar): pass in limit and use it as capacity when possible
-        ColumnArrayBuilder::from(&col.1, 200)
-      })
+      .map(|col| ColumnArrayBuilder::from(&col.1, row_capacity))
       .collect();
 
     Self {
-      row_ids: BinaryBuilder::with_capacity(
-        row_capacity,
-        /* u64 = 8bytes */
-        8,
-      ),
+      row_ids: Int64Builder::with_capacity(row_capacity),
       column_builders,
     }
   }
@@ -37,28 +39,48 @@ impl DataFrame {
   #[inline]
   pub fn append_row(
     &mut self,
+    // row id bytes
     row_id: &[u8],
     columns: &Vec<&SerializedCell<'_>>,
   ) {
-    self.row_ids.append_value(row_id);
     columns
       .iter()
       .enumerate()
-      .for_each(|(i, cell)| self.column_builders[i].append(cell))
+      .for_each(|(i, cell)| self.column_builders[i].append(cell));
+
+    self
+      .row_ids
+      .append_value(Serializer::FixedInt.deserialize(row_id).unwrap());
   }
 
   pub fn row_count(&self) -> usize {
     self.row_ids.len()
   }
 
-  pub fn to_record_batch(self, schema: SchemaRef) -> Result<RecordBatch> {
+  pub fn to_record_batch(mut self, schema: SchemaRef) -> Result<RecordBatch> {
     let col_arrays = self
       .column_builders
       .into_iter()
       .map(|b| b.finish())
+      .chain(vec![Arc::new(self.row_ids.finish()) as ArrayRef])
       .collect();
-    Ok(RecordBatch::try_new(schema, col_arrays).map_err(|e| {
-      Error::DataFusionError(DataFusionError::ArrowError(e).into())
-    })?)
+    let schema_with_virtual_cols = Schema::new(
+      schema
+        .fields()
+        .iter()
+        .map(|f| f.clone())
+        .chain(
+          vec![Arc::new(Field::new("ctid", DfDataType::Int64, false))]
+            .into_iter(),
+        )
+        .collect::<Vec<Arc<Field>>>(),
+    )
+    .into();
+
+    Ok(
+      RecordBatch::try_new(schema_with_virtual_cols, col_arrays).map_err(
+        |e| Error::DataFusionError(DataFusionError::ArrowError(e).into()),
+      )?,
+    )
   }
 }
