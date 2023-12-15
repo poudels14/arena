@@ -3,34 +3,46 @@ use std::sync::Arc;
 use arenasql::{SessionContext, Transaction};
 use dashmap::DashMap;
 use derivative::Derivative;
-use tokio::sync::Mutex;
+use derive_builder::Builder;
+use parking_lot::Mutex;
 
-use crate::error::ArenaClusterResult as Result;
-
-#[derive(Derivative)]
+#[derive(Builder, Derivative)]
 #[derivative(Debug)]
 pub struct AuthenticatedSession {
   pub id: String,
   pub user: String,
   pub database: String,
-  pub ctxt: SessionContext,
+  pub context: SessionContext,
   #[derivative(Debug = "ignore")]
-  pub transaction: Arc<Mutex<Arc<Transaction>>>,
+  #[builder(setter(strip_option), default)]
+  active_transaction: Arc<Mutex<Option<Transaction>>>,
 }
 
 impl AuthenticatedSession {
   #[inline]
-  pub async fn get_transaction(&self) -> Result<Arc<Transaction>> {
-    let txn = self.transaction.lock().await;
-    Ok(txn.clone())
+  pub fn get_active_transaction(&self) -> Option<Transaction> {
+    self.active_transaction.lock().as_ref().map(|l| l.clone())
   }
 
   #[inline]
-  pub async fn new_transaction(&self) -> Result<Arc<Transaction>> {
-    let txn = Arc::new(self.ctxt.begin_transaction()?);
-    let mut lock = self.transaction.lock().await;
-    *lock = txn.clone();
-    Ok(txn)
+  pub fn set_active_transaction(
+    &self,
+    transaction: Transaction,
+  ) -> Option<Transaction> {
+    let mut lock = self.active_transaction.lock();
+    *lock = Some(transaction.clone());
+    Some(transaction)
+  }
+
+  /// This removes the chained transaction associated with the session
+  /// This should be called after the command COMMIT/ROLLBACK is explicitly
+  /// called
+  /// The session won't start another chained transaction until BEGIN is called
+  /// again
+  #[inline]
+  pub fn clear_transaction(&self) {
+    let mut lock = self.active_transaction.lock();
+    *lock = None;
   }
 }
 

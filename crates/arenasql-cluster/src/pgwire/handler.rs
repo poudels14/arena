@@ -37,7 +37,7 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
     PgWireError: From<<C as Sink<PgWireBackendMessage>>::Error>,
   {
     let session = self.get_client_session(client)?;
-    let txn = session.ctxt.begin_transaction()?;
+    let txn = session.context.begin_transaction()?;
 
     let statement_name = message
       .statement_name()
@@ -78,7 +78,10 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
     C: ClientInfo + Send,
   {
     let session = self.get_client_session(client)?;
-    let txn = session.ctxt.begin_transaction()?;
+    let (transaction, chained) = session.get_active_transaction().map_or_else(
+      || session.context.begin_transaction().map(|t| (t, false)),
+      |txn| Ok((txn.clone(), true)),
+    )?;
     let stmts = &portal.statement().statement().stmts;
     let stmt = stmts[0].clone();
     let params = portal.parameters();
@@ -93,12 +96,28 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
         )
       })
       .collect();
-    let plan = txn.create_verified_logical_plan(stmt.clone()).await?;
+
+    // Use existing plan if the portal has it
+    let plan =
+      match portal.state().as_ref().and_then(|s| s.query_plan().clone()) {
+        Some(plan) => plan,
+        None => {
+          transaction
+            .create_verified_logical_plan(stmt.clone())
+            .await?
+        }
+      };
+
     let final_plan = plan
       .replace_params_with_values(prams_vec.as_slice())
       .map_err(|e| arenasql::Error::DataFusionError(e.into()))?;
 
-    let response = txn.execute_logical_plan(final_plan).await?;
+    let response = transaction.execute_logical_plan(final_plan).await?;
+    // Commit the transaction if it's not a chained transaction
+    // i.e. if it wasn't explicitly started by `BEGIN` command
+    if !chained {
+      transaction.commit()?;
+    }
     Self::map_to_pgwire_response(&stmt, response).await
   }
 

@@ -35,35 +35,37 @@ impl ArenaSqlCluster {
     // It seems like, in Postgres, all the statements in a single query
     // are run in the same transaction unless BEING/COMMIT/ROLLBACK is
     // explicity used
-    let mut txn = session.get_transaction().await?;
+    let mut active_transaction = session.get_active_transaction();
     let mut results = Vec::with_capacity(query.stmts.len());
     for stmt in query.stmts.iter() {
-      if txn.closed() {
-        txn = session.new_transaction().await?;
-      }
-      let result = if stmt.as_ref().is_begin() {
-        Response::Execution(Tag::new_for_execution(
-          stmt.as_ref().command(),
-          None,
-        ))
-      } else if stmt.as_ref().is_commit() {
-        txn.commit()?;
-        Response::Execution(Tag::new_for_execution(
-          stmt.as_ref().command(),
-          None,
-        ))
-      } else if stmt.as_ref().is_rollback() {
-        txn.rollback()?;
-        Response::Execution(Tag::new_for_execution(
-          stmt.as_ref().command(),
-          None,
-        ))
+      let stmt_ref = stmt.as_ref();
+      let result = if stmt_ref.is_begin() {
+        active_transaction =
+          session.set_active_transaction(session.context.begin_transaction()?);
+        Response::Execution(Tag::new_for_execution(stmt_ref.command(), None))
+      } else if stmt_ref.is_commit() {
+        active_transaction.take().map(|t| t.commit()).transpose()?;
+        session.clear_transaction();
+        Response::Execution(Tag::new_for_execution(stmt_ref.command(), None))
+      } else if stmt_ref.is_rollback() {
+        active_transaction
+          .take()
+          .map(|t| t.rollback())
+          .transpose()?;
+        session.clear_transaction();
+        Response::Execution(Tag::new_for_execution(stmt_ref.command(), None))
       } else {
-        let response = txn.execute(stmt.clone()).await.map_err(|e| {
-          // If there's any error during execution, rollback the transaction
-          let _ = txn.rollback().unwrap();
-          e
-        })?;
+        let (txn, chained) = active_transaction.as_ref().map_or_else(
+          || session.context.begin_transaction().map(|t| (t, false)),
+          |txn| Ok((txn.clone(), true)),
+        )?;
+        let response = txn.execute(stmt.clone()).await?;
+
+        // Commit the transaction if it's not a chained transaction
+        // i.e. if it wasn't explicitly started by `BEGIN` command
+        if !chained {
+          txn.commit()?;
+        }
         Self::map_to_pgwire_response(&stmt, response).await?
       };
       results.push(result);

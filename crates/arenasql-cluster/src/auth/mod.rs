@@ -1,3 +1,5 @@
 mod session;
 
-pub use session::{AuthenticatedSession, AuthenticatedSessionStore};
+pub use session::{
+  AuthenticatedSession, AuthenticatedSessionBuilder, AuthenticatedSessionStore,
+};

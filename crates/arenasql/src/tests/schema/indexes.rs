@@ -5,7 +5,7 @@ use crate::records::RecordBatch;
 use crate::tests::create_session_context;
 
 #[tokio::test(flavor = "multi_thread")]
-async fn create_index_after_creating_table_in_same_transaction() {
+async fn indexes_test_create_index_after_creating_table_in_same_transaction() {
   let session = create_session_context();
 
   let txn = session.begin_transaction().unwrap();
@@ -30,7 +30,7 @@ async fn create_index_after_creating_table_in_same_transaction() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn create_index_after_creating_table_in_different_transaction() {
+async fn indexes_test_create_index_after_creating_table_in_diff_transaction() {
   let session = create_session_context();
 
   let txn = session.begin_transaction().unwrap();
@@ -42,8 +42,8 @@ async fn create_index_after_creating_table_in_different_transaction() {
       )"#
   );
   assert!(res.is_ok());
-
   txn.commit().unwrap();
+
   let txn = session.begin_transaction().unwrap();
 
   let res = execute_query!(
@@ -58,7 +58,7 @@ async fn create_index_after_creating_table_in_different_transaction() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn create_index_with_same_name_in_same_txn_without_if_not_exist() {
+async fn indexes_test_index_with_same_name_in_same_txn_without_if_not_exist() {
   let session = create_session_context();
 
   let txn = session.begin_transaction().unwrap();
@@ -91,7 +91,7 @@ async fn create_index_with_same_name_in_same_txn_without_if_not_exist() {
 #[tokio::test(flavor = "multi_thread")]
 /// This will test whether the new index that's created after
 /// the table already has rows will be backfilled properly
-async fn create_unique_index_and_verify_index_backfill() {
+async fn indexes_test_create_unique_index_and_verify_index_backfill() {
   let session = create_session_context();
 
   let txn = session.begin_transaction().unwrap();
@@ -171,7 +171,7 @@ async fn create_unique_index_and_verify_index_backfill() {
 #[tokio::test(flavor = "multi_thread")]
 /// This will test whether the new index that's created after
 /// the table already has rows will be backfilled properly
-async fn create_secondary_index_and_verify_index_backfill() {
+async fn indexes_test_create_secondary_index_and_verify_index_backfill() {
   let session = create_session_context();
 
   let txn = session.begin_transaction().unwrap();
@@ -247,7 +247,7 @@ async fn create_secondary_index_and_verify_index_backfill() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn create_unique_index_with_multiple_cols() {
+async fn indexes_test_create_unique_index_with_multiple_cols() {
   let session = create_session_context();
 
   let txn = session.begin_transaction().unwrap();

@@ -9,11 +9,12 @@ use arenasql::{SessionConfig, SessionContext, SingleCatalogListProvider};
 use dashmap::DashMap;
 use derivative::Derivative;
 use pgwire::api::ClientInfo;
-use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use self::storage::{StorageFactory, StorageOption};
-use crate::auth::{AuthenticatedSession, AuthenticatedSessionStore};
+use crate::auth::{
+  AuthenticatedSession, AuthenticatedSessionBuilder, AuthenticatedSessionStore,
+};
 use crate::error::{ArenaClusterError, ArenaClusterResult};
 use crate::pgwire::{ArenaPortalStore, ArenaQueryParser, QueryClient};
 
@@ -107,15 +108,14 @@ impl ArenaSqlCluster {
     });
 
     let session_id = Uuid::new_v4().to_string();
-    let transaction =
-      Arc::new(Mutex::new(session_context.begin_transaction()?.into()));
-    let session = AuthenticatedSession {
-      id: session_id.clone(),
-      database: catalog,
-      user: user.to_string(),
-      ctxt: session_context,
-      transaction,
-    };
+
+    let session = AuthenticatedSessionBuilder::default()
+      .id(session_id.clone())
+      .database(catalog)
+      .user(user.to_string())
+      .context(session_context)
+      .build()
+      .unwrap();
     Ok(self.session_store.put(session))
   }
 }

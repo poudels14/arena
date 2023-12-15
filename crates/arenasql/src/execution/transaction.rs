@@ -12,6 +12,7 @@ use crate::execution::plans;
 use crate::{storage, Error, Result};
 
 #[allow(unused)]
+#[derive(Clone)]
 pub struct Transaction {
   pub(crate) storage_txn: storage::Transaction,
   pub(super) sql_options: SQLOptions,
@@ -81,12 +82,12 @@ impl Transaction {
   }
 
   #[inline]
-  pub fn commit(&self) -> Result<()> {
+  pub fn commit(self) -> Result<()> {
     self.storage_txn.commit()
   }
 
   #[inline]
-  pub fn rollback(&self) -> Result<()> {
+  pub fn rollback(self) -> Result<()> {
     self.storage_txn.rollback()
   }
 
@@ -99,14 +100,5 @@ impl Transaction {
     let response =
       execute_stream(physical_plan.clone(), self.ctxt.task_ctx().into())?;
     ExecutionResponse::create(response, logical_plan).await
-  }
-}
-
-impl Drop for Transaction {
-  fn drop(&mut self) {
-    // When transaction is dropped, auto-commit the transaction
-    if !self.closed() {
-      self.commit().unwrap();
-    }
   }
 }
