@@ -5,6 +5,8 @@ use dashmap::DashMap;
 use derivative::Derivative;
 use tokio::sync::Mutex;
 
+use crate::error::ArenaClusterResult as Result;
+
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct AuthenticatedSession {
@@ -13,7 +15,23 @@ pub struct AuthenticatedSession {
   pub database: String,
   pub ctxt: SessionContext,
   #[derivative(Debug = "ignore")]
-  pub transaction: Arc<Mutex<Option<Transaction>>>,
+  pub transaction: Arc<Mutex<Arc<Transaction>>>,
+}
+
+impl AuthenticatedSession {
+  #[inline]
+  pub async fn get_transaction(&self) -> Result<Arc<Transaction>> {
+    let txn = self.transaction.lock().await;
+    Ok(txn.clone())
+  }
+
+  #[inline]
+  pub async fn new_transaction(&self) -> Result<Arc<Transaction>> {
+    let txn = Arc::new(self.ctxt.begin_transaction()?);
+    let mut lock = self.transaction.lock().await;
+    *lock = txn.clone();
+    Ok(txn)
+  }
 }
 
 pub struct AuthenticatedSessionStore {

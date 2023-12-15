@@ -118,20 +118,26 @@ impl Error {
           if let Some(arena_err) = err.downcast_ref::<Error>() {
             arena_err.message()
           } else {
+            eprintln!("Error: {:?}", err);
             format!("Internal error")
           }
         }
-        DataFusionError::Context(msg, e) => match e.as_ref() {
+        DataFusionError::Context(_, e) => match e.as_ref() {
           DataFusionError::External(err) => {
             if let Some(arena_err) = err.downcast_ref::<Error>() {
               arena_err.message()
             } else {
+              eprintln!("Error: {:?}", err);
               format!("Internal error")
             }
           }
-          _ => format!("Internal error"),
+          err => {
+            eprintln!("Error: {:?}", err);
+            format!("Internal error")
+          }
         },
-        e => {
+        err => {
+          eprintln!("Error: {:?}", err);
           format!("Internal error")
         }
       },

@@ -42,10 +42,12 @@ impl Filter {
       .collect();
 
     // TODO: support more than 1 projected column?
-    assert!(
-      projected_columns.len() < 2,
-      "Only one project column supported so far"
-    );
+    if projected_columns.len() > 1 {
+      return Err(Error::UnsupportedOperation(format!(
+        "Unsupported filter: {}",
+        expr.to_string()
+      )));
+    }
 
     match expr {
       Expr::BinaryExpr(e) => Ok(Self::BinaryExpr {

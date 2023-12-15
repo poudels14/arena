@@ -1,3 +1,4 @@
+mod client;
 mod handler;
 mod parser;
 mod portal;
@@ -8,6 +9,7 @@ pub(crate) mod encoder;
 pub(crate) mod rowconverter;
 pub(crate) mod statement;
 
+pub use client::QueryClient;
 pub use parser::ArenaQueryParser;
 pub use portal::ArenaPortalStore;
-pub use statement::{ArenaQuery, QueryClient};
+pub use statement::ArenaQuery;

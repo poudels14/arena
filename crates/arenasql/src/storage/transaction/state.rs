@@ -119,6 +119,7 @@ impl TransactionState {
     tables
   }
 
+  #[inline]
   pub fn lock(&self, exclusive: bool) -> Result<()> {
     let state = self.lock.load(Ordering::SeqCst);
     match LockState::from_repr(state) {
@@ -173,6 +174,7 @@ impl TransactionState {
     }
   }
 
+  #[inline]
   pub fn unlock(&self) -> Result<()> {
     let state = self.lock.load(Ordering::SeqCst);
     match LockState::from_repr(state) {
@@ -202,6 +204,15 @@ impl TransactionState {
     Ok(())
   }
 
+  #[inline]
+  pub fn closed(&self) -> bool {
+    match LockState::from_repr(self.lock.load(Ordering::SeqCst)) {
+      Some(LockState::Closed) => true,
+      _ => false,
+    }
+  }
+
+  #[inline]
   pub fn close(&self) -> Result<()> {
     match LockState::from_repr(self.lock.load(Ordering::SeqCst)) {
       Some(LockState::Free) => {}

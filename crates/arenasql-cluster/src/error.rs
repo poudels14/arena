@@ -13,7 +13,9 @@ pub enum Error {
   CatalogNotFound(String),
   InvalidConnection,
   UnsupportedDataType(String),
+  MultipleCommandsIntoPreparedStmt,
   StorageError,
+  ArenaSqlError(arenasql::Error),
 }
 
 impl std::error::Error for Error {}
@@ -24,33 +26,48 @@ impl fmt::Display for Error {
   }
 }
 
+macro_rules! user_error {
+  ($severity:literal,$code:expr,$msg:expr) => {
+    PgWireError::UserError(Box::new(ErrorInfo::new(
+      $severity.to_owned(),
+      $code.to_owned(),
+      $msg,
+    )))
+  };
+}
+
+impl From<arenasql::Error> for Error {
+  fn from(err: arenasql::Error) -> Self {
+    Self::ArenaSqlError(err)
+  }
+}
+
 impl From<Error> for PgWireError {
   fn from(value: Error) -> Self {
     match value {
-      Error::InvalidConnection => PgWireError::UserError(
-        ErrorInfo::new(
-          "FATAL".to_owned(),
-          "08006".to_owned(),
-          "System error [INVALID_CONNECTION]".to_owned(),
-        )
-        .into(),
+      Error::InvalidConnection => user_error!(
+        "FATAL",
+        "08006",
+        "System error [INVALID_CONNECTION]".to_owned()
       ),
-      Error::CatalogNotFound(catalog) => PgWireError::UserError(
-        ErrorInfo::new(
-          "FATAL".to_owned(),
-          "3D000".to_owned(),
-          format!("database \"{}\" does not exist", catalog),
-        )
-        .into(),
+      Error::CatalogNotFound(catalog) => user_error!(
+        "FATAL",
+        "3D000",
+        format!("database \"{}\" does not exist", catalog)
       ),
-      _ => PgWireError::UserError(
-        ErrorInfo::new(
-          "FATAL".to_owned(),
-          "XX000".to_owned(),
-          format!("System error [{:?}]", value),
+      Error::MultipleCommandsIntoPreparedStmt => {
+        user_error!(
+          "ERROR",
+          "42601",
+          format!("cannot insert multiple commands into a prepared statement")
         )
-        .into(),
-      ),
+      }
+      Error::ArenaSqlError(err) => {
+        user_error!("ERROR", err.code(), err.message())
+      }
+      _ => {
+        user_error!("FATAL", "XX000", format!("System error [{:?}]", value))
+      }
     }
   }
 }

@@ -5,18 +5,23 @@ mod df;
 mod error;
 pub(crate) mod execution;
 pub(crate) mod utils;
-pub(crate) mod vectors;
 
 pub mod parser;
 pub mod runtime;
 pub mod schema;
 pub mod storage;
+pub mod vectors;
 
 pub type Result<T> = std::result::Result<T, error::Error>;
 pub type Error = error::Error;
 
 pub use df::providers::{CatalogListProvider, SingleCatalogListProvider};
 pub use execution::{SessionConfig, SessionContext, Transaction};
+
+pub mod common {
+  pub use datafusion::common::{ScalarType, ScalarValue};
+  pub use datafusion::logical_expr::LogicalPlan;
+}
 
 pub mod response {
   pub use crate::execution::response::*;

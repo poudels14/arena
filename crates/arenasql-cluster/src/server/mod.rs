@@ -6,34 +6,60 @@ use std::sync::Arc;
 
 use arenasql::runtime::RuntimeEnv;
 use arenasql::{SessionConfig, SessionContext, SingleCatalogListProvider};
+use dashmap::DashMap;
+use derivative::Derivative;
+use pgwire::api::ClientInfo;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-use self::storage::StorageFactory;
+use self::storage::{StorageFactory, StorageOption};
 use crate::auth::{AuthenticatedSession, AuthenticatedSessionStore};
 use crate::error::{ArenaClusterError, ArenaClusterResult};
 use crate::pgwire::{ArenaPortalStore, ArenaQueryParser, QueryClient};
 
 pub struct ArenaSqlCluster {
+  pub config: ClusterConfig,
   pub(crate) runtime: Arc<RuntimeEnv>,
   pub(crate) parser: Arc<ArenaQueryParser>,
-  pub(crate) poral_store: Arc<ArenaPortalStore>,
+  /// Portal stores should be unique to each session since different
+  /// statements can be stored under same default name and sharing
+  /// portals across sessions would lead to stored statements being
+  /// overridden
+  pub(crate) poral_stores: Arc<DashMap<String, Arc<ArenaPortalStore>>>,
   pub(crate) session_store: Arc<AuthenticatedSessionStore>,
   pub(crate) storage: Arc<StorageFactory>,
 }
 
+#[derive(Debug, Derivative)]
+pub struct ClusterConfig {
+  /// Per database cache size in MB
+  #[derivative(Default(value = "10"))]
+  pub cache_size_mb: usize,
+}
+
 impl ArenaSqlCluster {
-  pub fn new(path: &str) -> Self {
+  pub fn new(path: &str, config: ClusterConfig) -> Self {
     Self {
+      config,
       runtime: Arc::new(RuntimeEnv::default()),
       parser: Arc::new(ArenaQueryParser {}),
-      poral_store: Arc::new(ArenaPortalStore::new()),
+      poral_stores: Arc::new(DashMap::new()),
       session_store: Arc::new(AuthenticatedSessionStore::new()),
       storage: Arc::new(StorageFactory::new(PathBuf::from(path))),
     }
   }
 
-  fn get_or_create_new_session(
+  pub(crate) fn get_client_session<C: ClientInfo>(
+    &self,
+    client: &C,
+  ) -> ArenaClusterResult<Arc<AuthenticatedSession>> {
+    self
+      .session_store
+      .get(client.metadata().get("session_id").unwrap())
+      .ok_or_else(|| ArenaClusterError::InvalidConnection)
+  }
+
+  pub(crate) fn get_or_create_new_session(
     &self,
     client: &QueryClient,
   ) -> ArenaClusterResult<Arc<AuthenticatedSession>> {
@@ -47,6 +73,7 @@ impl ArenaSqlCluster {
         database.clone(),
         "public".to_owned(),
       ),
+      _ => unreachable!(),
     }
   }
 
@@ -58,7 +85,12 @@ impl ArenaSqlCluster {
   ) -> ArenaClusterResult<Arc<AuthenticatedSession>> {
     let storage_factory = self
       .storage
-      .get(&catalog)?
+      .get(
+        &catalog,
+        StorageOption {
+          cache_size_mb: Some(self.config.cache_size_mb),
+        },
+      )?
       .ok_or_else(|| ArenaClusterError::CatalogNotFound(catalog.clone()))?;
 
     let catalog_list_provider =
@@ -75,12 +107,14 @@ impl ArenaSqlCluster {
     });
 
     let session_id = Uuid::new_v4().to_string();
+    let transaction =
+      Arc::new(Mutex::new(session_context.begin_transaction()?.into()));
     let session = AuthenticatedSession {
       id: session_id.clone(),
       database: catalog,
       user: user.to_string(),
       ctxt: session_context,
-      transaction: Arc::new(Mutex::new(None)),
+      transaction,
     };
     Ok(self.session_store.put(session))
   }

@@ -42,13 +42,20 @@ impl Transaction {
     })
   }
 
+  #[inline]
+  pub fn closed(&self) -> bool {
+    self.state.closed()
+  }
+
+  #[inline]
   pub fn commit(&self) -> Result<()> {
     self.state.close()?;
     self.kv_store.commit()?;
     Ok(())
   }
 
-  pub fn rollback(self) -> Result<()> {
+  #[inline]
+  pub fn rollback(&self) -> Result<()> {
     self.state.close()?;
     self.kv_store.rollback()?;
     Ok(())

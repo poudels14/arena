@@ -13,6 +13,13 @@ pub struct StorageFactory {
   storages: DashMap<String, Arc<storage::StorageFactory>>,
 }
 
+#[derive(Debug, Default)]
+pub struct StorageOption {
+  /// Rocksdb cache size in MB
+  /// Doesn't use cache if it's not passed
+  pub cache_size_mb: Option<usize>,
+}
+
 impl StorageFactory {
   pub fn new(path: PathBuf) -> Self {
     if !path.exists() {
@@ -28,6 +35,7 @@ impl StorageFactory {
   pub fn get(
     &self,
     db_name: &str,
+    options: StorageOption,
   ) -> ArenaClusterResult<Option<Arc<storage::StorageFactory>>> {
     let storage = self.storages.get(db_name);
     match storage {
@@ -40,8 +48,9 @@ impl StorageFactory {
             let kv = Arc::new(
               RocksStorage::new_with_cache(
                 path,
-                // TODO: pass this as config
-                Some(rocks::Cache::new_lru_cache(50 * 1025 * 1024)),
+                options
+                  .cache_size_mb
+                  .map(|size| rocks::Cache::new_lru_cache(size * 1024 * 1024)),
               )
               .map_err(|_| ArenaClusterError::StorageError)?,
             );

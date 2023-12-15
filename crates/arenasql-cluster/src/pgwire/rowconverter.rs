@@ -14,7 +14,7 @@ pub fn convert_to_rows<'a>(
   let batch_fields = &batch.schema().fields;
   let fields: Vec<FieldInfo> = batch_fields
     .iter()
-    .map(|field| datatype::to_field_info(field))
+    .map(|field| datatype::to_field_info(field.as_ref()))
     .collect();
   let schema = Arc::new(fields);
 

@@ -7,6 +7,7 @@ use ::pgwire::api::{MakeHandler, StatelessMakeHandler};
 use ::pgwire::tokio::process_socket;
 use clap::Parser;
 use log::{info, LevelFilter};
+use server::ClusterConfig;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::str::FromStr;
 use std::sync::Arc;
@@ -38,6 +39,10 @@ struct Args {
   #[arg(long)]
   dir: String,
 
+  /// Cache size per database in MB
+  #[arg(long, default_value_t = 10)]
+  cache_size: usize,
+
   /// Number of threads to use
   #[arg(long)]
   threads: Option<usize>,
@@ -54,7 +59,12 @@ fn main() {
   let port = args.port.unwrap_or(5432);
   let num_thread = args.threads.unwrap_or(num_cpus::get());
 
-  let cluster = Arc::new(ArenaSqlCluster::new(&args.dir));
+  let cluster = Arc::new(ArenaSqlCluster::new(
+    &args.dir,
+    ClusterConfig {
+      cache_size_mb: args.cache_size,
+    },
+  ));
   let processor = Arc::new(StatelessMakeHandler::new(cluster.clone()));
   let authenticator = Arc::new(StatelessMakeHandler::new(cluster.clone()));
 

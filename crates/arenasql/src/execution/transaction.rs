@@ -1,14 +1,15 @@
-use std::borrow::BorrowMut;
+use std::sync::Arc;
 
 use datafusion::execution::context::{
   SQLOptions, SessionContext as DfSessionContext,
 };
-use datafusion::physical_plan::execute_stream;
+use datafusion::logical_expr::LogicalPlan;
+use datafusion::physical_plan::{execute_stream, ExecutionPlan};
 use sqlparser::ast::Statement as SQLStatement;
 
 use super::response::ExecutionResponse;
 use crate::execution::plans;
-use crate::{parser, storage, Error, Result};
+use crate::{storage, Error, Result};
 
 #[allow(unused)]
 pub struct Transaction {
@@ -18,8 +19,20 @@ pub struct Transaction {
 }
 
 impl Transaction {
+  pub async fn create_verified_logical_plan(
+    &self,
+    stmt: Box<SQLStatement>,
+  ) -> Result<LogicalPlan> {
+    let state = self.ctxt.state();
+    let plan = state
+      .statement_to_plan(datafusion::sql::parser::Statement::Statement(stmt))
+      .await?;
+    self.sql_options.verify_plan(&plan)?;
+    Ok(plan)
+  }
+
   pub async fn execute_sql(&self, sql: &str) -> Result<ExecutionResponse> {
-    let mut stmts = crate::parser::parse(sql)?;
+    let mut stmts = crate::parser::parse_and_sanitize(sql)?;
     if stmts.len() != 1 {
       return Err(Error::UnsupportedOperation(
         "In a transaction, one and only one statement should be executed"
@@ -33,20 +46,14 @@ impl Transaction {
     &self,
     stmt: Box<SQLStatement>,
   ) -> Result<ExecutionResponse> {
-    let (logical_plan, physical_plan) = match plans::get_custom_execution_plan(
-      &self.ctxt,
-      &self.storage_txn,
-      &stmt,
-    )
-    .await?
+    match plans::get_custom_execution_plan(&self.ctxt, &self.storage_txn, &stmt)
+      .await?
     {
-      Some(plan) => (None, plan),
+      Some(plan) => self.execute_stream(None, plan).await,
       None => {
         let state = self.ctxt.state();
         // TODO: creating physical plan from SQL is expensive
         // look into caching physical plans
-        let mut stmt = stmt.clone();
-        parser::cast_unsupported_data_types(stmt.borrow_mut())?;
         let plan = state
           .statement_to_plan(datafusion::sql::parser::Statement::Statement(
             stmt,
@@ -54,21 +61,52 @@ impl Transaction {
           .await?;
 
         self.sql_options.verify_plan(&plan)?;
-        let df = self.ctxt.execute_logical_plan(plan.clone()).await?;
-        (Some(plan), df.create_physical_plan().await?)
+        self.execute_logical_plan(plan).await
       }
-    };
+    }
+  }
 
+  pub async fn execute_logical_plan(
+    &self,
+    plan: LogicalPlan,
+  ) -> Result<ExecutionResponse> {
+    let df = self.ctxt.execute_logical_plan(plan.clone()).await?;
+    let physical_plan = df.create_physical_plan().await?;
+    self.execute_stream(Some(plan), physical_plan).await
+  }
+
+  #[inline]
+  pub fn closed(&self) -> bool {
+    self.storage_txn.closed()
+  }
+
+  #[inline]
+  pub fn commit(&self) -> Result<()> {
+    self.storage_txn.commit()
+  }
+
+  #[inline]
+  pub fn rollback(&self) -> Result<()> {
+    self.storage_txn.rollback()
+  }
+
+  #[inline]
+  async fn execute_stream(
+    &self,
+    logical_plan: Option<LogicalPlan>,
+    physical_plan: Arc<dyn ExecutionPlan>,
+  ) -> Result<ExecutionResponse> {
     let response =
       execute_stream(physical_plan.clone(), self.ctxt.task_ctx().into())?;
     ExecutionResponse::create(response, logical_plan).await
   }
+}
 
-  pub fn commit(self) -> Result<()> {
-    self.storage_txn.commit()
-  }
-
-  pub fn rollback(self) -> Result<()> {
-    self.storage_txn.rollback()
+impl Drop for Transaction {
+  fn drop(&mut self) {
+    // When transaction is dropped, auto-commit the transaction
+    if !self.closed() {
+      self.commit().unwrap();
+    }
   }
 }

@@ -1,25 +1,27 @@
 use sqlparser::ast::Statement as SQLStatement;
 
-#[allow(dead_code)]
-#[derive(Debug, Clone)]
-pub enum QueryClient {
-  Authenticated { id: String },
-  New { user: String, database: String },
-}
+use super::QueryClient;
 
 #[derive(Debug, Clone)]
 pub struct ArenaQuery {
-  pub client: Option<QueryClient>,
+  pub client: QueryClient,
   pub stmts: Vec<Box<SQLStatement>>,
 }
 
-pub trait CommandString {
+pub trait SqlCommand {
   fn command(&self) -> &'static str;
+  fn is_begin(&self) -> bool;
+  fn is_commit(&self) -> bool;
+  fn is_rollback(&self) -> bool;
 }
 
-impl CommandString for Box<SQLStatement> {
+impl SqlCommand for &SQLStatement {
+  #[inline]
   fn command(&self) -> &'static str {
-    match self.as_ref() {
+    match self {
+      SQLStatement::StartTransaction { .. } => "BEGIN",
+      SQLStatement::Commit { .. } => "COMMIT",
+      SQLStatement::Rollback { .. } => "ROLLBACK",
       SQLStatement::Query(_) => "SELECT",
       SQLStatement::Insert { .. } => "INSERT",
       SQLStatement::CreateDatabase { .. }
@@ -27,6 +29,30 @@ impl CommandString for Box<SQLStatement> {
       SQLStatement::Delete { .. } => "DELETE",
       SQLStatement::AlterIndex { .. } => "ALTER",
       stmt => unimplemented!("Command not supported: {}", stmt),
+    }
+  }
+
+  #[inline]
+  fn is_begin(&self) -> bool {
+    match self {
+      SQLStatement::StartTransaction { .. } => true,
+      _ => false,
+    }
+  }
+
+  #[inline]
+  fn is_commit(&self) -> bool {
+    match self {
+      SQLStatement::Commit { .. } => true,
+      _ => false,
+    }
+  }
+
+  #[inline]
+  fn is_rollback(&self) -> bool {
+    match self {
+      SQLStatement::Rollback { .. } => true,
+      _ => false,
     }
   }
 }

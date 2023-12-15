@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use pgwire::api::stmt::QueryParser;
 use pgwire::error::{ErrorInfo, PgWireError, PgWireResult};
 
-use super::ArenaQuery;
+use super::{ArenaQuery, QueryClient};
 
 pub struct ArenaQueryParser;
 
@@ -15,7 +15,7 @@ impl QueryParser for ArenaQueryParser {
     sql: &str,
     _types: &[pgwire::api::Type],
   ) -> PgWireResult<Self::Statement> {
-    let stmts = arenasql::parser::parse(sql)
+    let stmts = arenasql::parser::parse_and_sanitize(sql)
       .map_err(|e| {
         PgWireError::UserError(
           ErrorInfo::new("ERROR".to_owned(), "42601".to_owned(), e.to_string())
@@ -27,7 +27,7 @@ impl QueryParser for ArenaQueryParser {
       .collect();
 
     Ok(ArenaQuery {
-      client: None,
+      client: QueryClient::Unknown,
       stmts,
     })
   }

@@ -1,6 +1,7 @@
 use datafusion::arrow::array::{ArrayBuilder, BinaryBuilder};
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::arrow::record_batch::RecordBatch;
+use datafusion::error::DataFusionError;
 
 use super::{ColumnArrayBuilder, DataType, SerializedCell};
 use crate::{Error, Result};
@@ -56,9 +57,8 @@ impl DataFrame {
       .into_iter()
       .map(|b| b.finish())
       .collect();
-    Ok(
-      RecordBatch::try_new(schema, col_arrays)
-        .map_err(|e| Error::DataFusionError(e.to_string()))?,
-    )
+    Ok(RecordBatch::try_new(schema, col_arrays).map_err(|e| {
+      Error::DataFusionError(DataFusionError::ArrowError(e).into())
+    })?)
   }
 }
