@@ -4,7 +4,6 @@ mod config;
 mod context;
 mod custom_functions;
 mod planner;
-mod plans;
 mod transaction;
 
 pub(crate) mod filter;

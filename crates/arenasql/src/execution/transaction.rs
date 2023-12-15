@@ -8,7 +8,7 @@ use datafusion::physical_plan::{execute_stream, ExecutionPlan};
 use sqlparser::ast::Statement as SQLStatement;
 
 use super::response::ExecutionResponse;
-use crate::execution::plans;
+use crate::df::plans;
 use crate::{storage, Error, Result};
 
 #[allow(unused)]

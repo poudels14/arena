@@ -12,7 +12,7 @@ use datafusion::physical_plan::{
 use derivative::Derivative;
 use futures::StreamExt;
 
-use super::{RecordBatch, RecordBatchStream};
+use super::super::{RecordBatch, RecordBatchStream};
 use crate::execution::filter::Filter;
 use crate::execution::iterators::{HeapIterator, IndexIterator};
 use crate::schema::{DataFrame, DataType, Table};

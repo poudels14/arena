@@ -1,3 +1,7 @@
+pub(crate) mod create_index;
+pub(crate) mod insert_rows;
+pub(crate) mod scan_table;
+
 use std::sync::Arc;
 
 use datafusion::execution::context::SessionContext;
@@ -5,13 +9,9 @@ use datafusion::physical_plan::ExecutionPlan;
 use datafusion::sql::TableReference;
 use sqlparser::ast::Statement as SQLStatement;
 
-use crate::execution::plans::create_index::{
-  CreateIndex, CreateIndexExecutionPlanBuilder,
-};
+use self::create_index::{CreateIndex, CreateIndexExecutionPlanBuilder};
 use crate::storage::Transaction;
 use crate::{bail, Error, Result};
-
-pub(crate) mod create_index;
 
 macro_rules! bail_unsupported_query {
   ($msg:literal) => {
@@ -103,7 +103,6 @@ pub async fn get_custom_execution_plan(
       return Ok(Some(Arc::new(
         CreateIndexExecutionPlanBuilder::default()
           .transaction(transaction.clone())
-          .stmt(stmt.clone())
           .create_index(create_index)
           .build()
           .unwrap(),

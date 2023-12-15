@@ -17,7 +17,6 @@ use datafusion::physical_plan::{
 use derivative::Derivative;
 use derive_builder::Builder;
 use futures::StreamExt;
-use sqlparser::ast::Statement as SQLStatement;
 
 use crate::schema::{IndexType, Row, Table, TableIndex};
 use crate::storage::{KeyValueGroup, StorageHandler, Transaction};
@@ -29,7 +28,6 @@ pub struct CreateIndexExecutionPlan {
   #[derivative(Debug = "ignore")]
   transaction: Transaction,
   create_index: CreateIndex,
-  stmt: Box<SQLStatement>,
 }
 
 #[derive(Debug, Clone)]
@@ -55,7 +53,7 @@ impl DisplayAs for CreateIndexExecutionPlan {
 
 impl ExecutionPlan for CreateIndexExecutionPlan {
   fn as_any(&self) -> &dyn Any {
-    unimplemented!()
+    self
   }
 
   fn execute(
@@ -173,6 +171,5 @@ fn backfill_index_data(
     storage_handler.add_row_to_index(table, &new_index, row_id_bytes, &row)?;
     rows_iter.next();
   }
-  // TODO
   Ok(())
 }

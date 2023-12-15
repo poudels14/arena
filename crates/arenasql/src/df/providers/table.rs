@@ -11,8 +11,7 @@ use datafusion::logical_expr::{Expr, TableProviderFilterPushDown, TableType};
 use datafusion::physical_plan::insert::FileSinkExec;
 use datafusion::physical_plan::{project_schema, ExecutionPlan};
 
-use super::super::scan;
-use crate::df::insert;
+use crate::df::plans::{insert_rows, scan_table};
 use crate::execution::filter::Filter;
 use crate::schema;
 use crate::storage::Transaction;
@@ -109,7 +108,7 @@ impl DfTableProvider for TableProvider {
     limit: Option<usize>,
   ) -> Result<Arc<dyn ExecutionPlan>> {
     let projected_schema = project_schema(&self.schema, projection).unwrap();
-    Ok(Arc::new(scan::TableScaner {
+    Ok(Arc::new(scan_table::TableScaner {
       table: self.table.clone(),
       projection: projection
         .map(|p| p.to_vec())
@@ -157,7 +156,7 @@ impl DfTableProvider for TableProvider {
 
     Ok(Arc::new(FileSinkExec::new(
       input,
-      Arc::new(insert::Sink {
+      Arc::new(insert_rows::Sink {
         table: self.table.clone(),
         schema: sink_schema.clone(),
         transaction: self.transaction.clone(),
