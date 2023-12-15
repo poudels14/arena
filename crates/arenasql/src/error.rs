@@ -127,17 +127,20 @@ impl Error {
             if let Some(arena_err) = err.downcast_ref::<Error>() {
               arena_err.message()
             } else {
-              eprintln!("Error: {:?}", err);
+              eprintln!("Unknown error at {}:{}: {:?}", file!(), line!(), err);
               format!("Internal error")
             }
           }
           err => {
-            eprintln!("Error: {:?}", err);
+            eprintln!("Unknown error at {}:{}: {:?}", file!(), line!(), err);
             format!("Internal error")
           }
         },
+        DataFusionError::Plan(e) => {
+          format!("{}", e.to_string())
+        }
         err => {
-          eprintln!("Error: {:?}", err);
+          eprintln!("Unknown error at {}:{}: {:?}", file!(), line!(), err);
           format!("Internal error")
         }
       },
