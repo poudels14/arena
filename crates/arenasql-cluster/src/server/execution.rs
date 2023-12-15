@@ -63,7 +63,10 @@ impl ArenaSqlCluster {
 
         // Commit the transaction if it's not a chained transaction
         // i.e. if it wasn't explicitly started by `BEGIN` command
-        if !chained {
+        // Don't commit the SELECT statement's transaction since the
+        // SELECT response stream will still need a valid transaction
+        // when scanning rows
+        if !chained && !stmt_ref.is_query() {
           txn.commit()?;
         }
         Self::map_to_pgwire_response(&stmt, response).await?
@@ -77,7 +80,6 @@ impl ArenaSqlCluster {
     stmt: &Statement,
     response: ExecutionResponse,
   ) -> PgWireResult<Response<'a>> {
-    // Note: only commit non-query (eg: SELECT) transactions
     match response.stmt_type {
       // TODO: drop future/stream when connection drops?
       arenasql::response::Type::Query => Self::to_row_stream(response),

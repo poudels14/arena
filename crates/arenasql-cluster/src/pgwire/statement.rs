@@ -10,6 +10,8 @@ pub struct ArenaQuery {
 
 pub trait SqlCommand {
   fn command(&self) -> &'static str;
+  /// Whether the SQL is `SELECT` command
+  fn is_query(&self) -> bool;
   fn is_begin(&self) -> bool;
   fn is_commit(&self) -> bool;
   fn is_rollback(&self) -> bool;
@@ -29,6 +31,14 @@ impl SqlCommand for &SQLStatement {
       SQLStatement::Delete { .. } => "DELETE",
       SQLStatement::AlterIndex { .. } => "ALTER",
       stmt => unimplemented!("Command not supported: {}", stmt),
+    }
+  }
+
+  #[inline]
+  fn is_query(&self) -> bool {
+    match self {
+      SQLStatement::Query { .. } => true,
+      _ => false,
     }
   }
 
