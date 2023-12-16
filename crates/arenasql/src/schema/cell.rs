@@ -5,7 +5,8 @@ use datafusion::arrow::array::{
   ArrayRef,
 };
 use datafusion::arrow::datatypes::{
-  Float32Type, Float64Type, Int32Type, Int64Type,
+  Float32Type, Float64Type, Int16Type, Int32Type, Int64Type, UInt32Type,
+  UInt64Type,
 };
 use datafusion::error::Result;
 use datafusion::scalar::ScalarValue;
@@ -26,15 +27,16 @@ pub enum SerializedCell<'a> {
   Int32(i32) = 4,
   UInt32(u32) = 5,
   Int64(i64) = 6,
-  Float32(f32) = 7,
-  Float64(f64) = 8,
+  UInt64(u64) = 7,
+  Float32(f32) = 8,
+  Float64(f64) = 9,
   // Using the reference for bytes prevents data cloning during
   // deserialization
-  Blob(&'a [u8]) = 9,
+  Blob(&'a [u8]) = 10,
   // TODO: convert f32 to u16 when storing in order to store bfloat16
   // Vec<f32> can't be deserialized to &'a [f32] because converting [u8]
   // to f32 requires allocation
-  Vector(Arc<Vec<f32>>) = 10,
+  Vector(Arc<Vec<f32>>) = 11,
 }
 
 // Note: this should only be used when it's impossible to use
@@ -48,10 +50,11 @@ pub enum OwnedSerializedCell {
   Int32(i32) = 4,
   UInt32(u32) = 5,
   Int64(i64) = 6,
-  Float32(f32) = 7,
-  Float64(f64) = 8,
-  Blob(Arc<Vec<u8>>) = 9,
-  Vector(Arc<Vec<f32>>) = 10,
+  UInt64(u64) = 7,
+  Float32(f32) = 8,
+  Float64(f64) = 9,
+  Blob(Arc<Vec<u8>>) = 10,
+  Vector(Arc<Vec<f32>>) = 11,
 }
 
 impl<'a> Default for SerializedCell<'a> {
@@ -100,13 +103,25 @@ impl<'a> SerializedCell<'a> {
         .iter()
         .map(|v| v.map(|v| SerializedCell::Boolean(v)).unwrap_or_default())
         .collect(),
+      DataType::Int16 => as_primitive_array::<Int16Type>(array)
+        .iter()
+        .map(|v| v.map(|v| SerializedCell::Int16(v)).unwrap_or_default())
+        .collect(),
       DataType::Int32 => as_primitive_array::<Int32Type>(array)
         .iter()
         .map(|v| v.map(|v| SerializedCell::Int32(v)).unwrap_or_default())
         .collect(),
+      DataType::UInt32 => as_primitive_array::<UInt32Type>(array)
+        .iter()
+        .map(|v| v.map(|v| SerializedCell::UInt32(v)).unwrap_or_default())
+        .collect(),
       DataType::Int64 => as_primitive_array::<Int64Type>(array)
         .iter()
         .map(|v| v.map(|v| SerializedCell::Int64(v)).unwrap_or_default())
+        .collect(),
+      DataType::UInt64 => as_primitive_array::<UInt64Type>(array)
+        .iter()
+        .map(|v| v.map(|v| SerializedCell::UInt64(v)).unwrap_or_default())
         .collect(),
       DataType::Float32 => as_primitive_array::<Float32Type>(array)
         .iter()
@@ -165,6 +180,7 @@ impl<'a> SerializedCell<'a> {
       Self::Int32(v) => OwnedSerializedCell::Int32(v),
       Self::UInt32(v) => OwnedSerializedCell::UInt32(v),
       Self::Int64(v) => OwnedSerializedCell::Int64(v),
+      Self::UInt64(v) => OwnedSerializedCell::UInt64(v),
       Self::Float32(v) => OwnedSerializedCell::Float32(v),
       Self::Float64(v) => OwnedSerializedCell::Float64(v),
       Self::Blob(blob) => OwnedSerializedCell::Blob(Arc::new(blob.to_vec())),
@@ -221,6 +237,15 @@ impl<'a> SerializedCell<'a> {
     match self {
       SerializedCell::Null => None,
       SerializedCell::Int64(value) => Some(*value),
+      _ => unreachable!(),
+    }
+  }
+
+  #[inline]
+  pub fn as_u64(&self) -> Option<u64> {
+    match self {
+      SerializedCell::Null => None,
+      SerializedCell::UInt64(value) => Some(*value),
       _ => unreachable!(),
     }
   }

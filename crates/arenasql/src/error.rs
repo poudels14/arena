@@ -136,8 +136,19 @@ impl Error {
             format!("Internal error")
           }
         },
-        DataFusionError::Plan(e) => {
-          format!("{}", e.to_string())
+        DataFusionError::Plan(msg) => {
+          if msg.contains("not yet supported") || msg.contains("not supported")
+          {
+            eprintln!(
+              "Unknown query error: {}:{}: {:?}",
+              file!(),
+              line!(),
+              msg
+            );
+            format!("Unsupported query")
+          } else {
+            msg.to_string()
+          }
         }
         err => {
           eprintln!("Unknown error at {}:{}: {:?}", file!(), line!(), err);

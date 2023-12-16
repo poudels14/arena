@@ -5,20 +5,16 @@ use async_trait::async_trait;
 use datafusion::catalog::schema::SchemaProvider as DfSchemaProvider;
 use datafusion::datasource::TableProvider as DfTableProvider;
 use datafusion::error::Result;
+use derive_builder::Builder;
 use tokio::runtime::Handle;
 
 use super::table::TableProvider;
 use crate::schema::{IndexType, Table, TableIndex};
 use crate::storage::Transaction;
 
+#[derive(Builder)]
 pub struct SchemaProvider {
   transaction: Transaction,
-}
-
-impl SchemaProvider {
-  pub fn new(transaction: Transaction) -> Self {
-    Self { transaction }
-  }
 }
 
 #[async_trait]

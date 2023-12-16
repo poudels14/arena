@@ -2,7 +2,7 @@ use std::any::Any;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
+use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::common::{Column, Constraints, SchemaError};
 use datafusion::datasource::TableProvider as DfTableProvider;
 use datafusion::error::{DataFusionError, Result};
@@ -10,12 +10,17 @@ use datafusion::execution::context::SessionState;
 use datafusion::logical_expr::{Expr, TableProviderFilterPushDown, TableType};
 use datafusion::physical_plan::insert::FileSinkExec;
 use datafusion::physical_plan::{project_schema, ExecutionPlan};
+use getset::Getters;
 
-use crate::df::plans::{insert_rows, scan_table};
+use crate::df::plans::delete_rows::DeleteRowsExecutionPlanBuilder;
+use crate::df::plans::insert_rows;
+use crate::df::plans::scan_table::TableScanerBuilder;
 use crate::execution::filter::Filter;
 use crate::schema;
 use crate::storage::Transaction;
 
+#[derive(Getters)]
+#[getset(get = "pub")]
 pub struct TableProvider {
   table: Arc<schema::Table>,
   schema: SchemaRef,
@@ -24,29 +29,31 @@ pub struct TableProvider {
 }
 
 impl TableProvider {
-  pub(super) fn new(
+  pub(crate) fn new(
     table: Arc<schema::Table>,
     transaction: Transaction,
   ) -> Self {
-    let fields: Vec<Field> = table
-      .columns
-      .iter()
-      .map(|col| col.to_field(&table.name))
-      .collect();
-    let schema_ref = SchemaRef::new(Schema::new(fields));
-
-    let constraints = table.constraints.as_ref().map(|constraints| {
-      Constraints::new_unverified(
-        constraints.iter().map(|c| c.into()).collect(),
-      )
-    });
-
     Self {
+      schema: table.get_df_schema(),
+      constraints: table.get_df_constraints(),
       table,
-      schema: schema_ref,
-      constraints,
       transaction,
     }
+  }
+
+  pub(crate) async fn delete(
+    &self,
+    // scanner execution plan scans the table with appropriate filters
+    // and returns the rows that needs to be deleted
+    scanner: Arc<dyn ExecutionPlan>,
+  ) -> Result<Arc<dyn ExecutionPlan>> {
+    Ok(Arc::new(
+      DeleteRowsExecutionPlanBuilder::default()
+        .table(self.table.clone())
+        .scanner(scanner)
+        .build()
+        .unwrap(),
+    ))
   }
 }
 
@@ -108,19 +115,27 @@ impl DfTableProvider for TableProvider {
     limit: Option<usize>,
   ) -> Result<Arc<dyn ExecutionPlan>> {
     let projected_schema = project_schema(&self.schema, projection).unwrap();
-    Ok(Arc::new(scan_table::TableScaner {
-      table: self.table.clone(),
-      projection: projection
-        .map(|p| p.to_vec())
-        .unwrap_or_else(|| (0..self.table.columns.len()).collect()),
-      projected_schema,
-      transaction: self.transaction.clone(),
-      filters: filters
-        .iter()
-        .map(|expr| Filter::for_table(&self.table, expr))
-        .collect::<crate::Result<Vec<Filter>>>()?,
-      limit,
-    }))
+
+    Ok(Arc::new(
+      TableScanerBuilder::default()
+        .table(self.table.clone())
+        .projected_schema(projected_schema)
+        .projection(
+          projection
+            .map(|p| p.to_vec())
+            .unwrap_or_else(|| (0..self.table.columns.len()).collect()),
+        )
+        .transaction(self.transaction.clone())
+        .filters(
+          filters
+            .iter()
+            .map(|expr| Filter::for_table(&self.table, expr))
+            .collect::<crate::Result<Vec<Filter>>>()?,
+        )
+        .limit(limit)
+        .build()
+        .unwrap(),
+    ))
   }
 
   async fn insert_into(

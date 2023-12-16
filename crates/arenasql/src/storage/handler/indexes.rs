@@ -74,4 +74,20 @@ impl StorageHandler {
     }
     Ok(())
   }
+
+  pub fn delete_row_from_index(
+    &self,
+    table_index: &TableIndex,
+    row: &Row<'_>,
+  ) -> Result<()> {
+    let projected_cells = row.project(&table_index.columns());
+    let serialized_index_key_columns =
+      self
+        .serializer
+        .serialize::<Vec<&SerializedCell<'_>>>(&projected_cells)?;
+    let index_key =
+      index_row_key!(table_index.id, &serialized_index_key_columns);
+
+    self.kv.delete(KeyValueGroup::Indexes, &index_key)
+  }
 }

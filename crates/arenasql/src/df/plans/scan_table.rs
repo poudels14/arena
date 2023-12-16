@@ -10,6 +10,7 @@ use datafusion::physical_plan::{
   DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning, Statistics,
 };
 use derivative::Derivative;
+use derive_builder::Builder;
 use futures::StreamExt;
 
 use super::super::{RecordBatch, RecordBatchStream};
@@ -18,17 +19,17 @@ use crate::execution::iterators::{HeapIterator, IndexIterator};
 use crate::schema::{DataFrame, DataType, Table};
 use crate::storage::Transaction;
 
-#[derive(Derivative, Clone)]
+#[derive(Derivative, Clone, Builder)]
 #[derivative(Debug)]
 pub struct TableScaner {
-  pub(crate) table: Arc<Table>,
+  table: Arc<Table>,
   /// vec of selected columns by index
-  pub(crate) projection: Vec<usize>,
-  pub(crate) projected_schema: SchemaRef,
+  projection: Vec<usize>,
+  projected_schema: SchemaRef,
   #[derivative(Debug = "ignore")]
-  pub(crate) transaction: Transaction,
-  pub(crate) filters: Vec<Filter>,
-  pub(crate) limit: Option<usize>,
+  pub transaction: Transaction,
+  filters: Vec<Filter>,
+  limit: Option<usize>,
 }
 
 impl DisplayAs for TableScaner {
@@ -102,7 +103,6 @@ impl TableScaner {
     schema: SchemaRef,
     filters: Vec<Filter>,
     limit: Option<usize>,
-    // #[derivative(Debug = "ignore")]
     transaction: Transaction,
   ) -> Result<RecordBatch, DataFusionError> {
     let storage = transaction.lock(false)?;

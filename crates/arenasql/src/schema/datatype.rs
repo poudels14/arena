@@ -24,39 +24,42 @@ pub enum DataType {
   #[strum(serialize = "INT4")]
   Int32 = 4,
   // Posgres Type::INT4
-  #[strum(serialize = "UINT8")]
+  #[strum(serialize = "UINT4")]
   UInt32 = 5,
   // Posgres Type::INT8
   #[strum(serialize = "INT8")]
   Int64 = 6,
+  // Posgres Type::INT8
+  #[strum(serialize = "UINT8")]
+  UInt64 = 7,
   // Posgres Type::VARCHAR
   #[strum(serialize = "VARCHAR")]
   Varchar {
     len: usize,
-  } = 7,
+  } = 8,
   // Posgres Type::TEXT
   #[strum(serialize = "TEXT")]
-  Text = 8,
+  Text = 9,
   // Posgres Type::FLOAT4
   #[strum(serialize = "FLOAT4")]
-  Float32 = 9,
+  Float32 = 10,
   // Posgres Type::FLOAT8
   #[strum(serialize = "FLOAT8")]
-  Float64 = 10,
+  Float64 = 11,
   // Posgres Type::NUMERIC
   #[strum(serialize = "NUMERIC")]
   Decimal {
     p: u8,
     s: i8,
-  } = 11,
+  } = 12,
   // Posgres Type::JSONB
   #[strum(serialize = "JSONB")]
-  Jsonb = 12,
+  Jsonb = 13,
   // Posgres Type::JSONB
   #[strum(serialize = "FLOAT4_ARRAY")]
   Vector {
     len: usize,
-  } = 13,
+  } = 14,
 }
 
 impl DataType {
@@ -110,6 +113,7 @@ impl DataType {
       Self::Int32 => Type::INT4.oid(),
       Self::UInt32 => Type::INT8.oid(),
       Self::Int64 => Type::INT8.oid(),
+      Self::UInt64 => Type::INT8.oid(),
       Self::Varchar { .. } => Type::VARCHAR.oid(),
       Self::Text => Type::TEXT.oid(),
       Self::Float32 => Type::FLOAT4.oid(),
@@ -129,6 +133,7 @@ impl DataType {
       Self::Int32 => (DfDataType::Int32, HashMap::new()),
       Self::UInt32 => (DfDataType::UInt32, HashMap::new()),
       Self::Int64 => (DfDataType::Int64, HashMap::new()),
+      Self::UInt64 => (DfDataType::UInt64, HashMap::new()),
       Self::Float32 => (DfDataType::Float32, HashMap::new()),
       Self::Float64 => (DfDataType::Float64, HashMap::new()),
       Self::Decimal { p, s } => {

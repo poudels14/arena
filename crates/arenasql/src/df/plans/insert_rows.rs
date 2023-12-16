@@ -65,7 +65,7 @@ impl DataSink for Sink {
       let row_count = batch.num_rows();
       modified_rows_count += row_count;
 
-      let rows = rowconverter::convert_to_rows(&self.table, &batch)?;
+      let rows = rowconverter::convert_to_rows(&self.table, &batch, false)?;
       let storage_handler = self.transaction.lock(true)?;
       for row in rows.iter() {
         let row_id = storage_handler.generate_next_row_id(&self.table)?;

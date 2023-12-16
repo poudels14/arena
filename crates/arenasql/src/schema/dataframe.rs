@@ -1,18 +1,17 @@
 use std::sync::Arc;
 
-use datafusion::arrow::array::{ArrayBuilder, ArrayRef, Int64Builder};
+use datafusion::arrow::array::{ArrayBuilder, ArrayRef, UInt64Builder};
 use datafusion::arrow::datatypes::{
   DataType as DfDataType, Field, Schema, SchemaRef,
 };
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::error::DataFusionError;
 
-use super::{ColumnArrayBuilder, DataType, SerializedCell};
-use crate::storage::Serializer;
+use super::{ColumnArrayBuilder, DataType, RowId, SerializedCell};
 use crate::{Error, Result};
 
 pub struct DataFrame {
-  row_ids: Int64Builder,
+  row_ids: UInt64Builder,
   column_builders: Vec<ColumnArrayBuilder>,
 }
 
@@ -31,7 +30,7 @@ impl DataFrame {
       .collect();
 
     Self {
-      row_ids: Int64Builder::with_capacity(row_capacity),
+      row_ids: UInt64Builder::with_capacity(row_capacity),
       column_builders,
     }
   }
@@ -48,9 +47,7 @@ impl DataFrame {
       .enumerate()
       .for_each(|(i, cell)| self.column_builders[i].append(cell));
 
-    self
-      .row_ids
-      .append_value(Serializer::FixedInt.deserialize(row_id).unwrap());
+    self.row_ids.append_value(RowId::deserialize(&row_id).0);
   }
 
   pub fn row_count(&self) -> usize {
@@ -70,7 +67,7 @@ impl DataFrame {
         .iter()
         .map(|f| f.clone())
         .chain(
-          vec![Arc::new(Field::new("ctid", DfDataType::Int64, false))]
+          vec![Arc::new(Field::new("ctid", DfDataType::UInt64, false))]
             .into_iter(),
         )
         .collect::<Vec<Arc<Field>>>(),

@@ -2,18 +2,29 @@ use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::error::Result;
 
 use crate::error::null_constraint_violation;
-use crate::schema::{Row, SerializedCell, Table};
+use crate::schema::{Column, DataType, Row, SerializedCell, Table};
 
 // TODO: maybe just return raw bytes instead of SerializedCell?
 pub fn convert_to_rows<'a>(
   table: &Table,
   batch: &'a RecordBatch,
+  // Whether to include columns like ctid, etc
+  include_virutal_columns: bool,
 ) -> Result<Vec<Row<'a>>> {
   let row_count = batch.num_rows();
-  let col_count = table.columns.len();
+  let mut columns = table.columns.clone();
+  if include_virutal_columns {
+    columns.push(Column::new(
+      columns.len() as u8,
+      "ctid".to_owned(),
+      DataType::UInt64,
+      false,
+      None,
+    ));
+  }
 
-  let mut serialized_col_vecs = table
-    .columns
+  let col_count = columns.len();
+  let mut serialized_col_vecs = columns
     .iter()
     .map(|col| {
       let values = batch.column_by_name(&col.name).map(|columns_data| {

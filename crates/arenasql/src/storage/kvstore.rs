@@ -78,6 +78,8 @@ pub trait KeyValueStore {
     rows: &[(&[u8], &[u8])],
   ) -> Result<()>;
 
+  fn delete(&self, group: KeyValueGroup, key: &[u8]) -> Result<()>;
+
   fn commit(&self) -> Result<()>;
 
   fn rollback(&self) -> Result<()>;

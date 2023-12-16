@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use arenasql::arrow::as_primitive_array;
+use arenasql::arrow::UInt64Type;
 use arenasql::records::RecordBatch;
 use arenasql::response::ExecutionResponse;
 use futures::StreamExt;
@@ -92,7 +94,18 @@ impl ArenaSqlCluster {
 
         Ok(Response::Execution(Tag::new_for_execution(
           stmt.command(),
-          Some(res.iter().map(|b| b.num_rows()).sum()),
+          Some(
+            res
+              .iter()
+              .flat_map(|b| {
+                as_primitive_array::<UInt64Type>(
+                  b.column_by_name("count").unwrap(),
+                )
+                .iter()
+                .map(|v| v.unwrap_or(0))
+              })
+              .sum::<u64>() as usize,
+          ),
         )))
       }
     }

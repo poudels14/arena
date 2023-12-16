@@ -147,6 +147,12 @@ impl crate::storage::KeyValueStore for KeyValueStore {
     )
   }
 
+  fn delete(&self, group: KeyValueGroup, key: &[u8]) -> DatabaseResult<()> {
+    let txn = self.get_txn();
+    let group_cf = &self.cfs[group as usize];
+    Ok(txn.delete_cf(group_cf, key)?)
+  }
+
   /// Once a rocksdb transaction is committed, it shouldn't be used
   /// again. If used again, it will panic
   fn commit(&self) -> DatabaseResult<()> {

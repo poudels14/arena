@@ -1,5 +1,9 @@
 use std::sync::Arc;
 
+use datafusion::arrow::datatypes::{
+  Field as DfField, Schema as DfSchema, SchemaRef as DfSchemaRef,
+};
+use datafusion::common::Constraints as DfConstraints;
 use datafusion::datasource::TableProvider as DfTableProvider;
 use inflector::Inflector;
 use serde::{Deserialize, Serialize};
@@ -46,6 +50,23 @@ impl Table {
           .collect()
       }),
       indexes: vec![],
+    })
+  }
+
+  pub fn get_df_schema(&self) -> DfSchemaRef {
+    let fields: Vec<DfField> = self
+      .columns
+      .iter()
+      .map(|col| col.to_field(&self.name))
+      .collect();
+    DfSchemaRef::new(DfSchema::new(fields))
+  }
+
+  pub fn get_df_constraints(&self) -> Option<DfConstraints> {
+    self.constraints.as_ref().map(|constraints| {
+      DfConstraints::new_unverified(
+        constraints.iter().map(|c| c.into()).collect(),
+      )
     })
   }
 

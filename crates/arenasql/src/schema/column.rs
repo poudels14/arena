@@ -1,4 +1,5 @@
 use datafusion::arrow::datatypes::Field;
+use derive_new::new;
 use serde::{Deserialize, Serialize};
 
 use super::{DataType, OwnedSerializedCell};
@@ -6,7 +7,7 @@ use crate::Result;
 
 pub type ColumnId = u8;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, new, Deserialize, PartialEq)]
 pub struct Column {
   pub id: ColumnId,
   pub name: String,

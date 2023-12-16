@@ -6,7 +6,7 @@ use datafusion::catalog::{
   CatalogList as DfCatalogList, CatalogProvider as DfCatalogProvider,
 };
 
-use super::schema::SchemaProvider;
+use super::schema::SchemaProviderBuilder;
 use crate::storage::Transaction;
 
 pub trait CatalogListProvider: Send + Sync {
@@ -50,7 +50,12 @@ impl CatalogListProvider for SingleCatalogListProvider {
       catalog: self.catalog.clone(),
       provider: Arc::new(CatalogProvider {
         schema: self.schema.clone(),
-        schema_provider: Arc::new(SchemaProvider::new(transaction)),
+        schema_provider: Arc::new(
+          SchemaProviderBuilder::default()
+            .transaction(transaction)
+            .build()
+            .unwrap(),
+        ),
       }),
     }))
   }

@@ -26,11 +26,14 @@ once_cell.workspace = true
 env_logger.workspace = true
 async-trait.workspace = true
 simdutf8.workspace = true
+rand.workspace = true
 pgwire.workspace = true
+getset.workspace = true
+derive-new.workspace = true
 libsql = { version = "0.1.11", features = ["core"] }
 libsql-sys = "0.2.14"
 datafusion = { version = "33.0.0", features = [] }
-sqlparser = { version = "0.39.0", features = ["serde"] }
+sqlparser = { version = "0.39.0", features = ["serde", "visitor"] }
 rocksdb = { version = "0.21.0", default-features = false, features = [
   "lz4",
   "multi-threaded-cf",

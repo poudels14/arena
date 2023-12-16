@@ -17,4 +17,11 @@ impl StorageHandler {
       &row_bytes,
     )
   }
+
+  pub fn delete_row(&self, table: &Table, row_id: &[u8]) -> Result<()> {
+    self.kv.delete(
+      KeyValueGroup::Rows,
+      &vec![table_rows_prefix_key!(table.id).as_slice(), &row_id].concat(),
+    )
+  }
 }
