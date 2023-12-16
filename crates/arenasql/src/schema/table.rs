@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use datafusion::arrow::datatypes::{
-  Field as DfField, Schema as DfSchema, SchemaRef as DfSchemaRef,
+  DataType as DfDataType, Field as DfField, Schema as DfSchema,
+  SchemaRef as DfSchemaRef,
 };
 use datafusion::common::Constraints as DfConstraints;
 use datafusion::datasource::TableProvider as DfTableProvider;
@@ -58,6 +59,7 @@ impl Table {
       .columns
       .iter()
       .map(|col| col.to_field(&self.name))
+      .chain(vec![DfField::new("ctid", DfDataType::UInt64, false)])
       .collect();
     DfSchemaRef::new(DfSchema::new(fields))
   }

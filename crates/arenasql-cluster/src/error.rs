@@ -71,17 +71,3 @@ impl From<Error> for PgWireError {
     }
   }
 }
-
-#[macro_export]
-macro_rules! query_execution_error {
-  ($message:expr) => {
-    pgwire::error::PgWireError::UserError(
-      pgwire::error::ErrorInfo::new(
-        "ERROR".to_owned(),
-        "XX000".to_owned(),
-        $message,
-      )
-      .into(),
-    )
-  };
-}

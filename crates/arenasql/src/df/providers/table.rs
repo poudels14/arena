@@ -15,6 +15,7 @@ use getset::Getters;
 use crate::df::plans::delete_rows::DeleteRowsExecutionPlanBuilder;
 use crate::df::plans::insert_rows;
 use crate::df::plans::scan_table::TableScanerBuilder;
+use crate::df::plans::update_rows::UpdateRowsExecutionPlanBuilder;
 use crate::execution::filter::Filter;
 use crate::schema;
 use crate::storage::Transaction;
@@ -51,6 +52,23 @@ impl TableProvider {
       DeleteRowsExecutionPlanBuilder::default()
         .table(self.table.clone())
         .scanner(scanner)
+        .transaction(self.transaction.clone())
+        .build()
+        .unwrap(),
+    ))
+  }
+
+  pub(crate) async fn update(
+    &self,
+    // scanner execution plan scans the table with appropriate filters
+    // and returns the rows that needs to be deleted
+    scanner: Arc<dyn ExecutionPlan>,
+  ) -> Result<Arc<dyn ExecutionPlan>> {
+    Ok(Arc::new(
+      UpdateRowsExecutionPlanBuilder::default()
+        .table(self.table.clone())
+        .scanner(scanner)
+        .transaction(self.transaction.clone())
         .build()
         .unwrap(),
     ))

@@ -48,5 +48,7 @@ pub mod arrow {
     Int64Array, Int64Builder, ListArray, NullBuilder, StringArray,
     StringBuilder, UInt16Array, UInt32Array, UInt64Array,
   };
-  pub use datafusion::arrow::datatypes::{Int32Type, UInt32Type, UInt64Type};
+  pub use datafusion::arrow::datatypes::{
+    Float32Type, Float64Type, Int32Type, UInt32Type, UInt64Type,
+  };
 }

@@ -1,4 +1,4 @@
-use super::SerializedCell;
+use super::{OwnedSerializedCell, SerializedCell};
 
 #[derive(Debug, Clone)]
 pub struct RowId(pub u64);
@@ -38,13 +38,20 @@ impl RowId {
 }
 
 pub type Row<'a> = Vec<SerializedCell<'a>>;
+pub type OwnedRow = Vec<OwnedSerializedCell>;
 
-pub trait RowTrait<'a> {
-  fn project(&'a self, columns: &[usize]) -> Vec<&'a SerializedCell<'a>>;
+pub trait RowTrait<'a, O> {
+  fn project(&'a self, columns: &[usize]) -> Vec<&'a O>;
 }
 
-impl<'a> RowTrait<'a> for Vec<SerializedCell<'a>> {
+impl<'a> RowTrait<'a, SerializedCell<'a>> for Row<'a> {
   fn project(&'a self, columns: &[usize]) -> Vec<&'a SerializedCell<'a>> {
+    columns.iter().map(|col| &self[*col]).collect()
+  }
+}
+
+impl<'a> RowTrait<'a, OwnedSerializedCell> for OwnedRow {
+  fn project(&'a self, columns: &[usize]) -> Vec<&'a OwnedSerializedCell> {
     columns.iter().map(|col| &self[*col]).collect()
   }
 }

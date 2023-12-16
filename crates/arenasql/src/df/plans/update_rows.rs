@@ -26,7 +26,7 @@ use crate::Error;
 
 #[derive(Builder, Derivative)]
 #[derivative(Debug)]
-pub struct DeleteRowsExecutionPlan {
+pub struct UpdateRowsExecutionPlan {
   table: Arc<Table>,
   pub(crate) scanner: Arc<dyn ExecutionPlan>,
   #[builder(setter(skip), default = "self.default_schema()")]
@@ -35,7 +35,7 @@ pub struct DeleteRowsExecutionPlan {
   transaction: Transaction,
 }
 
-impl DeleteRowsExecutionPlanBuilder {
+impl UpdateRowsExecutionPlanBuilder {
   fn default_schema(&self) -> SchemaRef {
     Arc::new(Schema::new(vec![Field::new(
       "count",
@@ -45,7 +45,7 @@ impl DeleteRowsExecutionPlanBuilder {
   }
 }
 
-impl DisplayAs for DeleteRowsExecutionPlan {
+impl DisplayAs for UpdateRowsExecutionPlan {
   fn fmt_as(
     &self,
     _t: DisplayFormatType,
@@ -56,7 +56,7 @@ impl DisplayAs for DeleteRowsExecutionPlan {
   }
 }
 
-impl ExecutionPlan for DeleteRowsExecutionPlan {
+impl ExecutionPlan for UpdateRowsExecutionPlan {
   fn as_any(&self) -> &dyn Any {
     self
   }
@@ -71,25 +71,38 @@ impl ExecutionPlan for DeleteRowsExecutionPlan {
 
     let transaction = self.transaction.clone();
     let table_scanner = self.scanner.clone();
-    let delete_fut = async move {
+    let update_fut = async move {
       let stream = table_scanner.execute(partition, context)?;
 
       let modified_rows_count: usize = stream
         .map(move |batch| {
           let transaction = transaction.lock(true)?;
-
           batch.and_then(|batch| {
-            let rows = rowconverter::convert_to_rows(&table, &batch, true)?;
+            let rows =
+              rowconverter::convert_to_rows(&table, &batch, true).unwrap();
             rows
               .iter()
-              .map(|row| {
+              .map(|new_row| {
+                let row_id = &new_row[new_row.len() - 1];
+                let row_id_bytes =
+                  RowId::serialize_u64(row_id.as_u64().unwrap());
+                // Datafusion doesn't include non-updated rows, so query it again
+                // TODO: figure out how to prevent querying the row again here
+                let old_row =
+                  transaction.get_row(&table, &row_id_bytes)?.unwrap();
                 for table_index in &table.indexes {
-                  transaction.delete_row_from_index(&table_index, row)?;
+                  transaction.delete_row_from_index(&table_index, &old_row)?;
+                  transaction.add_row_to_index(
+                    &table,
+                    &table_index,
+                    &row_id_bytes,
+                    &new_row,
+                  )?;
                 }
-                Ok(transaction.delete_row(
-                  &table,
-                  &RowId::serialize_u64(row[row.len() - 1].as_u64().unwrap()),
-                )?)
+                transaction.delete_row(&table, &row_id_bytes)?;
+                transaction.insert_row(&table, &row_id_bytes, new_row)?;
+
+                Ok(())
               })
               .collect::<Result<Vec<()>>>()?;
 
@@ -114,7 +127,7 @@ impl ExecutionPlan for DeleteRowsExecutionPlan {
       )
     };
 
-    let stream = futures::stream::once(async move { delete_fut.await }).boxed();
+    let stream = futures::stream::once(async move { update_fut.await }).boxed();
     Ok(Box::pin(RecordBatchStreamAdapter::new(
       self.schema(),
       stream,

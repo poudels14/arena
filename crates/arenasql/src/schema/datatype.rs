@@ -69,6 +69,7 @@ impl DataType {
       DfDataType::Int32 => Ok(Self::Int32),
       DfDataType::UInt32 => Ok(Self::UInt32),
       DfDataType::Int64 => Ok(Self::Int64),
+      DfDataType::UInt64 => Ok(Self::UInt64),
       DfDataType::Utf8 => Ok(Self::Text),
       DfDataType::Float32 => Ok(Self::Float32),
       DfDataType::Float64 => Ok(Self::Float64),

@@ -16,7 +16,6 @@ use crate::pgwire::statement::SqlCommand;
 use crate::pgwire::ArenaQuery;
 use crate::pgwire::QueryClient;
 use crate::pgwire::{datatype, rowconverter};
-use crate::query_execution_error;
 
 impl ArenaSqlCluster {
   // TODO: to improve performance, instead of returning response from this
@@ -127,7 +126,9 @@ impl ArenaSqlCluster {
     let row_stream = response.stream.flat_map(move |batch| {
       futures::stream::iter(match batch {
         Ok(batch) => rowconverter::convert_to_rows(&schema, &batch),
-        Err(e) => vec![Err(query_execution_error!(e.to_string()))],
+        Err(e) => {
+          vec![Err(arenasql::Error::DataFusionError(e.into()).into())]
+        }
       })
     });
     Ok(Response::Query(QueryResponse::new(rows_schema, row_stream)))

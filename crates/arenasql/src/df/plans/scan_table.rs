@@ -105,6 +105,24 @@ impl TableScaner {
     limit: Option<usize>,
     transaction: Transaction,
   ) -> Result<RecordBatch, DataFusionError> {
+    // Only pass in physical columns since virutal columns like
+    // ctid are default included
+    let physical_columns: Vec<(String, DataType)> = column_projection
+      .iter()
+      .zip(schema.fields.iter())
+      .filter(|(idx, _)| **idx < table.columns.len())
+      .map(|(_, field)| {
+        (field.name().clone(), DataType::from_field(field).unwrap())
+      })
+      .collect();
+
+    // Don't include virtual columns in column projection
+    // since they are auto added
+    let column_projection = column_projection
+      .into_iter()
+      .filter(|idx| *idx < table.columns.len())
+      .collect::<Vec<usize>>();
+
     let storage = transaction.lock(false)?;
     let index_with_lowest_cost =
       Filter::find_index_with_lowest_cost(&table.indexes, &filters);
@@ -121,14 +139,9 @@ impl TableScaner {
       })
     });
 
-    let columns = schema
-      .fields
-      .iter()
-      .map(|field| (field.name().clone(), DataType::from_field(field).unwrap()))
-      .collect();
-    let mut dataframe =
     // TODO: customize the DF capacity based on statistics
-      DataFrame::with_capacity(limit.unwrap_or(1_000), columns);
+    let mut dataframe =
+      DataFrame::with_capacity(limit.unwrap_or(1_000), physical_columns);
 
     // TODO: if some filter is used, use index that has all the columns
     // from the filter even if all the selected columns are not in the index

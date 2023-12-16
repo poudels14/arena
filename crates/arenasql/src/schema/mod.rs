@@ -15,5 +15,5 @@ pub use constraint::Constraint;
 pub use dataframe::DataFrame;
 pub use datatype::DataType;
 pub use index::{IndexType, TableIndex, TableIndexId};
-pub use row::{Row, RowId, RowTrait};
+pub use row::{OwnedRow, Row, RowId, RowTrait};
 pub use table::{Table, TableId};

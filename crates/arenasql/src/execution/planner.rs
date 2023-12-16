@@ -40,9 +40,7 @@ impl QueryPlanner for ArenaQueryPlanner {
       }) => {
         match op {
           WriteOp::InsertInto => {}
-          WriteOp::Delete => {
-            let scanner_plan =
-              self.df_planner.create_physical_plan(&input, state).await?;
+          WriteOp::Delete | WriteOp::Update => {
             let config_options = state.config_options();
             let catalog_name = table_name
               .catalog()
@@ -72,11 +70,17 @@ impl QueryPlanner for ArenaQueryPlanner {
               .downcast_ref::<providers::table::TableProvider>()
               .unwrap();
 
-            return table_provider.delete(scanner_plan).await;
+            let scanner_plan =
+              self.df_planner.create_physical_plan(&input, state).await?;
+            if *op == WriteOp::Delete {
+              return table_provider.delete(scanner_plan).await;
+            } else if *op == WriteOp::Update {
+              return table_provider.update(scanner_plan).await;
+            }
           }
           _ => {
             return Err(DataFusionError::NotImplemented(
-              "Unsupported Dml query".to_owned(),
+              "Unsupported query".to_owned(),
             ))
           }
         };

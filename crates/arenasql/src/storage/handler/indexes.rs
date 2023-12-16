@@ -75,16 +75,18 @@ impl StorageHandler {
     Ok(())
   }
 
-  pub fn delete_row_from_index(
+  pub fn delete_row_from_index<'a, O, S>(
     &self,
     table_index: &TableIndex,
-    row: &Row<'_>,
-  ) -> Result<()> {
+    row: &'a S,
+  ) -> Result<()>
+  where
+    O: serde::Serialize + 'a,
+    S: ?Sized + serde::Serialize + RowTrait<'a, O>,
+  {
     let projected_cells = row.project(&table_index.columns());
     let serialized_index_key_columns =
-      self
-        .serializer
-        .serialize::<Vec<&SerializedCell<'_>>>(&projected_cells)?;
+      self.serializer.serialize(&projected_cells)?;
     let index_key =
       index_row_key!(table_index.id, &serialized_index_key_columns);
 

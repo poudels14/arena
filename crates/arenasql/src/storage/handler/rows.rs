@@ -1,9 +1,25 @@
 use super::StorageHandler;
-use crate::schema::{Row, Table};
+use crate::schema::{OwnedRow, Row, Table};
 use crate::storage::KeyValueGroup;
 use crate::{table_rows_prefix_key, Result};
 
 impl StorageHandler {
+  pub fn get_row(
+    &self,
+    table: &Table,
+    row_id: &[u8],
+  ) -> Result<Option<OwnedRow>> {
+    self
+      .kv
+      .get(
+        KeyValueGroup::Rows,
+        &vec![table_rows_prefix_key!(table.id).as_slice(), &row_id].concat(),
+      )
+      .transpose()
+      .map(|bytes| bytes.and_then(|b| self.serializer.deserialize(&b)))
+      .transpose()
+  }
+
   pub fn insert_row(
     &self,
     table: &Table,

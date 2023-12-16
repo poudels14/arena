@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
 use datafusion::arrow::array::{ArrayBuilder, ArrayRef, UInt64Builder};
-use datafusion::arrow::datatypes::{
-  DataType as DfDataType, Field, Schema, SchemaRef,
-};
+use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::error::DataFusionError;
 
@@ -46,7 +44,6 @@ impl DataFrame {
       .iter()
       .enumerate()
       .for_each(|(i, cell)| self.column_builders[i].append(cell));
-
     self.row_ids.append_value(RowId::deserialize(&row_id).0);
   }
 
@@ -61,15 +58,12 @@ impl DataFrame {
       .map(|b| b.finish())
       .chain(vec![Arc::new(self.row_ids.finish()) as ArrayRef])
       .collect();
+
     let schema_with_virtual_cols = Schema::new(
       schema
         .fields()
         .iter()
         .map(|f| f.clone())
-        .chain(
-          vec![Arc::new(Field::new("ctid", DfDataType::UInt64, false))]
-            .into_iter(),
-        )
         .collect::<Vec<Arc<Field>>>(),
     )
     .into();

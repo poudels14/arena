@@ -3,7 +3,7 @@ use std::sync::Arc;
 use datafusion::arrow::array::{
   ArrayRef, BinaryBuilder, BooleanBuilder, Float32Builder, Float64Builder,
   Int16Builder, Int32Builder, Int64Builder, ListBuilder, StringBuilder,
-  UInt32Builder,
+  UInt32Builder, UInt64Builder,
 };
 
 use super::{DataType, SerializedCell};
@@ -14,6 +14,7 @@ pub enum ColumnArrayBuilder {
   Int32(Int32Builder),
   UInt32(UInt32Builder),
   Int64(Int64Builder),
+  UInt64(UInt64Builder),
   Float32(Float32Builder),
   Float64(Float64Builder),
   String(StringBuilder),
@@ -38,6 +39,9 @@ impl ColumnArrayBuilder {
       }
       DataType::Int64 => {
         ColumnArrayBuilder::Int64(Int64Builder::with_capacity(capacity))
+      }
+      DataType::UInt64 => {
+        ColumnArrayBuilder::UInt64(UInt64Builder::with_capacity(capacity))
       }
       DataType::Float32 => {
         ColumnArrayBuilder::Float32(Float32Builder::with_capacity(capacity))
@@ -72,6 +76,7 @@ impl ColumnArrayBuilder {
       Self::Int32(ref mut builder) => builder.append_option(value.as_i32()),
       Self::UInt32(ref mut builder) => builder.append_option(value.as_u32()),
       Self::Int64(ref mut builder) => builder.append_option(value.as_i64()),
+      Self::UInt64(ref mut builder) => builder.append_option(value.as_u64()),
       Self::Float32(ref mut builder) => builder.append_option(value.as_f32()),
       Self::Float64(ref mut builder) => builder.append_option(value.as_f64()),
       Self::String(ref mut builder) => builder.append_option(value.as_str()),
@@ -91,6 +96,7 @@ impl ColumnArrayBuilder {
       Self::Int32(mut v) => Arc::new(v.finish()) as ArrayRef,
       Self::UInt32(mut v) => Arc::new(v.finish()) as ArrayRef,
       Self::Int64(mut v) => Arc::new(v.finish()) as ArrayRef,
+      Self::UInt64(mut v) => Arc::new(v.finish()) as ArrayRef,
       Self::Float32(mut v) => Arc::new(v.finish()) as ArrayRef,
       Self::Float64(mut v) => Arc::new(v.finish()) as ArrayRef,
       Self::String(mut v) => Arc::new(v.finish()) as ArrayRef,

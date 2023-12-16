@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use arenasql::arrow::as_primitive_array;
 use arenasql::bytes::BufMut;
 use arenasql::postgres_types::{IsNull, ToSql};
 use arenasql::records::DatafusionDataType;
@@ -55,6 +56,15 @@ impl<'a> ColumnEncoder for &Arc<dyn Array> {
       DatafusionDataType::Int64 => {
         encode_all_fields!(arrow::Int64Array, self, encoders)
       }
+      DatafusionDataType::UInt64 => {
+        as_primitive_array::<arrow::UInt64Type>(self)
+          .iter()
+          .zip(encoders)
+          .map(|(value, encoder)| {
+            encoder.encode_field(&value.map(|v| v as i64))
+          })
+          .collect()
+      }
       DatafusionDataType::Float32 => {
         encode_all_fields!(arrow::Float32Array, self, encoders)
       }
@@ -73,12 +83,10 @@ impl<'a> ColumnEncoder for &Arc<dyn Array> {
         .unwrap()
         .iter()
         .zip(encoders)
-        .map(|(value, encoder)| {
-          let float_arr = value.map(|v| {
+        .map(|(arrays, encoder)| {
+          let float_arr = arrays.map(|array| {
             FloatArray(
-              v.as_any()
-                .downcast_ref::<arrow::Float32Array>()
-                .unwrap()
+              as_primitive_array::<arrow::Float32Type>(&array)
                 .iter()
                 .map(|v| v.unwrap())
                 .collect::<Vec<f32>>(),

@@ -29,6 +29,7 @@ impl SqlCommand for &SQLStatement {
       SQLStatement::CreateDatabase { .. }
       | SQLStatement::CreateTable { .. } => "CREATE",
       SQLStatement::Delete { .. } => "DELETE",
+      SQLStatement::Update { .. } => "UPDATE",
       SQLStatement::AlterIndex { .. } => "ALTER",
       stmt => unimplemented!("Command not supported: {}", stmt),
     }
