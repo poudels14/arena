@@ -10,7 +10,7 @@ use pgwire::api::ClientInfo;
 use pgwire::error::PgWireResult;
 use pgwire::messages::{PgWireBackendMessage, PgWireFrontendMessage};
 
-use crate::server::ArenaSqlCluster;
+use crate::server::cluster::ArenaSqlCluster;
 
 #[async_trait]
 impl StartupHandler for ArenaSqlCluster {

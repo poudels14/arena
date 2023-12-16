@@ -6,7 +6,7 @@ use arenasql::storage::rocks::{self, RocksStorage};
 use arenasql::storage::{self, Serializer, StorageFactoryBuilder};
 use dashmap::DashMap;
 
-use crate::error::{ArenaClusterError, ArenaClusterResult};
+use crate::error::ArenaClusterResult;
 
 pub struct StorageFactory {
   path: PathBuf,
@@ -32,7 +32,7 @@ impl StorageFactory {
     }
   }
 
-  pub fn get(
+  pub fn get_catalog(
     &self,
     db_name: &str,
     options: StorageOption,
@@ -41,19 +41,16 @@ impl StorageFactory {
     match storage {
       Some(storage) => Ok(Some(storage.value().clone())),
       None => {
-        let path = self.path.join(db_name);
+        let path = self.path.join("catalogs").join(db_name);
         match path.exists() {
           false => Ok(None),
           true => {
-            let kv = Arc::new(
-              RocksStorage::new_with_cache(
-                path,
-                options
-                  .cache_size_mb
-                  .map(|size| rocks::Cache::new_lru_cache(size * 1024 * 1024)),
-              )
-              .map_err(|_| ArenaClusterError::StorageError)?,
-            );
+            let kv = Arc::new(RocksStorage::new_with_cache(
+              path,
+              options
+                .cache_size_mb
+                .map(|size| rocks::Cache::new_lru_cache(size * 1024 * 1024)),
+            )?);
 
             let factory = Arc::new(
               StorageFactoryBuilder::default()
