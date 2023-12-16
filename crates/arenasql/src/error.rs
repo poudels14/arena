@@ -88,8 +88,11 @@ impl Error {
       | Self::InvalidQuery(msg)
       | Self::IOError(msg)
       | Self::SerdeError(msg)
-      | Self::InternalError(msg)
       | Self::InvalidTransactionState(msg) => msg.to_owned(),
+      Self::InternalError(msg) => {
+        eprintln!("Internal error: {:?}", msg);
+        format!("Internal error")
+      }
       Self::UniqueConstaintViolated { constraint, .. } => format!(
         "duplicate key value violates unique constraint \"{}\"",
         constraint

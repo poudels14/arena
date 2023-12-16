@@ -2,7 +2,7 @@
 #[derive(Debug, Clone)]
 pub enum QueryClient {
   Unknown,
-  Authenticated { id: String },
+  Authenticated { id: u64 },
   New { user: String, database: String },
 }
 

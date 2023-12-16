@@ -37,7 +37,7 @@ impl StartupHandler for ArenaSqlCluster {
 
       let session =
         self.create_new_session(user, database, "public".to_owned())?;
-      metadata.insert("session_id".to_owned(), session.id.clone());
+      metadata.insert("session_id".to_owned(), session.id.to_string());
 
       finish_authentication(client, &DefaultServerParameterProvider::default())
         .await;

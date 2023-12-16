@@ -41,20 +41,22 @@ impl ExecutionResponse {
     stream: RecordBatchStream,
     plan: Option<LogicalPlan>,
   ) -> ArenaResult<Self> {
-    match plan {
-      Some(LogicalPlan::Ddl(_)) => Ok(Self {
-        stmt_type: Type::Ddl,
-        record_batches: None,
-        stream: Some(stream),
-      }),
-      Some(LogicalPlan::Dml(_)) | None => {
+    let (stream_response, stmt_type) = match plan {
+      Some(LogicalPlan::Ddl(_)) => (false, Type::Ddl),
+      Some(LogicalPlan::Dml(_)) | None => (false, Type::Dml),
+      _ => (true, Type::Query),
+    };
+
+    let (record_batches, stream) = match stream_response {
+      true => (None, Some(stream)),
+      false => {
         let batches = stream
           .collect::<Vec<Result<RecordBatch, DataFusionError>>>()
           .await;
 
-        if batches.len() != 1 {
+        if batches.len() > 1 {
           return Err(Error::InternalError(format!(
-            "Only one result expected from Dml query but got {}",
+            "Only one result expected from DDL/DML query but got {}",
             batches.len()
           )));
         }
@@ -63,23 +65,20 @@ impl ExecutionResponse {
           .into_iter()
           .map(|b| Ok(b?))
           .collect::<ArenaResult<Vec<RecordBatch>>>()?;
-
-        Ok(Self {
-          stmt_type: Type::Dml,
-          record_batches: Some(batches),
-          stream: None,
-        })
+        (Some(batches), None)
       }
-      _ => Ok(Self {
-        stmt_type: Type::Query,
-        record_batches: None,
-        stream: Some(stream),
-      }),
-    }
+    };
+
+    Ok(Self {
+      stmt_type,
+      record_batches,
+      stream,
+    })
   }
 
-  pub fn get_stream(self) -> ArenaResult<RecordBatchStream> {
-    Ok(self.stream.unwrap())
+  /// Panics if it's not a SELECT query
+  pub fn get_stream(self) -> RecordBatchStream {
+    self.stream.unwrap()
   }
 
   /// Returns total number of rows

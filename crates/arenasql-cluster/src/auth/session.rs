@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use arenasql::{SessionContext, Transaction};
@@ -9,7 +10,7 @@ use parking_lot::Mutex;
 #[derive(Builder, Derivative)]
 #[derivative(Debug)]
 pub struct AuthenticatedSession {
-  pub id: String,
+  pub id: u64,
   pub user: String,
   pub database: String,
   pub context: SessionContext,
@@ -47,15 +48,21 @@ impl AuthenticatedSession {
 }
 
 pub struct AuthenticatedSessionStore {
-  sessions: DashMap<String, Arc<AuthenticatedSession>>,
+  next_session_id: Arc<AtomicU64>,
+  sessions: DashMap<u64, Arc<AuthenticatedSession>>,
 }
 
 #[allow(dead_code)]
 impl AuthenticatedSessionStore {
   pub fn new() -> Self {
     Self {
+      next_session_id: Arc::new(AtomicU64::new(1)),
       sessions: DashMap::new(),
     }
+  }
+
+  pub fn generate_session_id(&self) -> u64 {
+    self.next_session_id.fetch_add(1, Ordering::SeqCst)
   }
 
   pub fn put(
@@ -70,11 +77,20 @@ impl AuthenticatedSessionStore {
     session
   }
 
-  pub fn get(&self, session_id: &str) -> Option<Arc<AuthenticatedSession>> {
-    self.sessions.get(session_id).map(|kv| kv.value().clone())
+  pub fn get_session(
+    &self,
+    session_id: u64,
+  ) -> Option<Arc<AuthenticatedSession>> {
+    self.sessions.get(&session_id).map(|kv| kv.value().clone())
   }
 
-  pub fn remove(&self, session_id: &str) -> Option<Arc<AuthenticatedSession>> {
-    self.sessions.remove(session_id).map(|(_, session)| session)
+  pub fn remove_session(
+    &self,
+    session_id: u64,
+  ) -> Option<Arc<AuthenticatedSession>> {
+    self
+      .sessions
+      .remove(&session_id)
+      .map(|(_, session)| session)
   }
 }

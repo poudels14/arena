@@ -9,7 +9,6 @@ use arenasql::{SessionConfig, SessionContext, SingleCatalogListProvider};
 use dashmap::DashMap;
 use derivative::Derivative;
 use pgwire::api::ClientInfo;
-use uuid::Uuid;
 
 use self::storage::{StorageFactory, StorageOption};
 use crate::auth::{
@@ -56,7 +55,14 @@ impl ArenaSqlCluster {
   ) -> ArenaClusterResult<Arc<AuthenticatedSession>> {
     self
       .session_store
-      .get(client.metadata().get("session_id").unwrap())
+      .get_session(
+        client
+          .metadata()
+          .get("session_id")
+          .unwrap()
+          .parse::<u64>()
+          .unwrap(),
+      )
       .ok_or_else(|| ArenaClusterError::InvalidConnection)
   }
 
@@ -67,7 +73,7 @@ impl ArenaSqlCluster {
     match client {
       QueryClient::Authenticated { id } => self
         .session_store
-        .get(id)
+        .get_session(*id)
         .ok_or_else(|| ArenaClusterError::InvalidConnection),
       QueryClient::New { user, database } => self.create_new_session(
         user.clone(),
@@ -107,10 +113,8 @@ impl ArenaSqlCluster {
       ..Default::default()
     });
 
-    let session_id = Uuid::new_v4().to_string();
-
     let session = AuthenticatedSessionBuilder::default()
-      .id(session_id.clone())
+      .id(self.session_store.generate_session_id())
       .database(catalog)
       .user(user.to_string())
       .context(session_context)
