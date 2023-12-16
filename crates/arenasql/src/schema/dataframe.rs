@@ -11,6 +11,7 @@ use crate::{Error, Result};
 pub struct DataFrame {
   row_ids: UInt64Builder,
   column_builders: Vec<ColumnArrayBuilder>,
+  include_row_id: bool,
 }
 
 impl DataFrame {
@@ -22,14 +23,23 @@ impl DataFrame {
       DataType,
     )>,
   ) -> Self {
+    let mut include_row_id = false;
     let column_builders: Vec<ColumnArrayBuilder> = columns
       .iter()
-      .map(|col| ColumnArrayBuilder::from(&col.1, row_capacity))
+      .filter_map(|col| {
+        if col.0 == "ctid" {
+          include_row_id = true;
+          None
+        } else {
+          Some(ColumnArrayBuilder::from(&col.1, row_capacity))
+        }
+      })
       .collect();
 
     Self {
       row_ids: UInt64Builder::with_capacity(row_capacity),
       column_builders,
+      include_row_id,
     }
   }
 
@@ -56,7 +66,11 @@ impl DataFrame {
       .column_builders
       .into_iter()
       .map(|b| b.finish())
-      .chain(vec![Arc::new(self.row_ids.finish()) as ArrayRef])
+      .chain(if self.include_row_id {
+        vec![Arc::new(self.row_ids.finish()) as ArrayRef]
+      } else {
+        vec![]
+      })
       .collect();
 
     let schema_with_virtual_cols = Schema::new(

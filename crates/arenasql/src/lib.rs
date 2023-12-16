@@ -6,7 +6,7 @@ mod error;
 pub(crate) mod execution;
 pub(crate) mod utils;
 
-pub mod parser;
+pub mod ast;
 pub mod runtime;
 pub mod schema;
 pub mod storage;

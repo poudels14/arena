@@ -75,10 +75,9 @@ impl ExecutionPlan for DeleteRowsExecutionPlan {
       let stream = table_scanner.execute(partition, context)?;
 
       let modified_rows_count: usize = stream
-        .map(move |batch| {
+        .map(move |maybe_batch| {
           let transaction = transaction.lock(true)?;
-
-          batch.and_then(|batch| {
+          maybe_batch.and_then(|batch| {
             let rows = rowconverter::convert_to_rows(&table, &batch, true)?;
             rows
               .iter()

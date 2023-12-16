@@ -1,7 +1,4 @@
-use futures::TryStreamExt;
-
 use crate::execute_query;
-use crate::records::RecordBatch;
 use crate::tests::create_session_context;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -118,10 +115,9 @@ async fn indexes_test_create_unique_index_and_verify_index_backfill() {
   // Selecting columns that are not present in the index does table scan
   // instead of index scan. So, this will return all rows in the table
   // regardless of whether the index was populated
-  let res = execute_query!(txn, r#"SELECT id, name FROM test_table"#);
-  let res: Vec<RecordBatch> = res.unwrap().stream.try_collect().await.unwrap();
+  let res = execute_query!(txn, r#"SELECT id, name FROM test_table"#).unwrap();
   assert_eq!(
-    res.get(0).unwrap().num_rows(),
+    res.num_rows().await.unwrap(),
     1,
     "All the rows weren't returned even when using table scan"
   );
@@ -129,9 +125,8 @@ async fn indexes_test_create_unique_index_and_verify_index_backfill() {
   // #####################################################################
   // Selecting columns that are present in the index only runs index scan
   // So, this should return same number of rows as present in the table
-  let res = execute_query!(txn, r#"SELECT id FROM test_table"#);
-  let res: Vec<RecordBatch> = res.unwrap().stream.try_collect().await.unwrap();
-  assert_eq!(res.get(0).unwrap().num_rows(), 1, "Index wasn't backfilled");
+  let res = execute_query!(txn, r#"SELECT id FROM test_table"#).unwrap();
+  assert_eq!(res.num_rows().await.unwrap(), 1, "Index wasn't backfilled");
 
   // #####################################################################
   // This should THROW error because of duplicate entry
@@ -147,20 +142,18 @@ async fn indexes_test_create_unique_index_and_verify_index_backfill() {
 
   // #####################################################################
   // Should return rows inserted before and after creating index
-  let res = execute_query!(txn, r#"SELECT id FROM test_table"#);
-  let res: Vec<RecordBatch> = res.unwrap().stream.try_collect().await.unwrap();
+  let res = execute_query!(txn, r#"SELECT id FROM test_table"#).unwrap();
   assert_eq!(
-    res.get(0).unwrap().num_rows(),
+    res.num_rows().await.unwrap(),
     2,
     "Didn't add row to the new index"
   );
 
   // #####################################################################
   // Should return rows inserted before and after creating index
-  let res = execute_query!(txn, r#"SELECT id, name FROM test_table"#);
-  let res: Vec<RecordBatch> = res.unwrap().stream.try_collect().await.unwrap();
+  let res = execute_query!(txn, r#"SELECT id, name FROM test_table"#).unwrap();
   assert_eq!(
-    res.get(0).unwrap().num_rows(),
+    res.num_rows().await.unwrap(),
     2,
     "New row added after index isn't returned"
   );
@@ -196,10 +189,9 @@ async fn indexes_test_create_secondary_index_and_verify_index_backfill() {
   // Selecting columns that are not present in the index does table scan
   // instead of index scan. So, this will return all rows in the table
   // regardless of whether the index was populated
-  let res = execute_query!(txn, r#"SELECT id, name FROM test_table"#);
-  let res: Vec<RecordBatch> = res.unwrap().stream.try_collect().await.unwrap();
+  let res = execute_query!(txn, r#"SELECT id, name FROM test_table"#).unwrap();
   assert_eq!(
-    res.get(0).unwrap().num_rows(),
+    res.num_rows().await.unwrap(),
     1,
     "All the rows weren't returned even when using table scan"
   );
@@ -207,9 +199,8 @@ async fn indexes_test_create_secondary_index_and_verify_index_backfill() {
   // #####################################################################
   // Selecting columns that are present in the index only runs index scan
   // So, this should return same number of rows as present in the table
-  let res = execute_query!(txn, r#"SELECT id FROM test_table"#);
-  let res: Vec<RecordBatch> = res.unwrap().stream.try_collect().await.unwrap();
-  assert_eq!(res.get(0).unwrap().num_rows(), 1, "Index wasn't backfilled");
+  let res = execute_query!(txn, r#"SELECT id FROM test_table"#).unwrap();
+  assert_eq!(res.num_rows().await.unwrap(), 1, "Index wasn't backfilled");
 
   // #####################################################################
   // Duplicate entry doesn't throw error because it's not a unique index
@@ -225,20 +216,18 @@ async fn indexes_test_create_secondary_index_and_verify_index_backfill() {
 
   // #####################################################################
   // Should return rows inserted before and after creating index
-  let res = execute_query!(txn, r#"SELECT id FROM test_table"#);
-  let res: Vec<RecordBatch> = res.unwrap().stream.try_collect().await.unwrap();
+  let res = execute_query!(txn, r#"SELECT id FROM test_table"#).unwrap();
   assert_eq!(
-    res.get(0).unwrap().num_rows(),
+    res.num_rows().await.unwrap(),
     3,
     "Didn't add row to the new index"
   );
 
   // #####################################################################
   // Should return rows inserted before and after creating index
-  let res = execute_query!(txn, r#"SELECT id, name FROM test_table"#);
-  let res: Vec<RecordBatch> = res.unwrap().stream.try_collect().await.unwrap();
+  let res = execute_query!(txn, r#"SELECT id, name FROM test_table"#).unwrap();
   assert_eq!(
-    res.get(0).unwrap().num_rows(),
+    res.num_rows().await.unwrap(),
     3,
     "New row added after index isn't returned"
   );
@@ -273,9 +262,9 @@ async fn indexes_test_create_unique_index_with_multiple_cols() {
   // #####################################################################
   // Selecting columns that are present in the index only runs index scan
   // So, this should return same number of rows as present in the table
-  let res = execute_query!(txn, r#"SELECT id FROM test_table"#);
-  let res: Vec<RecordBatch> = res.unwrap().stream.try_collect().await.unwrap();
-  assert_eq!(res.get(0).unwrap().num_rows(), 1, "Index wasn't backfilled");
+  let res = execute_query!(txn, r#"SELECT id FROM test_table"#).unwrap();
+  // let res: Vec<RecordBatch> = res.unwrap().try_collect().await.unwrap();
+  assert_eq!(res.num_rows().await.unwrap(), 1, "Index wasn't backfilled");
 
   // #####################################################################
   // Duplicate entry SHOULD throw error because it's an unique index

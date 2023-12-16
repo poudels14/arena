@@ -6,8 +6,10 @@ pub(crate) mod update_rows;
 
 use std::sync::Arc;
 
-use datafusion::execution::context::SessionContext;
+use datafusion::catalog::schema::SchemaProvider as DfSchemaProvider;
+use datafusion::execution::context::SessionState;
 use datafusion::physical_plan::ExecutionPlan;
+use datafusion::sql::ResolvedTableReference;
 use datafusion::sql::TableReference;
 use sqlparser::ast::Statement as SQLStatement;
 
@@ -25,7 +27,7 @@ macro_rules! bail_unsupported_query {
 /// supported using custom plan. This is needed to support queries
 /// like `CREATE INDEX ...` that is not supported by datafusion
 pub async fn get_custom_execution_plan(
-  ctxt: &SessionContext,
+  state: &SessionState,
   transaction: &Transaction,
   stmt: &Box<SQLStatement>,
 ) -> Result<Option<Arc<dyn ExecutionPlan>>> {
@@ -55,27 +57,12 @@ pub async fn get_custom_execution_plan(
         bail_unsupported_query!("`INCLUDE` is not supported yet");
       }
 
-      let table_name_str = table_name.to_string();
-      let table_ref = TableReference::parse_str(&table_name_str).to_owned();
+      let table_name = table_name.to_string();
+      let table_ref = get_table_ref(state, &table_name);
+      let table_name = table_ref.table.as_ref().to_owned();
 
-      let state = ctxt.state();
-      let config_options = state.config_options();
-      let catalog_name = table_ref
-        .catalog()
-        .unwrap_or_else(|| &config_options.catalog.default_catalog);
+      let schema_provider = get_schema_provider(state, table_ref)?;
 
-      let schema_name = table_ref
-        .schema()
-        .unwrap_or_else(|| &config_options.catalog.default_schema);
-
-      let schema_provider = ctxt
-        .catalog(catalog_name)
-        // Catalog must exist!
-        .unwrap()
-        .schema(schema_name)
-        .ok_or_else(|| Error::SchemaDoesntExist(schema_name.to_owned()))?;
-
-      let table_name = table_ref.table().to_owned();
       if !schema_provider.table_exist(&table_name) {
         bail!(Error::RelationDoesntExist(table_name));
       }
@@ -113,4 +100,31 @@ pub async fn get_custom_execution_plan(
     _ => {}
   }
   Ok(None)
+}
+
+pub fn get_table_ref<'a>(
+  state: &'a SessionState,
+  table_name: &'a str,
+) -> ResolvedTableReference<'a> {
+  let table_ref = TableReference::parse_str(&table_name).to_owned();
+  let catalog = &state.config_options().catalog;
+  table_ref
+    .clone()
+    .resolve(&catalog.default_catalog, &catalog.default_schema)
+}
+
+/// Returns error if schema isn't found for the given table
+pub fn get_schema_provider(
+  state: &SessionState,
+  table_ref: ResolvedTableReference<'_>,
+) -> Result<Arc<dyn DfSchemaProvider>> {
+  state
+    .catalog_list()
+    .catalog(&table_ref.catalog)
+    // Catalog must exist!
+    .unwrap()
+    .schema(&table_ref.schema)
+    .ok_or_else(|| {
+      Error::SchemaDoesntExist(table_ref.schema.as_ref().to_owned())
+    })
 }

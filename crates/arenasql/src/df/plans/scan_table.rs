@@ -110,7 +110,6 @@ impl TableScaner {
     let physical_columns: Vec<(String, DataType)> = column_projection
       .iter()
       .zip(schema.fields.iter())
-      .filter(|(idx, _)| **idx < table.columns.len())
       .map(|(_, field)| {
         (field.name().clone(), DataType::from_field(field).unwrap())
       })

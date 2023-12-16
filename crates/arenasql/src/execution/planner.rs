@@ -8,6 +8,7 @@ use datafusion::physical_plan::ExecutionPlan;
 use datafusion::physical_planner::DefaultPhysicalPlanner;
 use datafusion::physical_planner::PhysicalPlanner;
 
+use crate::df::plans::{get_schema_provider, get_table_ref};
 use crate::df::providers;
 use crate::error::Error;
 
@@ -39,31 +40,16 @@ impl QueryPlanner for ArenaQueryPlanner {
         ..
       }) => {
         match op {
-          WriteOp::InsertInto => {}
+          WriteOp::InsertInto | WriteOp::InsertOverwrite => {}
           WriteOp::Delete | WriteOp::Update => {
-            let config_options = state.config_options();
-            let catalog_name = table_name
-              .catalog()
-              .unwrap_or_else(|| &config_options.catalog.default_catalog);
+            let table_name = table_name.to_string();
+            let table_ref = get_table_ref(&state, &table_name);
+            let schema_provider = get_schema_provider(state, table_ref)?;
 
-            let schema_name = table_name
-              .schema()
-              .unwrap_or_else(|| &config_options.catalog.default_schema);
-
-            let schema_provider = state
-              .catalog_list()
-              .catalog(catalog_name)
-              // Catalog must exist!
-              .unwrap()
-              .schema(schema_name)
-              .ok_or_else(|| {
-                Error::SchemaDoesntExist(schema_name.to_owned())
-              })?;
-
-            let table_provider =
-              schema_provider.table(table_name.table()).await.ok_or_else(
-                || Error::RelationDoesntExist(table_name.table().to_owned()),
-              )?;
+            let table_provider = schema_provider
+              .table(&table_name)
+              .await
+              .ok_or_else(|| Error::RelationDoesntExist(table_name))?;
 
             let table_provider = table_provider
               .as_any()
@@ -71,7 +57,7 @@ impl QueryPlanner for ArenaQueryPlanner {
               .unwrap();
 
             let scanner_plan =
-              self.df_planner.create_physical_plan(&input, state).await?;
+              self.df_planner.create_physical_plan(&input, &state).await?;
             if *op == WriteOp::Delete {
               return table_provider.delete(scanner_plan).await;
             } else if *op == WriteOp::Update {

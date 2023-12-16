@@ -14,7 +14,7 @@ use crate::storage::Transaction;
 
 #[derive(Builder)]
 pub struct SchemaProvider {
-  transaction: Transaction,
+  pub transaction: Transaction,
 }
 
 #[async_trait]

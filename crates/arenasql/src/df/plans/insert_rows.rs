@@ -5,13 +5,17 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::error::Result;
+use datafusion::execution::context::SessionState;
 use datafusion::execution::TaskContext;
 use datafusion::physical_plan::insert::DataSink;
 use datafusion::physical_plan::metrics::MetricsSet;
 use datafusion::physical_plan::{DisplayAs, DisplayFormatType};
 use derivative::Derivative;
 use futures::StreamExt;
+use sqlparser::ast::{Ident, Statement as SQLStatement};
 
+use super::{get_schema_provider, get_table_ref};
+use crate::df::providers::table::TableProvider;
 use crate::df::RecordBatchStream;
 use crate::schema::Table;
 use crate::storage::Transaction;
@@ -82,4 +86,45 @@ impl DataSink for Sink {
     }
     Ok(modified_rows_count as u64)
   }
+}
+
+/// This sets the list of columns into the `INSERT INTO` query.
+/// This is necessary since table will have virtual columns like
+/// `ctid/rowid` and if columns aren't explicity set, Datafusion
+/// planner will include those virtual columns and query needs to
+/// have the values for those columns in `VALUES` expr
+pub async fn set_explicit_columns_in_insert_query(
+  state: &SessionState,
+  stmt: &mut SQLStatement,
+) -> Result<()> {
+  match stmt {
+    SQLStatement::Insert {
+      table_name,
+      ref mut columns,
+      ..
+    } => {
+      if columns.is_empty() {
+        let table_name = table_name.to_string();
+        let table_ref = get_table_ref(&state, &table_name);
+        let table_name = table_ref.table.as_ref().to_owned();
+
+        let schema_provider = get_schema_provider(state, table_ref)?;
+        if let Some(table_provider) = schema_provider.table(&table_name).await {
+          let table = table_provider
+            .as_any()
+            .downcast_ref::<TableProvider>()
+            .unwrap()
+            .table();
+
+          *columns = table
+            .columns
+            .iter()
+            .map(|col| Ident::new(col.name.clone()))
+            .collect::<Vec<Ident>>();
+        }
+      }
+    }
+    _ => {}
+  }
+  Ok(())
 }

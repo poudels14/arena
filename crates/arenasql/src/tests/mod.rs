@@ -7,9 +7,11 @@ use crate::storage::{rocks, StorageFactoryBuilder};
 use crate::{SessionConfig, SessionContext, SingleCatalogListProvider};
 
 mod datatype;
-mod insert;
+mod delete_query;
+mod insert_query;
 mod schema;
-mod select;
+mod select_query;
+mod update_query;
 
 #[macro_export]
 macro_rules! execute_query {

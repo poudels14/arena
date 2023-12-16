@@ -1,5 +1,6 @@
 mod datatype;
 
+pub mod statement;
 pub use datatype::cast_unsupported_data_types;
 
 use sqlparser::ast::Statement as SQLStatement;

@@ -1,18 +1,14 @@
 use std::sync::Arc;
 
-use arenasql::arrow::as_primitive_array;
-use arenasql::arrow::UInt64Type;
-use arenasql::records::RecordBatch;
+use arenasql::ast::statement::StatementType;
 use arenasql::response::ExecutionResponse;
 use futures::StreamExt;
-use futures::TryStreamExt;
 use pgwire::api::results::{FieldInfo, QueryResponse, Response, Tag};
 use pgwire::api::ClientInfo;
 use pgwire::error::PgWireResult;
 use sqlparser::ast::Statement;
 
 use super::ArenaSqlCluster;
-use crate::pgwire::statement::SqlCommand;
 use crate::pgwire::ArenaQuery;
 use crate::pgwire::QueryClient;
 use crate::pgwire::{datatype, rowconverter};
@@ -43,18 +39,18 @@ impl ArenaSqlCluster {
       let result = if stmt_ref.is_begin() {
         active_transaction =
           session.set_active_transaction(session.context.begin_transaction()?);
-        Response::Execution(Tag::new_for_execution(stmt_ref.command(), None))
+        Response::Execution(Tag::new_for_execution(stmt_ref.get_type(), None))
       } else if stmt_ref.is_commit() {
         active_transaction.take().map(|t| t.commit()).transpose()?;
         session.clear_transaction();
-        Response::Execution(Tag::new_for_execution(stmt_ref.command(), None))
+        Response::Execution(Tag::new_for_execution(stmt_ref.get_type(), None))
       } else if stmt_ref.is_rollback() {
         active_transaction
           .take()
           .map(|t| t.rollback())
           .transpose()?;
         session.clear_transaction();
-        Response::Execution(Tag::new_for_execution(stmt_ref.command(), None))
+        Response::Execution(Tag::new_for_execution(stmt_ref.get_type(), None))
       } else {
         let (txn, chained) = active_transaction.as_ref().map_or_else(
           || session.context.begin_transaction().map(|t| (t, false)),
@@ -84,37 +80,18 @@ impl ArenaSqlCluster {
     match response.stmt_type {
       // TODO: drop future/stream when connection drops?
       arenasql::response::Type::Query => Self::to_row_stream(response),
-      _ => {
-        let res = response
-          .stream
-          .try_collect::<Vec<RecordBatch>>()
-          .await
-          .map_err(|e| arenasql::Error::DataFusionError(e.into()))?;
-
-        Ok(Response::Execution(Tag::new_for_execution(
-          stmt.command(),
-          Some(
-            res
-              .iter()
-              .flat_map(|b| {
-                as_primitive_array::<UInt64Type>(
-                  b.column_by_name("count").unwrap(),
-                )
-                .iter()
-                .map(|v| v.unwrap_or(0))
-              })
-              .sum::<u64>() as usize,
-          ),
-        )))
-      }
+      _ => Ok(Response::Execution(Tag::new_for_execution(
+        stmt.get_type(),
+        Some(response.get_modified_rows()),
+      ))),
     }
   }
 
   fn to_row_stream<'a>(
     response: ExecutionResponse,
   ) -> PgWireResult<Response<'a>> {
-    let fields: Vec<FieldInfo> = response
-      .stream
+    let stream = response.get_stream();
+    let fields: Vec<FieldInfo> = stream
       .schema()
       .fields
       .iter()
@@ -123,7 +100,7 @@ impl ArenaSqlCluster {
     let schema = Arc::new(fields);
 
     let rows_schema = schema.clone();
-    let row_stream = response.stream.flat_map(move |batch| {
+    let row_stream = stream.flat_map(move |batch| {
       futures::stream::iter(match batch {
         Ok(batch) => rowconverter::convert_to_rows(&schema, &batch),
         Err(e) => {

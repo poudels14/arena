@@ -1,7 +1,4 @@
-use futures::TryStreamExt;
-
 use crate::execute_query;
-use crate::records::RecordBatch;
 use crate::tests::create_session_context;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -27,6 +24,9 @@ async fn crate_table_with_json_column() {
   .unwrap();
 
   let res = execute_query!(txn, r#"SELECT * FROM json_table"#).unwrap();
-  let res: Vec<RecordBatch> = res.stream.try_collect().await.unwrap();
-  assert_eq!(res[0].num_rows(), 2, "Number of rows didn't match");
+  assert_eq!(
+    res.num_rows().await.unwrap(),
+    2,
+    "Number of rows didn't match"
+  );
 }

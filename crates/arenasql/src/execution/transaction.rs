@@ -1,3 +1,4 @@
+use std::borrow::BorrowMut;
 use std::sync::Arc;
 
 use datafusion::execution::context::{
@@ -8,7 +9,8 @@ use datafusion::physical_plan::{execute_stream, ExecutionPlan};
 use sqlparser::ast::Statement as SQLStatement;
 
 use super::response::ExecutionResponse;
-use crate::df::plans;
+use crate::ast::statement::StatementType;
+use crate::df::plans::{self, insert_rows};
 use crate::{storage, Error, Result};
 
 #[allow(unused)]
@@ -20,11 +22,14 @@ pub struct Transaction {
 }
 
 impl Transaction {
+  #[inline]
   pub async fn create_verified_logical_plan(
     &self,
     stmt: Box<SQLStatement>,
   ) -> Result<LogicalPlan> {
     let state = self.ctxt.state();
+    // TODO: creating physical plan from SQL is expensive
+    // look into caching physical plans
     let plan = state
       .statement_to_plan(datafusion::sql::parser::Statement::Statement(stmt))
       .await?;
@@ -32,8 +37,9 @@ impl Transaction {
     Ok(plan)
   }
 
+  #[inline]
   pub async fn execute_sql(&self, sql: &str) -> Result<ExecutionResponse> {
-    let mut stmts = crate::parser::parse_and_sanitize(sql)?;
+    let mut stmts = crate::ast::parse_and_sanitize(sql)?;
     if stmts.len() != 1 {
       return Err(Error::UnsupportedOperation(
         "In a transaction, one and only one statement should be executed"
@@ -45,28 +51,31 @@ impl Transaction {
 
   pub async fn execute(
     &self,
-    stmt: Box<SQLStatement>,
+    mut stmt: Box<SQLStatement>,
   ) -> Result<ExecutionResponse> {
-    match plans::get_custom_execution_plan(&self.ctxt, &self.storage_txn, &stmt)
+    let state = self.ctxt.state();
+    match plans::get_custom_execution_plan(&state, &self.storage_txn, &stmt)
       .await?
     {
       Some(plan) => self.execute_stream(None, plan).await,
       None => {
-        let state = self.ctxt.state();
-        // TODO: creating physical plan from SQL is expensive
-        // look into caching physical plans
-        let plan = state
-          .statement_to_plan(datafusion::sql::parser::Statement::Statement(
-            stmt,
-          ))
-          .await?;
+        match stmt.as_ref().is_insert() {
+          true => {
+            let stmt: &mut SQLStatement = stmt.borrow_mut();
+            insert_rows::set_explicit_columns_in_insert_query(&state, stmt)
+              .await?;
+          }
+          _ => {}
+        };
 
-        self.sql_options.verify_plan(&plan)?;
-        self.execute_logical_plan(plan).await
+        let logical_plan = self.create_verified_logical_plan(stmt).await?;
+        self.sql_options.verify_plan(&logical_plan)?;
+        self.execute_logical_plan(logical_plan).await
       }
     }
   }
 
+  #[inline]
   pub async fn execute_logical_plan(
     &self,
     plan: LogicalPlan,
@@ -99,6 +108,6 @@ impl Transaction {
   ) -> Result<ExecutionResponse> {
     let response =
       execute_stream(physical_plan.clone(), self.ctxt.task_ctx().into())?;
-    ExecutionResponse::create(response, logical_plan).await
+    ExecutionResponse::from_stream_and_plan(response, logical_plan).await
   }
 }

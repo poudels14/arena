@@ -15,7 +15,7 @@ impl QueryParser for ArenaQueryParser {
     sql: &str,
     _types: &[pgwire::api::Type],
   ) -> PgWireResult<Self::Statement> {
-    let stmts = arenasql::parser::parse_and_sanitize(sql)
+    let stmts = arenasql::ast::parse_and_sanitize(sql)
       .map_err(|e| {
         PgWireError::UserError(
           ErrorInfo::new("ERROR".to_owned(), "42601".to_owned(), e.to_string())
