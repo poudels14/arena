@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::Arc;
 
@@ -45,7 +46,10 @@ pub struct StorageFactory {
 }
 
 impl StorageFactory {
-  pub fn being_transaction(&self, schema: &str) -> Result<Transaction> {
+  pub fn being_transaction(
+    &self,
+    schemas: Arc<Vec<String>>,
+  ) -> Result<Transaction> {
     if self.state.shutdown_triggered() {
       bail!(Error::DatabaseClosed);
     }
@@ -56,34 +60,37 @@ impl StorageFactory {
       self.schemas.clear();
     }
 
-    let schema_factory = match self.schemas.get(schema) {
-      Some(factory) => factory.value().clone(),
-      None => {
-        let lock = self.factory_lock.lock();
-        // Note: check the map again to make sure another transaction
-        // didn't load the schema
-        match self.schemas.get(schema) {
-          Some(factory) => factory.value().clone(),
-          _ => {
-            let mut factory = SchemaFactoryBuilder::default()
-              .catalog(self.catalog.clone())
-              .schema(schema.to_string())
-              .kv_store_provider(self.kv_provider.clone())
-              .schema_locks(self.get_schema_locks(&schema))
-              .build()
-              .unwrap();
-            factory.load_all_tables()?;
-            let factory = Arc::new(factory);
-            self.schemas.insert(schema.to_owned(), factory.clone());
-            drop(lock);
-            factory
+    let schema_factories = schemas
+      .iter()
+      .map(|schema| match self.schemas.get(schema) {
+        Some(factory) => Ok((schema.to_owned(), factory.value().clone())),
+        None => {
+          let lock = self.factory_lock.lock();
+          // Note: check the map again to make sure another transaction
+          // didn't load the schema
+          match self.schemas.get(schema) {
+            Some(factory) => Ok((schema.to_owned(), factory.value().clone())),
+            _ => {
+              let mut factory = SchemaFactoryBuilder::default()
+                .catalog(self.catalog.clone())
+                .schema(schema.to_string())
+                .kv_store_provider(self.kv_provider.clone())
+                .schema_locks(self.get_schema_locks(&schema))
+                .build()
+                .unwrap();
+              factory.load_all_tables()?;
+              let factory = Arc::new(factory);
+              self.schemas.insert(schema.to_owned(), factory.clone());
+              drop(lock);
+              Ok((schema.to_owned(), factory))
+            }
           }
         }
-      }
-    };
+      })
+      .collect::<Result<BTreeMap<String, Arc<SchemaFactory>>>>()?;
 
     let txn_state = TransactionStateBuilder::default()
-      .schema_factory(schema_factory)
+      .schema_factories(schema_factories.into())
       .storage_factory_state(self.state.clone())
       .build()
       .unwrap();
@@ -118,7 +125,10 @@ impl StorageFactory {
     match self.schema_lock_factories.get(schema) {
       Some(locks) => locks.value().clone(),
       _ => {
-        let locks = SchemaLocksBuilder::default().build().unwrap();
+        let locks = SchemaLocksBuilder::default()
+          .schema(schema.into())
+          .build()
+          .unwrap();
         self
           .schema_lock_factories
           .insert(schema.to_owned(), locks.clone());

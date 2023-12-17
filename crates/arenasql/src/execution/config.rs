@@ -14,7 +14,7 @@ pub struct SessionConfig {
   pub runtime: Arc<RuntimeEnv>,
   pub df_runtime: Arc<DfRuntimeEnv>,
   pub catalog: String,
-  pub default_schema: String,
+  pub schemas: Arc<Vec<String>>,
   pub storage_factory: Arc<StorageFactory>,
   pub catalog_list_provider: Arc<dyn CatalogListProvider>,
 }
@@ -22,11 +22,11 @@ pub struct SessionConfig {
 impl Default for SessionConfig {
   fn default() -> Self {
     let default_catalog = "postgres".to_owned();
-    let default_schema = "public".to_owned();
+    let schemas = Arc::new(vec!["public".to_owned()]);
     Self {
       runtime: Arc::new(RuntimeEnv::default()),
       catalog: default_catalog.to_owned(),
-      default_schema: default_schema.to_owned(),
+      schemas: schemas.clone(),
       df_runtime: Arc::new(DfRuntimeEnv::default()),
       storage_factory: Arc::new(
         StorageFactoryBuilder::default()
@@ -38,7 +38,7 @@ impl Default for SessionConfig {
       ),
       catalog_list_provider: Arc::new(SingleCatalogListProvider::new(
         &default_catalog,
-        &default_schema,
+        schemas,
       )),
     }
   }

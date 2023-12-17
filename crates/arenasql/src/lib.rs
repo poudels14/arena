@@ -20,10 +20,12 @@ pub use datafusion::catalog::{
   CatalogProvider as DatafusionCatalogProvider,
 };
 pub use df::providers::{
-  CatalogListProvider, SchemaProviderBuilder, SingleCatalogListProvider,
-  SingleSchemaCatalogProvider,
+  CatalogListProvider, CatalogProvider, SchemaProviderBuilder,
+  SingleCatalogListProvider,
 };
-pub use execution::{SessionConfig, SessionContext, Transaction};
+pub use execution::{
+  SessionConfig, SessionContext, Transaction, DEFAULT_SCHEMA_NAME,
+};
 
 pub mod common {
   pub use datafusion::common::{ScalarType, ScalarValue};

@@ -5,16 +5,16 @@ use std::sync::Arc;
 use anyhow::Context;
 use arenasql::storage::Transaction;
 use arenasql::{
-  CatalogListProvider, DatafusionCatalogList, DatafusionCatalogProvider,
-  SchemaProviderBuilder, SingleSchemaCatalogProvider,
+  CatalogListProvider, CatalogProvider, DatafusionCatalogList,
+  DatafusionCatalogProvider,
 };
 use derive_builder::Builder;
-
-use crate::schema::DEFAULT_SCHEMA_NAME;
 
 #[derive(Clone, Debug, Builder)]
 pub struct CatalogListOptions {
   cluster_dir: Arc<PathBuf>,
+  /// List of schemas visible to the transaction
+  schemas: Arc<Vec<String>>,
 }
 
 pub struct ArenaClusterCatalogListProvider {
@@ -34,14 +34,12 @@ impl CatalogListProvider for ArenaClusterCatalogListProvider {
   ) -> Option<Arc<dyn DatafusionCatalogList>> {
     Some(Arc::new(DirectoryCatalogList {
       transaction,
-      schema: Arc::new(DEFAULT_SCHEMA_NAME.to_string()),
       options: self.options.clone(),
     }))
   }
 }
 
 pub struct DirectoryCatalogList {
-  schema: Arc<String>,
   options: CatalogListOptions,
   transaction: Transaction,
 }
@@ -75,16 +73,7 @@ impl DatafusionCatalogList for DirectoryCatalogList {
           })
           .unwrap();
 
-        let catalog = Arc::new(SingleSchemaCatalogProvider {
-          schema: self.schema.clone(),
-          schema_provider: Arc::new(
-            SchemaProviderBuilder::default()
-              .transaction(self.transaction.clone())
-              .build()
-              .unwrap(),
-          ),
-        });
-        Some(catalog)
+        self.catalog(&name)
       }
     }
   }
@@ -95,14 +84,10 @@ impl DatafusionCatalogList for DirectoryCatalogList {
 
   fn catalog(&self, name: &str) -> Option<Arc<dyn DatafusionCatalogProvider>> {
     if self.get_catalog_dir(&name).exists() {
-      Some(Arc::new(SingleSchemaCatalogProvider {
-        schema: self.schema.clone(),
-        schema_provider: Arc::new(
-          SchemaProviderBuilder::default()
-            .transaction(self.transaction.clone())
-            .build()
-            .unwrap(),
-        ),
+      Some(Arc::new(CatalogProvider {
+        catalog: name.into(),
+        schemas: self.options.schemas.clone(),
+        transaction: self.transaction.clone(),
       }))
     } else {
       None

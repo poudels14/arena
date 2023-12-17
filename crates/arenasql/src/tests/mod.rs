@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use tempdir::TempDir;
 
+use crate::execution::DEFAULT_SCHEMA_NAME;
 use crate::runtime::RuntimeEnv;
 use crate::storage::{rocks, StorageFactoryBuilder};
 use crate::{SessionConfig, SessionContext, SingleCatalogListProvider};
@@ -33,12 +34,12 @@ pub(super) fn create_session_context() -> SessionContext {
   );
 
   let catalog = "test";
-  let schema = "public";
+  let schemas = Arc::new(vec![DEFAULT_SCHEMA_NAME.to_string()]);
   SessionContext::with_config(SessionConfig {
     runtime: runtime.into(),
     df_runtime: Default::default(),
     catalog: catalog.to_owned(),
-    default_schema: schema.to_owned(),
+    schemas: schemas.clone(),
     storage_factory: Arc::new(
       StorageFactoryBuilder::default()
         .catalog(catalog.to_owned())
@@ -47,7 +48,7 @@ pub(super) fn create_session_context() -> SessionContext {
         .unwrap(),
     ),
     catalog_list_provider: Arc::new(SingleCatalogListProvider::new(
-      catalog, schema,
+      catalog, schemas,
     )),
     ..Default::default()
   })

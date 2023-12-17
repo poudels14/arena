@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use arenasql::DEFAULT_SCHEMA_NAME;
 use async_trait::async_trait;
 use futures::Sink;
 use pgwire::api::auth::{
@@ -10,7 +11,7 @@ use pgwire::api::ClientInfo;
 use pgwire::error::PgWireResult;
 use pgwire::messages::{PgWireBackendMessage, PgWireFrontendMessage};
 
-use crate::schema::{DEFAULT_SCHEMA_NAME, SYSTEM_CATALOG_NAME};
+use crate::schema::SYSTEM_CATALOG_NAME;
 use crate::server::cluster::ArenaSqlCluster;
 
 #[async_trait]

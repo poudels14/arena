@@ -5,6 +5,7 @@ use datafusion::scalar::ScalarValue;
 use crate::execute_query;
 use crate::execution::filter::Filter;
 use crate::execution::iterators::IndexIterator;
+use crate::execution::DEFAULT_SCHEMA_NAME;
 use crate::schema::{DataFrame, DataType};
 use crate::tests::create_session_context;
 
@@ -35,7 +36,7 @@ async fn eq_filter_returns_single_row_iterator() {
   let table = storage
     .get_table_schema(
       &session.config.catalog,
-      &session.config.default_schema,
+      DEFAULT_SCHEMA_NAME,
       "unique_column",
     )
     .unwrap()
@@ -90,7 +91,7 @@ async fn le_filter_returns_multi_row_iterator() {
   let table = storage
     .get_table_schema(
       &session.config.catalog,
-      &session.config.default_schema,
+      DEFAULT_SCHEMA_NAME,
       "unique_column",
     )
     .unwrap()

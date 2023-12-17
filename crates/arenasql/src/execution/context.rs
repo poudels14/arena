@@ -14,6 +14,8 @@ use super::transaction::Transaction;
 use super::{response::ExecutionResponse, SessionConfig};
 use crate::{Error, Result};
 
+pub static DEFAULT_SCHEMA_NAME: &'static str = "public";
+
 #[derive(Clone, Derivative)]
 #[derivative(Debug)]
 pub struct SessionContext {
@@ -26,7 +28,7 @@ impl SessionContext {
   pub fn with_config(config: SessionConfig) -> Self {
     let mut df_session_config = DfSessionConfig::new()
       .with_information_schema(false)
-      .with_default_catalog_and_schema(&config.catalog, &config.default_schema)
+      .with_default_catalog_and_schema(&config.catalog, DEFAULT_SCHEMA_NAME)
       .with_create_default_catalog_and_schema(false)
       .with_extension(Arc::new(TaskConfig {
         runtime: config.runtime.clone(),
@@ -56,7 +58,7 @@ impl SessionContext {
     let storage_txn = self
       .config
       .storage_factory
-      .being_transaction(&self.config.default_schema)?;
+      .being_transaction(self.config.schemas.clone())?;
 
     let catalog_list = self
       .config

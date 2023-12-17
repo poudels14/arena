@@ -1,10 +1,9 @@
-use std::ops::Deref;
+use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use derivative::Derivative;
 use derive_builder::Builder;
-use parking_lot::Mutex;
 use strum_macros::FromRepr;
 
 use crate::schema::Table;
@@ -17,10 +16,8 @@ use crate::{Error, Result};
 /// was closed (committed/rolledback)
 #[derive(Builder, Derivative)]
 pub struct TransactionState {
-  schema_factory: Arc<SchemaFactory>,
+  schema_factories: Arc<BTreeMap<String, Arc<SchemaFactory>>>,
   storage_factory_state: StorageFactoryState,
-  #[builder(setter(skip), default = "Arc::new(Mutex::new(vec![]))")]
-  locked_tables: Arc<Mutex<Vec<TableSchemaWriteLock>>>,
   /// LockState value
   #[builder(setter(skip), default = "Arc::new(AtomicUsize::new(1))")]
   lock: Arc<AtomicUsize>,
@@ -36,22 +33,13 @@ impl TransactionState {
   #[inline]
   pub async fn acquire_table_schema_write_lock(
     &self,
+    schema: &str,
     table_name: &str,
   ) -> Result<TableSchemaWriteLock> {
-    // If the transaction has an existing lock for the table, return it
-    // else, acquire it from lock factory
-    if let Some(lock) = self
-      .locked_tables
-      .lock()
-      .iter()
-      .find(|t| t.lock.deref().deref() == table_name)
-    {
-      return Ok(lock.clone());
-    }
-
     self
-      .schema_factory
-      .schema_locks
+      .schema_factories
+      .get(schema)
+      .unwrap()
       .acquire_table_schema_write_lock(table_name)
       .await
   }
@@ -61,62 +49,26 @@ impl TransactionState {
     &self,
     lock: TableSchemaWriteLock,
   ) -> Result<()> {
-    let mut locked_tables = self.locked_tables.lock();
-    let existing_index = locked_tables.iter().position(|l| {
-      l.table
-        .as_ref()
-        .map(|t| *t.name == *lock.lock.deref().deref())
-        .unwrap_or(false)
-    });
-    // Remove the table from the locked tables if it exist
-    // so that the list will have updated data
-    if let Some(index) = existing_index {
-      locked_tables.remove(index);
-    }
-    locked_tables.push(lock);
-    Ok(())
-  }
-
-  #[inline]
-  pub fn catalog(&self) -> &String {
-    &self.schema_factory.catalog
-  }
-
-  #[inline]
-  pub fn schema(&self) -> &String {
-    &self.schema_factory.schema
-  }
-
-  pub fn get_table(&self, name: &str) -> Option<Arc<Table>> {
-    // Note: need to check locked_tables first to check if the
-    // table was updated by the current transaction but the change
-    // hasn't been committed
     self
-      .locked_tables
-      .lock()
-      .iter()
-      .find_map(|t| {
-        t.table
-          .as_ref()
-          .filter(|t| t.name == name)
-          .map(|t| t.clone())
-      })
-      .or_else(|| self.schema_factory.get_table(name))
+      .schema_factories
+      .get(lock.schema.as_ref())
+      .unwrap()
+      .hold_table_schema_lock(lock)
   }
 
-  pub fn table_names(&self) -> Vec<String> {
-    let mut tables = vec![
-      self.schema_factory.table_names(),
-      self
-        .locked_tables
-        .lock()
-        .iter()
-        .filter_map(|t| t.table.as_ref().map(|t| t.name.clone()))
-        .collect(),
-    ]
-    .concat();
-    tables.dedup();
-    tables
+  pub fn get_table(&self, schema: &str, name: &str) -> Option<Arc<Table>> {
+    self
+      .schema_factories
+      .get(schema)
+      .and_then(|sf| sf.get_table(name))
+  }
+
+  pub fn table_names(&self, schema: &str) -> Vec<String> {
+    self
+      .schema_factories
+      .get(schema)
+      .map(|sf| sf.table_names())
+      .unwrap_or_default()
   }
 
   #[inline]
@@ -238,7 +190,13 @@ impl TransactionState {
       )
       .unwrap_or(LockState::Unknown as usize);
 
-    if self.locked_tables.lock().len() > 0 {
+    if self
+      .schema_factories
+      .values()
+      .map(|t| t.locked_tables.lock().len())
+      .sum::<usize>()
+      > 0
+    {
       self.storage_factory_state.reload_schema();
     }
     if state != LockState::Free as usize {

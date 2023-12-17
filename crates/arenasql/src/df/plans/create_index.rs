@@ -34,6 +34,8 @@ pub struct CreateIndexExecutionPlan {
 pub struct CreateIndex {
   /// Index name
   pub name: Option<String>,
+  pub catalog: Arc<str>,
+  pub schema: Arc<str>,
   pub table: Arc<Table>,
   /// Column projection on the table
   pub columns: Vec<usize>,
@@ -66,6 +68,8 @@ impl ExecutionPlan for CreateIndexExecutionPlan {
     let stream = futures::stream::once(async move {
       let CreateIndex {
         name: index_name,
+        catalog,
+        schema,
         table,
         columns,
         unique,
@@ -92,18 +96,15 @@ impl ExecutionPlan for CreateIndexExecutionPlan {
       };
 
       let state = transaction.state();
-      let mut table_lock =
-        state.acquire_table_schema_write_lock(&table.name).await?;
+      let mut table_lock = state
+        .acquire_table_schema_write_lock(schema.as_ref(), &table.name)
+        .await?;
 
       let storage_handler = transaction.lock(true)?;
       let index_id = storage_handler.get_next_table_index_id()?;
       let new_index = table.add_index(index_id, index_type, index_name)?;
 
-      storage_handler.put_table_schema(
-        &state.catalog(),
-        &state.schema(),
-        &table,
-      )?;
+      storage_handler.put_table_schema(&catalog, &schema, &table)?;
 
       backfill_index_data(&storage_handler, &table, &new_index)?;
 

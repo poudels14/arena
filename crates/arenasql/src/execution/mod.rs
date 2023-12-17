@@ -12,7 +12,8 @@ pub mod response;
 
 #[allow(unused_imports)]
 pub use config::{SessionConfig, TaskConfig};
-pub use context::SessionContext;
+#[allow(unused_imports)]
+pub use context::{SessionContext, DEFAULT_SCHEMA_NAME};
 pub use transaction::Transaction;
 
 #[allow(dead_code)]

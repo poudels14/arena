@@ -14,6 +14,8 @@ use crate::storage::Transaction;
 
 #[derive(Builder)]
 pub struct SchemaProvider {
+  pub catalog: Arc<str>,
+  pub schema: Arc<str>,
   pub transaction: Transaction,
 }
 
@@ -24,12 +26,12 @@ impl DfSchemaProvider for SchemaProvider {
   }
 
   fn table_names(&self) -> Vec<String> {
-    self.transaction.state().table_names()
+    self.transaction.state().table_names(&self.schema)
   }
 
   // Note: for each insert, this table gets called twice
   async fn table(&self, name: &str) -> Option<Arc<dyn DfTableProvider>> {
-    let table = self.transaction.state().get_table(name)?;
+    let table = self.transaction.state().get_table(&self.schema, name)?;
     Some(
       Arc::new(TableProvider::new(table, self.transaction.clone()))
         as Arc<dyn DfTableProvider>,
@@ -40,12 +42,12 @@ impl DfSchemaProvider for SchemaProvider {
   fn register_table(
     &self,
     name: String,
-    table: Arc<dyn DfTableProvider>,
+    table_provider: Arc<dyn DfTableProvider>,
   ) -> Result<Option<Arc<dyn DfTableProvider>>> {
     let storage_handler = self.transaction.lock(true)?;
     let new_table_id = storage_handler.get_next_table_id()?;
 
-    let mut table = Table::from_provider(new_table_id, &name, table)?;
+    let mut table = Table::from_provider(new_table_id, &name, table_provider)?;
     let constraints = table.constraints.clone();
     constraints
       .map(|constraints| {
@@ -67,15 +69,14 @@ impl DfSchemaProvider for SchemaProvider {
     let state = &self.transaction.state();
     let table = Arc::new(table);
     let mut schema_lock = tokio::task::block_in_place(|| {
-      Handle::current()
-        .block_on(async { state.acquire_table_schema_write_lock(&name).await })
+      Handle::current().block_on(async {
+        state
+          .acquire_table_schema_write_lock(self.schema.as_ref(), &name)
+          .await
+      })
     })?;
 
-    storage_handler.put_table_schema(
-      &state.catalog(),
-      &state.schema(),
-      &table,
-    )?;
+    storage_handler.put_table_schema(&self.catalog, &self.schema, &table)?;
 
     schema_lock.table = Some(table.clone());
     state.hold_table_schema_lock(schema_lock)?;
@@ -87,6 +88,10 @@ impl DfSchemaProvider for SchemaProvider {
   }
 
   fn table_exist(&self, name: &str) -> bool {
-    self.transaction.state().get_table(name).is_some()
+    self
+      .transaction
+      .state()
+      .get_table(&self.schema, name)
+      .is_some()
   }
 }

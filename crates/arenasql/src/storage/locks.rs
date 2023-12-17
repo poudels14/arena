@@ -9,6 +9,7 @@ use crate::Result;
 
 #[derive(Builder, Clone, Debug)]
 pub struct SchemaLocks {
+  schema: Arc<str>,
   #[builder(setter(skip), default = "Arc::new(DashMap::new())")]
   table_locks: Arc<DashMap<String, Arc<RwLock<String>>>>,
 }
@@ -28,6 +29,7 @@ impl SchemaLocks {
     };
 
     Ok(TableSchemaWriteLock {
+      schema: self.schema.clone(),
       table: None,
       lock: Arc::new(owned_lock),
     })
@@ -36,6 +38,7 @@ impl SchemaLocks {
 
 #[derive(Clone, Debug)]
 pub struct TableSchemaWriteLock {
-  pub lock: Arc<OwnedRwLockWriteGuard<String>>,
+  pub schema: Arc<str>,
   pub table: Option<Arc<Table>>,
+  pub lock: Arc<OwnedRwLockWriteGuard<String>>,
 }

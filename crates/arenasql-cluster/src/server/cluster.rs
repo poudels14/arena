@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use arenasql::runtime::RuntimeEnv;
-use arenasql::{SessionConfig, SessionContext};
+use arenasql::{SessionConfig, SessionContext, DEFAULT_SCHEMA_NAME};
 use dashmap::DashMap;
 use derivative::Derivative;
 use pgwire::api::ClientInfo;
@@ -15,7 +15,7 @@ use crate::auth::{
 use crate::error::{ArenaClusterError, ArenaClusterResult};
 use crate::io::file::File;
 use crate::pgwire::{ArenaPortalStore, ArenaQueryParser, QueryClient};
-use crate::schema::{self, DEFAULT_SCHEMA_NAME, MANIFEST_FILE};
+use crate::schema::{self, MANIFEST_FILE};
 use crate::system::{
   ArenaClusterCatalogListProvider, CatalogListOptionsBuilder,
 };
@@ -115,6 +115,7 @@ impl ArenaSqlCluster {
       Arc::new(ArenaClusterCatalogListProvider::with_options(
         CatalogListOptionsBuilder::default()
           .cluster_dir(self.options.dir.clone())
+          .schemas(Arc::new(vec![schema.clone()]))
           .build()
           .unwrap(),
       ));
@@ -123,7 +124,7 @@ impl ArenaSqlCluster {
       runtime: self.runtime.clone(),
       df_runtime: Default::default(),
       catalog: catalog.to_string(),
-      default_schema: schema.clone(),
+      schemas: Arc::new(vec![schema]),
       storage_factory,
       catalog_list_provider,
       ..Default::default()

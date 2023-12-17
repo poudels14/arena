@@ -26,15 +26,15 @@ async fn main() -> Result<()> {
       .unwrap(),
   );
 
+  let schemas = Arc::new(vec!["workspace1".to_owned()]);
   let session_context = SessionContext::with_config(SessionConfig {
     runtime: runtime.into(),
     df_runtime: Default::default(),
     catalog: "arena".to_owned(),
-    default_schema: "workspace1".to_owned(),
+    schemas: schemas.clone(),
     storage_factory: storage_factory.clone(),
     catalog_list_provider: Arc::new(SingleCatalogListProvider::new(
-      "arena",
-      "workspace1",
+      "arena", schemas,
     )),
     ..Default::default()
   });

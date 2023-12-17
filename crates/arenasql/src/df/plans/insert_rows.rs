@@ -108,7 +108,7 @@ pub async fn set_explicit_columns_in_insert_query(
         let table_ref = get_table_ref(&state, &table_name);
         let table_name = table_ref.table.as_ref().to_owned();
 
-        let schema_provider = get_schema_provider(state, table_ref)?;
+        let schema_provider = get_schema_provider(state, &table_ref)?;
         if let Some(table_provider) = schema_provider.table(&table_name).await {
           let table = table_provider
             .as_any()
