@@ -14,9 +14,9 @@ use crate::Result;
 #[derive(Derivative, Builder)]
 #[derivative(Debug)]
 pub struct SchemaFactory {
-  pub(crate) catalog: String,
+  pub(crate) catalog: Arc<str>,
 
-  pub(crate) schema: String,
+  pub(crate) schema: Arc<str>,
 
   #[derivative(Debug = "ignore")]
   kv_store_provider: Arc<dyn KeyValueStoreProvider>,

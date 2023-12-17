@@ -20,7 +20,7 @@ async fn main() -> Result<()> {
 
   let storage_factory = Arc::new(
     StorageFactoryBuilder::default()
-      .catalog("arena".to_owned())
+      .catalog("arena".into())
       .kv_provider(storage.clone())
       .build()
       .unwrap(),
@@ -30,12 +30,10 @@ async fn main() -> Result<()> {
   let session_context = SessionContext::with_config(SessionConfig {
     runtime: runtime.into(),
     df_runtime: Default::default(),
-    catalog: "arena".to_owned(),
+    catalog: "arena".into(),
     schemas: schemas.clone(),
     storage_factory: storage_factory.clone(),
-    catalog_list_provider: Arc::new(SingleCatalogListProvider::new(
-      "arena", schemas,
-    )),
+    catalog_list_provider: Arc::new(SingleCatalogListProvider::new()),
     ..Default::default()
   });
 

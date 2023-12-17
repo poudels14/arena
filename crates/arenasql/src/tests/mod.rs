@@ -33,23 +33,21 @@ pub(super) fn create_session_context() -> SessionContext {
     .unwrap(),
   );
 
-  let catalog = "test";
+  let catalog: Arc<str> = "test".into();
   let schemas = Arc::new(vec![DEFAULT_SCHEMA_NAME.to_string()]);
   SessionContext::with_config(SessionConfig {
     runtime: runtime.into(),
     df_runtime: Default::default(),
-    catalog: catalog.to_owned(),
+    catalog: catalog.clone(),
     schemas: schemas.clone(),
     storage_factory: Arc::new(
       StorageFactoryBuilder::default()
-        .catalog(catalog.to_owned())
+        .catalog(catalog)
         .kv_provider(storage)
         .build()
         .unwrap(),
     ),
-    catalog_list_provider: Arc::new(SingleCatalogListProvider::new(
-      catalog, schemas,
-    )),
+    catalog_list_provider: Arc::new(SingleCatalogListProvider::new()),
     ..Default::default()
   })
 }

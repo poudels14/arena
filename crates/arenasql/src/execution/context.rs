@@ -28,7 +28,10 @@ impl SessionContext {
   pub fn with_config(config: SessionConfig) -> Self {
     let mut df_session_config = DfSessionConfig::new()
       .with_information_schema(false)
-      .with_default_catalog_and_schema(&config.catalog, DEFAULT_SCHEMA_NAME)
+      .with_default_catalog_and_schema(
+        config.catalog.as_ref(),
+        DEFAULT_SCHEMA_NAME,
+      )
       .with_create_default_catalog_and_schema(false)
       .with_extension(Arc::new(TaskConfig {
         runtime: config.runtime.clone(),
@@ -60,10 +63,11 @@ impl SessionContext {
       .storage_factory
       .being_transaction(self.config.schemas.clone())?;
 
-    let catalog_list = self
-      .config
-      .catalog_list_provider
-      .get_catalog_list(storage_txn.clone());
+    let catalog_list = self.config.catalog_list_provider.get_catalog_list(
+      self.config.catalog.clone(),
+      self.config.schemas.clone(),
+      storage_txn.clone(),
+    );
     if catalog_list.is_none() {
       return Err(Error::InternalError(
         "Valid catalog provider must be set".to_owned(),

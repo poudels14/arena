@@ -13,8 +13,6 @@ use derive_builder::Builder;
 #[derive(Clone, Debug, Builder)]
 pub struct CatalogListOptions {
   cluster_dir: Arc<PathBuf>,
-  /// List of schemas visible to the transaction
-  schemas: Arc<Vec<String>>,
 }
 
 pub struct ArenaClusterCatalogListProvider {
@@ -30,17 +28,21 @@ impl ArenaClusterCatalogListProvider {
 impl CatalogListProvider for ArenaClusterCatalogListProvider {
   fn get_catalog_list(
     &self,
+    _catalog: Arc<str>,
+    schemas: Arc<Vec<String>>,
     transaction: Transaction,
   ) -> Option<Arc<dyn DatafusionCatalogList>> {
     Some(Arc::new(DirectoryCatalogList {
-      transaction,
       options: self.options.clone(),
+      schemas,
+      transaction,
     }))
   }
 }
 
 pub struct DirectoryCatalogList {
   options: CatalogListOptions,
+  schemas: Arc<Vec<String>>,
   transaction: Transaction,
 }
 
@@ -86,7 +88,7 @@ impl DatafusionCatalogList for DirectoryCatalogList {
     if self.get_catalog_dir(&name).exists() {
       Some(Arc::new(CatalogProvider {
         catalog: name.into(),
-        schemas: self.options.schemas.clone(),
+        schemas: self.schemas.clone(),
         transaction: self.transaction.clone(),
       }))
     } else {

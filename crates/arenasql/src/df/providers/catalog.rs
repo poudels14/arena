@@ -13,35 +13,46 @@ use crate::storage::Transaction;
 pub trait CatalogListProvider: Send + Sync {
   fn get_catalog_list(
     &self,
+    catalog: Arc<str>,
+    schemas: Arc<Vec<String>>,
     transaction: Transaction,
   ) -> Option<Arc<dyn DfCatalogList>>;
 }
 
-pub struct SingleCatalogListProvider {
-  pub catalog: Arc<str>,
-  pub schemas: Arc<Vec<String>>,
+pub struct NoopCatalogListProvider {}
+
+impl CatalogListProvider for NoopCatalogListProvider {
+  fn get_catalog_list(
+    &self,
+    _catalog: Arc<str>,
+    _schemas: Arc<Vec<String>>,
+    _transaction: Transaction,
+  ) -> Option<Arc<dyn DfCatalogList>> {
+    unimplemented!()
+  }
 }
 
+pub struct SingleCatalogListProvider {}
+
 impl SingleCatalogListProvider {
-  pub fn new(catalog: &str, schemas: Arc<Vec<String>>) -> Self {
-    Self {
-      catalog: catalog.into(),
-      schemas,
-    }
+  pub fn new() -> Self {
+    Self {}
   }
 }
 
 impl CatalogListProvider for SingleCatalogListProvider {
   fn get_catalog_list(
     &self,
+    catalog: Arc<str>,
+    schemas: Arc<Vec<String>>,
     transaction: Transaction,
   ) -> Option<Arc<dyn DfCatalogList>> {
     Some(Arc::new(
       SingleCatalogListBuilder::default()
-        .catalog(self.catalog.clone())
+        .catalog(catalog.clone())
         .provider(Arc::new(CatalogProvider {
-          catalog: self.catalog.clone(),
-          schemas: self.schemas.clone(),
+          catalog,
+          schemas,
           transaction,
         }))
         .build()

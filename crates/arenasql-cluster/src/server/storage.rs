@@ -65,7 +65,7 @@ impl StorageFactory {
         Ok(key_vaue.map(|kv| {
           let factory = Arc::new(
             StorageFactoryBuilder::default()
-              .catalog(db_name.to_owned())
+              .catalog(db_name.into())
               .serializer(Serializer::VarInt)
               .kv_provider(kv)
               .build()

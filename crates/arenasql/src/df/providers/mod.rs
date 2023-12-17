@@ -3,6 +3,7 @@ pub(crate) mod schema;
 pub(crate) mod table;
 
 pub use catalog::{
-  CatalogListProvider, CatalogProvider, SingleCatalogListProvider,
+  CatalogListProvider, CatalogProvider, NoopCatalogListProvider,
+  SingleCatalogListProvider,
 };
 pub use schema::SchemaProviderBuilder;

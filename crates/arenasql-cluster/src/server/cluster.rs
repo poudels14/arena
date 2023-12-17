@@ -115,7 +115,6 @@ impl ArenaSqlCluster {
       Arc::new(ArenaClusterCatalogListProvider::with_options(
         CatalogListOptionsBuilder::default()
           .cluster_dir(self.options.dir.clone())
-          .schemas(Arc::new(vec![schema.clone()]))
           .build()
           .unwrap(),
       ));
@@ -123,7 +122,7 @@ impl ArenaSqlCluster {
     let session_context = SessionContext::with_config(SessionConfig {
       runtime: self.runtime.clone(),
       df_runtime: Default::default(),
-      catalog: catalog.to_string(),
+      catalog: catalog.clone().into(),
       schemas: Arc::new(vec![schema]),
       storage_factory,
       catalog_list_provider,

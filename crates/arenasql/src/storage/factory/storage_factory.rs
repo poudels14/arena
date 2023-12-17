@@ -21,7 +21,7 @@ use crate::{bail, Error, Result};
 #[derivative(Debug)]
 pub struct StorageFactory {
   #[builder(setter(custom))]
-  catalog: String,
+  catalog: Arc<str>,
 
   #[builder(default = "Serializer::VarInt")]
   pub serializer: Serializer,
@@ -73,7 +73,7 @@ impl StorageFactory {
             _ => {
               let mut factory = SchemaFactoryBuilder::default()
                 .catalog(self.catalog.clone())
-                .schema(schema.to_string())
+                .schema(schema.as_str().into())
                 .kv_store_provider(self.kv_provider.clone())
                 .schema_locks(self.get_schema_locks(&schema))
                 .build()
@@ -139,7 +139,7 @@ impl StorageFactory {
 }
 
 impl StorageFactoryBuilder {
-  pub fn catalog(&mut self, catalog: String) -> &mut Self {
+  pub fn catalog(&mut self, catalog: Arc<str>) -> &mut Self {
     self.catalog = Some(catalog);
 
     let (tx, rx) = oneshot::channel();
