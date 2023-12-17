@@ -2,14 +2,13 @@ use std::sync::Arc;
 
 use datafusion::execution::runtime_env::RuntimeEnv as DfRuntimeEnv;
 
-use crate::df::providers::catlog::{
-  CatalogListProvider, EmptyCatalogListProvider,
-};
+use crate::df::providers::catalog::CatalogListProvider;
 use crate::runtime::RuntimeEnv;
 use crate::storage::{
   MemoryKeyValueStoreProvider, Serializer, StorageFactory,
   StorageFactoryBuilder,
 };
+use crate::SingleCatalogListProvider;
 
 pub struct SessionConfig {
   pub runtime: Arc<RuntimeEnv>,
@@ -37,7 +36,10 @@ impl Default for SessionConfig {
           .build()
           .unwrap(),
       ),
-      catalog_list_provider: Arc::new(EmptyCatalogListProvider),
+      catalog_list_provider: Arc::new(SingleCatalogListProvider::new(
+        &default_catalog,
+        &default_schema,
+      )),
     }
   }
 }

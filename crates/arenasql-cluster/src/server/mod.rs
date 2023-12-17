@@ -1,4 +1,5 @@
 use std::net::{Ipv4Addr, SocketAddr};
+use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -39,12 +40,10 @@ impl ServerOptions {
     let host = self.host.unwrap_or("0.0.0.0".to_owned());
     let port = self.port.unwrap_or(5432);
 
-    let cluster = Arc::new(ArenaSqlCluster::load(
-      &self.dir,
-      ClusterOptions {
-        cache_size_mb: self.cache_size,
-      },
-    )?);
+    let cluster = Arc::new(ArenaSqlCluster::load(ClusterOptions {
+      dir: Arc::new(Path::new(&self.dir).to_path_buf()),
+      cache_size_mb: self.cache_size,
+    })?);
     let processor = Arc::new(StatelessMakeHandler::new(cluster.clone()));
     let authenticator = Arc::new(StatelessMakeHandler::new(cluster.clone()));
 

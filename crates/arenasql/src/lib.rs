@@ -15,7 +15,14 @@ pub mod vectors;
 pub type Result<T> = std::result::Result<T, error::Error>;
 pub type Error = error::Error;
 
-pub use df::providers::{CatalogListProvider, SingleCatalogListProvider};
+pub use datafusion::catalog::{
+  CatalogList as DatafusionCatalogList,
+  CatalogProvider as DatafusionCatalogProvider,
+};
+pub use df::providers::{
+  CatalogListProvider, SchemaProviderBuilder, SingleCatalogListProvider,
+  SingleSchemaCatalogProvider,
+};
 pub use execution::{SessionConfig, SessionContext, Transaction};
 
 pub mod common {

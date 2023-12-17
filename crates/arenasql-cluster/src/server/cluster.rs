@@ -1,9 +1,9 @@
-use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use arenasql::runtime::RuntimeEnv;
-use arenasql::{SessionConfig, SessionContext, SingleCatalogListProvider};
+use arenasql::{SessionConfig, SessionContext};
 use dashmap::DashMap;
 use derivative::Derivative;
 use pgwire::api::ClientInfo;
@@ -15,11 +15,14 @@ use crate::auth::{
 use crate::error::{ArenaClusterError, ArenaClusterResult};
 use crate::io::file::File;
 use crate::pgwire::{ArenaPortalStore, ArenaQueryParser, QueryClient};
-use crate::schema::{self, MANIFEST_FILE};
+use crate::schema::{self, DEFAULT_SCHEMA_NAME, MANIFEST_FILE};
+use crate::system::{
+  ArenaClusterCatalogListProvider, CatalogListOptionsBuilder,
+};
 
 #[allow(unused)]
 pub struct ArenaSqlCluster {
-  manifest: schema::Cluster,
+  pub(crate) manifest: Arc<schema::Cluster>,
   pub options: ClusterOptions,
   pub(crate) runtime: Arc<RuntimeEnv>,
   pub(crate) parser: Arc<ArenaQueryParser>,
@@ -34,24 +37,26 @@ pub struct ArenaSqlCluster {
 
 #[derive(Debug, Derivative)]
 pub struct ClusterOptions {
+  /// Location of database data directory
+  pub dir: Arc<PathBuf>,
+
   /// Per database cache size in MB
   #[derivative(Default(value = "10"))]
   pub cache_size_mb: usize,
 }
 
 impl ArenaSqlCluster {
-  pub fn load(path: &str, config: ClusterOptions) -> Result<Self> {
-    let path = Path::new(path);
-    let manifest = File::read(&path.join(MANIFEST_FILE))
+  pub fn load(config: ClusterOptions) -> Result<Self> {
+    let manifest = File::read(&config.dir.join(MANIFEST_FILE))
       .context("Error reading cluster manifest")?;
     Ok(Self {
       manifest,
-      options: config,
       runtime: Arc::new(RuntimeEnv::default()),
       parser: Arc::new(ArenaQueryParser {}),
       poral_stores: Arc::new(DashMap::new()),
       session_store: Arc::new(AuthenticatedSessionStore::new()),
-      storage: Arc::new(StorageFactory::new(path.to_path_buf())),
+      storage: Arc::new(StorageFactory::new(config.dir.to_path_buf())),
+      options: config,
     })
   }
 
@@ -84,7 +89,7 @@ impl ArenaSqlCluster {
       QueryClient::New { user, database } => self.create_new_session(
         user.clone(),
         database.clone(),
-        "public".to_owned(),
+        DEFAULT_SCHEMA_NAME.to_string(),
       ),
       _ => unreachable!(),
     }
@@ -107,7 +112,12 @@ impl ArenaSqlCluster {
       .ok_or_else(|| ArenaClusterError::CatalogNotFound(catalog.clone()))?;
 
     let catalog_list_provider =
-      Arc::new(SingleCatalogListProvider::new(&catalog, &schema));
+      Arc::new(ArenaClusterCatalogListProvider::with_options(
+        CatalogListOptionsBuilder::default()
+          .cluster_dir(self.options.dir.clone())
+          .build()
+          .unwrap(),
+      ));
 
     let session_context = SessionContext::with_config(SessionConfig {
       runtime: self.runtime.clone(),

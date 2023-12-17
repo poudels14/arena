@@ -26,7 +26,7 @@ pub struct Table {
 }
 
 impl Table {
-  pub fn new(
+  pub fn from_provider(
     id: TableId,
     name: &str,
     provider: Arc<dyn DfTableProvider>,

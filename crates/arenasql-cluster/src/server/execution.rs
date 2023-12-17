@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use arenasql::ast::statement::StatementType;
 use arenasql::response::ExecutionResponse;
+use arenasql::Transaction;
 use futures::StreamExt;
 use pgwire::api::results::{FieldInfo, QueryResponse, Response, Tag};
 use pgwire::api::ClientInfo;
@@ -9,6 +10,7 @@ use pgwire::error::PgWireResult;
 use sqlparser::ast::Statement;
 
 use super::ArenaSqlCluster;
+use crate::auth::AuthenticatedSession;
 use crate::pgwire::ArenaQuery;
 use crate::pgwire::QueryClient;
 use crate::pgwire::{datatype, rowconverter};
@@ -19,7 +21,7 @@ impl ArenaSqlCluster {
   pub async fn execute_query<'a, C>(
     &self,
     client: &C,
-    query: &ArenaQuery,
+    query: ArenaQuery,
   ) -> PgWireResult<Vec<Response<'a>>>
   where
     C: ClientInfo,
@@ -34,43 +36,54 @@ impl ArenaSqlCluster {
     // explicity used
     let mut active_transaction = session.get_active_transaction();
     let mut results = Vec::with_capacity(query.stmts.len());
-    for stmt in query.stmts.iter() {
-      let stmt_ref = stmt.as_ref();
-      let result = if stmt_ref.is_begin() {
-        active_transaction =
-          session.set_active_transaction(session.context.begin_transaction()?);
-        Response::Execution(Tag::new_for_execution(stmt_ref.get_type(), None))
-      } else if stmt_ref.is_commit() {
-        active_transaction.take().map(|t| t.commit()).transpose()?;
-        session.clear_transaction();
-        Response::Execution(Tag::new_for_execution(stmt_ref.get_type(), None))
-      } else if stmt_ref.is_rollback() {
-        active_transaction
-          .take()
-          .map(|t| t.rollback())
-          .transpose()?;
-        session.clear_transaction();
-        Response::Execution(Tag::new_for_execution(stmt_ref.get_type(), None))
-      } else {
-        let (txn, chained) = active_transaction.as_ref().map_or_else(
-          || session.context.begin_transaction().map(|t| (t, false)),
-          |txn| Ok((txn.clone(), true)),
-        )?;
-        let response = txn.execute(stmt.clone()).await?;
-
-        // Commit the transaction if it's not a chained transaction
-        // i.e. if it wasn't explicitly started by `BEGIN` command
-        // Don't commit the SELECT statement's transaction since the
-        // SELECT response stream will still need a valid transaction
-        // when scanning rows
-        if !chained && !stmt_ref.is_query() {
-          txn.commit()?;
-        }
-        Self::map_to_pgwire_response(&stmt, response).await?
-      };
+    for stmt in query.stmts.into_iter() {
+      let result = self
+        .execute_single_statement(&session, &mut active_transaction, stmt)
+        .await?;
       results.push(result);
     }
     Ok(results)
+  }
+
+  pub async fn execute_single_statement<'a>(
+    &self,
+    session: &Arc<AuthenticatedSession>,
+    active_transaction: &mut Option<Transaction>,
+    stmt: Box<Statement>,
+  ) -> PgWireResult<Response<'a>> {
+    let stmt_ref = stmt.as_ref();
+    Ok(if stmt_ref.is_begin() {
+      *active_transaction =
+        session.set_active_transaction(session.context.begin_transaction()?);
+      Response::Execution(Tag::new_for_execution(stmt_ref.get_type(), None))
+    } else if stmt_ref.is_commit() {
+      active_transaction.take().map(|t| t.commit()).transpose()?;
+      session.clear_transaction();
+      Response::Execution(Tag::new_for_execution(stmt_ref.get_type(), None))
+    } else if stmt_ref.is_rollback() {
+      active_transaction
+        .take()
+        .map(|t| t.rollback())
+        .transpose()?;
+      session.clear_transaction();
+      Response::Execution(Tag::new_for_execution(stmt_ref.get_type(), None))
+    } else {
+      let (txn, chained) = active_transaction.as_ref().map_or_else(
+        || session.context.begin_transaction().map(|t| (t, false)),
+        |txn| Ok((txn.clone(), true)),
+      )?;
+      let response = txn.execute(stmt.clone()).await?;
+
+      // Commit the transaction if it's not a chained transaction
+      // i.e. if it wasn't explicitly started by `BEGIN` command
+      // Don't commit the SELECT statement's transaction since the
+      // SELECT response stream will still need a valid transaction
+      // when scanning rows
+      if !chained && !stmt_ref.is_query() {
+        txn.commit()?;
+      }
+      Self::map_to_pgwire_response(&stmt, response).await?
+    })
   }
 
   pub(crate) async fn map_to_pgwire_response<'a>(

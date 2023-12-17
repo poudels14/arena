@@ -13,7 +13,7 @@ pub use handler::StorageHandler;
 pub use kvstore::{
   KeyValueGroup, KeyValueIterator, KeyValueStore, KeyValueStoreProvider,
 };
-pub use memory::MemoryKeyValueStoreProvider;
+pub use memory::{MemoryKeyValueStore, MemoryKeyValueStoreProvider};
 pub use serializer::*;
 pub use transaction::Transaction;
 

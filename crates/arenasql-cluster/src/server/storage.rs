@@ -3,10 +3,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use arenasql::storage::rocks::{self, RocksStorage};
-use arenasql::storage::{self, Serializer, StorageFactoryBuilder};
+use arenasql::storage::{
+  self, KeyValueStoreProvider, MemoryKeyValueStoreProvider, Serializer,
+  StorageFactoryBuilder,
+};
 use dashmap::DashMap;
 
 use crate::error::ArenaClusterResult;
+use crate::schema::SYSTEM_CATALOG_NAME;
 
 pub struct StorageFactory {
   path: PathBuf,
@@ -41,30 +45,36 @@ impl StorageFactory {
     match storage {
       Some(storage) => Ok(Some(storage.value().clone())),
       None => {
-        let path = self.path.join("catalogs").join(db_name);
-        match path.exists() {
-          false => Ok(None),
-          true => {
-            let kv = Arc::new(RocksStorage::new_with_cache(
-              path,
-              options
-                .cache_size_mb
-                .map(|size| rocks::Cache::new_lru_cache(size * 1024 * 1024)),
-            )?);
-
-            let factory = Arc::new(
-              StorageFactoryBuilder::default()
-                .catalog(db_name.to_owned())
-                .serializer(Serializer::VarInt)
-                .kv_provider(kv)
-                .build()
-                .unwrap(),
-            );
-
-            self.storages.insert(db_name.to_string(), factory.clone());
-            Ok(Some(factory))
+        let key_vaue = match db_name == SYSTEM_CATALOG_NAME {
+          true => Some(Arc::new(MemoryKeyValueStoreProvider {})
+            as Arc<dyn KeyValueStoreProvider>),
+          false => {
+            let path = self.path.join("catalogs").join(db_name);
+            match path.exists() {
+              false => None,
+              true => Some(Arc::new(RocksStorage::new_with_cache(
+                path,
+                options
+                  .cache_size_mb
+                  .map(|size| rocks::Cache::new_lru_cache(size * 1024 * 1024)),
+              )?) as Arc<dyn KeyValueStoreProvider>),
+            }
           }
-        }
+        };
+
+        Ok(key_vaue.map(|kv| {
+          let factory = Arc::new(
+            StorageFactoryBuilder::default()
+              .catalog(db_name.to_owned())
+              .serializer(Serializer::VarInt)
+              .kv_provider(kv)
+              .build()
+              .unwrap(),
+          );
+
+          self.storages.insert(db_name.to_string(), factory.clone());
+          factory
+        }))
       }
     }
   }

@@ -25,9 +25,21 @@ impl Transaction {
   #[inline]
   pub async fn create_verified_logical_plan(
     &self,
-    stmt: Box<SQLStatement>,
+    mut stmt: Box<SQLStatement>,
   ) -> Result<LogicalPlan> {
     let state = self.ctxt.state();
+
+    // Modify stmt if needed
+    // THIS IS A HACK needed because table scan needs to return rowid
+    // for delete/update
+    match stmt.as_ref().is_insert() {
+      true => {
+        let stmt: &mut SQLStatement = stmt.borrow_mut();
+        insert_rows::set_explicit_columns_in_insert_query(&state, stmt).await?;
+      }
+      _ => {}
+    };
+
     // TODO: creating physical plan from SQL is expensive
     // look into caching physical plans
     let plan = state
@@ -51,7 +63,7 @@ impl Transaction {
 
   pub async fn execute(
     &self,
-    mut stmt: Box<SQLStatement>,
+    stmt: Box<SQLStatement>,
   ) -> Result<ExecutionResponse> {
     let state = self.ctxt.state();
     match plans::get_custom_execution_plan(&state, &self.storage_txn, &stmt)
@@ -59,17 +71,7 @@ impl Transaction {
     {
       Some(plan) => self.execute_stream(None, plan).await,
       None => {
-        match stmt.as_ref().is_insert() {
-          true => {
-            let stmt: &mut SQLStatement = stmt.borrow_mut();
-            insert_rows::set_explicit_columns_in_insert_query(&state, stmt)
-              .await?;
-          }
-          _ => {}
-        };
-
         let logical_plan = self.create_verified_logical_plan(stmt).await?;
-        self.sql_options.verify_plan(&logical_plan)?;
         self.execute_logical_plan(logical_plan).await
       }
     }

@@ -5,6 +5,7 @@ mod io;
 mod pgwire;
 mod schema;
 mod server;
+mod system;
 
 use anyhow::Error;
 use clap::Parser;

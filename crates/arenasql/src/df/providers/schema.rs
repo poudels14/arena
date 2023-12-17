@@ -45,7 +45,7 @@ impl DfSchemaProvider for SchemaProvider {
     let storage_handler = self.transaction.lock(true)?;
     let new_table_id = storage_handler.get_next_table_id()?;
 
-    let mut table = Table::new(new_table_id, &name, table)?;
+    let mut table = Table::from_provider(new_table_id, &name, table)?;
     let constraints = table.constraints.clone();
     constraints
       .map(|constraints| {

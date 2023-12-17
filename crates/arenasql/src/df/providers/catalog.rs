@@ -5,6 +5,7 @@ use datafusion::catalog::schema::SchemaProvider as DfSchemaProvider;
 use datafusion::catalog::{
   CatalogList as DfCatalogList, CatalogProvider as DfCatalogProvider,
 };
+use derive_builder::Builder;
 
 use super::schema::SchemaProviderBuilder;
 use crate::storage::Transaction;
@@ -16,27 +17,16 @@ pub trait CatalogListProvider: Send + Sync {
   ) -> Option<Arc<dyn DfCatalogList>>;
 }
 
-pub struct EmptyCatalogListProvider;
-
-impl CatalogListProvider for EmptyCatalogListProvider {
-  fn get_catalog_list(
-    &self,
-    _transaction: Transaction,
-  ) -> Option<Arc<dyn DfCatalogList>> {
-    None
-  }
-}
-
 pub struct SingleCatalogListProvider {
-  pub catalog: String,
-  pub schema: String,
+  pub catalog: Arc<String>,
+  pub schema: Arc<String>,
 }
 
 impl SingleCatalogListProvider {
   pub fn new(catalog: &str, schema: &str) -> Self {
     Self {
-      catalog: catalog.to_string(),
-      schema: schema.to_string(),
+      catalog: Arc::new(catalog.to_string()),
+      schema: Arc::new(schema.to_string()),
     }
   }
 }
@@ -46,23 +36,27 @@ impl CatalogListProvider for SingleCatalogListProvider {
     &self,
     transaction: Transaction,
   ) -> Option<Arc<dyn DfCatalogList>> {
-    Some(Arc::new(SingleCatalogList {
-      catalog: self.catalog.clone(),
-      provider: Arc::new(CatalogProvider {
-        schema: self.schema.clone(),
-        schema_provider: Arc::new(
-          SchemaProviderBuilder::default()
-            .transaction(transaction)
-            .build()
-            .unwrap(),
-        ),
-      }),
-    }))
+    Some(Arc::new(
+      SingleCatalogListBuilder::default()
+        .catalog(self.catalog.clone())
+        .provider(Arc::new(SingleSchemaCatalogProvider {
+          schema: self.schema.clone(),
+          schema_provider: Arc::new(
+            SchemaProviderBuilder::default()
+              .transaction(transaction)
+              .build()
+              .unwrap(),
+          ),
+        }))
+        .build()
+        .unwrap(),
+    ))
   }
 }
 
+#[derive(Builder)]
 pub struct SingleCatalogList {
-  catalog: String,
+  catalog: Arc<String>,
   provider: Arc<dyn DfCatalogProvider>,
 }
 
@@ -80,11 +74,11 @@ impl DfCatalogList for SingleCatalogList {
   }
 
   fn catalog_names(&self) -> Vec<String> {
-    vec![self.catalog.clone()]
+    vec![self.catalog.to_string()]
   }
 
   fn catalog(&self, name: &str) -> Option<Arc<dyn DfCatalogProvider>> {
-    if name == self.catalog {
+    if name == *self.catalog {
       return Some(self.provider.clone());
     } else {
       None
@@ -92,18 +86,19 @@ impl DfCatalogList for SingleCatalogList {
   }
 }
 
-pub struct CatalogProvider {
-  schema: String,
-  schema_provider: Arc<dyn DfSchemaProvider>,
+// #[derive(Builder)]
+pub struct SingleSchemaCatalogProvider {
+  pub schema: Arc<String>,
+  pub schema_provider: Arc<dyn DfSchemaProvider>,
 }
 
-impl DfCatalogProvider for CatalogProvider {
+impl DfCatalogProvider for SingleSchemaCatalogProvider {
   fn as_any(&self) -> &dyn Any {
     self
   }
 
   fn schema(&self, schema_name: &str) -> Option<Arc<dyn DfSchemaProvider>> {
-    if schema_name == self.schema {
+    if schema_name == *self.schema {
       return Some(self.schema_provider.clone());
     } else {
       None
@@ -111,6 +106,6 @@ impl DfCatalogProvider for CatalogProvider {
   }
 
   fn schema_names(&self) -> Vec<String> {
-    vec![self.schema.clone()]
+    vec![self.schema.to_string()]
   }
 }

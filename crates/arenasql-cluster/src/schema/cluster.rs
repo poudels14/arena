@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use super::User;
 
 pub static MANIFEST_FILE: &'static str = "MANIFEST.bin";
+pub static SYSTEM_CATALOG_NAME: &'static str = "postgres";
+pub static DEFAULT_SCHEMA_NAME: &'static str = "public";
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder)]
 pub struct Cluster {
