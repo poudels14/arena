@@ -26,7 +26,7 @@ async fn main() -> Result<()> {
       .unwrap(),
   );
 
-  let schemas = Arc::new(vec!["workspace1".to_owned()]);
+  let schemas = Arc::new(vec!["public".to_owned()]);
   let session_context = SessionContext::with_config(SessionConfig {
     runtime: runtime.into(),
     df_runtime: Default::default(),
@@ -42,7 +42,7 @@ async fn main() -> Result<()> {
 
     let _res = txn
       .execute_sql(
-        r#"CREATE TABLE IF NOT EXISTS vector_table (
+        r#"CREATE TABLE IF NOT EXISTS test_table (
           id VARCHAR(50),
           embed VECTOR(4)
         )"#,
@@ -51,7 +51,7 @@ async fn main() -> Result<()> {
       .unwrap();
 
     let res = txn
-      .execute_sql(r#"SELECT count(id) FROM test_table WHERE id > $1"#)
+      .execute_sql(r#"SELECT count(id) FROM test_table WHERE id > '1'"#)
       .await
       .unwrap();
     println!("count = {:?}", res.get_count().await.unwrap());

@@ -22,7 +22,8 @@ impl Drop for StorageFactoryState {
   fn drop(&mut self) {
     if self.shutdown_triggered() && self.active_transactions() == 0 {
       if let Some(tx) = self.shutdown_signal.lock().take() {
-        tx.send(()).unwrap();
+        // Ignore error since the signal receiver might be already closed
+        let _ = tx.send(());
       }
     }
   }

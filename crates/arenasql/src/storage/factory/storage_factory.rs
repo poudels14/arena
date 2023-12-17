@@ -110,11 +110,13 @@ impl StorageFactory {
     self.state.trigger_shutdown();
     let lock = self.wait_signal.lock().await.take();
     if let Some(signal) = lock {
-      signal.await.map_err(|_| {
-        Error::InternalError(
-          "Error waiting for transactions to close".to_owned(),
-        )
-      })?;
+      if self.state.active_transactions() > 0 {
+        signal.await.map_err(|_| {
+          Error::InternalError(
+            "Error waiting for transactions to close".to_owned(),
+          )
+        })?;
+      }
     }
     Ok(())
   }
