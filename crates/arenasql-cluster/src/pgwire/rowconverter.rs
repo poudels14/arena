@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use arenasql::records::RecordBatch;
+use arenasql::datafusion::RecordBatch;
 use pgwire::api::results::{DataRowEncoder, FieldInfo};
 use pgwire::error::PgWireResult;
 use pgwire::messages::data::DataRow;

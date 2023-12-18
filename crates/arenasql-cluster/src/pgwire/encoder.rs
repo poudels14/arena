@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use arenasql::arrow::as_primitive_array;
 use arenasql::bytes::BufMut;
+use arenasql::datafusion::DatafusionDataType;
 use arenasql::postgres_types::{IsNull, ToSql};
-use arenasql::records::DatafusionDataType;
 use arenasql::{arrow, bytes, postgres_types};
 use arrow::Array;
 use pgwire::api::results::DataRowEncoder;

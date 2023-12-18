@@ -13,7 +13,7 @@ use derivative::Derivative;
 use derive_builder::Builder;
 use futures::StreamExt;
 
-use super::super::{RecordBatch, RecordBatchStream};
+use crate::datafusion::{RecordBatch, RecordBatchStream};
 use crate::execution::filter::Filter;
 use crate::execution::iterators::{HeapIterator, IndexIterator};
 use crate::schema::{DataFrame, DataType, Table};

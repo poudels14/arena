@@ -7,7 +7,7 @@ use derivative::Derivative;
 use futures::StreamExt;
 
 use crate::ast::statement::StatementType;
-use crate::records::RecordBatchStream;
+use crate::datafusion::RecordBatchStream;
 use crate::Result as ArenaResult;
 
 #[derive(Derivative)]

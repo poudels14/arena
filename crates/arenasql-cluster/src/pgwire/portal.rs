@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use arenasql::common::LogicalPlan;
+use arenasql::datafusion::LogicalPlan;
 use dashmap::DashMap;
 use getset::{Getters, Setters};
 use pgwire::api::portal::Portal;

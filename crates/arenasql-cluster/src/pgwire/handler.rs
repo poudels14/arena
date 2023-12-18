@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use arenasql::ast::statement::StatementType;
-use arenasql::common::ScalarValue;
+use arenasql::datafusion::ScalarValue;
 use async_trait::async_trait;
 use futures::{Sink, SinkExt};
 use pgwire::api::portal::Portal;

@@ -16,30 +16,29 @@ pub mod vectors;
 pub type Result<T> = std::result::Result<T, error::Error>;
 pub type Error = error::Error;
 
-pub use datafusion::catalog::{
-  CatalogList as DatafusionCatalogList,
-  CatalogProvider as DatafusionCatalogProvider,
-};
 pub use df::providers::{
   CatalogListProvider, CatalogProvider, SchemaProviderBuilder,
   SingleCatalogListProvider,
 };
 
-pub mod common {
+pub mod datafusion {
+  pub use datafusion::arrow::datatypes::{
+    DataType as DatafusionDataType, Field as DatafusionField, Schema, SchemaRef,
+  };
+  pub use datafusion::arrow::record_batch::RecordBatch;
+  pub use datafusion::catalog::{
+    CatalogList as DatafusionCatalogList,
+    CatalogProvider as DatafusionCatalogProvider,
+  };
   pub use datafusion::common::{ScalarType, ScalarValue};
+  pub use datafusion::physical_plan::SendableRecordBatchStream as RecordBatchStream;
+
+  pub use datafusion::execution::TaskContext;
   pub use datafusion::logical_expr::LogicalPlan;
 }
 
 pub mod response {
   pub use crate::execution::response::*;
-}
-
-pub mod records {
-  pub use crate::df::stream;
-  pub use crate::df::{RecordBatch, RecordBatchStream};
-  pub use datafusion::arrow::datatypes::{
-    DataType as DatafusionDataType, Field as DatafusionField, SchemaRef,
-  };
 }
 
 // Re-exports

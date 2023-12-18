@@ -3,11 +3,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Context;
+use arenasql::datafusion::{DatafusionCatalogList, DatafusionCatalogProvider};
 use arenasql::storage::Transaction;
-use arenasql::{
-  CatalogListProvider, CatalogProvider, DatafusionCatalogList,
-  DatafusionCatalogProvider,
-};
+use arenasql::{CatalogListProvider, CatalogProvider};
 use derive_builder::Builder;
 
 #[derive(Clone, Debug, Builder)]

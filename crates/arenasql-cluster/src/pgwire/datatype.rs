@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
-use arenasql::records::{self, DatafusionDataType};
+use arenasql::datafusion::{DatafusionDataType, DatafusionField};
 use pgwire::api::results::{FieldFormat, FieldInfo};
 use pgwire::api::Type;
 
-pub fn to_field_info(field: &records::DatafusionField) -> FieldInfo {
+pub fn to_field_info(field: &DatafusionField) -> FieldInfo {
   FieldInfo::new(
     field.name().clone(),
     None,
