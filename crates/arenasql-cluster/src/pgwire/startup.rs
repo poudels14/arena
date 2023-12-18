@@ -45,7 +45,7 @@ impl StartupHandler for ArenaSqlCluster {
         database,
         DEFAULT_SCHEMA_NAME.to_owned(),
       )?;
-      metadata.insert("session_id".to_owned(), session.id.to_string());
+      metadata.insert("session_id".to_owned(), session.id().to_string());
 
       finish_authentication(client, &DefaultServerParameterProvider::default())
         .await;

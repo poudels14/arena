@@ -37,7 +37,7 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
     PgWireError: From<<C as Sink<PgWireBackendMessage>>::Error>,
   {
     let session = self.get_client_session(client)?;
-    let txn = session.context.begin_transaction()?;
+    let txn = session.create_transaction()?;
 
     let statement_name = message
       .statement_name()
@@ -79,7 +79,7 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
   {
     let session = self.get_client_session(client)?;
     let (transaction, chained) = session.get_active_transaction().map_or_else(
-      || session.context.begin_transaction().map(|t| (t, false)),
+      || session.create_transaction().map(|t| (t, false)),
       |txn| Ok((txn.clone(), true)),
     )?;
     let stmts = &portal.statement().statement().stmts;

@@ -53,8 +53,7 @@ impl ArenaSqlCluster {
   ) -> PgWireResult<Response<'a>> {
     let stmt_ref = stmt.as_ref();
     Ok(if stmt_ref.is_begin() {
-      *active_transaction =
-        session.set_active_transaction(session.context.begin_transaction()?);
+      *active_transaction = Some(session.begin_transaction()?);
       Response::Execution(Tag::new_for_execution(stmt_ref.get_type(), None))
     } else if stmt_ref.is_commit() {
       active_transaction.take().map(|t| t.commit()).transpose()?;
@@ -69,7 +68,7 @@ impl ArenaSqlCluster {
       Response::Execution(Tag::new_for_execution(stmt_ref.get_type(), None))
     } else {
       let (txn, chained) = active_transaction.as_ref().map_or_else(
-        || session.context.begin_transaction().map(|t| (t, false)),
+        || session.create_transaction().map(|t| (t, false)),
         |txn| Ok((txn.clone(), true)),
       )?;
       let response = txn.execute(stmt.clone()).await?;
