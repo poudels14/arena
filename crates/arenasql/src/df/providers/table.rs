@@ -10,6 +10,8 @@ use datafusion::execution::context::SessionState;
 use datafusion::logical_expr::{Expr, TableProviderFilterPushDown, TableType};
 use datafusion::physical_plan::insert::FileSinkExec;
 use datafusion::physical_plan::{project_schema, ExecutionPlan};
+use datafusion::sql::ResolvedTableReference;
+use datafusion::sql::TableReference;
 use getset::Getters;
 
 use crate::df::plans::delete_rows::DeleteRowsExecutionPlanBuilder;
@@ -19,6 +21,17 @@ use crate::df::plans::update_rows::UpdateRowsExecutionPlanBuilder;
 use crate::execution::filter::Filter;
 use crate::schema;
 use crate::storage::Transaction;
+
+pub fn get_table_ref<'a>(
+  state: &'a SessionState,
+  table_name: &'a str,
+) -> ResolvedTableReference<'a> {
+  let table_ref = TableReference::parse_str(&table_name).to_owned();
+  let catalog = &state.config_options().catalog;
+  table_ref
+    .clone()
+    .resolve(&catalog.default_catalog, &catalog.default_schema)
+}
 
 #[derive(Getters)]
 #[getset(get = "pub")]

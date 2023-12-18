@@ -6,6 +6,7 @@ use datafusion::arrow::datatypes::{Schema, SchemaRef};
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::common::Statistics;
 use datafusion::error::Result;
+use datafusion::execution::context::SessionState;
 use datafusion::execution::TaskContext;
 use datafusion::physical_expr::PhysicalSortExpr;
 use datafusion::physical_plan::metrics::MetricsSet;
@@ -17,10 +18,100 @@ use datafusion::physical_plan::{
 use derivative::Derivative;
 use derive_builder::Builder;
 use futures::StreamExt;
+use sqlparser::ast::Statement as SQLStatement;
 
+use crate::df::providers::{get_schema_provider, get_table_ref};
 use crate::schema::{IndexType, Row, Table, TableIndex};
 use crate::storage::{KeyValueGroup, StorageHandler, Transaction};
 use crate::{bail, df_error, table_rows_prefix_key, Error};
+
+macro_rules! bail_unsupported_query {
+  ($msg:literal) => {
+    return Err(Error::UnsupportedQuery(format!($msg)));
+  };
+}
+
+/// Returns a custom execution plan extension to create index
+pub fn extension(
+  state: &SessionState,
+  transaction: &Transaction,
+  stmt: &Box<SQLStatement>,
+) -> crate::Result<Option<Arc<dyn ExecutionPlan>>> {
+  match stmt.as_ref() {
+    SQLStatement::CreateIndex {
+      name,
+      table_name,
+      columns,
+      unique,
+      if_not_exists,
+      // Features below this are not supported
+      concurrently,
+      using,
+      nulls_distinct,
+      predicate,
+      include,
+    } => {
+      if *concurrently {
+        bail_unsupported_query!("`CONCURRENTLY` is not supported yet");
+      } else if using.is_some() {
+        bail_unsupported_query!("`USING` is not supported yet");
+      } else if nulls_distinct.is_some() {
+        bail_unsupported_query!("`NULLS NOT DISTINCT` is not supported yet");
+      } else if predicate.is_some() {
+        bail_unsupported_query!("Partial index is not supported yet");
+      } else if !include.is_empty() {
+        bail_unsupported_query!("`INCLUDE` is not supported yet");
+      }
+
+      let table_name = table_name.to_string();
+      let table_ref = get_table_ref(state, &table_name);
+      let table_name = table_ref.table.as_ref().to_owned();
+
+      let schema_provider = get_schema_provider(state, &table_ref)?;
+
+      if !schema_provider.table_exist(&table_name) {
+        bail!(Error::RelationDoesntExist(table_name));
+      }
+
+      let table = transaction
+        .state()
+        .get_table(&table_ref.schema, &table_name)
+        .unwrap();
+      let column_projection = columns
+        .to_vec()
+        .iter()
+        .map(|c| c.to_string())
+        .map(|col_name| {
+          table
+            .columns
+            .iter()
+            .position(|c| c.name == col_name)
+            .ok_or_else(|| Error::ColumnDoesntExist(col_name.to_owned()))
+        })
+        .collect::<crate::Result<Vec<usize>>>()?;
+
+      let create_index = CreateIndex {
+        name: name.as_ref().map(|n| n.to_string()),
+        catalog: table_ref.catalog.as_ref().into(),
+        schema: table_ref.schema.as_ref().into(),
+        table,
+        columns: column_projection,
+        unique: *unique,
+        if_not_exists: *if_not_exists,
+      };
+
+      return Ok(Some(Arc::new(
+        CreateIndexExecutionPlanBuilder::default()
+          .transaction(transaction.clone())
+          .create_index(create_index)
+          .build()
+          .unwrap(),
+      )));
+    }
+    _ => {}
+  }
+  Ok(None)
+}
 
 #[derive(Builder, Derivative)]
 #[derivative(Debug)]

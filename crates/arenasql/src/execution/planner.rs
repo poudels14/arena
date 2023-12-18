@@ -8,8 +8,7 @@ use datafusion::physical_plan::ExecutionPlan;
 use datafusion::physical_planner::DefaultPhysicalPlanner;
 use datafusion::physical_planner::PhysicalPlanner;
 
-use crate::df::plans::{get_schema_provider, get_table_ref};
-use crate::df::providers;
+use crate::df::providers::{self, get_schema_provider, get_table_ref};
 use crate::error::Error;
 
 pub struct ArenaQueryPlanner {

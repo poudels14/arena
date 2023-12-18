@@ -14,8 +14,8 @@ use derivative::Derivative;
 use futures::StreamExt;
 use sqlparser::ast::{Ident, Statement as SQLStatement};
 
-use super::{get_schema_provider, get_table_ref};
 use crate::df::providers::table::TableProvider;
+use crate::df::providers::{get_schema_provider, get_table_ref};
 use crate::df::RecordBatchStream;
 use crate::schema::Table;
 use crate::storage::Transaction;

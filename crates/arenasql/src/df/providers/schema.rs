@@ -5,12 +5,30 @@ use async_trait::async_trait;
 use datafusion::catalog::schema::SchemaProvider as DfSchemaProvider;
 use datafusion::datasource::TableProvider as DfTableProvider;
 use datafusion::error::Result;
+use datafusion::execution::context::SessionState;
+use datafusion::sql::ResolvedTableReference;
 use derive_builder::Builder;
 use tokio::runtime::Handle;
 
 use super::table::TableProvider;
 use crate::schema::{IndexType, Table, TableIndex};
 use crate::storage::Transaction;
+
+/// Returns error if schema isn't found for the given table
+pub fn get_schema_provider(
+  state: &SessionState,
+  table_ref: &ResolvedTableReference<'_>,
+) -> crate::Result<Arc<dyn DfSchemaProvider>> {
+  state
+    .catalog_list()
+    .catalog(&table_ref.catalog)
+    // Catalog must exist!
+    .unwrap()
+    .schema(&table_ref.schema)
+    .ok_or_else(|| {
+      crate::Error::SchemaDoesntExist(table_ref.schema.as_ref().to_owned())
+    })
+}
 
 #[derive(Builder)]
 pub struct SchemaProvider {

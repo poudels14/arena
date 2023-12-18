@@ -3,10 +3,9 @@ use std::sync::Arc;
 use datafusion::arrow::array::{ArrayBuilder, ArrayRef, UInt64Builder};
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 use datafusion::arrow::record_batch::RecordBatch;
-use datafusion::error::DataFusionError;
+use datafusion::error::Result;
 
 use super::{ColumnArrayBuilder, DataType, RowId, SerializedCell};
-use crate::{Error, Result};
 
 pub struct DataFrame {
   row_ids: UInt64Builder,
@@ -82,10 +81,6 @@ impl DataFrame {
     )
     .into();
 
-    Ok(
-      RecordBatch::try_new(schema_with_virtual_cols, col_arrays).map_err(
-        |e| Error::DataFusionError(DataFusionError::ArrowError(e).into()),
-      )?,
-    )
+    Ok(RecordBatch::try_new(schema_with_virtual_cols, col_arrays)?)
   }
 }

@@ -6,12 +6,17 @@ use datafusion::execution::context::{
 };
 use datafusion::logical_expr::LogicalPlan;
 use datafusion::physical_plan::{execute_stream, ExecutionPlan};
+use once_cell::sync::Lazy;
 use sqlparser::ast::Statement as SQLStatement;
 
 use super::response::ExecutionResponse;
 use crate::ast::statement::StatementType;
-use crate::df::plans::{self, insert_rows};
+use crate::df::plans::{create_index, insert_rows};
+use crate::plans::ExecutionPlanExtension;
 use crate::{storage, Error, Result};
+
+pub const DEFAULT_EXTENSIONS: Lazy<Arc<Vec<ExecutionPlanExtension>>> =
+  Lazy::new(|| Arc::new(vec![Arc::new(create_index::extension)]));
 
 #[allow(unused)]
 #[derive(Clone)]
@@ -19,6 +24,7 @@ pub struct Transaction {
   pub(crate) storage_txn: storage::Transaction,
   pub(super) sql_options: SQLOptions,
   pub(super) ctxt: DfSessionContext,
+  pub(super) extensions: Arc<Vec<ExecutionPlanExtension>>,
 }
 
 impl Transaction {
@@ -32,7 +38,7 @@ impl Transaction {
     // Modify stmt if needed
     // THIS IS A HACK needed because table scan needs to return rowid
     // for delete/update
-    match stmt.as_ref().is_insert() {
+    match StatementType::from(stmt.as_ref()).is_insert() {
       true => {
         let stmt: &mut SQLStatement = stmt.borrow_mut();
         insert_rows::set_explicit_columns_in_insert_query(&state, stmt).await?;
@@ -65,14 +71,18 @@ impl Transaction {
     &self,
     stmt: Box<SQLStatement>,
   ) -> Result<ExecutionResponse> {
+    let stmt_type = StatementType::from(stmt.as_ref());
     let state = self.ctxt.state();
-    match plans::get_custom_execution_plan(&state, &self.storage_txn, &stmt)
-      .await?
-    {
-      Some(plan) => self.execute_stream(None, plan).await,
+    let custom_plan = DEFAULT_EXTENSIONS
+      .iter()
+      .chain(self.extensions.iter())
+      .find_map(|ext| ext(&state, &self.storage_txn, &stmt).transpose())
+      .transpose()?;
+    match custom_plan {
+      Some(plan) => self.execute_stream(&stmt_type, plan).await,
       None => {
         let logical_plan = self.create_verified_logical_plan(stmt).await?;
-        self.execute_logical_plan(logical_plan).await
+        self.execute_logical_plan(&stmt_type, logical_plan).await
       }
     }
   }
@@ -80,11 +90,12 @@ impl Transaction {
   #[inline]
   pub async fn execute_logical_plan(
     &self,
+    stmt_type: &StatementType,
     plan: LogicalPlan,
   ) -> Result<ExecutionResponse> {
     let df = self.ctxt.execute_logical_plan(plan.clone()).await?;
     let physical_plan = df.create_physical_plan().await?;
-    self.execute_stream(Some(plan), physical_plan).await
+    self.execute_stream(stmt_type, physical_plan).await
   }
 
   #[inline]
@@ -105,11 +116,11 @@ impl Transaction {
   #[inline]
   async fn execute_stream(
     &self,
-    logical_plan: Option<LogicalPlan>,
+    stmt_type: &StatementType,
     physical_plan: Arc<dyn ExecutionPlan>,
   ) -> Result<ExecutionResponse> {
     let response =
       execute_stream(physical_plan.clone(), self.ctxt.task_ctx().into())?;
-    ExecutionResponse::from_stream_and_plan(response, logical_plan).await
+    ExecutionResponse::from_stream(stmt_type, response).await
   }
 }

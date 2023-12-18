@@ -1,73 +1,76 @@
 use sqlparser::ast::Statement as SQLStatement;
 
-pub trait StatementType {
-  fn get_type(&self) -> &'static str;
-
-  /// Whether this is a `INSERT` statement
-  fn is_insert(&self) -> bool;
-
-  /// Whether the SQL is `SELECT` statement
-  fn is_query(&self) -> bool;
-  fn is_begin(&self) -> bool;
-  fn is_commit(&self) -> bool;
-  fn is_rollback(&self) -> bool;
+#[derive(Debug, PartialEq)]
+pub enum StatementType {
+  Begin,
+  Commit,
+  Rollback,
+  Query,
+  Insert,
+  Create,
+  Delete,
+  Update,
+  Alter,
+  Execute,
 }
 
-impl StatementType for &SQLStatement {
-  #[inline]
-  fn get_type(&self) -> &'static str {
-    match self {
-      SQLStatement::StartTransaction { .. } => "BEGIN",
-      SQLStatement::Commit { .. } => "COMMIT",
-      SQLStatement::Rollback { .. } => "ROLLBACK",
-      SQLStatement::Query(_) => "SELECT",
-      SQLStatement::Insert { .. } => "INSERT",
+impl From<&SQLStatement> for StatementType {
+  fn from(stmt: &SQLStatement) -> Self {
+    match stmt {
+      SQLStatement::StartTransaction { .. } => Self::Begin,
+      SQLStatement::Commit { .. } => Self::Commit,
+      SQLStatement::Rollback { .. } => Self::Rollback,
+      SQLStatement::Query(_) => Self::Query,
+      SQLStatement::Insert { .. } => Self::Insert,
       SQLStatement::CreateDatabase { .. }
-      | SQLStatement::CreateTable { .. } => "CREATE",
-      SQLStatement::Delete { .. } => "DELETE",
-      SQLStatement::Update { .. } => "UPDATE",
-      SQLStatement::AlterIndex { .. } => "ALTER",
+      | SQLStatement::CreateTable { .. } => Self::Create,
+      SQLStatement::Delete { .. } => Self::Delete,
+      SQLStatement::Update { .. } => Self::Update,
+      SQLStatement::AlterIndex { .. } => Self::Alter,
       stmt => unimplemented!("Statement type not supported: {}", stmt),
     }
   }
+}
 
+impl StatementType {
   #[inline]
-  fn is_insert(&self) -> bool {
+  pub fn to_string(&self) -> &'static str {
     match self {
-      SQLStatement::Insert { .. } => true,
-      _ => false,
+      Self::Begin => "BEGIN",
+      Self::Commit => "COMMIT",
+      Self::Rollback => "ROLLBACK",
+      Self::Query => "SELECT",
+      Self::Insert => "INSERT",
+      Self::Create => "CREATE",
+      Self::Delete => "DELETE",
+      Self::Update => "UPDATE",
+      Self::Alter => "ALTER",
+      Self::Execute => "EXECUTE",
     }
   }
 
   #[inline]
-  fn is_query(&self) -> bool {
-    match self {
-      SQLStatement::Query { .. } => true,
-      _ => false,
-    }
+  pub fn is_insert(&self) -> bool {
+    *self == Self::Insert
   }
 
   #[inline]
-  fn is_begin(&self) -> bool {
-    match self {
-      SQLStatement::StartTransaction { .. } => true,
-      _ => false,
-    }
+  pub fn is_query(&self) -> bool {
+    *self == Self::Query
   }
 
   #[inline]
-  fn is_commit(&self) -> bool {
-    match self {
-      SQLStatement::Commit { .. } => true,
-      _ => false,
-    }
+  pub fn is_begin(&self) -> bool {
+    *self == Self::Begin
   }
 
   #[inline]
-  fn is_rollback(&self) -> bool {
-    match self {
-      SQLStatement::Rollback { .. } => true,
-      _ => false,
-    }
+  pub fn is_commit(&self) -> bool {
+    *self == Self::Commit
+  }
+
+  #[inline]
+  pub fn is_rollback(&self) -> bool {
+    *self == Self::Rollback
   }
 }

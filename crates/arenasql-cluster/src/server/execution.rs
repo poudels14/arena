@@ -51,21 +51,21 @@ impl ArenaSqlCluster {
     active_transaction: &mut Option<Transaction>,
     stmt: Box<Statement>,
   ) -> PgWireResult<Response<'a>> {
-    let stmt_ref = stmt.as_ref();
-    Ok(if stmt_ref.is_begin() {
+    let stmt_type = StatementType::from(stmt.as_ref());
+    Ok(if stmt_type.is_begin() {
       *active_transaction = Some(session.begin_transaction()?);
-      Response::Execution(Tag::new_for_execution(stmt_ref.get_type(), None))
-    } else if stmt_ref.is_commit() {
+      Response::Execution(Tag::new_for_execution(stmt_type.to_string(), None))
+    } else if stmt_type.is_commit() {
       active_transaction.take().map(|t| t.commit()).transpose()?;
       session.clear_transaction();
-      Response::Execution(Tag::new_for_execution(stmt_ref.get_type(), None))
-    } else if stmt_ref.is_rollback() {
+      Response::Execution(Tag::new_for_execution(stmt_type.to_string(), None))
+    } else if stmt_type.is_rollback() {
       active_transaction
         .take()
         .map(|t| t.rollback())
         .transpose()?;
       session.clear_transaction();
-      Response::Execution(Tag::new_for_execution(stmt_ref.get_type(), None))
+      Response::Execution(Tag::new_for_execution(stmt_type.to_string(), None))
     } else {
       let (txn, chained) = active_transaction.as_ref().map_or_else(
         || session.create_transaction().map(|t| (t, false)),
@@ -78,22 +78,22 @@ impl ArenaSqlCluster {
       // Don't commit the SELECT statement's transaction since the
       // SELECT response stream will still need a valid transaction
       // when scanning rows
-      if !chained && !stmt_ref.is_query() {
+      if !chained && !stmt_type.is_query() {
         txn.commit()?;
       }
-      Self::map_to_pgwire_response(&stmt, response).await?
+      Self::map_to_pgwire_response(&stmt_type, response).await?
     })
   }
 
   pub(crate) async fn map_to_pgwire_response<'a>(
-    stmt: &Statement,
+    stmt_type: &StatementType,
     response: ExecutionResponse,
   ) -> PgWireResult<Response<'a>> {
-    match response.stmt_type {
+    match stmt_type {
       // TODO: drop future/stream when connection drops?
-      arenasql::response::Type::Query => Self::to_row_stream(response),
+      StatementType::Query => Self::to_row_stream(response),
       _ => Ok(Response::Execution(Tag::new_for_execution(
-        stmt.get_type(),
+        stmt_type.to_string(),
         Some(response.get_modified_rows()),
       ))),
     }

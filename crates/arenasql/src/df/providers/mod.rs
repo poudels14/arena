@@ -6,4 +6,5 @@ pub use catalog::{
   CatalogListProvider, CatalogProvider, NoopCatalogListProvider,
   SingleCatalogListProvider,
 };
-pub use schema::SchemaProviderBuilder;
+pub use schema::{get_schema_provider, SchemaProviderBuilder};
+pub use table::get_table_ref;

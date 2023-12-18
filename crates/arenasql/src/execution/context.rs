@@ -88,6 +88,7 @@ impl SessionContext {
       storage_txn,
       sql_options,
       ctxt: session_context,
+      extensions: self.config.extensions.clone(),
     })
   }
 }

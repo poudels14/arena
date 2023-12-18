@@ -3,12 +3,12 @@ use datafusion::arrow::datatypes::Int64Type;
 use datafusion::arrow::datatypes::UInt64Type;
 use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::error::DataFusionError;
-use datafusion::logical_expr::LogicalPlan;
 use derivative::Derivative;
 use futures::StreamExt;
 
+use crate::ast::statement::StatementType;
 use crate::records::RecordBatchStream;
-use crate::{Error, Result as ArenaResult};
+use crate::Result as ArenaResult;
 
 #[derive(Derivative)]
 #[derivative(Debug)]
@@ -22,7 +22,6 @@ pub enum Type {
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct ExecutionResponse {
-  pub stmt_type: Type,
   #[derivative(Debug = "ignore")]
   record_batches: Option<Vec<RecordBatch>>,
   #[derivative(Debug = "ignore")]
@@ -33,33 +32,16 @@ impl ExecutionResponse {
   /// Datafusion doesn't execute some queries like INSERT until the stream
   /// is polled. So, poll the stream here for those types of query and return
   /// a new stream of the polled values
-  pub async fn from_stream(stream: RecordBatchStream) -> ArenaResult<Self> {
-    Self::from_stream_and_plan(stream, None).await
-  }
-
-  pub async fn from_stream_and_plan(
+  pub async fn from_stream(
+    stmt_type: &StatementType,
     stream: RecordBatchStream,
-    plan: Option<LogicalPlan>,
   ) -> ArenaResult<Self> {
-    let (stream_response, stmt_type) = match plan {
-      Some(LogicalPlan::Ddl(_)) => (false, Type::Ddl),
-      Some(LogicalPlan::Dml(_)) | None => (false, Type::Dml),
-      _ => (true, Type::Query),
-    };
-
-    let (record_batches, stream) = match stream_response {
-      true => (None, Some(stream)),
-      false => {
+    let (record_batches, stream) = match stmt_type {
+      StatementType::Query => (None, Some(stream)),
+      _ => {
         let batches = stream
           .collect::<Vec<Result<RecordBatch, DataFusionError>>>()
           .await;
-
-        if batches.len() > 1 {
-          return Err(Error::InternalError(format!(
-            "Only one result expected from DDL/DML query but got {}",
-            batches.len()
-          )));
-        }
 
         let batches = batches
           .into_iter()
@@ -70,7 +52,6 @@ impl ExecutionResponse {
     };
 
     Ok(Self {
-      stmt_type,
       record_batches,
       stream,
     })
@@ -117,22 +98,22 @@ impl ExecutionResponse {
   /// This returns the single value of the record batch
   /// Panics if called on queries other than SELECT
   pub async fn get_count(self) -> ArenaResult<i64> {
-    let mut batches = self
+    let batches = self
       .stream
       .unwrap()
       .collect::<Vec<Result<RecordBatch, DataFusionError>>>()
       .await;
 
-    if batches.len() != 1 {
-      panic!("Expected a single record but got: {}", batches.len());
-    };
-
-    let batch = batches.pop().unwrap()?;
-    if batch.num_columns() != 1 {
-      panic!("Expected a single column but got: {}", batch.num_columns());
-    }
-
-    let arr = as_primitive_array::<Int64Type>(batch.column(0));
-    Ok(arr.value(0))
+    batches
+      .into_iter()
+      .map(|batch| {
+        let batch = batch?;
+        if batch.num_columns() != 1 {
+          panic!("Expected a single column but got: {}", batch.num_columns());
+        }
+        let arr = as_primitive_array::<Int64Type>(batch.column(0));
+        Ok(arr.value(0))
+      })
+      .sum()
   }
 }
