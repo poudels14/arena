@@ -10,9 +10,7 @@ use futures::StreamExt;
 use sqlparser::ast::Statement as SQLStatement;
 
 use crate::df::providers::{get_schema_provider, get_table_ref};
-use crate::plans::{
-  CustomExecutionPlan, CustomExecutionPlanAdapter, ExecutionPlanResponse,
-};
+use crate::plans::{CustomExecutionPlan, ExecutionPlanResponse};
 use crate::schema::{DataFrame, IndexType, Row, Table, TableIndex};
 use crate::storage::{KeyValueGroup, StorageHandler, Transaction};
 use crate::{bail, table_rows_prefix_key, Error, Result};
@@ -28,7 +26,7 @@ pub fn extension(
   state: &SessionState,
   transaction: &Transaction,
   stmt: &SQLStatement,
-) -> Result<Option<CustomExecutionPlanAdapter>> {
+) -> Result<Option<Arc<dyn CustomExecutionPlan>>> {
   match stmt {
     SQLStatement::CreateIndex {
       name,
@@ -92,13 +90,13 @@ pub fn extension(
         if_not_exists: *if_not_exists,
       };
 
-      return Ok(Some(CustomExecutionPlanAdapter::new(Arc::new(
+      return Ok(Some(Arc::new(
         CreateIndexExecutionPlanBuilder::default()
           .transaction(transaction.clone())
           .create_index(create_index)
           .build()
           .unwrap(),
-      ))));
+      )));
     }
     _ => {}
   }

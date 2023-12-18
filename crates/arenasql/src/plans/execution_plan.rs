@@ -26,7 +26,7 @@ pub type ExecutionPlanExtension = Arc<
       &SessionState,
       &Transaction,
       &SQLStatement,
-    ) -> crate::Result<Option<CustomExecutionPlanAdapter>>
+    ) -> crate::Result<Option<Arc<dyn CustomExecutionPlan>>>
     + Send
     + Sync,
 >;

@@ -12,7 +12,7 @@ use sqlparser::ast::Statement as SQLStatement;
 use super::response::ExecutionResponse;
 use crate::ast::statement::StatementType;
 use crate::df::plans::{create_index, insert_rows};
-use crate::plans::ExecutionPlanExtension;
+use crate::plans::{CustomExecutionPlanAdapter, ExecutionPlanExtension};
 use crate::{storage, Error, Result};
 
 pub const DEFAULT_EXTENSIONS: Lazy<Arc<Vec<ExecutionPlanExtension>>> =
@@ -81,7 +81,10 @@ impl Transaction {
     match custom_plan {
       Some(plan) => {
         self
-          .execute_stream(&stmt_type, Arc::new(plan) as Arc<dyn ExecutionPlan>)
+          .execute_stream(
+            &stmt_type,
+            Arc::new(CustomExecutionPlanAdapter::new(plan)),
+          )
           .await
       }
       None => {
