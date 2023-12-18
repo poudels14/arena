@@ -23,7 +23,8 @@ impl From<&SQLStatement> for StatementType {
       SQLStatement::Query(_) => Self::Query,
       SQLStatement::Insert { .. } => Self::Insert,
       SQLStatement::CreateDatabase { .. }
-      | SQLStatement::CreateTable { .. } => Self::Create,
+      | SQLStatement::CreateTable { .. }
+      | SQLStatement::CreateIndex { .. } => Self::Create,
       SQLStatement::Delete { .. } => Self::Delete,
       SQLStatement::Update { .. } => Self::Update,
       SQLStatement::AlterIndex { .. } => Self::Alter,
