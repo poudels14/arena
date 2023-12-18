@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use arenasql::DEFAULT_SCHEMA_NAME;
+use arenasql::execution::DEFAULT_SCHEMA_NAME;
 use async_trait::async_trait;
 use futures::Sink;
 use pgwire::api::auth::{

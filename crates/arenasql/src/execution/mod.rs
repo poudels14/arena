@@ -4,16 +4,16 @@ mod config;
 mod context;
 mod custom_functions;
 mod planner;
+mod privilege;
 mod transaction;
 
 pub(crate) mod filter;
 pub(crate) mod iterators;
-pub mod response;
+pub(crate) mod response;
 
-#[allow(unused_imports)]
 pub use config::{SessionConfig, TaskConfig};
-#[allow(unused_imports)]
 pub use context::{SessionContext, DEFAULT_SCHEMA_NAME};
+pub use privilege::Privilege;
 pub use transaction::Transaction;
 
 #[allow(dead_code)]

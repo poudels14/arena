@@ -2,8 +2,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
+use arenasql::execution::{SessionConfig, SessionContext, DEFAULT_SCHEMA_NAME};
 use arenasql::runtime::RuntimeEnv;
-use arenasql::{SessionConfig, SessionContext, DEFAULT_SCHEMA_NAME};
 use dashmap::DashMap;
 use derivative::Derivative;
 use pgwire::api::ClientInfo;

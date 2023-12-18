@@ -31,6 +31,7 @@ pgwire.workspace = true
 getset.workspace = true
 derive-new.workspace = true
 bincode.workspace = true
+bitflags.workspace = true
 libsql = { version = "0.1.11", features = ["core"] }
 libsql-sys = "0.2.14"
 datafusion = { version = "33.0.0", features = [] }

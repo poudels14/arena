@@ -3,10 +3,10 @@ mod tests;
 
 mod df;
 mod error;
-pub(crate) mod execution;
 pub(crate) mod utils;
 
 pub mod ast;
+pub mod execution;
 pub mod runtime;
 pub mod schema;
 pub mod storage;
@@ -22,9 +22,6 @@ pub use datafusion::catalog::{
 pub use df::providers::{
   CatalogListProvider, CatalogProvider, SchemaProviderBuilder,
   SingleCatalogListProvider,
-};
-pub use execution::{
-  SessionConfig, SessionContext, Transaction, DEFAULT_SCHEMA_NAME,
 };
 
 pub mod common {

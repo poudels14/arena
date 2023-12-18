@@ -3,10 +3,10 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Instant;
 
+use arenasql::execution::{SessionConfig, SessionContext};
 use arenasql::runtime::RuntimeEnv;
 use arenasql::storage::{rocks, StorageFactoryBuilder};
 use arenasql::{Result, SingleCatalogListProvider};
-use arenasql::{SessionConfig, SessionContext};
 
 #[tokio::main]
 async fn main() -> Result<()> {

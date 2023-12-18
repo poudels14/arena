@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use tempdir::TempDir;
 
-use crate::execution::DEFAULT_SCHEMA_NAME;
+use crate::execution::{SessionConfig, SessionContext, DEFAULT_SCHEMA_NAME};
 use crate::runtime::RuntimeEnv;
 use crate::storage::{rocks, StorageFactoryBuilder};
-use crate::{SessionConfig, SessionContext, SingleCatalogListProvider};
+use crate::SingleCatalogListProvider;
 
 mod datatype;
 mod delete_query;

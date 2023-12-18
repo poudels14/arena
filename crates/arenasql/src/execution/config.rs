@@ -10,11 +10,14 @@ use crate::storage::{
   StorageFactoryBuilder,
 };
 
+use super::Privilege;
+
 pub struct SessionConfig {
   pub runtime: Arc<RuntimeEnv>,
   pub df_runtime: Arc<DfRuntimeEnv>,
   pub catalog: Arc<str>,
   pub schemas: Arc<Vec<String>>,
+  pub privilege: Privilege,
   pub storage_factory: Arc<StorageFactory>,
   pub catalog_list_provider: Arc<dyn CatalogListProvider>,
 }
@@ -27,6 +30,7 @@ impl Default for SessionConfig {
       runtime: Arc::new(RuntimeEnv::default()),
       catalog: default_catalog.clone(),
       schemas: schemas.clone(),
+      privilege: Privilege::default(),
       df_runtime: Arc::new(DfRuntimeEnv::default()),
       storage_factory: Arc::new(
         StorageFactoryBuilder::default()

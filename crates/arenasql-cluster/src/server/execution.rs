@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use arenasql::ast::statement::StatementType;
+use arenasql::execution::Transaction;
 use arenasql::response::ExecutionResponse;
-use arenasql::Transaction;
 use futures::StreamExt;
 use pgwire::api::results::{FieldInfo, QueryResponse, Response, Tag};
 use pgwire::api::ClientInfo;

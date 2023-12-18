@@ -1,7 +1,8 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
-use arenasql::{Result, SessionContext, Transaction};
+use arenasql::execution::{SessionContext, Transaction};
+use arenasql::Result;
 use dashmap::DashMap;
 use derivative::Derivative;
 use derive_builder::Builder;
