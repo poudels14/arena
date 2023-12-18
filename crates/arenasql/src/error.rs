@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use datafusion::error::DataFusionError;
 use pgwire::error::{ErrorInfo, PgWireError};
-use sqlparser::parser;
+use sqlparser::parser::{self, ParserError};
 
 use crate::schema::{Column, OwnedSerializedCell};
 
@@ -31,6 +31,7 @@ pub enum Error {
     table: String,
     column: String,
   },
+  DatabaseAlreadyExists(String),
   RelationAlreadyExists(String),
   RelationDoesntExist(String),
   SchemaDoesntExist(String),
@@ -64,6 +65,7 @@ impl Error {
       | Self::UnsupportedQuery(_)
       | Self::InvalidQuery(_)
       | Self::NullConstraintViolated { .. }
+      | Self::DatabaseAlreadyExists(_)
       | Self::RelationAlreadyExists(_)
       | Self::RelationDoesntExist(_)
       | Self::SchemaDoesntExist(_)
@@ -102,6 +104,9 @@ impl Error {
           r#"null value in column "{}" of relation "{}" violates not-null constraint"#,
           column, table,
         )
+      }
+      Self::DatabaseAlreadyExists(db) => {
+        format!(r#"database "{db}" already exists"#)
       }
       Self::RelationAlreadyExists(rel) => {
         format!(r#"relation "{rel}" already exists"#)
@@ -172,7 +177,10 @@ impl fmt::Display for Error {
 
 impl From<parser::ParserError> for Error {
   fn from(e: parser::ParserError) -> Self {
-    Self::ParserError(e.to_string())
+    Self::ParserError(match e {
+      ParserError::ParserError(e) => e,
+      _ => format!("Error parsing SQL query"),
+    })
   }
 }
 
