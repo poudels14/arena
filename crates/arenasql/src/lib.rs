@@ -23,18 +23,25 @@ pub use df::providers::{
 
 pub mod datafusion {
   pub use datafusion::arrow::datatypes::{
-    DataType as DatafusionDataType, Field as DatafusionField, Schema, SchemaRef,
+    DataType as DatafusionDataType, Field as DatafusionField, Fields, Schema,
+    SchemaRef,
   };
   pub use datafusion::arrow::record_batch::RecordBatch;
   pub use datafusion::catalog::{
     CatalogList as DatafusionCatalogList,
     CatalogProvider as DatafusionCatalogProvider,
   };
-  pub use datafusion::common::{ScalarType, ScalarValue};
-  pub use datafusion::physical_plan::SendableRecordBatchStream as RecordBatchStream;
-
+  pub use datafusion::common::{
+    config::ConfigOptions, DFSchema, ScalarType, ScalarValue, TableReference,
+  };
+  pub use datafusion::error::{DataFusionError, Result};
   pub use datafusion::execution::{context::SessionState, TaskContext};
-  pub use datafusion::logical_expr::LogicalPlan;
+  pub use datafusion::logical_expr::{
+    create_udf, AggregateUDF, LogicalPlan, ScalarUDF, Volatility, WindowUDF,
+  };
+  pub use datafusion::physical_plan::{
+    ColumnarValue, SendableRecordBatchStream as RecordBatchStream,
+  };
 }
 
 pub mod response {

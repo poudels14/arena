@@ -91,7 +91,9 @@ impl ArenaSqlCluster {
   ) -> PgWireResult<Response<'a>> {
     match stmt_type {
       // TODO: drop future/stream when connection drops?
-      StatementType::Query => Self::to_row_stream(response),
+      StatementType::Query | StatementType::Execute => {
+        Self::to_row_stream(response)
+      }
       _ => Ok(Response::Execution(Tag::new_for_execution(
         stmt_type.to_string(),
         Some(response.get_modified_rows()),

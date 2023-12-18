@@ -12,15 +12,6 @@ use crate::Result as ArenaResult;
 
 #[derive(Derivative)]
 #[derivative(Debug)]
-pub enum Type {
-  Unknown,
-  Ddl,
-  Dml,
-  Query,
-}
-
-#[derive(Derivative)]
-#[derivative(Debug)]
 pub struct ExecutionResponse {
   #[derivative(Debug = "ignore")]
   record_batches: Option<Vec<RecordBatch>>,
@@ -37,7 +28,7 @@ impl ExecutionResponse {
     stream: RecordBatchStream,
   ) -> ArenaResult<Self> {
     let (record_batches, stream) = match stmt_type {
-      StatementType::Query => (None, Some(stream)),
+      StatementType::Query | StatementType::Execute => (None, Some(stream)),
       _ => {
         let batches = stream
           .collect::<Vec<Result<RecordBatch, DataFusionError>>>()
