@@ -1,29 +1,21 @@
-use std::any::Any;
 use std::fmt;
 use std::sync::Arc;
 
-use datafusion::arrow::datatypes::{Schema, SchemaRef};
-use datafusion::arrow::record_batch::RecordBatch;
-use datafusion::common::Statistics;
-use datafusion::error::Result;
 use datafusion::execution::context::SessionState;
 use datafusion::execution::TaskContext;
-use datafusion::physical_expr::PhysicalSortExpr;
-use datafusion::physical_plan::metrics::MetricsSet;
-use datafusion::physical_plan::stream::RecordBatchStreamAdapter;
-use datafusion::physical_plan::{
-  DisplayAs, DisplayFormatType, ExecutionPlan, Partitioning,
-  SendableRecordBatchStream,
-};
+use datafusion::physical_plan::{DisplayAs, DisplayFormatType};
 use derivative::Derivative;
 use derive_builder::Builder;
 use futures::StreamExt;
 use sqlparser::ast::Statement as SQLStatement;
 
 use crate::df::providers::{get_schema_provider, get_table_ref};
-use crate::schema::{IndexType, Row, Table, TableIndex};
+use crate::plans::{
+  CustomExecutionPlan, CustomExecutionPlanAdapter, ExecutionPlanResponse,
+};
+use crate::schema::{DataFrame, IndexType, Row, Table, TableIndex};
 use crate::storage::{KeyValueGroup, StorageHandler, Transaction};
-use crate::{bail, df_error, table_rows_prefix_key, Error};
+use crate::{bail, table_rows_prefix_key, Error, Result};
 
 macro_rules! bail_unsupported_query {
   ($msg:literal) => {
@@ -35,9 +27,9 @@ macro_rules! bail_unsupported_query {
 pub fn extension(
   state: &SessionState,
   transaction: &Transaction,
-  stmt: &Box<SQLStatement>,
-) -> crate::Result<Option<Arc<dyn ExecutionPlan>>> {
-  match stmt.as_ref() {
+  stmt: &SQLStatement,
+) -> Result<Option<CustomExecutionPlanAdapter>> {
+  match stmt {
     SQLStatement::CreateIndex {
       name,
       table_name,
@@ -100,13 +92,13 @@ pub fn extension(
         if_not_exists: *if_not_exists,
       };
 
-      return Ok(Some(Arc::new(
+      return Ok(Some(CustomExecutionPlanAdapter::new(Arc::new(
         CreateIndexExecutionPlanBuilder::default()
           .transaction(transaction.clone())
           .create_index(create_index)
           .build()
           .unwrap(),
-      )));
+      ))));
     }
     _ => {}
   }
@@ -144,16 +136,12 @@ impl DisplayAs for CreateIndexExecutionPlan {
   }
 }
 
-impl ExecutionPlan for CreateIndexExecutionPlan {
-  fn as_any(&self) -> &dyn Any {
-    self
-  }
-
+impl CustomExecutionPlan for CreateIndexExecutionPlan {
   fn execute(
     &self,
     _partition: usize,
     _context: Arc<TaskContext>,
-  ) -> Result<SendableRecordBatchStream> {
+  ) -> crate::Result<ExecutionPlanResponse> {
     let transaction = self.transaction.clone();
     let create_index = self.create_index.clone();
     let stream = futures::stream::once(async move {
@@ -175,9 +163,9 @@ impl ExecutionPlan for CreateIndexExecutionPlan {
 
       if index_with_same_name_exist {
         if if_not_exists {
-          return Ok(RecordBatch::new_empty(Arc::new(Schema::empty())));
+          return Ok(DataFrame::empty());
         } else {
-          bail!(df_error!(Error::RelationAlreadyExists(index_name.unwrap())));
+          bail!(Error::RelationAlreadyExists(index_name.unwrap()));
         }
       }
 
@@ -202,45 +190,11 @@ impl ExecutionPlan for CreateIndexExecutionPlan {
       table_lock.table = Some(Arc::new(table));
       state.hold_table_schema_lock(table_lock)?;
 
-      Ok(RecordBatch::new_empty(Arc::new(Schema::empty())))
+      Ok(DataFrame::empty())
     })
     .boxed();
 
-    Ok(Box::pin(RecordBatchStreamAdapter::new(
-      Arc::new(Schema::empty()),
-      stream,
-    )))
-  }
-
-  fn schema(&self) -> SchemaRef {
-    unimplemented!()
-  }
-
-  fn with_new_children(
-    self: Arc<Self>,
-    _children: Vec<Arc<dyn ExecutionPlan>>,
-  ) -> Result<Arc<dyn ExecutionPlan>> {
-    unimplemented!()
-  }
-
-  fn children(&self) -> Vec<Arc<dyn ExecutionPlan>> {
-    unimplemented!()
-  }
-
-  fn output_ordering(&self) -> Option<&[PhysicalSortExpr]> {
-    None
-  }
-
-  fn output_partitioning(&self) -> Partitioning {
-    Partitioning::UnknownPartitioning(1)
-  }
-
-  fn metrics(&self) -> Option<MetricsSet> {
-    None
-  }
-
-  fn statistics(&self) -> Result<Statistics> {
-    Ok(Statistics::new_unknown(&Schema::empty()))
+    Ok(Box::pin(stream))
   }
 }
 

@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use datafusion::arrow::array::{ArrayBuilder, ArrayRef, UInt64Builder};
-use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
-use datafusion::arrow::record_batch::RecordBatch;
+use datafusion::arrow::datatypes::SchemaRef;
+use datafusion::arrow::record_batch::{RecordBatch, RecordBatchOptions};
 use datafusion::error::Result;
 
 use super::{ColumnArrayBuilder, DataType, RowId, SerializedCell};
@@ -11,9 +11,19 @@ pub struct DataFrame {
   row_ids: UInt64Builder,
   column_builders: Vec<ColumnArrayBuilder>,
   include_row_id: bool,
+  empty: bool,
 }
 
 impl DataFrame {
+  pub fn empty() -> Self {
+    Self {
+      row_ids: UInt64Builder::with_capacity(0),
+      column_builders: vec![],
+      include_row_id: false,
+      empty: true,
+    }
+  }
+
   pub fn with_capacity(
     row_capacity: usize,
     columns: Vec<(
@@ -39,6 +49,7 @@ impl DataFrame {
       row_ids: UInt64Builder::with_capacity(row_capacity),
       column_builders,
       include_row_id,
+      empty: false,
     }
   }
 
@@ -72,15 +83,14 @@ impl DataFrame {
       })
       .collect();
 
-    let schema_with_virtual_cols = Schema::new(
-      schema
-        .fields()
-        .iter()
-        .map(|f| f.clone())
-        .collect::<Vec<Arc<Field>>>(),
-    )
-    .into();
-
-    Ok(RecordBatch::try_new(schema_with_virtual_cols, col_arrays)?)
+    let mut batch_options = RecordBatchOptions::default();
+    if self.empty {
+      batch_options = batch_options.with_row_count(Some(0));
+    }
+    Ok(RecordBatch::try_new_with_options(
+      schema,
+      col_arrays,
+      &batch_options,
+    )?)
   }
 }

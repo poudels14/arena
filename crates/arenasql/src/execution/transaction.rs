@@ -79,7 +79,11 @@ impl Transaction {
       .find_map(|ext| ext(&state, &self.storage_txn, &stmt).transpose())
       .transpose()?;
     match custom_plan {
-      Some(plan) => self.execute_stream(&stmt_type, plan).await,
+      Some(plan) => {
+        self
+          .execute_stream(&stmt_type, Arc::new(plan) as Arc<dyn ExecutionPlan>)
+          .await
+      }
       None => {
         let logical_plan = self.create_verified_logical_plan(stmt).await?;
         self.execute_logical_plan(&stmt_type, logical_plan).await

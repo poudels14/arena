@@ -28,6 +28,7 @@ impl From<&SQLStatement> for StatementType {
       SQLStatement::Delete { .. } => Self::Delete,
       SQLStatement::Update { .. } => Self::Update,
       SQLStatement::AlterIndex { .. } => Self::Alter,
+      SQLStatement::Execute { .. } => Self::Execute,
       stmt => unimplemented!("Statement type not supported: {}", stmt),
     }
   }

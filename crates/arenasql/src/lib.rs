@@ -33,7 +33,7 @@ pub mod datafusion {
   pub use datafusion::common::{ScalarType, ScalarValue};
   pub use datafusion::physical_plan::SendableRecordBatchStream as RecordBatchStream;
 
-  pub use datafusion::execution::TaskContext;
+  pub use datafusion::execution::{context::SessionState, TaskContext};
   pub use datafusion::logical_expr::LogicalPlan;
 }
 

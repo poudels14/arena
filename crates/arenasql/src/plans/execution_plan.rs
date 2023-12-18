@@ -25,21 +25,26 @@ pub type ExecutionPlanExtension = Arc<
   dyn Fn(
       &SessionState,
       &Transaction,
-      &Box<SQLStatement>,
-    ) -> crate::Result<Option<Arc<dyn ExecutionPlan>>>
+      &SQLStatement,
+    ) -> crate::Result<Option<CustomExecutionPlanAdapter>>
     + Send
     + Sync,
 >;
 
 pub trait CustomExecutionPlan: Send + Sync {
-  fn schema(&self) -> SchemaRef;
+  fn schema(&self) -> SchemaRef {
+    SchemaRef::new(Schema::empty())
+  }
 
   fn execute(
     &self,
     _partition: usize,
     _context: Arc<TaskContext>,
-  ) -> crate::Result<Pin<Box<dyn Stream<Item = crate::Result<DataFrame>> + Send>>>;
+  ) -> crate::Result<ExecutionPlanResponse>;
 }
+
+pub type ExecutionPlanResponse =
+  Pin<Box<dyn Stream<Item = crate::Result<DataFrame>> + Send>>;
 
 #[derive(Derivative, new)]
 #[derivative(Debug)]
