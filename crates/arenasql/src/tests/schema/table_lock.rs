@@ -56,7 +56,7 @@ async fn another_txn_should_find_table_after_create_table_is_committed() {
 
   // Wait until the first transction is committed, otherwise the second
   // transaction can't find the table
-  tokio::time::sleep(Duration::from_millis(10)).await;
+  tokio::time::sleep(Duration::from_millis(20)).await;
 
   let txn = session.begin_transaction().unwrap();
   let task2 = tokio::spawn(async move {

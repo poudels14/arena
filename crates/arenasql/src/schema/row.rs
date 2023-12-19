@@ -1,4 +1,5 @@
 use super::{OwnedSerializedCell, SerializedCell};
+use crate::storage::Serializer;
 
 #[derive(Debug, Clone)]
 pub struct RowId(pub u64);
@@ -23,17 +24,21 @@ impl RowId {
 
   #[inline]
   pub fn serialize<'a>(&self) -> Vec<u8> {
-    self.0.to_be_bytes().to_vec()
+    Self::serialize_u64(self.0)
   }
 
   #[inline]
-  pub fn serialize_u64<'a>(value: u64) -> [u8; 8] {
-    value.to_be_bytes()
+  pub fn serialize_u64<'a>(value: u64) -> Vec<u8> {
+    Serializer::VarInt.serialize(&value).unwrap()
   }
 
   #[inline]
   pub fn deserialize(bytes: &[u8]) -> RowId {
-    RowId(u64::from_be_bytes(bytes.try_into().unwrap()))
+    RowId(
+      Serializer::VarInt
+        .deserialize(bytes.try_into().unwrap())
+        .unwrap(),
+    )
   }
 }
 
@@ -53,5 +58,27 @@ impl<'a> RowTrait<'a, SerializedCell<'a>> for Row<'a> {
 impl<'a> RowTrait<'a, OwnedSerializedCell> for OwnedRow {
   fn project(&'a self, columns: &[usize]) -> Vec<&'a OwnedSerializedCell> {
     columns.iter().map(|col| &self[*col]).collect()
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::storage::Serializer;
+
+  #[test]
+  /// This checks the serialized row id bytes comparision to make sure
+  /// that sorting by serialized bytes is same as sorting by its u64
+  /// value. That needs to hold true so that rocksdb can be scanned
+  /// accurately in ASC/DESC order
+  fn test_row_id_serialized_sort() {
+    let mut prev = Serializer::VarInt.serialize::<u64>(&0).unwrap();
+    // Checked this upto 10 billion manually already
+    for i in 1..1_000_000 {
+      let next = Serializer::VarInt.serialize::<u64>(&i).unwrap();
+      if prev >= next {
+        panic!("Serialized row ordering failed at index: {}", i);
+      }
+      prev = next;
+    }
   }
 }
