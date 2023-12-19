@@ -13,6 +13,8 @@ pub(crate) mod cluster;
 mod execution;
 mod storage;
 
+use crate::pgwire::auth::ArenaSqlClusterAuthenticator;
+
 use self::cluster::ClusterOptions;
 pub use cluster::ArenaSqlCluster;
 
@@ -44,8 +46,9 @@ impl ServerOptions {
       dir: Arc::new(Path::new(&self.dir).to_path_buf()),
       cache_size_mb: self.cache_size,
     })?);
+
     let processor = Arc::new(StatelessMakeHandler::new(cluster.clone()));
-    let authenticator = Arc::new(StatelessMakeHandler::new(cluster.clone()));
+    let authenticator = ArenaSqlClusterAuthenticator::new(cluster.clone());
 
     let addr: SocketAddr = (
       Ipv4Addr::from_str(&host).expect("Unable to parse host address"),

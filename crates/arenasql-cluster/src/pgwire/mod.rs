@@ -2,8 +2,8 @@ mod client;
 mod handler;
 mod parser;
 mod portal;
-mod startup;
 
+pub(crate) mod auth;
 pub(crate) mod datatype;
 pub(crate) mod encoder;
 pub(crate) mod rowconverter;

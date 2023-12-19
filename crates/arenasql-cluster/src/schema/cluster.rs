@@ -15,8 +15,13 @@ pub struct Cluster {
 
 impl Cluster {
   #[inline]
+  pub fn get_user(&self, name: &str) -> Option<&User> {
+    self.users.iter().find(|u| u.name == name)
+  }
+
+  #[inline]
   pub fn has_user(&self, name: &str) -> bool {
-    self.users.iter().any(|u| u.name == name)
+    self.get_user(name).is_some()
   }
 
   pub fn add_user(&mut self, user: User) -> Result<()> {
