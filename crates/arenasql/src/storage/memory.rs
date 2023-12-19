@@ -1,4 +1,9 @@
-use super::{KeyValueIterator, KeyValueStore, KeyValueStoreProvider};
+use dashmap::DashMap;
+use derive_new::new;
+
+use super::{
+  KeyValueGroup, KeyValueIterator, KeyValueStore, KeyValueStoreProvider,
+};
 use crate::Result;
 
 pub struct MemoryKeyValueStoreProvider {}
@@ -10,12 +15,20 @@ impl Default for MemoryKeyValueStoreProvider {
 }
 
 impl KeyValueStoreProvider for MemoryKeyValueStoreProvider {
+  fn as_any(&self) -> &dyn std::any::Any {
+    self
+  }
+
   fn new_transaction(&self) -> Result<Box<dyn KeyValueStore>> {
-    Ok(Box::new(MemoryKeyValueStore {}))
+    Ok(Box::new(MemoryKeyValueStore::new()))
   }
 }
 
-pub struct MemoryKeyValueStore {}
+#[derive(new)]
+pub struct MemoryKeyValueStore {
+  #[new(default)]
+  map: DashMap<(KeyValueGroup, Vec<u8>), Vec<u8>>,
+}
 
 impl KeyValueStore for MemoryKeyValueStore {
   fn atomic_update(
@@ -38,10 +51,15 @@ impl KeyValueStore for MemoryKeyValueStore {
 
   fn get(
     &self,
-    _group: super::KeyValueGroup,
-    _key: &[u8],
+    group: super::KeyValueGroup,
+    key: &[u8],
   ) -> Result<Option<Vec<u8>>> {
-    Ok(None)
+    Ok(
+      self
+        .map
+        .get(&(group, key.to_vec()))
+        .map(|p| p.value().clone()),
+    )
   }
 
   fn scan_with_prefix(
@@ -54,11 +72,12 @@ impl KeyValueStore for MemoryKeyValueStore {
 
   fn put(
     &self,
-    _group: super::KeyValueGroup,
-    _key: &[u8],
-    _value: &[u8],
+    group: super::KeyValueGroup,
+    key: &[u8],
+    value: &[u8],
   ) -> Result<()> {
-    unimplemented!()
+    self.map.insert((group, key.to_vec()), value.to_vec());
+    Ok(())
   }
 
   fn put_all(

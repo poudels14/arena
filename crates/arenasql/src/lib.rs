@@ -21,6 +21,14 @@ pub use df::providers::{
   SingleCatalogListProvider,
 };
 
+pub mod rocks {
+  pub use rocksdb::backup::{
+    BackupEngine, BackupEngineInfo, BackupEngineOptions, RestoreOptions,
+  };
+  pub use rocksdb::checkpoint::Checkpoint;
+  pub use rocksdb::Env;
+}
+
 pub mod datafusion {
   pub use datafusion::arrow::datatypes::{
     DataType as DatafusionDataType, Field as DatafusionField, Fields, Schema,

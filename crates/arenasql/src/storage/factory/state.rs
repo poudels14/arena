@@ -18,6 +18,18 @@ pub struct StorageFactoryState {
   shutdown_signal: Arc<Mutex<Option<oneshot::Sender<()>>>>,
 }
 
+impl StorageFactoryState {
+  pub fn new(shutdown_signal_sender: Option<oneshot::Sender<()>>) -> Self {
+    StorageFactoryStateBuilder::default()
+      .schema_reload_triggered(Arc::new(AtomicBool::new(false)))
+      .shutdown_triggered(Arc::new(AtomicBool::new(false)))
+      .shutdown_signal(Arc::new(Mutex::new(shutdown_signal_sender)))
+      .active_transactions_count(Arc::new(AtomicUsize::new(0)))
+      .build()
+      .unwrap()
+  }
+}
+
 impl Drop for StorageFactoryState {
   fn drop(&mut self) {
     if self.shutdown_triggered() && self.active_transactions() == 0 {

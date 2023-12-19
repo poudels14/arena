@@ -1,8 +1,12 @@
+use std::any::Any;
+
 use strum_macros::{Display, EnumIter, EnumString};
 
 use crate::Result;
 
 pub trait KeyValueStoreProvider: Send + Sync {
+  fn as_any(&self) -> &dyn Any;
+
   fn new_transaction(&self) -> Result<Box<dyn KeyValueStore>>;
 }
 
@@ -10,7 +14,19 @@ pub trait KeyValueStoreProvider: Send + Sync {
 /// This makes it easier to handle different data type differently.
 /// For example, we can avoid index data from being backed up since
 /// index can be re-created from rows
-#[derive(Copy, Clone, Debug, EnumString, Display, EnumIter)]
+#[derive(
+  Copy,
+  Clone,
+  Debug,
+  PartialEq,
+  Eq,
+  PartialOrd,
+  Ord,
+  Hash,
+  EnumString,
+  Display,
+  EnumIter,
+)]
 pub enum KeyValueGroup {
   /// Used to store locks and frequentyly updated keys like row_id counter
   #[strum(serialize = "LOCKS")]

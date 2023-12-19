@@ -16,6 +16,7 @@ use crate::{Error, Result};
 /// was closed (committed/rolledback)
 #[derive(Builder, Derivative)]
 pub struct TransactionState {
+  #[builder(default = "Arc::new(BTreeMap::new())")]
   schema_factories: Arc<BTreeMap<String, Arc<SchemaFactory>>>,
   storage_factory_state: StorageFactoryState,
   /// LockState value

@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use derivative::Derivative;
+use getset::Getters;
 pub use rocksdb::Cache;
 use rocksdb::{
   ColumnFamilyDescriptor, DBCompressionType, FlushOptions, LogLevel,
@@ -14,10 +15,11 @@ use crate::Result as DatabaseResult;
 
 pub(super) type RocksDatabase = OptimisticTransactionDB<MultiThreaded>;
 
-#[derive(Derivative)]
+#[derive(Derivative, Getters)]
 #[derivative(Debug, Clone)]
 pub struct RocksStorage {
-  kv: Arc<RocksDatabase>,
+  #[getset(get = "pub")]
+  db: Arc<RocksDatabase>,
 }
 
 impl RocksStorage {
@@ -62,7 +64,7 @@ impl RocksStorage {
     // blobs but documents are
     rows_cf_options.set_enable_blob_gc(true);
     rows_cf_options.set_compression_type(DBCompressionType::Lz4);
-    let kv: RocksDatabase = OptimisticTransactionDB::open_cf_descriptors(
+    let db: RocksDatabase = OptimisticTransactionDB::open_cf_descriptors(
       &opts,
       path,
       vec![
@@ -84,22 +86,22 @@ impl RocksStorage {
         ),
       ],
     )?;
-    Ok(Self { kv: Arc::new(kv) })
+    Ok(Self { db: Arc::new(db) })
   }
 
   pub fn get_db_size(&self) -> DatabaseResult<usize> {
-    let live_files = self.kv.live_files()?;
+    let live_files = self.db.live_files()?;
     let total_size = live_files.iter().map(|f| f.size).sum();
     Ok(total_size)
   }
 
   pub fn compact_and_flush(&self) -> DatabaseResult<()> {
-    let kv = &self.kv;
-    kv.compact_range(None::<&[u8]>, None::<&[u8]>);
+    let db = &self.db;
+    db.compact_range(None::<&[u8]>, None::<&[u8]>);
 
     let mut flush_opt = FlushOptions::default();
     flush_opt.set_wait(true);
-    kv.flush()?;
+    db.flush()?;
     Ok(())
   }
 }
@@ -109,12 +111,16 @@ impl Drop for RocksStorage {
     // Note: wait for the flush to complete after the storage is dropped
     let mut opts = FlushOptions::default();
     opts.set_wait(true);
-    self.kv.flush_opt(&opts).unwrap();
+    self.db.flush_opt(&opts).unwrap();
   }
 }
 
 impl KeyValueStoreProvider for RocksStorage {
+  fn as_any(&self) -> &dyn std::any::Any {
+    self
+  }
+
   fn new_transaction(&self) -> DatabaseResult<Box<dyn storage::KeyValueStore>> {
-    Ok(Box::new(KeyValueStore::new(self.kv.clone())?))
+    Ok(Box::new(KeyValueStore::new(self.db.clone())?))
   }
 }

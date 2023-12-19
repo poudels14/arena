@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::Arc;
 
 use dashmap::DashMap;
@@ -9,7 +8,7 @@ use parking_lot::Mutex;
 use tokio::sync::oneshot;
 
 use super::schema_factory::{SchemaFactory, SchemaFactoryBuilder};
-use super::state::{StorageFactoryState, StorageFactoryStateBuilder};
+use super::state::StorageFactoryState;
 use crate::storage::locks::{SchemaLocks, SchemaLocksBuilder};
 use crate::storage::transaction::{
   TransactionBuilder, TransactionStateBuilder,
@@ -146,15 +145,7 @@ impl StorageFactoryBuilder {
 
     let (tx, rx) = oneshot::channel();
     self.wait_signal = Some(Arc::new(tokio::sync::Mutex::new(Some(rx))));
-    self.state = Some(
-      StorageFactoryStateBuilder::default()
-        .schema_reload_triggered(Arc::new(AtomicBool::new(false)))
-        .shutdown_triggered(Arc::new(AtomicBool::new(false)))
-        .shutdown_signal(Arc::new(Mutex::new(Some(tx))))
-        .active_transactions_count(Arc::new(AtomicUsize::new(0)))
-        .build()
-        .unwrap(),
-    );
+    self.state = Some(StorageFactoryState::new(Some(tx)));
     self
   }
 }
