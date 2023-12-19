@@ -2,6 +2,7 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::{bail, Context, Result};
+use arenasql::execution::Privilege;
 
 use crate::io::file::File;
 use crate::schema::{ClusterBuilder, UserBuilder, MANIFEST_FILE};
@@ -9,11 +10,11 @@ use crate::schema::{ClusterBuilder, UserBuilder, MANIFEST_FILE};
 #[derive(clap::Parser, Debug, Clone)]
 pub struct InitCluster {
   /// Admin user name
-  #[arg(long = "user")]
+  #[arg(long = "user", default_value = "admin")]
   pub admin_user: String,
 
   /// Admin user password
-  #[arg(long = "password")]
+  #[arg(long = "password", default_value = "password")]
   pub admin_pass: String,
 
   /// Directory to setup workspace in
@@ -35,6 +36,7 @@ impl InitCluster {
       UserBuilder::default()
         .name(self.admin_user)
         .password(self.admin_pass)
+        .privilege(Privilege::SUPER_USER)
         .build()
         .unwrap(),
     )?;

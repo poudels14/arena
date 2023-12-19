@@ -1,3 +1,4 @@
+use arenasql::execution::Privilege;
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 
@@ -5,4 +6,5 @@ use serde::{Deserialize, Serialize};
 pub struct User {
   pub name: String,
   pub password: String,
+  pub privilege: Privilege,
 }

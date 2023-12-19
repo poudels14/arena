@@ -43,6 +43,7 @@ pub enum Error {
   DatabaseClosed,
   IOError(String),
   SerdeError(String),
+  InsufficientPrivilege,
   DataFusionError(Arc<DataFusionError>),
 }
 
@@ -57,6 +58,8 @@ impl Error {
       Self::InvalidTransactionState(_) => "25000",
       // unique_violation
       Self::UniqueConstaintViolated { .. } => "23505",
+      // insufficient_privilege
+      Self::InsufficientPrivilege => "42501",
       // internal_error
       Self::UnsupportedOperation(_)
       | Self::UnsupportedDataType(_)
@@ -91,6 +94,7 @@ impl Error {
       | Self::IOError(msg)
       | Self::SerdeError(msg)
       | Self::InvalidTransactionState(msg) => msg.to_owned(),
+      Self::InsufficientPrivilege => format!("permission denied"),
       Self::InternalError(msg) => {
         eprintln!("Internal error: {:?}", msg);
         format!("Internal error")
@@ -148,14 +152,20 @@ impl Error {
           if msg.contains("not yet supported") || msg.contains("not supported")
           {
             eprintln!(
-              "Unknown query error: {}:{}: {:?}",
+              "Unsupported query error: {}:{}: {:?}",
               file!(),
               line!(),
               msg
             );
             format!("Unsupported query")
           } else {
-            msg.to_string()
+            eprintln!(
+              "Unknown query error: {}:{}: {:?}",
+              file!(),
+              line!(),
+              msg
+            );
+            format!("Unknown error")
           }
         }
         err => {

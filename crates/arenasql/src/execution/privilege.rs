@@ -1,10 +1,22 @@
 use bitflags::bitflags;
+use serde::{Deserialize, Serialize};
 use sqlparser::ast::{ObjectType, Statement as SQLStatement};
 
 bitflags! {
-  #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+  #[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+  )]
   pub struct Privilege: u64 {
-    const SUPER_USER = 1 << 63;
+    const SUPER_USER = u64::MAX;
     const READ_ONLY = Self::READ_TABLE_SCHEMA.bits() | Self::SELECT_ROWS.bits();
     // Database level privileges
     const CREATE_DATABASE = 1 << 47;
@@ -16,10 +28,12 @@ bitflags! {
     const DROP_TABLE = 1 << 30;
     const ALTER_TABLE = 1 << 29;
     const READ_TABLE_SCHEMA = 1 << 28;
+    // Table privileges will allow all row level privileges too
     const TABLE_PRIVILEGES = Self::CREATE_TABLE.bits()
       | Self::DROP_TABLE.bits()
       | Self::ALTER_TABLE.bits()
-      | Self::READ_TABLE_SCHEMA.bits();
+      | Self::READ_TABLE_SCHEMA.bits()
+      | Self::ROWS_PRIVILEGES.bits();
     // Rows level privileges
     const SELECT_ROWS = 1 << 12;
     const INSERT_ROWS = 1 << 13;
@@ -72,15 +86,6 @@ impl Privilege {
   }
 
   pub fn can_execute(&self, stmt: &SQLStatement) -> bool {
-    println!("SELF privileg BITS = {:064b}", self);
-    println!(
-      "STMT required BITS = {:064b}",
-      Self::get_required_privilege(stmt)
-    );
-    println!(
-      "AND BITS = {:b}",
-      (*self & Self::get_required_privilege(stmt)).bits()
-    );
     (*self & Self::get_required_privilege(stmt)).bits() > 0
   }
 }
@@ -90,6 +95,19 @@ mod tests {
   use crate::ast::parse;
   use crate::execution::Privilege;
   use sqlparser::ast::{Ident, ObjectName, Statement as SQLStatement};
+
+  #[test]
+  fn privilege_test_super_user_privileges() {
+    assert!(
+      (Privilege::SUPER_USER.bits() & Privilege::SELECT_ROWS.bits()) > 0,
+      "Expected SUPER_USER to have SELECT_ROWS privilege"
+    );
+
+    assert!(
+      (Privilege::SUPER_USER.bits() & Privilege::CREATE_DATABASE.bits()) > 0,
+      "Expected SUPER_USER top have CREATE_DATABASE privilege"
+    );
+  }
 
   #[test]
   fn privilege_test_database_level_privileges() {

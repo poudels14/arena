@@ -87,13 +87,17 @@ impl StartupHandler for ArenaAuthHandler {
     let database = metadata
       .get("database")
       .map_or_else(|| SYSTEM_CATALOG_NAME.to_owned(), |d| d.clone());
-    let user_name = metadata
+    let user = metadata
       .get("user")
-      .map_or_else(|| "admin".to_owned(), |d| d.clone());
+      .and_then(|name| self.cluster.manifest.get_user(&name))
+      // idk if user is ever None :shrug:
+      .ok_or_else(|| Error::UserDoesntExist("null".to_owned()))?;
+
     let session = self.cluster.create_new_session(
-      user_name,
+      user.name.to_owned(),
       database,
       DEFAULT_SCHEMA_NAME.to_owned(),
+      user.privilege,
     )?;
     metadata.insert("session_id".to_owned(), session.id().to_string());
     Ok(())
@@ -108,30 +112,19 @@ pub struct ArenaAuthSource {
 #[async_trait]
 impl AuthSource for ArenaAuthSource {
   async fn get_password(&self, login: &LoginInfo) -> PgWireResult<Password> {
-    let database = login
-      .database()
-      .map_or_else(|| SYSTEM_CATALOG_NAME.to_owned(), |d| d.clone());
+    // Note: no need to check user and database combination since all postgres
+    // auth is done against "system" users who will have access to all databases
+    // and another level auth will be done for Arena session
     let user_name = login
       .user()
       .map_or_else(|| "admin".to_owned(), |d| d.clone());
 
-    let password = if database == SYSTEM_CATALOG_NAME {
-      self
-        .cluster
-        .manifest
-        .get_user(&user_name)
-        .map(|m| m.password.clone())
-    } else {
-      None
-    };
-
-    // If matching password isn't found, it means the user
-    // wasn't found
-    match password {
-      Some(password) => {
+    let user = self.cluster.manifest.get_user(&user_name);
+    match user {
+      Some(ref user) => {
         let salt = rand::thread_rng().gen::<[u8; 32]>().to_vec();
         let hash_password =
-          gen_salted_password(&password, salt.as_ref(), ITERATIONS);
+          gen_salted_password(&user.password, salt.as_ref(), ITERATIONS);
         Ok(Password::new(Some(salt), hash_password))
       }
       None => Err(Error::UserDoesntExist(user_name).into()),

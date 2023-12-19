@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use tempdir::TempDir;
 
-use crate::execution::{SessionConfig, SessionContext, DEFAULT_SCHEMA_NAME};
+use crate::execution::{
+  Privilege, SessionConfig, SessionContext, DEFAULT_SCHEMA_NAME,
+};
 use crate::runtime::RuntimeEnv;
 use crate::storage::{rocks, StorageFactoryBuilder};
 use crate::SingleCatalogListProvider;
@@ -48,6 +50,7 @@ pub(super) fn create_session_context() -> SessionContext {
         .unwrap(),
     ),
     catalog_list_provider: Arc::new(SingleCatalogListProvider::new()),
+    privilege: Privilege::SUPER_USER,
     ..Default::default()
   })
 }

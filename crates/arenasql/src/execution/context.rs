@@ -85,6 +85,7 @@ impl SessionContext {
 
     let sql_options = SQLOptions::new();
     Ok(Transaction {
+      session_config: self.config.clone(),
       storage_txn,
       sql_options,
       ctxt: session_context,

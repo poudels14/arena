@@ -2,7 +2,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use arenasql::execution::{SessionConfig, SessionContext, DEFAULT_SCHEMA_NAME};
+use arenasql::execution::{
+  Privilege, SessionConfig, SessionContext, DEFAULT_SCHEMA_NAME,
+};
 use arenasql::runtime::RuntimeEnv;
 use dashmap::DashMap;
 use derivative::Derivative;
@@ -82,7 +84,7 @@ impl ArenaSqlCluster {
     client: &QueryClient,
   ) -> ArenaClusterResult<Arc<AuthenticatedSession>> {
     match client {
-      QueryClient::Authenticated { id } => self
+      QueryClient::Authenticated { session_id: id } => self
         .session_store
         .get_session(*id)
         .ok_or_else(|| ArenaClusterError::InvalidConnection),
@@ -90,6 +92,7 @@ impl ArenaSqlCluster {
         user.clone(),
         database.clone(),
         DEFAULT_SCHEMA_NAME.to_string(),
+        Privilege::TABLE_PRIVILEGES,
       ),
       _ => unreachable!(),
     }
@@ -100,6 +103,7 @@ impl ArenaSqlCluster {
     user: String,
     catalog: String,
     schema: String,
+    privilege: Privilege,
   ) -> ArenaClusterResult<Arc<AuthenticatedSession>> {
     let storage_factory = self
       .storage
@@ -126,6 +130,7 @@ impl ArenaSqlCluster {
       schemas: Arc::new(vec![schema]),
       storage_factory,
       catalog_list_provider,
+      privilege,
       ..Default::default()
     });
 

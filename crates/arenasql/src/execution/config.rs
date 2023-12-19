@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use datafusion::execution::runtime_env::RuntimeEnv as DfRuntimeEnv;
 
+use super::Privilege;
 use crate::df::providers::catalog::CatalogListProvider;
 use crate::df::providers::NoopCatalogListProvider;
 use crate::plans::ExecutionPlanExtension;
@@ -10,8 +11,6 @@ use crate::storage::{
   MemoryKeyValueStoreProvider, Serializer, StorageFactory,
   StorageFactoryBuilder,
 };
-
-use super::Privilege;
 
 pub struct SessionConfig {
   pub runtime: Arc<RuntimeEnv>,

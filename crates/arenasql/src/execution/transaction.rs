@@ -10,6 +10,7 @@ use once_cell::sync::Lazy;
 use sqlparser::ast::Statement as SQLStatement;
 
 use super::response::ExecutionResponse;
+use super::SessionConfig;
 use crate::ast::statement::StatementType;
 use crate::df::plans::{create_index, insert_rows};
 use crate::plans::{CustomExecutionPlanAdapter, ExecutionPlanExtension};
@@ -18,9 +19,9 @@ use crate::{storage, Error, Result};
 pub const DEFAULT_EXTENSIONS: Lazy<Arc<Vec<ExecutionPlanExtension>>> =
   Lazy::new(|| Arc::new(vec![Arc::new(create_index::extension)]));
 
-#[allow(unused)]
 #[derive(Clone)]
 pub struct Transaction {
+  pub(crate) session_config: Arc<SessionConfig>,
   pub(crate) storage_txn: storage::Transaction,
   pub(super) sql_options: SQLOptions,
   pub(super) ctxt: DfSessionContext,
@@ -71,6 +72,11 @@ impl Transaction {
     &self,
     stmt: Box<SQLStatement>,
   ) -> Result<ExecutionResponse> {
+    // Check if the current session can execute the given statement
+    if !self.session_config.privilege.can_execute(stmt.as_ref()) {
+      return Err(Error::InsufficientPrivilege);
+    }
+
     let stmt_type = StatementType::from(stmt.as_ref());
     let state = self.ctxt.state();
     let custom_plan = DEFAULT_EXTENSIONS
