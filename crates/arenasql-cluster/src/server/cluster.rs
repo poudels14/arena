@@ -38,7 +38,7 @@ pub struct ArenaSqlCluster {
 
 impl ArenaSqlCluster {
   pub fn load(options: &ClusterOptions) -> Result<Self> {
-    let root_dir = Path::new(&options.dir).to_path_buf();
+    let root_dir = Path::new(&options.root).to_path_buf();
 
     let manifest = File::read(&root_dir.join(MANIFEST_FILE))
       .context("Error reading cluster manifest")?;

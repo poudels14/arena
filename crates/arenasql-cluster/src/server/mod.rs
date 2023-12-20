@@ -29,7 +29,7 @@ pub struct ClusterOptions {
 
   /// Directory to store database files
   #[arg(long)]
-  pub dir: String,
+  pub root: String,
 
   /// Cache size per database in MB
   #[arg(long("cache_size"), default_value_t = 10)]
