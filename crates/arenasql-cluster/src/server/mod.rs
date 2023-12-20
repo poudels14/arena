@@ -1,10 +1,10 @@
 use std::net::{Ipv4Addr, SocketAddr};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use log::info;
 use pgwire::api::{MakeHandler, StatelessMakeHandler};
 use pgwire::tokio::process_socket;
@@ -37,6 +37,18 @@ pub struct ServerOptions {
   /// Cache size per database in MB
   #[arg(long, default_value_t = 10)]
   cache_size: usize,
+
+  /// Directory to backup database to
+  /// If set, all the database that were opened by the cluster will be
+  /// backed up to that directory periodically
+  #[arg(long)]
+  backup_dir: Option<String>,
+
+  /// Directory to put a checkpoint of the databases to
+  /// When cluster is terminated, all the databases that were opened will
+  /// be checkpointed to that directory
+  #[arg(long)]
+  checkpoint_dir: Option<String>,
 }
 
 impl ServerOptions {
@@ -50,6 +62,14 @@ impl ServerOptions {
     let cluster = Arc::new(ArenaSqlCluster::load(ClusterOptions {
       dir: Arc::new(Path::new(&self.dir).to_path_buf()),
       cache_size_mb: self.cache_size,
+      backup_dir: self
+        .backup_dir
+        .map(|p| create_path_if_not_exists(&p))
+        .transpose()?,
+      checkpoint_dir: self
+        .checkpoint_dir
+        .map(|p| create_path_if_not_exists(&p))
+        .transpose()?,
     })?);
 
     let processor = Arc::new(StatelessMakeHandler::new(cluster.clone()));
@@ -93,4 +113,14 @@ impl ServerOptions {
     }
     cluster.graceful_shutdown().await
   }
+}
+
+fn create_path_if_not_exists(path: &str) -> Result<PathBuf> {
+  let p = PathBuf::from(path);
+  if !p.exists() {
+    std::fs::create_dir_all(&p)
+      .context(format!("Failed to create dir: {:?}", p))?;
+  }
+  p.canonicalize()
+    .context(format!("Failed to canonicalize path: {:?}", p))
 }

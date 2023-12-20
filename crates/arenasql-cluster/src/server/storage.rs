@@ -1,14 +1,18 @@
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
+use arenasql::rocks::{BackupEngine, BackupEngineOptions, Env};
 use arenasql::storage::rocks::{self, RocksStorage};
 use arenasql::storage::{
   self, KeyValueStoreProvider, MemoryKeyValueStoreProvider, Serializer,
-  StorageFactory, StorageFactoryBuilder,
+  StorageFactoryBuilder,
 };
 use dashmap::DashMap;
 use futures::future::join_all;
+use log::info;
+use tokio::task::JoinHandle;
 
 use crate::error::ArenaClusterResult;
 use crate::schema::SYSTEM_CATALOG_NAME;
@@ -80,22 +84,82 @@ impl ClusterStorageFactory {
     }
   }
 
-  pub async fn graceful_shutdown(&self) -> ArenaClusterResult<()> {
-    let storages: Vec<(String, Arc<StorageFactory>)> = self
+  pub async fn graceful_shutdown(
+    &self,
+    checkpoint_dir: Option<PathBuf>,
+  ) -> ArenaClusterResult<()> {
+    let timetamp = SystemTime::now();
+    let storages: Vec<JoinHandle<()>> = self
       .storages
       .iter()
-      .map(|entry| (entry.key().clone(), entry.value().clone()))
+      .map(|entry| {
+        let pair = entry.pair();
+        let (catalog, storage) = (pair.0.clone(), pair.1.clone());
+        let checkpoint_dir = checkpoint_dir.clone();
+        tokio::spawn(async move {
+          let _ = storage.graceful_shutdown().await;
+          if let Some(checkpoint_dir) = checkpoint_dir {
+            let res = Self::checkpoint_catalog(
+              checkpoint_dir,
+              storage.as_ref(),
+              &catalog,
+              &timetamp,
+            )
+            .await;
+
+            // Print the graceful shutdown error and
+            // ignore it since it's inconsequential
+            if let Err(err) = res {
+              eprintln!(
+                "Error checkpointing catalog \"{}\": {:?}",
+                catalog, err
+              );
+            }
+          }
+        })
+      })
       .collect();
 
-    join_all(
-      storages
-        .iter()
-        .map(|(_, storage)| storage.graceful_shutdown()),
-    )
-    .await
-    .into_iter()
-    .map(|r| r.map_err(|e| e.into()))
-    .collect::<ArenaClusterResult<Vec<()>>>()?;
+    // Ignore join error :shrug:
+    let _ = join_all(storages).await;
+    Ok(())
+  }
+
+  async fn checkpoint_catalog(
+    checkpoint_dir: PathBuf,
+    storage: &storage::StorageFactory,
+    catalog_name: &str,
+    timetamp: &SystemTime,
+  ) -> ArenaClusterResult<()> {
+    let checkpoint_dir = checkpoint_dir.join(catalog_name);
+    if !checkpoint_dir.exists() {
+      std::fs::create_dir_all(&checkpoint_dir)?;
+    }
+    let catalog_checkpoint_dir = checkpoint_dir.join(format!(
+      "{}",
+      timetamp.duration_since(UNIX_EPOCH).unwrap().as_millis()
+    ));
+
+    info!(
+      "Checkpointing catalog \"{}\" to {:?}",
+      catalog_name, catalog_checkpoint_dir
+    );
+
+    if let Some(rocks) = storage
+      .kv_provider()
+      .as_any()
+      .downcast_ref::<RocksStorage>()
+    {
+      let backup_opts =
+        BackupEngineOptions::new(catalog_checkpoint_dir.to_str().unwrap())?;
+      let mut env = Env::new()?;
+      env.set_background_threads(4);
+
+      let mut engine = BackupEngine::open(&backup_opts, &env)?;
+      // TODO: call fsync somehow
+      engine.create_new_backup(rocks.db())?;
+    }
+
     Ok(())
   }
 }

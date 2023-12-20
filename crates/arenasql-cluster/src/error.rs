@@ -1,6 +1,7 @@
 use std::fmt;
 use std::sync::Arc;
 
+use arenasql::rocks;
 use pgwire::error::{ErrorInfo, PgWireError};
 
 pub type ArenaClusterError = Error;
@@ -12,6 +13,8 @@ pub enum Error {
   InvalidPassword,
   /// Thrown when error occurs during IO
   IOError(Arc<std::io::Error>),
+  /// Thrown when error occurs during Rocksdb operation
+  RocksError(Arc<rocks::Error>),
   /// Thrown if a session with same id as another existing session
   /// is created
   SessionAlreadyExists,
@@ -38,7 +41,8 @@ impl Error {
       | Self::CatalogNotFound(_)
       | Self::InvalidConnection
       | Self::SessionAlreadyExists => "FATAL",
-      Self::IOError(_)
+      Self::RocksError(_)
+      | Self::IOError(_)
       | Self::UnsupportedDataType(_)
       | Self::MultipleCommandsIntoPreparedStmt
       | Self::ArenaSqlError(_) => "Error",
@@ -54,7 +58,9 @@ impl Error {
       Self::InvalidConnection | Self::SessionAlreadyExists => "08006",
       Self::ArenaSqlError(e) => e.code(),
       Self::MultipleCommandsIntoPreparedStmt => "42601",
-      Self::IOError(_) | Self::UnsupportedDataType(_) => "XX000",
+      Self::RocksError(_) | Self::IOError(_) | Self::UnsupportedDataType(_) => {
+        "XX000"
+      }
     }
   }
 
@@ -68,7 +74,8 @@ impl Error {
         format!("database \"{}\" does not exist", catalog)
       }
       Self::ArenaSqlError(e) => e.message(),
-      Self::IOError(_)
+      Self::RocksError(_)
+      | Self::IOError(_)
       | Self::UnsupportedDataType(_)
       | Self::MultipleCommandsIntoPreparedStmt => {
         format!("cannot insert multiple commands into a prepared statement")
@@ -89,6 +96,12 @@ impl From<arenasql::Error> for Error {
 impl From<std::io::Error> for Error {
   fn from(err: std::io::Error) -> Self {
     Self::IOError(err.into())
+  }
+}
+
+impl From<rocks::Error> for Error {
+  fn from(err: rocks::Error) -> Self {
+    Self::RocksError(err.into())
   }
 }
 

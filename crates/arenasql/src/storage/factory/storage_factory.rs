@@ -4,6 +4,7 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use derivative::Derivative;
 use derive_builder::Builder;
+use getset::Getters;
 use parking_lot::Mutex;
 use tokio::sync::oneshot;
 
@@ -16,7 +17,7 @@ use crate::storage::transaction::{
 use crate::storage::{KeyValueStoreProvider, Serializer, Transaction};
 use crate::{bail, Error, Result};
 
-#[derive(Builder, Derivative)]
+#[derive(Builder, Derivative, Getters)]
 #[derivative(Debug)]
 pub struct StorageFactory {
   #[builder(setter(custom))]
@@ -26,6 +27,7 @@ pub struct StorageFactory {
   pub serializer: Serializer,
 
   #[derivative(Debug = "ignore")]
+  #[getset(get = "pub")]
   kv_provider: Arc<dyn KeyValueStoreProvider>,
 
   #[builder(setter(skip), default = "Arc::new(Mutex::new(0))")]

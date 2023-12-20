@@ -45,6 +45,16 @@ pub struct ClusterOptions {
   /// Per database cache size in MB
   #[derivative(Default(value = "10"))]
   pub cache_size_mb: usize,
+
+  /// Directory to backup database to
+  /// If set, all the database that were opened by the cluster will be
+  /// backed up to that directory periodically
+  pub backup_dir: Option<PathBuf>,
+
+  /// Directory to put a checkpoint of the databases to
+  /// When cluster is terminated, all the databases that were opened will
+  /// be checkpointed to that directory
+  pub checkpoint_dir: Option<PathBuf>,
 }
 
 impl ArenaSqlCluster {
@@ -148,6 +158,11 @@ impl ArenaSqlCluster {
     // Need to remove all sessions from the store first so that
     // all active transactions are dropped
     self.session_store.clear();
-    Ok(self.storage.graceful_shutdown().await.map(|_| ())?)
+    Ok(
+      self
+        .storage
+        .graceful_shutdown(self.options.checkpoint_dir.clone())
+        .await?,
+    )
   }
 }

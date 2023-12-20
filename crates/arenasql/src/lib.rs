@@ -27,6 +27,7 @@ pub mod rocks {
   };
   pub use rocksdb::checkpoint::Checkpoint;
   pub use rocksdb::Env;
+  pub use rocksdb::Error;
 }
 
 pub mod datafusion {
