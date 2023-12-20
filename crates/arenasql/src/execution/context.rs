@@ -58,7 +58,7 @@ impl SessionContext {
   }
 
   pub fn begin_transaction(&self) -> Result<Transaction> {
-    let storage_txn = self
+    let storage_transaction = self
       .config
       .storage_factory
       .being_transaction(self.config.schemas.clone())?;
@@ -66,7 +66,7 @@ impl SessionContext {
     let catalog_list = self.config.catalog_list_provider.get_catalog_list(
       self.config.catalog.clone(),
       self.config.schemas.clone(),
-      storage_txn.clone(),
+      storage_transaction.clone(),
     );
     if catalog_list.is_none() {
       return Err(Error::InternalError(
@@ -84,12 +84,12 @@ impl SessionContext {
     custom_functions::register_all(&session_context);
 
     let sql_options = SQLOptions::new();
-    Ok(Transaction {
-      session_config: self.config.clone(),
-      storage_txn,
+    Ok(Transaction::new(
+      self.config.clone(),
+      storage_transaction,
       sql_options,
-      ctxt: session_context,
-      extensions: self.config.extensions.clone(),
-    })
+      session_context,
+      self.config.extensions.clone(),
+    ))
   }
 }

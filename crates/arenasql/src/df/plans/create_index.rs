@@ -1,7 +1,6 @@
 use std::fmt;
 use std::sync::Arc;
 
-use datafusion::execution::context::SessionState;
 use datafusion::execution::TaskContext;
 use datafusion::physical_plan::{DisplayAs, DisplayFormatType};
 use derivative::Derivative;
@@ -10,9 +9,10 @@ use futures::StreamExt;
 use sqlparser::ast::Statement as SQLStatement;
 
 use crate::df::providers::{get_schema_provider, get_table_ref};
+use crate::execution::Transaction;
 use crate::plans::{CustomExecutionPlan, ExecutionPlanResponse};
 use crate::schema::{DataFrame, IndexType, Row, Table, TableIndex};
-use crate::storage::{KeyValueGroup, StorageHandler, Transaction};
+use crate::storage::{KeyValueGroup, StorageHandler};
 use crate::{bail, table_rows_prefix_key, Error, Result};
 
 macro_rules! bail_unsupported_query {
@@ -23,7 +23,6 @@ macro_rules! bail_unsupported_query {
 
 /// Returns a custom execution plan extension to create index
 pub fn extension(
-  state: &SessionState,
   transaction: &Transaction,
   stmt: &SQLStatement,
 ) -> Result<Option<Arc<dyn CustomExecutionPlan>>> {
@@ -53,17 +52,19 @@ pub fn extension(
         bail_unsupported_query!("`INCLUDE` is not supported yet");
       }
 
+      let state = transaction.context().state();
       let table_name = table_name.to_string();
-      let table_ref = get_table_ref(state, &table_name);
+      let table_ref = get_table_ref(&state, &table_name);
       let table_name = table_ref.table.as_ref().to_owned();
 
-      let schema_provider = get_schema_provider(state, &table_ref)?;
+      let schema_provider = get_schema_provider(&state, &table_ref)?;
 
       if !schema_provider.table_exist(&table_name) {
         bail!(Error::RelationDoesntExist(table_name));
       }
 
       let table = transaction
+        .storage_transaction()
         .state()
         .get_table(&table_ref.schema, &table_name)
         .unwrap();
@@ -140,7 +141,7 @@ impl CustomExecutionPlan for CreateIndexExecutionPlan {
     _partition: usize,
     _context: Arc<TaskContext>,
   ) -> crate::Result<ExecutionPlanResponse> {
-    let transaction = self.transaction.clone();
+    let transaction = self.transaction.storage_transaction().clone();
     let create_index = self.create_index.clone();
     let stream = futures::stream::once(async move {
       let CreateIndex {

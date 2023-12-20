@@ -6,6 +6,8 @@ use datafusion::execution::context::{
 };
 use datafusion::logical_expr::LogicalPlan;
 use datafusion::physical_plan::{execute_stream, ExecutionPlan};
+use derive_new::new;
+use getset::Getters;
 use once_cell::sync::Lazy;
 use sqlparser::ast::Statement as SQLStatement;
 
@@ -19,13 +21,15 @@ use crate::{storage, Error, Result};
 pub const DEFAULT_EXTENSIONS: Lazy<Arc<Vec<ExecutionPlanExtension>>> =
   Lazy::new(|| Arc::new(vec![Arc::new(create_index::extension)]));
 
-#[derive(Clone)]
+#[derive(Clone, Getters, new)]
 pub struct Transaction {
-  pub(crate) session_config: Arc<SessionConfig>,
-  pub(crate) storage_txn: storage::Transaction,
-  pub(super) sql_options: SQLOptions,
-  pub(super) ctxt: DfSessionContext,
-  pub(super) extensions: Arc<Vec<ExecutionPlanExtension>>,
+  session_config: Arc<SessionConfig>,
+  #[getset(get = "pub")]
+  storage_transaction: storage::Transaction,
+  sql_options: SQLOptions,
+  #[getset(get = "pub")]
+  context: DfSessionContext,
+  extensions: Arc<Vec<ExecutionPlanExtension>>,
 }
 
 impl Transaction {
@@ -34,7 +38,7 @@ impl Transaction {
     &self,
     mut stmt: Box<SQLStatement>,
   ) -> Result<LogicalPlan> {
-    let state = self.ctxt.state();
+    let state = self.context.state();
 
     // Modify stmt if needed
     // THIS IS A HACK needed because table scan needs to return rowid
@@ -78,11 +82,10 @@ impl Transaction {
     }
 
     let stmt_type = StatementType::from(stmt.as_ref());
-    let state = self.ctxt.state();
     let custom_plan = DEFAULT_EXTENSIONS
       .iter()
       .chain(self.extensions.iter())
-      .find_map(|ext| ext(&state, &self.storage_txn, &stmt).transpose())
+      .find_map(|ext| ext(&self, &stmt).transpose())
       .transpose()?;
     match custom_plan {
       Some(plan) => {
@@ -106,24 +109,24 @@ impl Transaction {
     stmt_type: &StatementType,
     plan: LogicalPlan,
   ) -> Result<ExecutionResponse> {
-    let df = self.ctxt.execute_logical_plan(plan.clone()).await?;
+    let df = self.context.execute_logical_plan(plan.clone()).await?;
     let physical_plan = df.create_physical_plan().await?;
     self.execute_stream(stmt_type, physical_plan).await
   }
 
   #[inline]
   pub fn closed(&self) -> bool {
-    self.storage_txn.closed()
+    self.storage_transaction.closed()
   }
 
   #[inline]
   pub fn commit(self) -> Result<()> {
-    self.storage_txn.commit()
+    self.storage_transaction.commit()
   }
 
   #[inline]
   pub fn rollback(self) -> Result<()> {
-    self.storage_txn.rollback()
+    self.storage_transaction.rollback()
   }
 
   #[inline]
@@ -133,7 +136,7 @@ impl Transaction {
     physical_plan: Arc<dyn ExecutionPlan>,
   ) -> Result<ExecutionResponse> {
     let response =
-      execute_stream(physical_plan.clone(), self.ctxt.task_ctx().into())?;
+      execute_stream(physical_plan.clone(), self.context.task_ctx().into())?;
     ExecutionResponse::from_stream(stmt_type, response).await
   }
 }

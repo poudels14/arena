@@ -5,7 +5,6 @@ use std::sync::Arc;
 
 use datafusion::arrow::datatypes::{Schema, SchemaRef};
 use datafusion::error::Result;
-use datafusion::execution::context::SessionState;
 use datafusion::execution::TaskContext;
 use datafusion::physical_expr::PhysicalSortExpr;
 use datafusion::physical_plan::stream::RecordBatchStreamAdapter;
@@ -18,12 +17,11 @@ use derive_new::new;
 use futures::{Stream, StreamExt};
 use sqlparser::ast::Statement as SQLStatement;
 
+use crate::execution::Transaction;
 use crate::schema::DataFrame;
-use crate::storage::Transaction;
 
 pub type ExecutionPlanExtension = Arc<
   dyn Fn(
-      &SessionState,
       &Transaction,
       &SQLStatement,
     ) -> crate::Result<Option<Arc<dyn CustomExecutionPlan>>>
