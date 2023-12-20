@@ -5,7 +5,9 @@ use anyhow::{bail, Context, Result};
 use arenasql::execution::Privilege;
 
 use crate::io::file::File;
-use crate::schema::{ClusterBuilder, UserBuilder, MANIFEST_FILE};
+use crate::schema::{
+  ClusterBuilder, UserBuilder, ADMIN_USERNAME, APPS_USERNAME, MANIFEST_FILE,
+};
 
 #[derive(clap::Parser, Debug, Clone)]
 pub struct InitCluster {
@@ -34,7 +36,7 @@ impl InitCluster {
     let mut cluster = ClusterBuilder::default().build().unwrap();
     cluster.add_user(
       UserBuilder::default()
-        .name("admin".to_owned())
+        .name(ADMIN_USERNAME.to_owned())
         .password(self.admin_password)
         .privilege(Privilege::SUPER_USER)
         .build()
@@ -42,9 +44,12 @@ impl InitCluster {
     )?;
     cluster.add_user(
       UserBuilder::default()
-        .name("apps".to_owned())
+        .name(APPS_USERNAME.to_owned())
         .password(self.apps_password)
-        .privilege(Privilege::TABLE_PRIVILEGES)
+        // "apps" user shouldn't have any privilege by default
+        // The Table privilege will be given to the queries if the
+        // Auth header is verified for each query
+        .privilege(Privilege::NONE)
         .build()
         .unwrap(),
     )?;

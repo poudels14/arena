@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use arenasql::execution::DEFAULT_SCHEMA_NAME;
+use arenasql::execution::{Privilege, DEFAULT_SCHEMA_NAME};
 use async_trait::async_trait;
 use derive_new::new;
 use futures::Sink;
@@ -19,7 +19,7 @@ use pgwire::messages::{PgWireBackendMessage, PgWireFrontendMessage};
 use rand::Rng;
 
 use crate::error::Error;
-use crate::schema::SYSTEM_CATALOG_NAME;
+use crate::schema::{ADMIN_USERNAME, SYSTEM_CATALOG_NAME};
 use crate::server::ArenaSqlCluster;
 
 pub const ITERATIONS: usize = 64_000;
@@ -93,11 +93,21 @@ impl StartupHandler for ArenaAuthHandler {
       // idk if user is ever None :shrug:
       .ok_or_else(|| Error::UserDoesntExist("null".to_owned()))?;
 
+    // "apps" user shouldn't have any privilege by default
+    // A proper privilege will be given to the queries if the
+    // Auth header is verified for each query
+    let privilege = if user.name == ADMIN_USERNAME {
+      Privilege::SUPER_USER
+    } else {
+      Privilege::NONE
+    };
+
     let session = self.cluster.create_new_session(
       user.name.to_owned(),
+      None,
       database,
       DEFAULT_SCHEMA_NAME.to_owned(),
-      user.privilege,
+      privilege,
     )?;
     metadata.insert("session_id".to_owned(), session.id().to_string());
     Ok(())

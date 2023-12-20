@@ -1,4 +1,3 @@
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use arenasql::execution::{SessionContext, Transaction};
@@ -13,7 +12,7 @@ use parking_lot::Mutex;
 #[derivative(Debug)]
 pub struct AuthenticatedSession {
   #[getset(get = "pub")]
-  id: u64,
+  id: String,
   #[getset(get = "pub")]
   user: String,
   #[getset(get = "pub")]
@@ -61,21 +60,15 @@ impl AuthenticatedSession {
 }
 
 pub struct AuthenticatedSessionStore {
-  next_session_id: Arc<AtomicU64>,
-  sessions: DashMap<u64, Arc<AuthenticatedSession>>,
+  sessions: DashMap<String, Arc<AuthenticatedSession>>,
 }
 
 #[allow(dead_code)]
 impl AuthenticatedSessionStore {
   pub fn new() -> Self {
     Self {
-      next_session_id: Arc::new(AtomicU64::new(1)),
       sessions: DashMap::new(),
     }
-  }
-
-  pub fn generate_session_id(&self) -> u64 {
-    self.next_session_id.fetch_add(1, Ordering::SeqCst)
   }
 
   pub fn put(
@@ -83,7 +76,9 @@ impl AuthenticatedSessionStore {
     session: AuthenticatedSession,
   ) -> Arc<AuthenticatedSession> {
     let session = Arc::new(session);
-    let old = self.sessions.insert(session.id.clone(), session.clone());
+    let old = self
+      .sessions
+      .insert(session.id.to_string(), session.clone());
     if old.is_some() {
       unreachable!("Session with same id already exists in the store")
     }
@@ -92,19 +87,16 @@ impl AuthenticatedSessionStore {
 
   pub fn get_session(
     &self,
-    session_id: u64,
+    session_id: &str,
   ) -> Option<Arc<AuthenticatedSession>> {
-    self.sessions.get(&session_id).map(|kv| kv.value().clone())
+    self.sessions.get(session_id).map(|kv| kv.value().clone())
   }
 
   pub fn remove_session(
     &self,
-    session_id: u64,
+    session_id: &str,
   ) -> Option<Arc<AuthenticatedSession>> {
-    self
-      .sessions
-      .remove(&session_id)
-      .map(|(_, session)| session)
+    self.sessions.remove(session_id).map(|(_, session)| session)
   }
 
   pub fn clear(&self) {

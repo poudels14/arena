@@ -1,9 +1,9 @@
 use sqlparser::ast::Statement as SQLStatement;
 
-use super::QueryClient;
+use crate::auth::AuthHeader;
 
 #[derive(Debug, Clone)]
 pub struct ArenaQuery {
-  pub client: QueryClient,
+  pub client: AuthHeader,
   pub stmts: Vec<Box<SQLStatement>>,
 }

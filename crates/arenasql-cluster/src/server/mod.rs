@@ -3,7 +3,7 @@ use std::process;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use log::info;
 use pgwire::api::{MakeHandler, StatelessMakeHandler};
 use pgwire::tokio::process_socket;
@@ -30,6 +30,14 @@ pub struct ClusterOptions {
   /// Directory to store database files
   #[arg(long)]
   pub root: String,
+
+  /// A JWT signing secret that's used to authorize queries
+  /// that access non-admin databases.
+  /// If it's not set, env variable `ARENA_JWT_SECRET` will be checked
+  /// and if that's also not set, unauthorized error will be returned
+  /// for those queries.
+  #[arg(long)]
+  pub jwt_secret: Option<String>,
 
   /// Cache size per database in MB
   #[arg(long("cache_size"), default_value_t = 10)]
@@ -60,11 +68,12 @@ impl ClusterOptions {
     let host = self.host.unwrap_or("0.0.0.0".to_owned());
     let port = self.port.unwrap_or(5432);
     let addr: SocketAddr = (
-      Ipv4Addr::from_str(&host).expect("Unable to parse host address"),
+      Ipv4Addr::from_str(&host).context("Unable to parse host address")?,
       port,
     )
       .into();
-    let listener = TcpListener::bind(addr).await.expect("TCP binding error");
+    let listener =
+      TcpListener::bind(addr).await.context("TCP binding error")?;
 
     info!(
       "Listening to {}:{} [process id = {}]",

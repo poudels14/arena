@@ -10,9 +10,8 @@ use pgwire::error::PgWireResult;
 use sqlparser::ast::Statement;
 
 use super::ArenaSqlCluster;
-use crate::auth::AuthenticatedSession;
+use crate::auth::{AuthHeader, AuthenticatedSession};
 use crate::pgwire::ArenaQuery;
-use crate::pgwire::QueryClient;
 use crate::pgwire::{datatype, rowconverter};
 
 impl ArenaSqlCluster {
@@ -27,8 +26,8 @@ impl ArenaSqlCluster {
     C: ClientInfo,
   {
     let session = match &query.client {
-      QueryClient::Unknown => self.get_client_session(client),
-      client => self.get_or_create_new_session(&client),
+      AuthHeader::None => self.get_client_session(client),
+      header => self.get_or_create_new_session(client, &header),
     }?;
 
     // It seems like, in Postgres, all the statements in a single query

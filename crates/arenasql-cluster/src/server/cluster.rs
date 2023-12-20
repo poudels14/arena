@@ -7,17 +7,20 @@ use arenasql::execution::{
 };
 use arenasql::runtime::RuntimeEnv;
 use dashmap::DashMap;
+use jsonwebtoken::{Algorithm, DecodingKey, Validation};
 use pgwire::api::ClientInfo;
+use uuid::Uuid;
 
 use super::storage::{ClusterStorageFactory, StorageOption};
 use super::ClusterOptions;
 use crate::auth::{
-  AuthenticatedSession, AuthenticatedSessionBuilder, AuthenticatedSessionStore,
+  AuthHeader, AuthenticatedSession, AuthenticatedSessionBuilder,
+  AuthenticatedSessionStore,
 };
-use crate::error::{ArenaClusterError, ArenaClusterResult};
+use crate::error::{ArenaClusterError, ArenaClusterResult, Error};
 use crate::io::file::File;
-use crate::pgwire::{ArenaPortalStore, ArenaQueryParser, QueryClient};
-use crate::schema::{self, MANIFEST_FILE};
+use crate::pgwire::{ArenaPortalStore, ArenaQueryParser};
+use crate::schema::{self, APPS_USERNAME, MANIFEST_FILE};
 use crate::system::{
   ArenaClusterCatalogListProvider, CatalogListOptionsBuilder,
 };
@@ -34,6 +37,7 @@ pub struct ArenaSqlCluster {
   pub(crate) poral_stores: Arc<DashMap<String, Arc<ArenaPortalStore>>>,
   pub(crate) session_store: Arc<AuthenticatedSessionStore>,
   pub(crate) storage: Arc<ClusterStorageFactory>,
+  pub(crate) jwt_secret: Option<String>,
 }
 
 impl ArenaSqlCluster {
@@ -68,6 +72,7 @@ impl ArenaSqlCluster {
       poral_stores: Arc::new(DashMap::new()),
       session_store: Arc::new(AuthenticatedSessionStore::new()),
       storage: Arc::new(ClusterStorageFactory::new(storage_options)),
+      jwt_secret: options.jwt_secret.clone(),
     })
   }
 
@@ -77,32 +82,67 @@ impl ArenaSqlCluster {
   ) -> ArenaClusterResult<Arc<AuthenticatedSession>> {
     self
       .session_store
-      .get_session(
-        client
-          .metadata()
-          .get("session_id")
-          .unwrap()
-          .parse::<u64>()
-          .unwrap(),
-      )
+      .get_session(client.metadata().get("session_id").unwrap())
       .ok_or_else(|| ArenaClusterError::InvalidConnection)
   }
 
-  pub(crate) fn get_or_create_new_session(
+  pub(crate) fn get_or_create_new_session<C: ClientInfo>(
     &self,
-    client: &QueryClient,
+    client: &C,
+    header: &AuthHeader,
   ) -> ArenaClusterResult<Arc<AuthenticatedSession>> {
-    match client {
-      QueryClient::Authenticated { session_id: id } => self
+    // Only connection authenticated with apps user name can use
+    // header auth
+    if client
+      .metadata()
+      .get("user")
+      .map(|u| u.as_str() != APPS_USERNAME)
+      .unwrap_or(true)
+    {
+      return Err(Error::AuthenticationFailed);
+    }
+    match header {
+      AuthHeader::Authenticated { session_id } => self
         .session_store
-        .get_session(*id)
+        .get_session(session_id)
         .ok_or_else(|| ArenaClusterError::InvalidConnection),
-      QueryClient::New { user, database } => self.create_new_session(
-        user.clone(),
-        database.clone(),
-        DEFAULT_SCHEMA_NAME.to_string(),
-        Privilege::TABLE_PRIVILEGES,
-      ),
+      AuthHeader::Token { token } => {
+        if let Some(jwt_secret) = &self.jwt_secret {
+          let verified_token = jsonwebtoken::decode::<serde_json::Value>(
+            &token,
+            &DecodingKey::from_secret((&jwt_secret).as_ref()),
+            &Validation::new(Algorithm::HS512),
+          );
+          println!("verified_token = {:?}", verified_token);
+          match verified_token {
+            Ok(verified_token) => {
+              let claims = verified_token
+                .claims
+                .as_object()
+                .ok_or(Error::AuthenticationFailed)?;
+              let user = claims.get("user").and_then(|u| u.as_str());
+              let database = claims.get("database").and_then(|d| d.as_str());
+              let session_id =
+                claims.get("session_id").and_then(|s| s.as_str());
+
+              match (user, database, session_id) {
+                (Some(user), Some(db), Some(session_id)) => {
+                  return self.create_new_session(
+                    user.to_owned(),
+                    Some(session_id.to_owned()),
+                    db.to_owned(),
+                    DEFAULT_SCHEMA_NAME.to_string(),
+                    Privilege::TABLE_PRIVILEGES,
+                  );
+                }
+                _ => {}
+              }
+            }
+            _ => {}
+          }
+        }
+        Err(Error::AuthenticationFailed)
+      }
       _ => unreachable!(),
     }
   }
@@ -110,6 +150,7 @@ impl ArenaSqlCluster {
   pub(crate) fn create_new_session(
     &self,
     user: String,
+    session_id: Option<String>,
     catalog: String,
     schema: String,
     privilege: Privilege,
@@ -138,8 +179,12 @@ impl ArenaSqlCluster {
       ..Default::default()
     });
 
+    // Generate a random session_id if it's None
+    // The auth request for app queries will have session_id set by the
+    // client. Just the main postgres connections won't have it set
+    let session_id = session_id.unwrap_or_else(|| Uuid::new_v4().to_string());
     let session = AuthenticatedSessionBuilder::default()
-      .id(self.session_store.generate_session_id())
+      .id(session_id)
       .database(catalog)
       .user(user.to_string())
       .context(session_context)
