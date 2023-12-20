@@ -10,6 +10,7 @@ mod system;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
+use anyhow::{Context, Result};
 use clap::Parser;
 use init::InitCluster;
 use log::LevelFilter;
@@ -63,34 +64,43 @@ fn main() {
     .build()
     .unwrap();
 
-  let _ = rt
-    .block_on(async {
-      let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
-      let handle: JoinHandle<Result<(), anyhow::Error>> = tokio::spawn(async {
-        match args.command {
-          Commands::Init(cmd) => cmd.execute().await,
-          Commands::Start(cmd) => cmd.execute(shutdown_rx).await,
-        }
-      });
+  let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
+  rt.spawn(async { listen_to_signal(shutdown_tx).await });
 
-      let term_now = Arc::new(AtomicBool::new(false));
-      for sig in TERM_SIGNALS {
-        signal_hook::flag::register_conditional_shutdown(
-          *sig,
-          1,
-          Arc::clone(&term_now),
-        )
-        .unwrap();
-        signal_hook::flag::register(*sig, Arc::clone(&term_now)).unwrap();
+  let _ = rt.block_on(async {
+    let handle: JoinHandle<Result<(), anyhow::Error>> = tokio::spawn(async {
+      match args.command {
+        Commands::Init(cmd) => cmd.execute().await,
+        Commands::Start(cmd) => cmd.execute(shutdown_rx).await,
       }
-      let mut signals = SignalsInfo::<SignalOnly>::new(TERM_SIGNALS).unwrap();
+    });
 
-      for _ in &mut signals {
-        shutdown_tx.send(()).unwrap();
-        break;
-      }
+    if let Err(err) = handle.await.unwrap() {
+      eprintln!("{:?}", err);
+    }
+  });
 
-      handle.await
-    })
-    .unwrap();
+  rt.shutdown_background();
+}
+
+async fn listen_to_signal(shutdown_tx: oneshot::Sender<()>) -> Result<()> {
+  let term_now = Arc::new(AtomicBool::new(false));
+  for sig in TERM_SIGNALS {
+    signal_hook::flag::register_conditional_shutdown(
+      *sig,
+      1,
+      Arc::clone(&term_now),
+    )
+    .context("Error registering singal hook")?;
+    signal_hook::flag::register(*sig, Arc::clone(&term_now))
+      .context("Error registering singal hook")?;
+  }
+  let mut signals = SignalsInfo::<SignalOnly>::new(TERM_SIGNALS)
+    .context("Error registering singal hook")?;
+
+  for _ in &mut signals {
+    let _ = shutdown_tx.send(());
+    break;
+  }
+  Ok(())
 }
