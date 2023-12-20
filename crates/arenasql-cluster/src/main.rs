@@ -13,7 +13,7 @@ use std::sync::Arc;
 use clap::Parser;
 use init::InitCluster;
 use log::LevelFilter;
-use server::ServerOptions;
+use server::ClusterOptions;
 
 use signal_hook::consts::TERM_SIGNALS;
 use signal_hook::iterator::exfiltrator::SignalOnly;
@@ -45,7 +45,7 @@ enum Commands {
   Init(InitCluster),
 
   /// Start Arena DB cluster server
-  Start(ServerOptions),
+  Start(ClusterOptions),
 }
 
 fn main() {

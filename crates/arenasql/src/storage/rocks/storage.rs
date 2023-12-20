@@ -3,9 +3,10 @@ use std::sync::Arc;
 
 use derivative::Derivative;
 use getset::Getters;
+use rocksdb::backup::{BackupEngine, BackupEngineOptions, RestoreOptions};
 pub use rocksdb::Cache;
 use rocksdb::{
-  ColumnFamilyDescriptor, DBCompressionType, FlushOptions, LogLevel,
+  ColumnFamilyDescriptor, DBCompressionType, Env, FlushOptions, LogLevel,
   MultiThreaded, OptimisticTransactionDB, Options as RocksOptions,
 };
 
@@ -27,16 +28,36 @@ impl RocksStorage {
     Self::new_with_cache(path, None)
   }
 
+  pub fn load_from_backup(
+    backup_dir: &str,
+    db_dir: PathBuf,
+    cache: Option<Cache>,
+  ) -> DatabaseResult<Self> {
+    let backup_opts = BackupEngineOptions::new(backup_dir)?;
+    let mut env = Env::new()?;
+    env.set_background_threads(4);
+    let mut engine = BackupEngine::open(&backup_opts, &env)?;
+
+    let restore_opts = RestoreOptions::default();
+    engine.restore_from_latest_backup(
+      &db_dir,
+      db_dir.join("wal"),
+      &restore_opts,
+    )?;
+
+    Self::new_with_cache(db_dir, cache)
+  }
+
   pub fn new_with_cache(
-    path: PathBuf,
+    db_dir: PathBuf,
     cache: Option<Cache>,
   ) -> DatabaseResult<Self> {
     let mut opts = RocksOptions::default();
     opts.create_if_missing(true);
     opts.create_missing_column_families(true);
     opts.set_log_level(LogLevel::Warn);
-    opts.set_db_log_dir(path.join("logs"));
-    opts.set_wal_dir(path.join("wal"));
+    opts.set_db_log_dir(db_dir.join("logs"));
+    opts.set_wal_dir(db_dir.join("wal"));
     // Keep WAL for 7 days
     opts.set_wal_ttl_seconds(60 * 60 * 24 * 7);
     // WAL size limit
@@ -66,7 +87,7 @@ impl RocksStorage {
     rows_cf_options.set_compression_type(DBCompressionType::Lz4);
     let db: RocksDatabase = OptimisticTransactionDB::open_cf_descriptors(
       &opts,
-      path,
+      db_dir,
       vec![
         ColumnFamilyDescriptor::new(
           KeyValueGroup::Locks.to_string(),

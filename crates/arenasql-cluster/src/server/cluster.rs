@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -7,10 +7,10 @@ use arenasql::execution::{
 };
 use arenasql::runtime::RuntimeEnv;
 use dashmap::DashMap;
-use derivative::Derivative;
 use pgwire::api::ClientInfo;
 
 use super::storage::{ClusterStorageFactory, StorageOption};
+use super::ClusterOptions;
 use crate::auth::{
   AuthenticatedSession, AuthenticatedSessionBuilder, AuthenticatedSessionStore,
 };
@@ -25,7 +25,6 @@ use crate::system::{
 #[allow(unused)]
 pub struct ArenaSqlCluster {
   pub(crate) manifest: Arc<schema::Cluster>,
-  pub options: ClusterOptions,
   pub(crate) runtime: Arc<RuntimeEnv>,
   pub(crate) parser: Arc<ArenaQueryParser>,
   /// Portal stores should be unique to each session since different
@@ -37,38 +36,38 @@ pub struct ArenaSqlCluster {
   pub(crate) storage: Arc<ClusterStorageFactory>,
 }
 
-#[derive(Debug, Derivative)]
-pub struct ClusterOptions {
-  /// Location of database data directory
-  pub dir: Arc<PathBuf>,
-
-  /// Per database cache size in MB
-  #[derivative(Default(value = "10"))]
-  pub cache_size_mb: usize,
-
-  /// Directory to backup database to
-  /// If set, all the database that were opened by the cluster will be
-  /// backed up to that directory periodically
-  pub backup_dir: Option<PathBuf>,
-
-  /// Directory to put a checkpoint of the databases to
-  /// When cluster is terminated, all the databases that were opened will
-  /// be checkpointed to that directory
-  pub checkpoint_dir: Option<PathBuf>,
-}
-
 impl ArenaSqlCluster {
-  pub fn load(config: ClusterOptions) -> Result<Self> {
-    let manifest = File::read(&config.dir.join(MANIFEST_FILE))
+  pub fn load(options: &ClusterOptions) -> Result<Self> {
+    let root_dir = Path::new(&options.dir).to_path_buf();
+
+    let manifest = File::read(&root_dir.join(MANIFEST_FILE))
       .context("Error reading cluster manifest")?;
+
+    let backup_dir = options
+      .backup_dir
+      .as_ref()
+      .map(|p| create_path_if_not_exists(&p))
+      .transpose()?;
+    let checkpoint_dir = options
+      .checkpoint_dir
+      .as_ref()
+      .map(|p| create_path_if_not_exists(&p))
+      .transpose()?;
+
+    let mut storage_options = StorageOption::default();
+    storage_options
+      .set_backup_dir(backup_dir)
+      .set_checkpoint_dir(checkpoint_dir)
+      .set_cache_size_mb(Some(options.cache_size_mb))
+      .set_root_dir(root_dir.into());
+
     Ok(Self {
       manifest,
       runtime: Arc::new(RuntimeEnv::default()),
       parser: Arc::new(ArenaQueryParser {}),
       poral_stores: Arc::new(DashMap::new()),
       session_store: Arc::new(AuthenticatedSessionStore::new()),
-      storage: Arc::new(ClusterStorageFactory::new(config.dir.to_path_buf())),
-      options: config,
+      storage: Arc::new(ClusterStorageFactory::new(storage_options)),
     })
   }
 
@@ -117,18 +116,13 @@ impl ArenaSqlCluster {
   ) -> ArenaClusterResult<Arc<AuthenticatedSession>> {
     let storage_factory = self
       .storage
-      .get_catalog(
-        &catalog,
-        StorageOption {
-          cache_size_mb: Some(self.options.cache_size_mb),
-        },
-      )?
+      .get_catalog(&catalog)?
       .ok_or_else(|| ArenaClusterError::CatalogNotFound(catalog.clone()))?;
 
     let catalog_list_provider =
       Arc::new(ArenaClusterCatalogListProvider::with_options(
         CatalogListOptionsBuilder::default()
-          .cluster_dir(self.options.dir.clone())
+          .cluster_dir(self.storage.options().root_dir().clone())
           .build()
           .unwrap(),
       ));
@@ -158,11 +152,16 @@ impl ArenaSqlCluster {
     // Need to remove all sessions from the store first so that
     // all active transactions are dropped
     self.session_store.clear();
-    Ok(
-      self
-        .storage
-        .graceful_shutdown(self.options.checkpoint_dir.clone())
-        .await?,
-    )
+    Ok(self.storage.graceful_shutdown().await?)
   }
+}
+
+fn create_path_if_not_exists(path: &str) -> Result<PathBuf> {
+  let p = PathBuf::from(path);
+  if !p.exists() {
+    std::fs::create_dir_all(&p)
+      .context(format!("Failed to create dir: {:?}", p))?;
+  }
+  p.canonicalize()
+    .context(format!("Failed to canonicalize path: {:?}", p))
 }
