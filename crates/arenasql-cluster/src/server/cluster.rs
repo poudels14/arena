@@ -10,7 +10,7 @@ use dashmap::DashMap;
 use derivative::Derivative;
 use pgwire::api::ClientInfo;
 
-use super::storage::{StorageFactory, StorageOption};
+use super::storage::{ClusterStorageFactory, StorageOption};
 use crate::auth::{
   AuthenticatedSession, AuthenticatedSessionBuilder, AuthenticatedSessionStore,
 };
@@ -34,7 +34,7 @@ pub struct ArenaSqlCluster {
   /// overridden
   pub(crate) poral_stores: Arc<DashMap<String, Arc<ArenaPortalStore>>>,
   pub(crate) session_store: Arc<AuthenticatedSessionStore>,
-  pub(crate) storage: Arc<StorageFactory>,
+  pub(crate) storage: Arc<ClusterStorageFactory>,
 }
 
 #[derive(Debug, Derivative)]
@@ -57,7 +57,7 @@ impl ArenaSqlCluster {
       parser: Arc::new(ArenaQueryParser {}),
       poral_stores: Arc::new(DashMap::new()),
       session_store: Arc::new(AuthenticatedSessionStore::new()),
-      storage: Arc::new(StorageFactory::new(config.dir.to_path_buf())),
+      storage: Arc::new(ClusterStorageFactory::new(config.dir.to_path_buf())),
       options: config,
     })
   }
@@ -142,5 +142,12 @@ impl ArenaSqlCluster {
       .build()
       .unwrap();
     Ok(self.session_store.put(session))
+  }
+
+  pub async fn graceful_shutdown(&self) -> Result<()> {
+    // Need to remove all sessions from the store first so that
+    // all active transactions are dropped
+    self.session_store.clear();
+    Ok(self.storage.graceful_shutdown().await.map(|_| ())?)
   }
 }

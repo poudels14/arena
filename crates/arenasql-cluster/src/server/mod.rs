@@ -1,5 +1,6 @@
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::Path;
+use std::process;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -8,6 +9,7 @@ use log::info;
 use pgwire::api::{MakeHandler, StatelessMakeHandler};
 use pgwire::tokio::process_socket;
 use tokio::net::TcpListener;
+use tokio::sync::oneshot;
 
 pub(crate) mod cluster;
 mod execution;
@@ -38,7 +40,10 @@ pub struct ServerOptions {
 }
 
 impl ServerOptions {
-  pub async fn execute(self) -> Result<()> {
+  pub async fn execute(
+    self,
+    mut shutdown_signal: oneshot::Receiver<()>,
+  ) -> Result<()> {
     let host = self.host.unwrap_or("0.0.0.0".to_owned());
     let port = self.port.unwrap_or(5432);
 
@@ -57,22 +62,35 @@ impl ServerOptions {
       .into();
     let listener = TcpListener::bind(addr).await.expect("TCP binding error");
 
-    info!("Listening to {}:{}", host, port);
+    info!(
+      "Listening to {}:{} [process id = {}]",
+      host,
+      port,
+      process::id()
+    );
 
     loop {
-      let incoming_socket = listener.accept().await.unwrap();
-      let authenticator_ref = authenticator.make();
-      let processor_ref = processor.make();
-      tokio::spawn(async move {
-        process_socket(
-          incoming_socket.0,
-          None,
-          authenticator_ref,
-          processor_ref.clone(),
-          processor_ref,
-        )
-        .await
-      });
+      tokio::select! {
+        _ = &mut shutdown_signal => {
+          break;
+        },
+        socket = listener.accept() => {
+          let incoming_socket = socket?;
+          let authenticator_ref = authenticator.make();
+          let processor_ref = processor.make();
+          tokio::spawn(async move {
+            process_socket(
+              incoming_socket.0,
+              None,
+              authenticator_ref,
+              processor_ref.clone(),
+              processor_ref,
+            )
+            .await
+          });
+        }
+      }
     }
+    cluster.graceful_shutdown().await
   }
 }

@@ -106,4 +106,8 @@ impl AuthenticatedSessionStore {
       .remove(&session_id)
       .map(|(_, session)| session)
   }
+
+  pub fn clear(&self) {
+    self.sessions.clear()
+  }
 }

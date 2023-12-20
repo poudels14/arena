@@ -5,14 +5,15 @@ use std::sync::Arc;
 use arenasql::storage::rocks::{self, RocksStorage};
 use arenasql::storage::{
   self, KeyValueStoreProvider, MemoryKeyValueStoreProvider, Serializer,
-  StorageFactoryBuilder,
+  StorageFactory, StorageFactoryBuilder,
 };
 use dashmap::DashMap;
+use futures::future::join_all;
 
 use crate::error::ArenaClusterResult;
 use crate::schema::SYSTEM_CATALOG_NAME;
 
-pub struct StorageFactory {
+pub struct ClusterStorageFactory {
   path: PathBuf,
   storages: DashMap<String, Arc<storage::StorageFactory>>,
 }
@@ -24,7 +25,7 @@ pub struct StorageOption {
   pub cache_size_mb: Option<usize>,
 }
 
-impl StorageFactory {
+impl ClusterStorageFactory {
   pub fn new(path: PathBuf) -> Self {
     if !path.exists() {
       fs::create_dir_all(&path)
@@ -77,5 +78,24 @@ impl StorageFactory {
         }))
       }
     }
+  }
+
+  pub async fn graceful_shutdown(&self) -> ArenaClusterResult<()> {
+    let storages: Vec<(String, Arc<StorageFactory>)> = self
+      .storages
+      .iter()
+      .map(|entry| (entry.key().clone(), entry.value().clone()))
+      .collect();
+
+    join_all(
+      storages
+        .iter()
+        .map(|(_, storage)| storage.graceful_shutdown()),
+    )
+    .await
+    .into_iter()
+    .map(|r| r.map_err(|e| e.into()))
+    .collect::<ArenaClusterResult<Vec<()>>>()?;
+    Ok(())
   }
 }
