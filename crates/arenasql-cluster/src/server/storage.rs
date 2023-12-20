@@ -96,17 +96,26 @@ impl ClusterStorageFactory {
                   match max_checkpoint {
                     Some(checkpoint_timestamp) => {
                       info!(
-                        "Loading catalog from checkpoint: {:?}",
-                        checkpoint_timestamp
+                        "Loading catalog \"{}\" from checkpoint: {:?}",
+                        db_name, checkpoint_timestamp
                       );
-                      Some(RocksStorage::load_from_backup(
+                      let start = Instant::now();
+                      let db = Some(RocksStorage::load_from_backup(
                         catalog_checkpoint_dir
                           .join(format!("{}", checkpoint_timestamp))
                           .to_str()
                           .unwrap(),
                         db_dir,
                         cache,
-                      )?)
+                      )?);
+
+                      info!(
+                        "Time taken to load catalog \"{}\" from checkpoint: {}s",
+                        db_name,
+                        start.elapsed().as_secs()
+                      );
+
+                      db
                     }
                     _ => None,
                   }

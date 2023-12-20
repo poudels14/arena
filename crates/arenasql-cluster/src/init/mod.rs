@@ -9,13 +9,13 @@ use crate::schema::{ClusterBuilder, UserBuilder, MANIFEST_FILE};
 
 #[derive(clap::Parser, Debug, Clone)]
 pub struct InitCluster {
-  /// Admin user name
-  #[arg(long = "user", default_value = "admin")]
-  pub admin_user: String,
+  /// password for user "admin"
+  #[arg(default_value = "admin_password")]
+  pub admin_password: String,
 
-  /// Admin user password
-  #[arg(long = "password", default_value = "password")]
-  pub admin_pass: String,
+  /// password for user "apps"
+  #[arg(default_value = "password")]
+  pub apps_password: String,
 
   /// Directory to setup workspace in
   #[arg(long)]
@@ -34,9 +34,17 @@ impl InitCluster {
     let mut cluster = ClusterBuilder::default().build().unwrap();
     cluster.add_user(
       UserBuilder::default()
-        .name(self.admin_user)
-        .password(self.admin_pass)
+        .name("admin".to_owned())
+        .password(self.admin_password)
         .privilege(Privilege::SUPER_USER)
+        .build()
+        .unwrap(),
+    )?;
+    cluster.add_user(
+      UserBuilder::default()
+        .name("apps".to_owned())
+        .password(self.apps_password)
+        .privilege(Privilege::TABLE_PRIVILEGES)
         .build()
         .unwrap(),
     )?;
