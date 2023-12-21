@@ -12,6 +12,12 @@ const process = {
   env,
   on,
   memoryUsage,
+  off(...args) {
+    console.log("[node/process] OFF =", args);
+  },
+  once(...args) {
+    console.log("[node/process] ONCE =", args);
+  },
 };
 
 export default process;
