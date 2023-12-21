@@ -4,7 +4,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use arenasql::execution::{
   ExecutionPlanExtension, Privilege, SessionConfig, SessionContext,
-  DEFAULT_SCHEMA_NAME,
+  SessionState, DEFAULT_SCHEMA_NAME,
 };
 use arenasql::runtime::RuntimeEnv;
 use dashmap::DashMap;
@@ -172,13 +172,15 @@ impl ArenaSqlCluster {
     let (schemas, extensions): (Vec<String>, Vec<ExecutionPlanExtension>) =
       match user == ADMIN_USERNAME {
         true => (
-          // Give access to "pg_catalog" for ADMIN users
-          vec!["pg_catalog".to_owned(), schema],
+          // Give access to "arena_catalog" for ADMIN users
+          vec!["arena_catalog".to_owned(), schema],
           vec![Arc::new(admin_exetension)],
         ),
         false => (vec![schema], vec![]),
       };
 
+    let mut session_state = SessionState::default();
+    session_state.put(self.storage.clone());
     let session_context = SessionContext::new(
       SessionConfig {
         runtime: self.runtime.clone(),
@@ -191,7 +193,7 @@ impl ArenaSqlCluster {
         privilege,
         ..Default::default()
       },
-      Default::default(),
+      session_state,
     );
 
     // Generate a random session_id if it's None
