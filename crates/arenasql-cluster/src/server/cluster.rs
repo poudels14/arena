@@ -22,7 +22,9 @@ use crate::error::{ArenaClusterError, ArenaClusterResult, Error};
 use crate::extension::admin_exetension;
 use crate::io::file::File;
 use crate::pgwire::{ArenaPortalStore, ArenaQueryParser};
-use crate::schema::{self, ADMIN_USERNAME, APPS_USERNAME, MANIFEST_FILE};
+use crate::schema::{
+  self, ADMIN_USERNAME, APPS_USERNAME, MANIFEST_FILE, SYSTEM_SCHEMA_NAME,
+};
 use crate::system::{
   ArenaClusterCatalogListProvider, CatalogListOptionsBuilder,
 };
@@ -129,10 +131,9 @@ impl ArenaSqlCluster {
               match (user, database, session_id) {
                 (Some(user), Some(db), Some(session_id)) => {
                   return self.create_new_session(
+                    db.to_owned(),
                     user.to_owned(),
                     Some(session_id.to_owned()),
-                    db.to_owned(),
-                    DEFAULT_SCHEMA_NAME.to_string(),
                     Privilege::TABLE_PRIVILEGES,
                   );
                 }
@@ -150,52 +151,13 @@ impl ArenaSqlCluster {
 
   pub(crate) fn create_new_session(
     &self,
+    catalog: String,
     user: String,
     session_id: Option<String>,
-    catalog: String,
-    schema: String,
     privilege: Privilege,
   ) -> ArenaClusterResult<Arc<AuthenticatedSession>> {
-    let storage_factory = self
-      .storage
-      .get_catalog(&catalog)?
-      .ok_or_else(|| ArenaClusterError::CatalogNotFound(catalog.clone()))?;
-
-    let catalog_list_provider =
-      Arc::new(ArenaClusterCatalogListProvider::with_options(
-        CatalogListOptionsBuilder::default()
-          .cluster_dir(self.storage.options().root_dir().clone())
-          .build()
-          .unwrap(),
-      ));
-
-    let (schemas, extensions): (Vec<String>, Vec<ExecutionPlanExtension>) =
-      match user == ADMIN_USERNAME {
-        true => (
-          // Give access to "arena_catalog" for ADMIN users
-          vec!["arena_catalog".to_owned(), schema],
-          vec![Arc::new(admin_exetension)],
-        ),
-        false => (vec![schema], vec![]),
-      };
-
-    let mut session_state = SessionState::default();
-    session_state.put(self.storage.clone());
-    let session_context = SessionContext::new(
-      SessionConfig {
-        runtime: self.runtime.clone(),
-        df_runtime: Default::default(),
-        catalog: catalog.clone().into(),
-        schemas: Arc::new(schemas),
-        storage_factory,
-        catalog_list_provider,
-        execution_plan_extensions: Arc::new(extensions),
-        privilege,
-        ..Default::default()
-      },
-      session_state,
-    );
-
+    let session_context =
+      self.create_session_context(&catalog, &user, privilege)?;
     // Generate a random session_id if it's None
     // The auth request for app queries will have session_id set by the
     // client. Just the main postgres connections won't have it set
@@ -208,6 +170,56 @@ impl ArenaSqlCluster {
       .build()
       .unwrap();
     Ok(self.session_store.put(session))
+  }
+
+  pub(crate) fn create_session_context(
+    &self,
+    catalog: &str,
+    user: &str,
+    privilege: Privilege,
+  ) -> ArenaClusterResult<SessionContext> {
+    let storage_factory = self
+      .storage
+      .get_catalog(&catalog)?
+      .ok_or_else(|| ArenaClusterError::CatalogNotFound(catalog.to_owned()))?;
+
+    let catalog_list_provider =
+      Arc::new(ArenaClusterCatalogListProvider::with_options(
+        CatalogListOptionsBuilder::default()
+          .cluster_dir(self.storage.options().root_dir().clone())
+          .build()
+          .unwrap(),
+      ));
+
+    let (schemas, extensions): (Vec<String>, Vec<ExecutionPlanExtension>) =
+      match user == ADMIN_USERNAME {
+        true => (
+          // Give access to SYSTEM_SCHEMA_NAME for ADMIN users
+          vec![
+            SYSTEM_SCHEMA_NAME.to_owned(),
+            DEFAULT_SCHEMA_NAME.to_owned(),
+          ],
+          vec![Arc::new(admin_exetension)],
+        ),
+        false => (vec![DEFAULT_SCHEMA_NAME.to_owned()], vec![]),
+      };
+
+    let mut session_state = SessionState::default();
+    session_state.put(self.storage.clone());
+    Ok(SessionContext::new(
+      SessionConfig {
+        runtime: self.runtime.clone(),
+        df_runtime: Default::default(),
+        catalog: catalog.into(),
+        schemas: Arc::new(schemas),
+        storage_factory,
+        catalog_list_provider,
+        execution_plan_extensions: Arc::new(extensions),
+        privilege,
+        ..Default::default()
+      },
+      session_state,
+    ))
   }
 
   pub async fn graceful_shutdown(&self) -> Result<()> {

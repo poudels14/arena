@@ -53,6 +53,19 @@ impl ExecutionResponse {
     self.stream.unwrap()
   }
 
+  pub async fn collect_batches(self) -> ArenaResult<Vec<RecordBatch>> {
+    let batches = self
+      .stream
+      .unwrap()
+      .collect::<Vec<Result<RecordBatch, DataFusionError>>>()
+      .await;
+
+    batches
+      .into_iter()
+      .map(|b| Ok(b?))
+      .collect::<ArenaResult<Vec<RecordBatch>>>()
+  }
+
   /// Returns total number of rows
   /// Panics if called on queries that doesn't return rows
   pub async fn num_rows(self) -> ArenaResult<usize> {

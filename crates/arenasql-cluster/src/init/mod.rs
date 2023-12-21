@@ -11,11 +11,11 @@ use crate::schema::{
 
 #[derive(clap::Parser, Debug, Clone)]
 pub struct InitCluster {
-  /// password for user "admin"
+  /// password for user "arenasql-admin"
   #[arg(default_value = "admin_password")]
   pub admin_password: String,
 
-  /// password for user "apps"
+  /// password for user "arenasql-apps"
   #[arg(default_value = "password")]
   pub apps_password: String,
 
@@ -46,7 +46,7 @@ impl InitCluster {
       UserBuilder::default()
         .name(APPS_USERNAME.to_owned())
         .password(self.apps_password)
-        // "apps" user shouldn't have any privilege by default
+        // "arenasql-apps" user shouldn't have any privilege by default
         // The Table privilege will be given to the queries if the
         // Auth header is verified for each query
         .privilege(Privilege::NONE)

@@ -12,7 +12,7 @@ use sqlparser::ast::Statement;
 use self::catalog_users::SetCatalogUserCredentials;
 use crate::extension::catalog_users::ListCatalogUserCredentials;
 
-mod catalog_users;
+pub(crate) mod catalog_users;
 
 /// Returns a custom admin execution plan extension
 pub fn admin_exetension(

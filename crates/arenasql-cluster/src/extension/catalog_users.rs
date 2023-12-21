@@ -17,10 +17,20 @@ use futures::Stream;
 use serde::{Deserialize, Serialize};
 use sqlparser::ast::Expr;
 
+use crate::schema::{ADMIN_USERNAME, APPS_USERNAME, SYSTEM_SCHEMA_NAME};
+
 // Note: store user/password config as a single column since it will be
 // difficult to update this table once there are databases in prod
 static CREATE_USERS_TABLE: &'static str =
-  "CREATE TABLE IF NOT EXISTS arena_catalog.users(config TEXT);";
+  "CREATE TABLE IF NOT EXISTS arena_schema.users(config TEXT);";
+
+pub fn schema() -> SchemaRef {
+  SchemaRef::new(Schema::new(vec![
+    Field::new("catalog", DfDataType::Utf8, false),
+    Field::new("user", DfDataType::Utf8, false),
+    Field::new("password", DfDataType::Utf8, false),
+  ]))
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct CatalogUser {
@@ -55,6 +65,8 @@ impl SetCatalogUserCredentials {
       .and_then(get_scalar_string)
       .ok_or(Error::InvalidQuery(format!("Password missing")))?;
 
+    validate_username(&username)?;
+
     Ok(Self {
       transaction,
       user: CatalogUser {
@@ -68,11 +80,7 @@ impl SetCatalogUserCredentials {
 
 impl CustomExecutionPlan for SetCatalogUserCredentials {
   fn schema(&self) -> SchemaRef {
-    SchemaRef::new(Schema::new(vec![
-      Field::new("catalog", DfDataType::Utf8, false),
-      Field::new("user", DfDataType::Utf8, false),
-      Field::new("password", DfDataType::Utf8, false),
-    ]))
+    schema()
   }
 
   fn execute(
@@ -94,8 +102,12 @@ impl CustomExecutionPlan for SetCatalogUserCredentials {
       );
 
       let txn = plan.transaction.storage_transaction();
-      let users_table =
-        txn.state().get_table("arena_catalog", "users").unwrap();
+      let users_table = txn
+        .state()
+        .get_table(SYSTEM_SCHEMA_NAME, "users")
+        .ok_or_else(|| {
+          Error::RelationDoesntExist(format!("{}.users", SYSTEM_SCHEMA_NAME))
+        })?;
       let storage = txn.lock(false)?;
       let cols = vec![0];
 
@@ -158,11 +170,7 @@ impl ListCatalogUserCredentials {
 
 impl CustomExecutionPlan for ListCatalogUserCredentials {
   fn schema(&self) -> SchemaRef {
-    SchemaRef::new(Schema::new(vec![
-      Field::new("catalog", DfDataType::Utf8, false),
-      Field::new("user", DfDataType::Utf8, false),
-      Field::new("password", DfDataType::Utf8, false),
-    ]))
+    schema()
   }
 
   fn execute(
@@ -182,8 +190,12 @@ impl CustomExecutionPlan for ListCatalogUserCredentials {
       );
 
       let txn = plan.transaction.storage_transaction();
-      let users_table =
-        txn.state().get_table("arena_catalog", "users").unwrap();
+      let users_table = txn
+        .state()
+        .get_table(SYSTEM_SCHEMA_NAME, "users")
+        .ok_or_else(|| {
+          Error::RelationDoesntExist(format!("{}.users", SYSTEM_SCHEMA_NAME))
+        })?;
       let storage = txn.lock(false)?;
       let cols = vec![0];
 
@@ -206,6 +218,16 @@ impl CustomExecutionPlan for ListCatalogUserCredentials {
       Ok(dataframe)
     };
     Ok(Box::pin(futures::stream::once(query)))
+  }
+}
+
+fn validate_username(username: &str) -> Result<()> {
+  match username {
+    ADMIN_USERNAME | APPS_USERNAME => Err(Error::ReservedWord(format!(
+      "Can't use reserved username: {}",
+      username
+    ))),
+    _ => Ok(()),
   }
 }
 

@@ -33,6 +33,7 @@ arenasql = { path = "../arenasql" }
 log = "0.4"
 env_logger = "0.10.1"
 num_cpus = "1.16.0"
+urlencoding = "2.1.3"
 
 [target.'cfg(not(target_env = "msvc"))'.dependencies]
 tikv-jemallocator = "0.5"

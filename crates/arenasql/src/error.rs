@@ -45,6 +45,7 @@ pub enum Error {
   SerdeError(String),
   InsufficientPrivilege,
   DataFusionError(Arc<DataFusionError>),
+  ReservedWord(String),
 }
 
 impl Error {
@@ -77,6 +78,7 @@ impl Error {
       | Self::SerdeError(_)
       | Self::InternalError(_)
       | Self::DatabaseClosed
+      | Self::ReservedWord(_)
       | Self::DataFusionError(_) => "XX000",
     }
   }
@@ -93,6 +95,7 @@ impl Error {
       | Self::InvalidQuery(msg)
       | Self::IOError(msg)
       | Self::SerdeError(msg)
+      | Self::ReservedWord(msg)
       | Self::InvalidTransactionState(msg) => msg.to_owned(),
       Self::InsufficientPrivilege => format!("permission denied"),
       Self::InternalError(msg) => {

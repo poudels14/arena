@@ -6,6 +6,7 @@ use super::User;
 
 pub static MANIFEST_FILE: &'static str = "MANIFEST.bin";
 pub static SYSTEM_CATALOG_NAME: &'static str = "postgres";
+pub static SYSTEM_SCHEMA_NAME: &'static str = "arena_schema";
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder)]
 pub struct Cluster {
