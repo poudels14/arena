@@ -23,13 +23,14 @@ pub const DEFAULT_EXTENSIONS: Lazy<Arc<Vec<ExecutionPlanExtension>>> =
 
 #[derive(Clone, Getters, new)]
 pub struct Transaction {
+  #[getset(get = "pub")]
   session_config: Arc<SessionConfig>,
   session_state: Arc<SessionState>,
   #[getset(get = "pub")]
   storage_transaction: storage::Transaction,
   sql_options: SQLOptions,
   #[getset(get = "pub")]
-  context: DfSessionContext,
+  datafusion_context: DfSessionContext,
   execution_plan_extensions: Arc<Vec<ExecutionPlanExtension>>,
 }
 
@@ -39,7 +40,7 @@ impl Transaction {
     &self,
     mut stmt: Box<SQLStatement>,
   ) -> Result<LogicalPlan> {
-    let state = self.context.state();
+    let state = self.datafusion_context.state();
 
     // Modify stmt if needed
     // THIS IS A HACK needed because table scan needs to return rowid
@@ -110,7 +111,10 @@ impl Transaction {
     stmt_type: &StatementType,
     plan: LogicalPlan,
   ) -> Result<ExecutionResponse> {
-    let df = self.context.execute_logical_plan(plan.clone()).await?;
+    let df = self
+      .datafusion_context
+      .execute_logical_plan(plan.clone())
+      .await?;
     let physical_plan = df.create_physical_plan().await?;
     self.execute_stream(stmt_type, physical_plan).await
   }
@@ -136,8 +140,10 @@ impl Transaction {
     stmt_type: &StatementType,
     physical_plan: Arc<dyn ExecutionPlan>,
   ) -> Result<ExecutionResponse> {
-    let response =
-      execute_stream(physical_plan.clone(), self.context.task_ctx().into())?;
+    let response = execute_stream(
+      physical_plan.clone(),
+      self.datafusion_context.task_ctx().into(),
+    )?;
     ExecutionResponse::from_stream(stmt_type, response).await
   }
 }

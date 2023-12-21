@@ -53,7 +53,7 @@ pub fn extension(
         bail_unsupported_query!("`INCLUDE` is not supported yet");
       }
 
-      let state = transaction.context().state();
+      let state = transaction.datafusion_context().state();
       let table_name = table_name.to_string();
       let table_ref = get_table_ref(&state, &table_name);
       let table_name = table_ref.table.as_ref().to_owned();

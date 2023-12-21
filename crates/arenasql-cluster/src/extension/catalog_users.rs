@@ -88,6 +88,14 @@ impl CustomExecutionPlan for SetCatalogUserCredentials {
     _partition: usize,
     _context: Arc<TaskContext>,
   ) -> Result<Pin<Box<dyn Stream<Item = Result<DataFrame>> + Send>>> {
+    let transaction_catalog =
+      self.transaction.session_config().catalog.as_ref();
+    if self.user.catalog != transaction_catalog {
+      return Err(Error::InvalidQuery(format!(
+        "Can't add user credential of catalog {:?} in catalog: {:?}",
+        self.user.catalog, transaction_catalog
+      )));
+    }
     let plan = self.clone();
     let query = async move {
       plan.transaction.execute_sql(CREATE_USERS_TABLE).await?;
@@ -178,6 +186,15 @@ impl CustomExecutionPlan for ListCatalogUserCredentials {
     _partition: usize,
     _context: Arc<TaskContext>,
   ) -> Result<ExecutionPlanResponse> {
+    let transaction_catalog =
+      self.transaction.session_config().catalog.as_ref();
+    if self.catalog != transaction_catalog {
+      return Err(Error::InvalidQuery(format!(
+        "Can't query user credential of catalog {:?} from catalog: {:?}",
+        self.catalog, transaction_catalog
+      )));
+    }
+
     let plan = self.clone();
     let query = async move {
       let mut dataframe = DataFrame::with_capacity(
