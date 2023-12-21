@@ -6,9 +6,15 @@ use nom::sequence::{pair, terminated};
 use nom::IResult;
 use pgwire::api::stmt::QueryParser;
 use pgwire::error::PgWireResult;
+use sqlparser::ast::Statement as SQLStatement;
 
-use super::ArenaQuery;
 use crate::auth::AuthHeader;
+
+#[derive(Debug, Clone)]
+pub struct ArenaQuery {
+  pub client: AuthHeader,
+  pub stmts: Vec<Box<SQLStatement>>,
+}
 
 pub struct ArenaQueryParser;
 

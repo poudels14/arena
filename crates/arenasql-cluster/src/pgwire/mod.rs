@@ -8,6 +8,5 @@ pub(crate) mod encoder;
 pub(crate) mod rowconverter;
 pub(crate) mod statement;
 
-pub use parser::ArenaQueryParser;
+pub use parser::{ArenaQuery, ArenaQueryParser};
 pub use portal::ArenaPortalStore;
-pub use statement::ArenaQuery;

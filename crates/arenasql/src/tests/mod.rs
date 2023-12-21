@@ -37,20 +37,23 @@ pub(super) fn create_session_context() -> SessionContext {
 
   let catalog: Arc<str> = "test".into();
   let schemas = Arc::new(vec![DEFAULT_SCHEMA_NAME.to_string()]);
-  SessionContext::with_config(SessionConfig {
-    runtime: runtime.into(),
-    df_runtime: Default::default(),
-    catalog: catalog.clone(),
-    schemas: schemas.clone(),
-    storage_factory: Arc::new(
-      StorageFactoryBuilder::default()
-        .catalog(catalog)
-        .kv_provider(storage)
-        .build()
-        .unwrap(),
-    ),
-    catalog_list_provider: Arc::new(SingleCatalogListProvider::new()),
-    privilege: Privilege::SUPER_USER,
-    ..Default::default()
-  })
+  SessionContext::new(
+    SessionConfig {
+      runtime: runtime.into(),
+      df_runtime: Default::default(),
+      catalog: catalog.clone(),
+      schemas: schemas.clone(),
+      storage_factory: Arc::new(
+        StorageFactoryBuilder::default()
+          .catalog(catalog)
+          .kv_provider(storage)
+          .build()
+          .unwrap(),
+      ),
+      catalog_list_provider: Arc::new(SingleCatalogListProvider::new()),
+      privilege: Privilege::SUPER_USER,
+      ..Default::default()
+    },
+    Default::default(),
+  )
 }

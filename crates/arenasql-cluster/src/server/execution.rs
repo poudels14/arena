@@ -1,12 +1,15 @@
+use std::pin::Pin;
 use std::sync::Arc;
+use std::task::{Context, Poll};
 
 use arenasql::ast::statement::StatementType;
 use arenasql::execution::Transaction;
 use arenasql::response::ExecutionResponse;
-use futures::StreamExt;
+use futures::{Stream, StreamExt};
 use pgwire::api::results::{FieldInfo, QueryResponse, Response, Tag};
 use pgwire::api::ClientInfo;
 use pgwire::error::PgWireResult;
+use pgwire::messages::data::DataRow;
 use sqlparser::ast::Statement;
 
 use super::ArenaSqlCluster;
@@ -77,34 +80,43 @@ impl ArenaSqlCluster {
       // Don't commit the SELECT statement's transaction since the
       // SELECT response stream will still need a valid transaction
       // when scanning rows
-      if !chained && !stmt_type.is_query() {
-        txn.commit()?;
-      }
-      Self::map_to_pgwire_response(&stmt_type, response).await?
+      let transaction_to_commit = if !chained { Some(txn) } else { None };
+      Self::map_to_pgwire_response(&stmt_type, response, transaction_to_commit)
+        .await?
     })
   }
 
   pub(crate) async fn map_to_pgwire_response<'a>(
     stmt_type: &StatementType,
     response: ExecutionResponse,
+    // If transaction is not None, it will be committed
+    // after the row stream is complete
+    transaction: Option<Transaction>,
   ) -> PgWireResult<Response<'a>> {
     match stmt_type {
       // TODO: drop future/stream when connection drops?
       StatementType::Query | StatementType::Execute => {
-        Self::to_row_stream(response)
+        Self::to_row_stream(response, transaction)
       }
-      _ => Ok(Response::Execution(Tag::new_for_execution(
-        stmt_type.to_string(),
-        Some(response.get_modified_rows()),
-      ))),
+      _ => {
+        if let Some(transaction) = transaction {
+          transaction.commit()?;
+        }
+        Ok(Response::Execution(Tag::new_for_execution(
+          stmt_type.to_string(),
+          Some(response.get_modified_rows()),
+        )))
+      }
     }
   }
 
   fn to_row_stream<'a>(
     response: ExecutionResponse,
+    // Transaction to commit at the end of the stream
+    transaction: Option<Transaction>,
   ) -> PgWireResult<Response<'a>> {
-    let stream = response.get_stream();
-    let fields: Vec<FieldInfo> = stream
+    let response_stream = response.get_stream();
+    let fields: Vec<FieldInfo> = response_stream
       .schema()
       .fields
       .iter()
@@ -113,7 +125,7 @@ impl ArenaSqlCluster {
     let schema = Arc::new(fields);
 
     let rows_schema = schema.clone();
-    let row_stream = stream.flat_map(move |batch| {
+    let row_stream = response_stream.flat_map(move |batch| {
       futures::stream::iter(match batch {
         Ok(batch) => rowconverter::convert_to_rows(&schema, &batch),
         Err(e) => {
@@ -121,6 +133,48 @@ impl ArenaSqlCluster {
         }
       })
     });
-    Ok(Response::Query(QueryResponse::new(rows_schema, row_stream)))
+    Ok(Response::Query(QueryResponse::new(
+      rows_schema,
+      row_stream.chain(StreamCompletionHook::new(Box::new(|| {
+        if let Some(txn) = transaction {
+          Ok(txn.commit()?)
+        } else {
+          Ok(())
+        }
+      }))),
+    )))
+  }
+}
+
+struct StreamCompletionHook<'a> {
+  hook: Option<Box<dyn (FnOnce() -> PgWireResult<()>) + Send + Sync + 'a>>,
+}
+
+impl<'a> StreamCompletionHook<'a> {
+  pub fn new<F>(hook: Box<F>) -> Self
+  where
+    F: (FnOnce() -> PgWireResult<()>) + Send + Sync + 'a,
+  {
+    Self { hook: Some(hook) }
+  }
+}
+
+impl<'a> Stream for StreamCompletionHook<'a> {
+  type Item = PgWireResult<DataRow>;
+
+  fn poll_next(
+    mut self: Pin<&mut Self>,
+    _cx: &mut Context<'_>,
+  ) -> Poll<Option<Self::Item>> {
+    let hook = self.hook.take().unwrap();
+    if let Err(err) = hook() {
+      Poll::Ready(Some(Err(err)))
+    } else {
+      Poll::Ready(None)
+    }
+  }
+
+  fn size_hint(&self) -> (usize, Option<usize>) {
+    (0, None)
   }
 }

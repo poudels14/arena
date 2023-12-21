@@ -27,15 +27,18 @@ async fn main() -> Result<()> {
   );
 
   let schemas = Arc::new(vec!["public".to_owned()]);
-  let session_context = SessionContext::with_config(SessionConfig {
-    runtime: runtime.into(),
-    df_runtime: Default::default(),
-    catalog: "arena".into(),
-    schemas: schemas.clone(),
-    storage_factory: storage_factory.clone(),
-    catalog_list_provider: Arc::new(SingleCatalogListProvider::new()),
-    ..Default::default()
-  });
+  let session_context = SessionContext::new(
+    SessionConfig {
+      runtime: runtime.into(),
+      df_runtime: Default::default(),
+      catalog: "arena".into(),
+      schemas: schemas.clone(),
+      storage_factory: storage_factory.clone(),
+      catalog_list_provider: Arc::new(SingleCatalogListProvider::new()),
+      ..Default::default()
+    },
+    Default::default(),
+  );
 
   {
     let txn = session_context.begin_transaction().unwrap();

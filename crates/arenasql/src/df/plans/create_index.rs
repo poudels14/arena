@@ -9,8 +9,8 @@ use futures::StreamExt;
 use sqlparser::ast::Statement as SQLStatement;
 
 use crate::df::providers::{get_schema_provider, get_table_ref};
-use crate::execution::Transaction;
-use crate::plans::{CustomExecutionPlan, ExecutionPlanResponse};
+use crate::execution::{CustomExecutionPlan, ExecutionPlanResponse};
+use crate::execution::{SessionState, Transaction};
 use crate::schema::{DataFrame, IndexType, Row, Table, TableIndex};
 use crate::storage::{KeyValueGroup, StorageHandler};
 use crate::{bail, table_rows_prefix_key, Error, Result};
@@ -23,6 +23,7 @@ macro_rules! bail_unsupported_query {
 
 /// Returns a custom execution plan extension to create index
 pub fn extension(
+  _state: &SessionState,
   transaction: &Transaction,
   stmt: &SQLStatement,
 ) -> Result<Option<Arc<dyn CustomExecutionPlan>>> {

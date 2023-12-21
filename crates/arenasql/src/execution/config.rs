@@ -5,7 +5,7 @@ use datafusion::execution::runtime_env::RuntimeEnv as DfRuntimeEnv;
 use super::Privilege;
 use crate::df::providers::catalog::CatalogListProvider;
 use crate::df::providers::NoopCatalogListProvider;
-use crate::plans::ExecutionPlanExtension;
+use crate::execution::ExecutionPlanExtension;
 use crate::runtime::RuntimeEnv;
 use crate::storage::{
   MemoryKeyValueStoreProvider, Serializer, StorageFactory,
@@ -20,7 +20,7 @@ pub struct SessionConfig {
   pub privilege: Privilege,
   pub storage_factory: Arc<StorageFactory>,
   pub catalog_list_provider: Arc<dyn CatalogListProvider>,
-  pub extensions: Arc<Vec<ExecutionPlanExtension>>,
+  pub execution_plan_extensions: Arc<Vec<ExecutionPlanExtension>>,
 }
 
 impl Default for SessionConfig {
@@ -42,13 +42,7 @@ impl Default for SessionConfig {
           .unwrap(),
       ),
       catalog_list_provider: Arc::new(NoopCatalogListProvider {}),
-      extensions: Arc::new(vec![]),
+      execution_plan_extensions: Arc::new(vec![]),
     }
   }
-}
-
-#[allow(dead_code)]
-#[derive(Clone)]
-pub struct TaskConfig {
-  pub(crate) runtime: Arc<RuntimeEnv>,
 }

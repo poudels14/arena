@@ -7,7 +7,6 @@ pub(crate) mod utils;
 
 pub mod ast;
 pub mod execution;
-pub mod plans;
 pub mod runtime;
 pub mod schema;
 pub mod storage;

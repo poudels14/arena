@@ -3,7 +3,8 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use arenasql::execution::{
-  Privilege, SessionConfig, SessionContext, DEFAULT_SCHEMA_NAME,
+  ExecutionPlanExtension, Privilege, SessionConfig, SessionContext,
+  DEFAULT_SCHEMA_NAME,
 };
 use arenasql::runtime::RuntimeEnv;
 use dashmap::DashMap;
@@ -18,9 +19,10 @@ use crate::auth::{
   AuthenticatedSessionStore,
 };
 use crate::error::{ArenaClusterError, ArenaClusterResult, Error};
+use crate::extension::admin_exetension;
 use crate::io::file::File;
 use crate::pgwire::{ArenaPortalStore, ArenaQueryParser};
-use crate::schema::{self, APPS_USERNAME, MANIFEST_FILE};
+use crate::schema::{self, ADMIN_USERNAME, APPS_USERNAME, MANIFEST_FILE};
 use crate::system::{
   ArenaClusterCatalogListProvider, CatalogListOptionsBuilder,
 };
@@ -113,7 +115,6 @@ impl ArenaSqlCluster {
             &DecodingKey::from_secret((&jwt_secret).as_ref()),
             &Validation::new(Algorithm::HS512),
           );
-          println!("verified_token = {:?}", verified_token);
           match verified_token {
             Ok(verified_token) => {
               let claims = verified_token
@@ -168,16 +169,30 @@ impl ArenaSqlCluster {
           .unwrap(),
       ));
 
-    let session_context = SessionContext::with_config(SessionConfig {
-      runtime: self.runtime.clone(),
-      df_runtime: Default::default(),
-      catalog: catalog.clone().into(),
-      schemas: Arc::new(vec![schema]),
-      storage_factory,
-      catalog_list_provider,
-      privilege,
-      ..Default::default()
-    });
+    let (schemas, extensions): (Vec<String>, Vec<ExecutionPlanExtension>) =
+      match user == ADMIN_USERNAME {
+        true => (
+          // Give access to "pg_catalog" for ADMIN users
+          vec!["pg_catalog".to_owned(), schema],
+          vec![Arc::new(admin_exetension)],
+        ),
+        false => (vec![schema], vec![]),
+      };
+
+    let session_context = SessionContext::new(
+      SessionConfig {
+        runtime: self.runtime.clone(),
+        df_runtime: Default::default(),
+        catalog: catalog.clone().into(),
+        schemas: Arc::new(schemas),
+        storage_factory,
+        catalog_list_provider,
+        execution_plan_extensions: Arc::new(extensions),
+        privilege,
+        ..Default::default()
+      },
+      Default::default(),
+    );
 
     // Generate a random session_id if it's None
     // The auth request for app queries will have session_id set by the

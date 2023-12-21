@@ -18,8 +18,7 @@ use pgwire::messages::extendedquery::{Bind, BindComplete};
 use pgwire::messages::PgWireBackendMessage;
 
 use super::portal::ArenaPortalState;
-use super::statement::ArenaQuery;
-use super::{ArenaPortalStore, ArenaQueryParser};
+use super::{ArenaPortalStore, ArenaQuery, ArenaQueryParser};
 use crate::pgwire::datatype;
 use crate::server::ArenaSqlCluster;
 
@@ -119,10 +118,10 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
       .await?;
     // Commit the transaction if it's not a chained transaction
     // i.e. if it wasn't explicitly started by `BEGIN` command
-    if !chained {
-      transaction.commit()?;
-    }
-    Self::map_to_pgwire_response(&stmt_type, response).await
+    let transaction_to_commit = if !chained { Some(transaction) } else { None };
+
+    Self::map_to_pgwire_response(&stmt_type, response, transaction_to_commit)
+      .await
   }
 
   fn portal_store<C>(&self, client: &C) -> Arc<Self::PortalStore>

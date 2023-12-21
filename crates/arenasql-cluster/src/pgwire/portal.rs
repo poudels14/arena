@@ -7,7 +7,7 @@ use pgwire::api::portal::Portal;
 use pgwire::api::stmt::StoredStatement;
 use pgwire::api::store::PortalStore;
 
-use super::statement::ArenaQuery;
+use super::ArenaQuery;
 
 #[derive(Debug, Default, Clone, Getters, Setters)]
 #[getset(get = "pub", set = "pub")]

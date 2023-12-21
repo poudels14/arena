@@ -12,10 +12,10 @@ use once_cell::sync::Lazy;
 use sqlparser::ast::Statement as SQLStatement;
 
 use super::response::ExecutionResponse;
-use super::SessionConfig;
+use super::{CustomExecutionPlanAdapter, ExecutionPlanExtension};
+use super::{SessionConfig, SessionState};
 use crate::ast::statement::StatementType;
 use crate::df::plans::{create_index, insert_rows};
-use crate::plans::{CustomExecutionPlanAdapter, ExecutionPlanExtension};
 use crate::{storage, Error, Result};
 
 pub const DEFAULT_EXTENSIONS: Lazy<Arc<Vec<ExecutionPlanExtension>>> =
@@ -24,12 +24,13 @@ pub const DEFAULT_EXTENSIONS: Lazy<Arc<Vec<ExecutionPlanExtension>>> =
 #[derive(Clone, Getters, new)]
 pub struct Transaction {
   session_config: Arc<SessionConfig>,
+  session_state: Arc<SessionState>,
   #[getset(get = "pub")]
   storage_transaction: storage::Transaction,
   sql_options: SQLOptions,
   #[getset(get = "pub")]
   context: DfSessionContext,
-  extensions: Arc<Vec<ExecutionPlanExtension>>,
+  execution_plan_extensions: Arc<Vec<ExecutionPlanExtension>>,
 }
 
 impl Transaction {
@@ -84,8 +85,8 @@ impl Transaction {
     let stmt_type = StatementType::from(stmt.as_ref());
     let custom_plan = DEFAULT_EXTENSIONS
       .iter()
-      .chain(self.extensions.iter())
-      .find_map(|ext| ext(&self, &stmt).transpose())
+      .chain(self.execution_plan_extensions.iter())
+      .find_map(|ext| ext(&self.session_state, &self, &stmt).transpose())
       .transpose()?;
     match custom_plan {
       Some(plan) => {

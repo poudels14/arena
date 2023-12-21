@@ -20,8 +20,11 @@ use sqlparser::ast::Statement as SQLStatement;
 use crate::execution::Transaction;
 use crate::schema::DataFrame;
 
+use super::SessionState;
+
 pub type ExecutionPlanExtension = Arc<
   dyn Fn(
+      &SessionState,
       &Transaction,
       &SQLStatement,
     ) -> crate::Result<Option<Arc<dyn CustomExecutionPlan>>>

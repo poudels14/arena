@@ -7,9 +7,9 @@ use datafusion::execution::context::{
 use derivative::Derivative;
 use sqlparser::ast::Statement as SQLStatement;
 
-use super::config::TaskConfig;
 use super::custom_functions;
 use super::planner::ArenaQueryPlanner;
+use super::state::SessionState;
 use super::transaction::Transaction;
 use super::{response::ExecutionResponse, SessionConfig};
 use crate::{Error, Result};
@@ -21,26 +21,25 @@ pub static DEFAULT_SCHEMA_NAME: &'static str = "public";
 pub struct SessionContext {
   #[derivative(Debug = "ignore")]
   pub config: Arc<SessionConfig>,
+  pub state: Arc<SessionState>,
   df_session_config: DfSessionConfig,
 }
 
 impl SessionContext {
-  pub fn with_config(config: SessionConfig) -> Self {
+  pub fn new(config: SessionConfig, state: SessionState) -> Self {
     let mut df_session_config = DfSessionConfig::new()
       .with_information_schema(false)
       .with_default_catalog_and_schema(
         config.catalog.as_ref(),
         DEFAULT_SCHEMA_NAME,
       )
-      .with_create_default_catalog_and_schema(false)
-      .with_extension(Arc::new(TaskConfig {
-        runtime: config.runtime.clone(),
-      }));
+      .with_create_default_catalog_and_schema(false);
     df_session_config.options_mut().sql_parser.dialect =
       "PostgreSQL".to_owned();
 
     Self {
       config: Arc::new(config),
+      state: Arc::new(state),
       df_session_config,
     }
   }
@@ -86,10 +85,11 @@ impl SessionContext {
     let sql_options = SQLOptions::new();
     Ok(Transaction::new(
       self.config.clone(),
+      self.state.clone(),
       storage_transaction,
       sql_options,
       session_context,
-      self.config.extensions.clone(),
+      self.config.execution_plan_extensions.clone(),
     ))
   }
 }
