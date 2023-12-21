@@ -21,7 +21,7 @@ use std::thread;
 use tokio::sync::{mpsc, oneshot};
 use url::Url;
 
-pub(crate) struct FsModuleLoader {
+pub struct FsModuleLoader {
   transpile: bool,
   transpiler_stream:
     mpsc::Sender<(HttpRequest, oneshot::Sender<ParsedHttpResponse>)>,
@@ -41,6 +41,15 @@ impl FsModuleLoader {
     let project_root = option.resolver.project_root.clone();
 
     if option.transpile {
+      // TODO(sagar): idk why doing this fixes segfault when creating another
+      // runtime for transpiling in a new thread
+      let _ = IsolatedRuntime::new(RuntimeOptions {
+        project_root: Some(project_root.clone()),
+        config: Some(ArenaConfig::default()),
+        ..Default::default()
+      })
+      .unwrap();
+
       thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_current_thread()
           .enable_all()
