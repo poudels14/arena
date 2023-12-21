@@ -41,9 +41,10 @@ impl QueryPlanner for ArenaQueryPlanner {
         match op {
           WriteOp::InsertInto | WriteOp::InsertOverwrite => {}
           WriteOp::Delete | WriteOp::Update => {
-            let table_name = table_name.to_string();
-            let table_ref = get_table_ref(&state, &table_name);
+            let table_ref_str = table_name.to_string();
+            let table_ref = get_table_ref(&state, &table_ref_str);
             let schema_provider = get_schema_provider(state, &table_ref)?;
+            let table_name = table_ref.table.as_ref().to_string();
 
             let table_provider = schema_provider
               .table(&table_name)
