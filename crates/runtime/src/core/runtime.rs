@@ -10,7 +10,6 @@ use deno_core::{Extension, JsRuntime, Snapshot};
 use deno_fetch::CreateHttpClientOptions;
 use derivative::Derivative;
 use tracing::error;
-use tracing::trace;
 use url::Url;
 
 use super::moduleloader::DefaultModuleLoader;
@@ -78,12 +77,6 @@ pub struct IsolatedRuntime {
 
 impl IsolatedRuntime {
   pub fn new(mut options: RuntimeOptions) -> Result<IsolatedRuntime> {
-    tokio::task::spawn_local(async {
-      trace!("")
-      // span a noop task to make sure runtime is started in a local taskset
-      // this will guarantee that ops can spawn local tasks from extensions
-      // and other startup code
-    });
     let permissions = options.permissions.clone();
     let runtime_config = options.config.clone();
     let user_agent = options

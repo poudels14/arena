@@ -1,15 +1,17 @@
+use std::rc::Rc;
+
 use anyhow::Result;
 use clap::Parser;
-use cloud::CloudExtensionProvider;
-use common::arena::ArenaConfig;
-use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
-use deno_core::resolve_url_or_path;
-use jsruntime::permissions::{
+use runtime::config::{ArenaConfig, RuntimeConfig};
+use runtime::deno::core::resolve_url_or_path;
+use runtime::extensions::{BuiltinExtensionProvider, BuiltinModule};
+use runtime::permissions::{
   FileSystemPermissions, NetPermissions, PermissionsContainer,
 };
-use jsruntime::{IsolatedRuntime, RuntimeOptions};
-use std::collections::HashSet;
-use std::rc::Rc;
+use runtime::{
+  FileModuleLoader, FilePathResolver, IsolatedRuntime, ModuleLoaderOption,
+  RuntimeOptions,
+};
 
 #[derive(Parser, Debug)]
 pub struct Command {
@@ -54,12 +56,14 @@ impl Command {
       ])
     }
 
-    let cloud_ext =
-      BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider {
-        publisher: None,
-      }));
     if self.enable_cloud_ext {
-      builtin_modules.push(cloud_ext.clone());
+      // TODO
+      // let cloud_ext =
+      //   BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider {
+      //     publisher: None,
+      //   }));
+      // builtin_modules.push(cloud_ext.clone());
+      unimplemented!()
     }
 
     let egress_addr = self
@@ -68,40 +72,29 @@ impl Command {
       .map(|addr| addr.parse())
       .transpose()?;
     let mut runtime = IsolatedRuntime::new(RuntimeOptions {
-      project_root: Some(project_root.clone()),
-      config: Some(ArenaConfig::find_in_path_hierachy().unwrap_or_default()),
-      enable_console: true,
-      transpile: !self.disable_transpile,
-      builtin_extensions: BuiltinExtensions::with_modules(builtin_modules),
-      permissions: PermissionsContainer {
-        fs: Some(FileSystemPermissions {
-          allowed_read_paths: HashSet::from_iter(vec![
-            // allow all files
-            "/".to_owned(),
-          ]),
-          allowed_write_paths: HashSet::from_iter(vec![
-            // allow all files
-            "/".to_owned(),
-          ]),
-          ..Default::default()
-        }),
-        net: Some(NetPermissions {
-          restricted_urls: Some(HashSet::new()),
-          ..Default::default()
-        }),
+      config: RuntimeConfig {
+        egress_addr,
         ..Default::default()
       },
-      egress_addr,
+      enable_console: true,
+      module_loader: Some(Rc::new(FileModuleLoader::new(ModuleLoaderOption {
+        transpile: !self.disable_transpile,
+        resolver: Rc::new(FilePathResolver::new(
+          project_root.clone(),
+          Default::default(),
+        )),
+      }))),
+      builtin_extensions: builtin_modules
+        .iter()
+        .map(|m| m.get_extension())
+        .collect(),
+      permissions: PermissionsContainer {
+        fs: Some(FileSystemPermissions::allow_all("/".into())),
+        net: Some(NetPermissions::allow_all()),
+        ..Default::default()
+      },
       ..Default::default()
     })?;
-
-    if self.enable_cloud_ext {
-      // TODO(sagar): use a snapshot for this
-      let mut rt = runtime.runtime.borrow_mut();
-      BuiltinExtensions::with_modules(vec![cloud_ext])
-        .load_snapshot_modules(&mut rt)?;
-      drop(rt);
-    }
 
     let main_module =
       resolve_url_or_path(&self.file, &std::env::current_dir()?)?;

@@ -4,12 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-fs_rerun_if_changed = []
 ast = []
 dotenv = []
-deno = []
-data_query = []
-all = ["ast", "dotenv", "deno", "data_query"]
+all = ["ast", "dotenv"]
 
 [dependencies]
 anyhow.workspace = true
@@ -19,56 +16,10 @@ serde_json.workspace = true
 indexmap.workspace = true
 url.workspace = true
 tokio.workspace = true
-tokio-stream.workspace = true
 http.workspace = true
-hyper.workspace = true
-tower.workspace = true
-tower-http.workspace = true
-http-body.workspace = true
 axum.workspace = true
-fastwebsockets.workspace = true
 tracing.workspace = true
-futures.workspace = true
-bytes.workspace = true
-postgres.workspace = true
-tokio-postgres.workspace = true
-tokio-rustls.workspace = true
-rustls.workspace = true
-rustls-pemfile.workspace = true
-webpki-roots.workspace = true
-rustls-native-certs.workspace = true
-heck.workspace = true
 uuid.workspace = true
-ring.workspace = true
-chrono.workspace = true
-pathdiff.workspace = true
 once_cell.workspace = true
 simdutf8.workspace = true
 dotenvy.workspace = true
-mime.workspace = true
-reqwest.workspace = true
-rusqlite.workspace = true
-
-digest.workspace = true
-base64.workspace = true
-hex.workspace = true
-md4.workspace = true
-md-5.workspace = true
-sha-1.workspace = true
-sha2.workspace = true
-ripemd.workspace = true
-rand.workspace = true
-
-swc_common.workspace = true
-swc_atoms.workspace = true
-swc_ecma_visit.workspace = true
-swc_ecma_ast.workspace = true
-swc_ecma_parser.workspace = true
-swc_ecma_transforms_base.workspace = true
-swc_ecma_codegen.workspace = true
-
-deno_core.workspace = true
-deno_fetch.workspace = true
-deno_web.workspace = true
-deno_ast.workspace = true
-deno_tls.workspace = true

@@ -1,18 +1,20 @@
-use anyhow::{bail, Result};
-use clap::Parser;
-use cloud::CloudExtensionProvider;
-use common::arena::ArenaConfig;
-use common::deno::extensions::server::HttpServerConfig;
-use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
-use deno_core::resolve_url_or_path;
-use jsruntime::permissions::{
-  FileSystemPermissions, NetPermissions, PermissionsContainer,
-};
-use jsruntime::{IsolatedRuntime, RuntimeOptions};
-use std::collections::HashSet;
 use std::env::current_dir;
 use std::path::Path;
 use std::rc::Rc;
+
+use anyhow::{bail, Result};
+use clap::Parser;
+use runtime::config::ArenaConfig;
+use runtime::deno::core::resolve_url_or_path;
+use runtime::extensions::server::HttpServerConfig;
+use runtime::extensions::{BuiltinExtensionProvider, BuiltinModule};
+use runtime::permissions::{
+  FileSystemPermissions, NetPermissions, PermissionsContainer,
+};
+use runtime::{
+  FileModuleLoader, FilePathResolver, IsolatedRuntime, ModuleLoaderOption,
+  RuntimeOptions,
+};
 use url::Url;
 
 #[derive(Parser, Debug)]
@@ -44,8 +46,7 @@ pub struct Command {
 impl Command {
   #[tracing::instrument(skip_all)]
   pub async fn execute(&self) -> Result<()> {
-    let cwd_path = current_dir()?;
-    let cwd = cwd_path.to_str().unwrap();
+    let cwd = current_dir()?;
     let project_root = ArenaConfig::find_project_root()?;
 
     let mut builtin_modules = vec![
@@ -81,72 +82,53 @@ impl Command {
       ]);
     }
 
-    let cloud_ext =
-      BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider {
-        publisher: None,
-      }));
+    let builtin_extensions =
+      builtin_modules.iter().map(|m| m.get_extension()).collect();
+
     if self.enable_cloud_ext {
-      builtin_modules.push(cloud_ext.clone());
+      // TODO
+      // let cloud_ext =
+      //   BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider {
+      //     publisher: None,
+      //   }));
+      // builtin_extensions.push(value)
+      unimplemented!()
     }
 
     let mut runtime = IsolatedRuntime::new(RuntimeOptions {
-      project_root: Some(project_root.clone()),
-      config: Some(ArenaConfig::load(&project_root).unwrap_or_default()),
       enable_console: true,
-      transpile: self.transpile,
-      builtin_extensions: BuiltinExtensions::with_modules(builtin_modules),
+      module_loader: Some(Rc::new(FileModuleLoader::new(ModuleLoaderOption {
+        transpile: self.transpile,
+        resolver: Rc::new(FilePathResolver::new(
+          cwd.clone(),
+          Default::default(),
+        )),
+      }))),
+      builtin_extensions,
       enable_arena_global: self.enable_cloud_ext,
       permissions: PermissionsContainer {
-        fs: Some(FileSystemPermissions {
-          root: cwd_path.clone(),
-          allowed_read_paths: HashSet::from_iter(vec![
-            // allow all files in current directory
-            cwd.to_string(),
-          ]),
-          allowed_write_paths: HashSet::from_iter(vec![
-            // allow all files in current directory
-            cwd.to_string(),
-          ]),
-          ..Default::default()
-        }),
-        net: Some(NetPermissions {
-          restricted_urls: Some(HashSet::new()),
-          ..Default::default()
-        }),
+        fs: Some(FileSystemPermissions::allow_all(cwd.clone())),
+        net: Some(NetPermissions::allow_all()),
         ..Default::default()
       },
       ..Default::default()
     })?;
 
-    if self.enable_cloud_ext {
-      // TODO(sagar): use a snapshot for this
-      let mut rt = runtime.runtime.borrow_mut();
-      BuiltinExtensions::with_modules(vec![cloud_ext])
-        .load_snapshot_modules(&mut rt)?;
-      drop(rt);
-    }
+    let entry_file = resolve_url_or_path(&self.entry, &cwd)?;
+    runtime
+      .execute_main_module_code(
+        &Url::parse("file:///main").unwrap(),
+        &format!(
+          r#"
+          import {{ serve }} from "@arena/runtime/server";
+          import handler from "{0}";
+          serve(handler);
+          "#,
+          entry_file
+        ),
+      )
+      .await?;
 
-    let entry_file = resolve_url_or_path(&self.entry, &cwd_path)?;
-
-    let local = tokio::task::LocalSet::new();
-    local
-      .run_until(async move {
-        runtime
-          .execute_main_module_code(
-            &Url::parse("file:///main").unwrap(),
-            &format!(
-              r#"
-              import {{ serve }} from "@arena/runtime/server";
-              import handler from "{0}";
-              serve(handler);
-              "#,
-              entry_file
-            ),
-          )
-          .await?;
-
-        runtime.run_event_loop().await
-      })
-      .await
+    runtime.run_event_loop().await
   }
 }

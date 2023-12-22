@@ -1,8 +1,7 @@
 use anyhow::{bail, Result};
 use clap::Parser;
 use colored::*;
-use common;
-use common::utils::fs::has_file_in_file_tree;
+use runtime::utils::fs::has_file_in_file_tree;
 use std::env;
 use std::path::{Path, PathBuf};
 use std::process;

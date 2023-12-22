@@ -1,8 +1,7 @@
-mod exec;
+mod app;
 mod format;
 mod run;
 mod server;
-mod workspace;
 
 use anyhow::bail;
 use anyhow::Result;
@@ -29,16 +28,13 @@ enum Commands {
   /// Execute a js file
   Run(run::Command),
 
-  /// Execute inline JS; dagger exec "console.log('test')"
-  Exec(exec::Command),
-
   /// Http server
   #[command(subcommand)]
   Server(server::Command),
 
-  /// Arena workspace commands
+  /// Arena app commands
   #[command(subcommand)]
-  Workspace(workspace::Command),
+  App(app::Command),
 
   /// Format code using default formatters;
   /// e.g. `pnmp prettier -w` for js and `cargo fmt` rust
@@ -46,8 +42,7 @@ enum Commands {
   Format(format::Command),
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
   let subscriber = tracing_subscriber::registry()
     .with(
       tracing_subscriber::filter::EnvFilter::from_default_env()
@@ -72,22 +67,31 @@ async fn main() -> Result<()> {
   .iter()
   .for_each(|(key, value)| env::set_var(key, value));
 
-  let res: Result<()> = async {
-    match args.command {
-      Commands::Run(cmd) => cmd.execute().await?,
-      Commands::Exec(cmd) => cmd.execute().await?,
-      Commands::Server(cmd) => cmd.execute().await?,
-      Commands::Workspace(cmd) => cmd.execute().await?,
-      Commands::Format(cmd) => cmd.execute().await?,
-    };
-    Ok(())
-  }
-  .await;
+  let rt = tokio::runtime::Builder::new_current_thread()
+    .enable_io()
+    .enable_time()
+    .worker_threads(1)
+    .build()?;
 
-  match res.as_ref() {
+  let local = tokio::task::LocalSet::new();
+  let res = local.block_on(&rt, async {
+    async {
+      match args.command {
+        Commands::Run(cmd) => cmd.execute().await?,
+        Commands::App(cmd) => cmd.execute().await?,
+        Commands::Server(cmd) => cmd.execute().await?,
+        Commands::Format(cmd) => cmd.execute().await?,
+      };
+      Ok::<(), anyhow::Error>(())
+    }
+    .await
+  });
+
+  match res {
     Err(e) => {
       // colorize the error
-      bail!(format!("{}", e).red().bold())
+      eprintln!("Error: {}", format!("{:?}", e.to_string()).red().bold());
+      bail!(e)
     }
     _ => Ok(()),
   }

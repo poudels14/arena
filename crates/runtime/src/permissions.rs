@@ -95,6 +95,18 @@ pub struct FileSystemPermissions {
   pub allowed_write_paths: HashSet<String>,
 }
 
+impl FileSystemPermissions {
+  // Allow both read and write on the given path
+  pub fn allow_all(root: PathBuf) -> Self {
+    let path = root.to_str().expect("Invalid root path").to_owned();
+    Self {
+      root,
+      allowed_read_paths: HashSet::from_iter(vec![path.to_owned()]),
+      allowed_write_paths: HashSet::from_iter(vec![path]),
+    }
+  }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
 pub struct PermissionsContainer {
   pub timer: Option<TimerPermissions>,
