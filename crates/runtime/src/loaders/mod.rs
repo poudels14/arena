@@ -1,5 +1,5 @@
 mod fs;
 mod transpiler;
 
-pub use fs::FileModuleLoader;
-pub use fs::ModuleLoaderOption;
+#[cfg(feature = "build-tools")]
+pub use fs::{FileModuleLoader, ModuleLoaderOption};

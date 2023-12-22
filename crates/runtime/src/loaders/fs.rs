@@ -34,6 +34,7 @@ pub struct ModuleLoaderOption {
   pub resolver: Rc<dyn Resolver>,
 }
 
+#[cfg(feature = "build-tools")]
 impl FileModuleLoader {
   pub fn new(option: ModuleLoaderOption) -> Self {
     let (stream_tx, stream_rx) = mpsc::channel(15);
