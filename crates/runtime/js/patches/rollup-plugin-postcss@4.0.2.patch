@@ -1,0 +1,21 @@
+diff --git a/dist/index.js b/dist/index.js
+index 8ca4cf35ac17b3874f116a5620c6816854311099..332229bca229b8f15d220eddec3b6c2f47d3943d 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -188,8 +188,6 @@ var normalizePath = (path => path && path.replace(/\\+/g, '/'));
+ 
+ const humanlizePath = filepath => normalizePath(path__default['default'].relative(process.cwd(), filepath));
+ 
+-const styleInjectPath = require.resolve('style-inject/dist/style-inject.es').replace(/[\\/]+/g, '/');
+-
+ function loadConfig(id, {
+   ctx: configOptions,
+   path: configPath
+@@ -402,6 +400,7 @@ var postcssLoader = {
+       }
+ 
+       if (!shouldExtract && shouldInject) {
++	const styleInjectPath = require.resolve('style-inject/dist/style-inject.es').replace(/[\\/]+/g, '/');
+         output += typeof options.inject === 'function' ? options.inject(cssVariableName, _this.id) : '\n' + `import styleInject from '${styleInjectPath}';\n` + `styleInject(${cssVariableName}${Object.keys(options.inject).length > 0 ? `,${JSON.stringify(options.inject)}` : ''});`;
+       }
+ 
