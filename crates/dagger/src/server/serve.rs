@@ -4,6 +4,7 @@ use std::rc::Rc;
 
 use anyhow::{bail, Result};
 use clap::Parser;
+use runtime::buildtools::{FileModuleLoader, FilePathResolver};
 use runtime::config::ArenaConfig;
 use runtime::deno::core::resolve_url_or_path;
 use runtime::extensions::server::HttpServerConfig;
@@ -11,10 +12,7 @@ use runtime::extensions::{BuiltinExtensionProvider, BuiltinModule};
 use runtime::permissions::{
   FileSystemPermissions, NetPermissions, PermissionsContainer,
 };
-use runtime::{
-  FileModuleLoader, FilePathResolver, IsolatedRuntime, ModuleLoaderOption,
-  RuntimeOptions,
-};
+use runtime::{IsolatedRuntime, RuntimeOptions};
 use url::Url;
 
 #[derive(Parser, Debug)]
@@ -97,13 +95,10 @@ impl Command {
 
     let mut runtime = IsolatedRuntime::new(RuntimeOptions {
       enable_console: true,
-      module_loader: Some(Rc::new(FileModuleLoader::new(ModuleLoaderOption {
-        transpile: self.transpile,
-        resolver: Rc::new(FilePathResolver::new(
-          cwd.clone(),
-          Default::default(),
-        )),
-      }))),
+      module_loader: Some(Rc::new(FileModuleLoader::new(
+        Rc::new(FilePathResolver::new(cwd.clone(), Default::default())),
+        None,
+      ))),
       builtin_extensions,
       enable_arena_global: self.enable_cloud_ext,
       permissions: PermissionsContainer {

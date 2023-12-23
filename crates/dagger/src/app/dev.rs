@@ -52,7 +52,7 @@ impl Command {
       "Startin dev server at {}:{}",
       server_options.address, server_options.port
     );
-    server::start_server(
+    server::start_js_server(
       server_options,
       &format!(
         r#"

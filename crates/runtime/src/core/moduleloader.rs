@@ -58,11 +58,18 @@ impl ModuleLoader for DefaultModuleLoader {
     maybe_referrer: Option<&ModuleSpecifier>,
     is_dyn_import: bool,
   ) -> Pin<Box<ModuleSourceFuture>> {
+    let specifier_str = module_specifier.as_str().to_owned();
     match self.extension.as_ref() {
       Some(loader) => {
         loader.load(module_specifier, maybe_referrer, is_dyn_import)
       }
-      _ => async { bail!("Module loading not enabled") }.boxed_local(),
+      _ => async move {
+        bail!(
+          "Module loading not enabled. Trying to load: {:?}",
+          specifier_str
+        )
+      }
+      .boxed_local(),
     }
   }
 

@@ -33,7 +33,7 @@ impl Resolver for ModuleResolver {
       // 1. Apply the URL parser to specifier.
       //    If the result is not failure, return he result.
       Ok(url) => {
-        debug!("module resolution not needed");
+        debug!("module resolution not needed: {}", specifier);
         Ok(url)
       }
       Err(err) => match self.extension.as_ref() {

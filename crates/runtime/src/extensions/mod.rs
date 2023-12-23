@@ -1,6 +1,7 @@
 mod r#macro;
 
 pub mod babel;
+pub mod builtin_loader;
 pub mod bundler;
 pub mod env;
 pub mod filerouter;
@@ -143,7 +144,7 @@ impl BuiltinExtensions {
         for module in &extension.modules {
           let (specifier, code) = module;
           debug!(
-            "Loading built-in module into the runtime: {}, code len = {}",
+            "Loading built-in module into the runtime: {:?}, code len = {}",
             specifier,
             code.code().len()
           );

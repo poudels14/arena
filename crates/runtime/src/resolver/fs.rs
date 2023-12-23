@@ -55,10 +55,7 @@ impl Resolver for FilePathResolver {
     let url = match Url::parse(&specifier) {
       // 1. Apply the URL parser to specifier.
       //    If the result is not failure, return he result.
-      Ok(url) => {
-        debug!("module resolution not needed");
-        url
-      }
+      Ok(url) => url,
 
       // 2. If specifier does not start with the character U+002F SOLIDUS (/),
       //    the two-character sequence U+002E FULL STOP, U+002F SOLIDUS (./),

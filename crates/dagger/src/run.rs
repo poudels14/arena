@@ -2,16 +2,14 @@ use std::rc::Rc;
 
 use anyhow::Result;
 use clap::Parser;
+use runtime::buildtools::{FileModuleLoader, FilePathResolver};
 use runtime::config::{ArenaConfig, RuntimeConfig};
 use runtime::deno::core::resolve_url_or_path;
 use runtime::extensions::{BuiltinExtensionProvider, BuiltinModule};
 use runtime::permissions::{
   FileSystemPermissions, NetPermissions, PermissionsContainer,
 };
-use runtime::{
-  FileModuleLoader, FilePathResolver, IsolatedRuntime, ModuleLoaderOption,
-  RuntimeOptions,
-};
+use runtime::{IsolatedRuntime, RuntimeOptions};
 
 #[derive(Parser, Debug)]
 pub struct Command {
@@ -77,13 +75,13 @@ impl Command {
         ..Default::default()
       },
       enable_console: true,
-      module_loader: Some(Rc::new(FileModuleLoader::new(ModuleLoaderOption {
-        transpile: !self.disable_transpile,
-        resolver: Rc::new(FilePathResolver::new(
+      module_loader: Some(Rc::new(FileModuleLoader::new(
+        Rc::new(FilePathResolver::new(
           project_root.clone(),
           Default::default(),
         )),
-      }))),
+        None,
+      ))),
       builtin_extensions: builtin_modules
         .iter()
         .map(|m| m.get_extension())
