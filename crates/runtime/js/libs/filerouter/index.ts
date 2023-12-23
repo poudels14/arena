@@ -15,13 +15,11 @@ type FileLoaderOptions = {
  * files given the file path
  */
 const createFileLoader = (options: FileLoaderOptions) => {
-  const env = merge(process.env, Arena.config?.client?.env, options.env);
-
+  const env = merge(process.env, options.env);
   const resolverConfig = merge(
     {
       preserveSymlink: true,
     },
-    Arena.config?.client?.javascript?.resolve,
     pick(
       options.resolve || {},
       "preserveSymlink",
@@ -55,6 +53,7 @@ const createFileLoader = (options: FileLoaderOptions) => {
       let content;
       let responseContentType = contentType;
       if ([".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"].includes(ext)) {
+        responseContentType = "application/javascript";
         content = await transpiler.transpiledJavascript(filename, ext);
       } else if ([".css"].includes(ext)) {
         content = await transpiler.transformedCss(filename, ext);

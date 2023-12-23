@@ -59,7 +59,7 @@ impl ArenaConfig {
     let content = fs::read(file).map_err(|e| anyhow!("{}: {:?}", e, file))?;
     let package = serde_json::from_slice::<Package>(&content)?;
 
-    package
+    let config = package
       .arena
       .map(|mut a| {
         a.name = package.name;
@@ -106,12 +106,8 @@ impl ArenaConfig {
 
         a
       })
-      .ok_or_else(|| {
-        anyhow!(
-          "Arena config missing from package.json at {}",
-          file.as_os_str().to_str().unwrap()
-        )
-      })
+      .unwrap_or_default();
+    Ok(config)
   }
 }
 

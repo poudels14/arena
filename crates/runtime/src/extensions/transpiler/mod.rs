@@ -11,9 +11,7 @@ use deno_ast::EmitOptions;
 use deno_ast::MediaType;
 use deno_ast::ParseParams;
 use deno_ast::SourceTextInfo;
-use deno_core::{
-  op2, Extension, Op, OpState, Resource, ResourceId, StringOrBuffer,
-};
+use deno_core::{op2, Extension, Op, OpState, Resource, ResourceId};
 use indexmap::IndexMap;
 use serde::Deserialize;
 use serde::Serialize;
@@ -54,7 +52,7 @@ pub fn init() -> Extension {
 #[derive(Serialize)]
 struct TranspileResult {
   /// transpiled code
-  code: Option<StringOrBuffer>,
+  code: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -210,8 +208,5 @@ fn transpile_code(
       },
     )?
     .text;
-
-  Ok(TranspileResult {
-    code: Some(StringOrBuffer::String(parsed_code)),
-  })
+  Ok(TranspileResult { code: parsed_code })
 }
