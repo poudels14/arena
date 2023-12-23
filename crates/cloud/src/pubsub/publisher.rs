@@ -2,8 +2,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use deno_core::Resource;
 use derivative::Derivative;
+use runtime::deno::core::Resource;
 use tokio::sync::{mpsc, Mutex};
 
 use super::{EventBuffer, IncomingEvent, OutgoingEvent};

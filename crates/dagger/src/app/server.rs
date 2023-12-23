@@ -2,11 +2,14 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use anyhow::Result;
+use cloud::CloudExtensionProvider;
 use runtime::buildtools::{
   BabelTranspiler, FileModuleLoader, FilePathResolver,
 };
 use runtime::extensions::server::HttpServerConfig;
-use runtime::extensions::{BuiltinExtensionProvider, BuiltinModule};
+use runtime::extensions::{
+  BuiltinExtension, BuiltinExtensionProvider, BuiltinModule,
+};
 use runtime::permissions::{
   FileSystemPermissions, NetPermissions, PermissionsContainer,
 };
@@ -41,11 +44,6 @@ pub(super) async fn start_js_server(
   ];
 
   if options.transpile {
-    // TODO
-    // let cloud_ext =
-    // BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider {
-    //   publisher: None,
-    // }));
     builtin_modules.extend(vec![
       BuiltinModule::Sqlite,
       BuiltinModule::Resolver(options.root_dir.clone()),
@@ -55,13 +53,19 @@ pub(super) async fn start_js_server(
     ])
   }
 
+  let mut builtin_extensions: Vec<BuiltinExtension> =
+    builtin_modules.iter().map(|m| m.get_extension()).collect();
+  builtin_extensions.push(
+    BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider {
+      publisher: None,
+    }))
+    .get_extension(),
+  );
+
   let mut runtime = IsolatedRuntime::new(RuntimeOptions {
     enable_console: true,
     enable_arena_global: true,
-    builtin_extensions: builtin_modules
-      .iter()
-      .map(|m| m.get_extension())
-      .collect(),
+    builtin_extensions,
     module_loader: Some(Rc::new(FileModuleLoader::new(
       Rc::new(FilePathResolver::new(
         options.root_dir.clone(),

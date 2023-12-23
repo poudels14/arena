@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::rc::Rc;
 
 use anyhow::Result;
-use deno_core::{op2, OpState, Resource, ResourceId};
+use runtime::deno::core::{op2, OpState, Resource, ResourceId};
 use serde::{Deserialize, Serialize};
 
 use super::{Access, AclEntity};

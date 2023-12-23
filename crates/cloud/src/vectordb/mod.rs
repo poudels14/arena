@@ -4,9 +4,11 @@ use std::path::Path;
 use std::rc::Rc;
 
 use anyhow::{Context, Result};
-use common::deno::utils;
-use deno_core::{op2, JsBuffer, OpState, Resource, ResourceId, ToJsBuffer};
 use indexmap::IndexMap;
+use runtime::deno::core::{
+  op2, JsBuffer, OpState, Resource, ResourceId, ToJsBuffer,
+};
+use runtime::permissions;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use vectordb::query::DocumentWithContent;
@@ -69,7 +71,7 @@ pub async fn op_cloud_vectordb_open(
   // Check access to db file
   // Check write access since `VectorDatabase` will create a new db if it
   // doesn't already exist
-  utils::fs::resolve_write_path(&mut state, path)?;
+  permissions::resolve_write_path(&mut state, path)?;
   path
     .parent()
     .map(|dir| {

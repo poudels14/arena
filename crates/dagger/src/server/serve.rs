@@ -4,11 +4,14 @@ use std::rc::Rc;
 
 use anyhow::{bail, Result};
 use clap::Parser;
+use cloud::CloudExtensionProvider;
 use runtime::buildtools::{FileModuleLoader, FilePathResolver};
 use runtime::config::ArenaConfig;
 use runtime::deno::core::resolve_url_or_path;
 use runtime::extensions::server::HttpServerConfig;
-use runtime::extensions::{BuiltinExtensionProvider, BuiltinModule};
+use runtime::extensions::{
+  BuiltinExtension, BuiltinExtensionProvider, BuiltinModule,
+};
 use runtime::permissions::{
   FileSystemPermissions, NetPermissions, PermissionsContainer,
 };
@@ -80,17 +83,16 @@ impl Command {
       ]);
     }
 
-    let builtin_extensions =
+    let mut builtin_extensions: Vec<BuiltinExtension> =
       builtin_modules.iter().map(|m| m.get_extension()).collect();
 
     if self.enable_cloud_ext {
-      // TODO
-      // let cloud_ext =
-      //   BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider {
-      //     publisher: None,
-      //   }));
-      // builtin_extensions.push(value)
-      unimplemented!()
+      builtin_extensions.push(
+        BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider {
+          publisher: None,
+        }))
+        .get_extension(),
+      );
     }
 
     let mut runtime = IsolatedRuntime::new(RuntimeOptions {

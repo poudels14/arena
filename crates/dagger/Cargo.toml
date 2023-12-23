@@ -20,4 +20,4 @@ tracing-tree.workspace = true
 colored.workspace = true
 runtime = { path = "../runtime" }
 common = { path = "../common", features = ["dotenv"] }
-# cloud = { path = "../cloud" }
+cloud = { path = "../cloud" }

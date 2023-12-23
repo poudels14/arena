@@ -1,6 +1,6 @@
-use common::deno::extensions::{BuiltinExtension, BuiltinExtensionProvider};
-use common::resolve_from_root;
-use deno_core::{Extension, Op};
+use runtime::deno::core::{Extension, Op};
+use runtime::extensions::include_source_code;
+use runtime::extensions::{BuiltinExtension, BuiltinExtensionProvider};
 
 use crate::jwt::{op_cloud_jwt_sign, op_cloud_jwt_verify};
 use crate::pubsub::publisher::Publisher;
@@ -11,7 +11,7 @@ macro_rules! cloud_module {
   ($module:literal) => {{
     (
       concat!("@arena/cloud/", $module),
-      resolve_from_root!(concat!(
+      include_source_code!(concat!(
         "../../js/arena-runtime/dist/cloud/",
         $module,
         ".js"
@@ -38,10 +38,9 @@ impl BuiltinExtensionProvider for CloudExtensionProvider {
 }
 
 pub fn extension(options: Config) -> BuiltinExtension {
-  BuiltinExtension {
-    extension: Some(self::init(options)),
-    runtime_modules: vec![],
-    snapshot_modules: vec![
+  BuiltinExtension::new(
+    Some(self::init(options)),
+    vec![
       // TODO(sagar): load these during snapshotting
       cloud_module!("jwt"),
       cloud_module!("pubsub"),
@@ -51,7 +50,7 @@ pub fn extension(options: Config) -> BuiltinExtension {
       cloud_module!("pdf"),
       cloud_module!("html"),
     ],
-  }
+  )
 }
 
 pub(crate) fn init(options: Config) -> Extension {

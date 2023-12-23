@@ -1,6 +1,6 @@
 use anyhow::Result;
 use common::query::DataQuery;
-use deno_core::{op2, OpState};
+use runtime::deno::core::{op2, OpState};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::cell::RefCell;

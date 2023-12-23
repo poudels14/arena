@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use anyhow::Result;
-use deno_core::{op2, OpState};
+use runtime::deno::core::{op2, OpState};
 
 use super::publisher::Publisher;
 use super::Data;

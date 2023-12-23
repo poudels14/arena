@@ -5,10 +5,8 @@ edition = "2021"
 
 [dependencies]
 anyhow.workspace = true
-v8.workspace = true
 url.workspace = true
 tracing.workspace = true
-deno_core.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 jsonwebtoken.workspace = true
@@ -28,5 +26,6 @@ html-escape = "0.2.13"
 html5ever = "0.26.0"
 tokenizers = { version = "0.13.3" }
 common = { path = "../common", features = ["data_query"] }
-jsruntime = { path = "../jsruntime" }
+deno_core = "=0.238.0"
+runtime = { path = "../runtime" }
 vectordb = { path = "../vectordb", package = "vectordb" }

@@ -1,6 +1,6 @@
 use anyhow::{anyhow, bail, Result};
-use deno_core::{op2, OpState, Resource, ResourceId};
 use http::{HeaderMap, HeaderValue};
+use runtime::deno::core::{op2, OpState, Resource, ResourceId};
 use serde::Deserialize;
 use serde_json::json;
 use std::cell::RefCell;

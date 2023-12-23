@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
-use deno_core::{op2, OpState};
 use jsonwebtoken::{
   decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation,
 };
+use runtime::deno::core::{op2, OpState};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 

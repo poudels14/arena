@@ -5,12 +5,12 @@ use std::rc::Rc;
 
 use anyhow::bail;
 use anyhow::Result;
-use deno_core::{op2, OpState};
 use html5ever::tendril::SliceExt;
 use html5ever::tendril::Tendril;
 use html5ever::tokenizer::{
   BufferQueue, Tokenizer, TokenizerOpts, TokenizerResult,
 };
+use runtime::deno::core::{op2, OpState};
 use serde::Deserialize;
 
 use crate::html::extractor::TextExtractor;

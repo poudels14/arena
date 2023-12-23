@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context, Result};
-use deno_core::{op2, JsBuffer, OpState};
 use pdfium_render::prelude::*;
+use runtime::deno::core::{op2, JsBuffer, OpState};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::rc::Rc;
