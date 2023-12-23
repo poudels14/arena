@@ -1,5 +1,4 @@
 use runtime::deno::core::{Extension, Op};
-use runtime::extensions::include_source_code;
 use runtime::extensions::{BuiltinExtension, BuiltinExtensionProvider};
 
 use crate::jwt::{op_cloud_jwt_sign, op_cloud_jwt_verify};
@@ -7,16 +6,26 @@ use crate::pubsub::publisher::Publisher;
 use crate::transpile::op_cloud_transpile_js_data_query;
 use crate::{html, llm, pdf, pubsub, vectordb};
 
+#[macro_export]
 macro_rules! cloud_module {
-  ($module:literal) => {{
-    (
-      concat!("@arena/cloud/", $module),
-      include_source_code!(concat!(
-        "../../js/arena-runtime/dist/cloud/",
+  ($module:literal $(,)?) => {{
+    // Preserve the code if "include-in-binary" feature is ON
+    #[cfg(feature = "include-in-binary")]
+    let source =
+      runtime::extensions::SourceCode::Preserved(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../js/arena-runtime/dist/cloud/",
         $module,
         ".js"
-      )),
-    )
+      )));
+
+    // If the "include-in-binary" feature is off, dont need to include
+    // the code unless "runtime" flag is ON, in which case, another macro
+    // handles it
+    #[cfg(not(feature = "include-in-binary"))]
+    let source = runtime::extensions::SourceCode::NotPreserved;
+
+    (concat!("@arena/cloud/", $module), source)
   }};
 }
 
@@ -25,6 +34,7 @@ pub struct Config {
   pub publisher: Option<Publisher>,
 }
 
+#[derive(Default)]
 pub struct CloudExtensionProvider {
   pub publisher: Option<Publisher>,
 }

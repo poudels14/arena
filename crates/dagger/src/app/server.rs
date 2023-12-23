@@ -6,6 +6,7 @@ use cloud::CloudExtensionProvider;
 use runtime::buildtools::{
   BabelTranspiler, FileModuleLoader, FilePathResolver,
 };
+use runtime::config::ArenaConfig;
 use runtime::extensions::server::HttpServerConfig;
 use runtime::extensions::{
   BuiltinExtension, BuiltinExtensionProvider, BuiltinModule,
@@ -18,6 +19,7 @@ use url::Url;
 
 pub(super) struct ServerOptions {
   pub root_dir: PathBuf,
+  pub config: ArenaConfig,
   pub port: u16,
   pub address: String,
   pub transpile: bool,
@@ -56,10 +58,8 @@ pub(super) async fn start_js_server(
   let mut builtin_extensions: Vec<BuiltinExtension> =
     builtin_modules.iter().map(|m| m.get_extension()).collect();
   builtin_extensions.push(
-    BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider {
-      publisher: None,
-    }))
-    .get_extension(),
+    BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider::default()))
+      .get_extension(),
   );
 
   let mut runtime = IsolatedRuntime::new(RuntimeOptions {
@@ -69,7 +69,12 @@ pub(super) async fn start_js_server(
     module_loader: Some(Rc::new(FileModuleLoader::new(
       Rc::new(FilePathResolver::new(
         options.root_dir.clone(),
-        Default::default(),
+        options
+          .config
+          .server
+          .javascript
+          .and_then(|j| j.resolve)
+          .unwrap_or_default(),
       )),
       Some(Rc::new(BabelTranspiler::new(options.root_dir.clone()))),
     ))),

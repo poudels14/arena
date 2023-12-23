@@ -2,7 +2,10 @@ use std::rc::Rc;
 
 use anyhow::Result;
 use clap::Parser;
-use runtime::buildtools::{FileModuleLoader, FilePathResolver};
+use cloud::CloudExtensionProvider;
+use runtime::buildtools::{
+  BabelTranspiler, FileModuleLoader, FilePathResolver,
+};
 use runtime::config::{ArenaConfig, RuntimeConfig};
 use runtime::deno::core::resolve_url_or_path;
 use runtime::extensions::{BuiltinExtensionProvider, BuiltinModule};
@@ -55,13 +58,10 @@ impl Command {
     }
 
     if self.enable_cloud_ext {
-      // TODO
-      // let cloud_ext =
-      //   BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider {
-      //     publisher: None,
-      //   }));
-      // builtin_modules.push(cloud_ext.clone());
-      unimplemented!()
+      let cloud_ext = BuiltinModule::UsingProvider(Rc::new(
+        CloudExtensionProvider::default(),
+      ));
+      builtin_modules.push(cloud_ext.clone());
     }
 
     let egress_addr = self
@@ -80,7 +80,7 @@ impl Command {
           project_root.clone(),
           Default::default(),
         )),
-        None,
+        Some(Rc::new(BabelTranspiler::new(project_root.clone()))),
       ))),
       builtin_extensions: builtin_modules
         .iter()

@@ -4,10 +4,11 @@ version = "0.2.0"
 edition = "2021"
 
 [features]
-default = ["build-tools", "snapshot-build-tools"]
+default = ["build-tools", "include-in-binary"]
 build-tools = []
-# If enabled, all the build tools will be included in the snapshot
-snapshot-build-tools = []
+# If enabled, the source code of the modules will be included in the binary
+# turn off the feature if using snapshot with modules
+include-in-binary = []
 fs_rerun_if_changed = []
 
 [dependencies]
@@ -85,7 +86,7 @@ swc_atoms = "=0.6"
 swc_common = "=0.33"
 swc_ecma_visit = "=0.96"
 swc_ecma_ast = "=0.110"
-swc_ecma_parser = "=0.141.3"
+swc_ecma_parser = "=0.141"
 swc_ecma_transforms_base = "=0.134"
 swc_ecma_codegen = "=0.146"
 
@@ -97,7 +98,7 @@ deno_fetch = "=0.153.0"
 deno_web = "=0.159.0"
 deno_tls = "=0.115.0"
 deno_unsync = "0.3.1"
-deno_ast = { version = "=0.31.3", features = ["transpiling"] }
+deno_ast = { version = "=0.31.6", features = ["transpiling"] }
 
 
 [build-dependencies]
@@ -111,4 +112,4 @@ deno_url = "=0.128.0"
 deno_fetch = "=0.153.0"
 deno_web = "=0.159.0"
 deno_tls = "=0.115.0"
-deno_ast = { version = "=0.31.3", features = ["transpiling"] }
+deno_ast = { version = "=0.31.6", features = ["transpiling"] }

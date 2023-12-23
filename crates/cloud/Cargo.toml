@@ -3,6 +3,12 @@ name = "cloud"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["include-in-binary"]
+# If enabled, the source code of the modules will be included in the binary
+# turn off the feature if using snapshot with modules
+include-in-binary = []
+
 [dependencies]
 anyhow.workspace = true
 url.workspace = true

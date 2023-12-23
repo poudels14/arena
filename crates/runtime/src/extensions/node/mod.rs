@@ -18,7 +18,10 @@ pub fn extension(module_filter: Option<Vec<&'static str>>) -> BuiltinExtension {
     ("process", js_dist!("/node/process.js")),
     ("buffer", js_dist!("/node/buffer.js")),
     // Above are required modules
-    ("node/setup", SourceCode::Runtime(include_str!("./node.js"))),
+    (
+      "node/setup",
+      SourceCode::Preserved(include_str!("./node.js")),
+    ),
   ];
 
   modules.extend(

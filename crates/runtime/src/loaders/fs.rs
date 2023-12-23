@@ -1,17 +1,25 @@
+use std::path::Path;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use anyhow::{anyhow, bail, Error, Result};
+use deno_ast::EmitOptions;
 use deno_ast::MediaType;
+use deno_ast::ParseParams;
+use deno_ast::SourceTextInfo;
 use deno_core::{
   FastString, ModuleLoader, ModuleSource, ModuleSourceFuture, ModuleSpecifier,
   ModuleType, ResolutionKind,
 };
 use derive_new::new;
 use futures::future::FutureExt;
+use swc_ecma_visit::FoldWith;
+use swc_ecma_visit::VisitWith;
 
+use crate::extensions::transpiler::plugins;
+use crate::extensions::transpiler::plugins::jsx_analyzer::JsxAnalyzer;
 use crate::resolver::ModuleResolver;
 use crate::resolver::Resolver;
 use crate::transpiler::ModuleTranspiler;
@@ -56,40 +64,41 @@ impl ModuleLoader for FileModuleLoader {
       })?;
 
       let media_type = MediaType::from_specifier(&module_specifier);
-      let (module_type, maybe_code, needs_transpilation) = match media_type {
-        MediaType::JavaScript | MediaType::Mjs | MediaType::Cjs => {
-          (ModuleType::JavaScript, None, false)
-        }
-        MediaType::TypeScript
-        | MediaType::Mts
-        | MediaType::Cts
-        | MediaType::Dts
-        | MediaType::Dmts
-        | MediaType::Dcts
-        | MediaType::Tsx
-        | MediaType::Jsx => (ModuleType::JavaScript, None, true),
-        MediaType::Json => {
-          (ModuleType::JavaScript, Some(self::load_json(&path)?), false)
-        }
-        _ => match path.extension().and_then(|e| e.to_str()) {
-          Some("css") => {
-            (ModuleType::JavaScript, Some(self::load_css(&path)?), false)
+      let (module_type, already_transpiled_code, needs_transpilation) =
+        match media_type {
+          MediaType::JavaScript | MediaType::Mjs | MediaType::Cjs => {
+            (ModuleType::JavaScript, None, false)
           }
-          _ => bail!("Unknown extension of path: {:?}", path),
-        },
-      };
+          MediaType::TypeScript
+          | MediaType::Mts
+          | MediaType::Cts
+          | MediaType::Dts
+          | MediaType::Dmts
+          | MediaType::Dcts
+          | MediaType::Tsx
+          | MediaType::Jsx => (ModuleType::JavaScript, None, true),
+          MediaType::Json => {
+            (ModuleType::JavaScript, Some(self::load_json(&path)?), false)
+          }
+          _ => match path.extension().and_then(|e| e.to_str()) {
+            Some("css") => {
+              (ModuleType::JavaScript, Some(self::load_css(&path)?), false)
+            }
+            _ => bail!("Unknown extension of path: {:?}", path),
+          },
+        };
 
-      let code = match maybe_code {
+      let code = match already_transpiled_code {
         Some(code) => code,
         None => {
-          let code = std::fs::read_to_string(path.clone())?;
+          let mut code = std::fs::read_to_string(path.clone())?;
+          if module_type == ModuleType::JavaScript {
+            code = Self::transpile_js(&path, &media_type, &code)?;
+          }
           match needs_transpilation {
-            // TODO: not all code is transpiled right now
-            // Note(sagar): transpile all JS files if transpile is enabled
-            // so that even cjs modules are transformed to es6
             true => match transpiler.clone() {
               Some(transpiler) => {
-                let fut = transpiler.transpile(&path, &media_type, &code);
+                let fut = transpiler.transpile(&path, &code);
                 tokio::pin!(fut);
                 fut.await?
               }
@@ -111,6 +120,40 @@ impl ModuleLoader for FileModuleLoader {
       Ok(module)
     }
     .boxed_local()
+  }
+}
+
+impl FileModuleLoader {
+  fn transpile_js(
+    module_path: &Path,
+    media_type: &MediaType,
+    code: &str,
+  ) -> Result<String> {
+    // TODO(sagar): strip out all dynamic transpiling for vms running deployed apps
+    let mut jsx_analyzer = JsxAnalyzer::new();
+    let parsed = deno_ast::parse_module_with_post_process(
+      ParseParams {
+        specifier: module_path.to_str().unwrap().to_owned(),
+        text_info: SourceTextInfo::from_string(code.to_owned()),
+        media_type: media_type.to_owned(),
+        capture_tokens: false,
+        scope_analysis: false,
+        maybe_syntax: None,
+      },
+      |p| {
+        p.visit_children_with(&mut jsx_analyzer);
+        p.fold_with(&mut plugins::commonjs::to_esm())
+      },
+    )?;
+
+    let parsed_code = parsed
+      .transpile(&EmitOptions {
+        emit_metadata: true,
+        transform_jsx: jsx_analyzer.is_react,
+        ..Default::default()
+      })?
+      .text;
+    Ok(parsed_code)
   }
 }
 

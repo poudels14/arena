@@ -3,13 +3,14 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{anyhow, bail, Result};
 use async_trait::async_trait;
-use deno_ast::MediaType;
+use bytes::Bytes;
+use http::Method;
 use tokio::sync::{mpsc, oneshot};
 use url::Url;
 
-use super::{transpiler, ModuleTranspiler};
+use super::ModuleTranspiler;
 use crate::extensions::server::response::ParsedHttpResponse;
 use crate::extensions::server::{HttpRequest, HttpServerConfig};
 use crate::extensions::{BuiltinExtensionProvider, BuiltinModule};
@@ -47,7 +48,7 @@ impl BabelTranspiler {
         .execute_main_module_code(
           &Url::parse("file:///main").unwrap(),
           r#"
-          import { babel, plugins, presets } from "@arena/runtime/babel";
+          import { babel, presets } from "@arena/runtime/babel";
           import { serve } from "@arena/runtime/server";
           await serve({
             async fetch(req) {
@@ -81,13 +82,24 @@ impl BabelTranspiler {
 
 #[async_trait]
 impl ModuleTranspiler for BabelTranspiler {
-  async fn transpile(
-    &self,
-    path: &PathBuf,
-    media_type: &MediaType,
-    code: &str,
-  ) -> Result<Arc<str>> {
+  async fn transpile(&self, _path: &PathBuf, code: &str) -> Result<Arc<str>> {
     let stream = self.transpiler_stream.clone();
-    transpiler::transpile(stream, path, media_type, code).await
+    let (tx, rx) = oneshot::channel();
+    stream.send(((Method::POST, code).into(), tx)).await?;
+    if let Ok(response) = rx.await {
+      return response
+        .data
+        .and_then(|b| Some(Bytes::from(b).to_vec()))
+        .and_then(|v| {
+          Some(
+            simdutf8::basic::from_utf8(&v)
+              .expect("Error reading transpiled code")
+              .to_owned()
+              .into(),
+          )
+        })
+        .ok_or(anyhow!("Error reading transpiled code"));
+    }
+    bail!("Failed to transpile code using babel");
   }
 }

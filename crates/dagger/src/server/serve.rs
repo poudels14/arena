@@ -49,6 +49,7 @@ impl Command {
   pub async fn execute(&self) -> Result<()> {
     let cwd = current_dir()?;
     let project_root = ArenaConfig::find_project_root()?;
+    let arena_config = ArenaConfig::load(&project_root)?;
 
     let mut builtin_modules = vec![
       BuiltinModule::Env,
@@ -88,9 +89,9 @@ impl Command {
 
     if self.enable_cloud_ext {
       builtin_extensions.push(
-        BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider {
-          publisher: None,
-        }))
+        BuiltinModule::UsingProvider(
+          Rc::new(CloudExtensionProvider::default()),
+        )
         .get_extension(),
       );
     }
@@ -98,7 +99,13 @@ impl Command {
     let mut runtime = IsolatedRuntime::new(RuntimeOptions {
       enable_console: true,
       module_loader: Some(Rc::new(FileModuleLoader::new(
-        Rc::new(FilePathResolver::new(cwd.clone(), Default::default())),
+        Rc::new(FilePathResolver::new(
+          cwd.clone(),
+          arena_config
+            .javascript
+            .and_then(|j| j.resolve)
+            .unwrap_or_default(),
+        )),
         None,
       ))),
       builtin_extensions,

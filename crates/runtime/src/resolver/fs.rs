@@ -39,8 +39,8 @@ pub(crate) struct ResolverCache {
 
 pub struct FilePathResolver {
   /// The root directory of the project. It's usually where package.json is
-  pub project_root: PathBuf,
-  pub(crate) config: ResolverConfig,
+  project_root: PathBuf,
+  config: ResolverConfig,
   pub(crate) cache: Rc<RefCell<ResolverCache>>,
 }
 
@@ -134,11 +134,11 @@ impl FilePathResolver {
           "{}{}",
           // TODO: remove me
           // dont use file related config here and let file resolver handle it
-          // if value.starts_with(".") {
-          //   format!("{}", self.project_root.join(value).to_str().unwrap())
-          // } else {
-          value.to_string(),
-          // },
+          if value.starts_with(".") {
+            format!("{}", self.project_root.join(value).to_str().unwrap())
+          } else {
+            value.to_string()
+          },
           &specifier[k.len()..]
         );
       }

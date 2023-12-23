@@ -25,7 +25,7 @@ pub fn extension(root: PathBuf) -> BuiltinExtension {
       ("@arena/runtime/resolver", js_dist!("/resolver.js")),
       (
         "arena/resolver/setup",
-        SourceCode::Runtime(include_str!("./resolver.js")),
+        SourceCode::Preserved(include_str!("./resolver.js")),
       ),
     ],
   )

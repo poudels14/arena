@@ -19,7 +19,7 @@ use tokio_postgres::Client;
 use tracing::error;
 
 use self::postgres::QueryOptions;
-use super::r#macro::source_code;
+use super::r#macro::include_source_code;
 use super::BuiltinExtension;
 use crate::env::EnvironmentVariable;
 
@@ -28,7 +28,7 @@ pub fn extension() -> BuiltinExtension {
     Some(self::init()),
     vec![(
       "@arena/runtime/postgres",
-      source_code!(include_str!("./postgres.js")),
+      include_source_code!("./postgres.js"),
     )],
   )
 }

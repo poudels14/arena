@@ -30,13 +30,12 @@ impl Command {
         || has_file_in_file_tree(Some(&cwd), "package.json"),
         |p| Some(Path::new(&p).to_path_buf()),
       )
-      .unwrap_or_else(|| cwd.clone());
+      .unwrap_or_else(|| cwd.clone())
+      .canonicalize()
+      .expect("Error canonicalizing app dir");
 
     let config = ArenaConfig::load(&cwd.join(&app_dir).canonicalize()?)?;
-    let server_entry = app_dir
-      .join(config.server.entry)
-      .canonicalize()
-      .expect("Error canonicalizing server entry path");
+    let server_entry = app_dir.join(&config.server.entry);
     let server_entry = server_entry
       .to_str()
       .expect("Error getting server entry path as str");
@@ -46,6 +45,7 @@ impl Command {
       port: self.port,
       transpile: true,
       root_dir: app_dir,
+      config,
     };
 
     info!(

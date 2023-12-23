@@ -17,17 +17,14 @@ mod sqlite;
 use self::sqlite::get_json_value;
 use self::sqlite::Param;
 use self::sqlite::QueryOptions;
-use super::r#macro::source_code;
+use super::r#macro::include_source_code;
 use super::BuiltinExtension;
 use crate::permissions;
 
 pub fn extension() -> BuiltinExtension {
   BuiltinExtension::new(
     Some(self::init()),
-    vec![(
-      "@arena/runtime/sqlite",
-      source_code!(include_str!("./sqlite.js")),
-    )],
+    vec![("@arena/runtime/sqlite", include_source_code!("./sqlite.js"))],
   )
 }
 

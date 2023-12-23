@@ -36,20 +36,21 @@ pub struct BuiltinExtension {
 // NOTE: don't use this directly. Instead use one of the macros
 #[derive(Debug, Clone)]
 pub enum SourceCode {
-  /// this source code will only be loaded during runtime
-  Runtime(&'static str),
-  /// this source code is snapshotted if snapshot is enabled,
-  /// else will be loaded during runtime
-  #[cfg(feature = "snapshot-build-tools")]
-  Snapshot(&'static str),
+  /// use this if the source code should be preserved and loaded
+  /// when when the extension is initialied
+  Preserved(&'static str),
+  /// use this if the module is already snapshotted and the source
+  /// code is no longer needed
+  #[cfg(not(feature = "include-in-binary"))]
+  NotPreserved,
 }
 
 impl SourceCode {
   pub fn code(&self) -> &'static str {
     match self {
-      Self::Runtime(s) => s,
-      #[cfg(feature = "snapshot-build-tools")]
-      Self::Snapshot(s) => s,
+      Self::Preserved(s) => s,
+      #[cfg(not(feature = "include-in-binary"))]
+      Self::NotPreserved => panic!("Source code not included"),
     }
   }
 }
