@@ -23,59 +23,37 @@ import { fetch } from "ext:deno_fetch/26_fetch.js";
 import { Console } from "ext:deno_console/01_console.js";
 
 const primordials = globalThis.__bootstrap.primordials;
-const {
-  ArrayPrototypePush,
-  ArrayPrototypeIndexOf,
-  ArrayPrototypeSplice,
-  WeakMapPrototypeSet,
-  WeakMapPrototypeDelete,
-  DateNow,
-} = primordials;
+const { DateNow } = primordials;
 
 // credit: deno
 function promiseRejectCallback(type, promise, reason) {
-  console.log("promiseRejectCallback called: ", arguments);
-  switch (type) {
-    case 0: {
-      ops.op_store_pending_promise_rejection(promise, reason);
-      ArrayPrototypePush(pendingRejections, promise);
-      WeakMapPrototypeSet(pendingRejectionsReasons, promise, reason);
-      break;
-    }
-    case 1: {
-      ops.op_remove_pending_promise_rejection(promise);
-      const index = ArrayPrototypeIndexOf(pendingRejections, promise);
-      if (index > -1) {
-        ArrayPrototypeSplice(pendingRejections, index, 1);
-        WeakMapPrototypeDelete(pendingRejectionsReasons, promise);
-      }
-      break;
-    }
-    default:
-      return false;
-  }
+  console.log("PROMISE REJECTED! type:", type, "reason:", reason);
+  const rejectionEvent = new event.PromiseRejectionEvent("unhandledrejection", {
+    cancelable: true,
+    promise,
+    reason,
+  });
 
-  return (
-    !!globalThis_.onunhandledrejection ||
-    event.listenerCount(globalThis_, "unhandledrejection") > 0
-  );
+  // Note that the handler may throw, causing a recursive "error" event
+  // globalThis.dispatchEvent(rejectionEvent);
+  // TODO: there is more to this
 }
 
 // Note(sagar): this is initialized during snapshotting
 // assign to globalThis so that other modules can access
 // these objects with `globalThis.{}`
-((global) => {
+((globalThis) => {
   const { core } = Deno;
   setTimeOrigin(DateNow());
 
-  core.setPromiseRejectCallback(promiseRejectCallback);
+  core.setUnhandledPromiseRejectionHandler(promiseRejectCallback);
 
-  event.setEventTargetData(global);
-  event.saveGlobalThisReference(global);
+  event.setEventTargetData(globalThis);
+  event.saveGlobalThisReference(globalThis);
 
-  Object.assign(global, {
+  Object.assign(globalThis, {
     __bootstrap: {
-      ...global.__bootstrap,
+      ...globalThis.__bootstrap,
       handleTimerMacrotask,
       Console,
     },

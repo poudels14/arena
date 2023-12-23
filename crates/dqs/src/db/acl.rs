@@ -1,3 +1,4 @@
+#[allow(unused)]
 pub use acls::table;
 pub use diesel::prelude::*;
 use std::time::SystemTime;

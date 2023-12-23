@@ -1,4 +1,5 @@
 pub use diesel::prelude::*;
+#[allow(unused)]
 pub use dqs_deployments::table;
 use std::time::SystemTime;
 

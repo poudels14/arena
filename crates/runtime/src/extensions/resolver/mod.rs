@@ -36,14 +36,6 @@ deno_core::extension!(
   ops = [op_resolver_new, op_resolver_resolve],
   options = { root: PathBuf },
   state = |state, options| {
-    // TODO: remove me
-    // let resolve = {
-    //   let config = state.borrow::<RuntimeConfig>();
-    //   config
-    //     .resolve
-    //     .clone()
-    //     .unwrap_or(Default::default())
-    // };
     state.put::<DefaultResolverConfig>(DefaultResolverConfig {
       root: options.root.to_owned(),
       config: Default::default(),

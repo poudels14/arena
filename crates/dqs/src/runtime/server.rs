@@ -1,12 +1,14 @@
-use super::deno::{self, RuntimeOptions};
+use std::sync::Arc;
+
 use anyhow::{anyhow, Result};
 use common::beam;
 use deno_core::v8::IsolateHandle;
 use deno_core::{JsRuntime, ModuleCode, ModuleSpecifier};
 use serde_json::Value;
-use std::sync::Arc;
 use tokio::sync::{oneshot, watch};
 use tracing::{debug, info};
+
+use super::deno::{self, RuntimeOptions};
 
 #[derive(Debug, Clone)]
 pub enum ServerEvents {
@@ -103,8 +105,8 @@ async fn load_and_run_module(
     .await?;
 
   let rx = runtime.mod_evaluate(mod_id);
-  runtime.run_event_loop(false).await?;
-  rx.await?
+  runtime.run_event_loop(Default::default()).await?;
+  rx.await
 }
 
 #[allow(dead_code)]

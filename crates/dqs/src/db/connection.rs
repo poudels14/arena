@@ -6,7 +6,6 @@ use diesel::PgConnection;
 use std::env;
 use std::time::Duration;
 
-#[allow(dead_code)]
 pub fn create_connection_pool() -> Result<Pool<ConnectionManager<PgConnection>>>
 {
   let database_url =

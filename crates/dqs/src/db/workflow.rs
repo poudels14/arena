@@ -1,13 +1,12 @@
 use diesel::prelude::*;
 use serde_json::Value;
 use std::time::SystemTime;
-pub use workflow_runs::table;
 
 #[derive(Queryable, Insertable, AsChangeset, Debug, Clone)]
 pub struct WorkflowRun {
   pub id: String,
   pub workspace_id: String,
-  pub parent_id: Option<String>,
+  pub parent_app_id: Option<String>,
   pub template: Value,
   pub config: Value,
   pub state: Value,
@@ -21,7 +20,7 @@ diesel::table! {
   workflow_runs (id) {
     id -> Varchar,
     workspace_id -> Varchar,
-    parent_id -> Nullable<Varchar>,
+    parent_app_id -> Nullable<Varchar>,
     template -> Jsonb,
     config -> Jsonb,
     state -> Jsonb,

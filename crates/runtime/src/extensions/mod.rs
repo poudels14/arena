@@ -1,7 +1,6 @@
 mod r#macro;
 
 pub mod babel;
-pub mod builtin_loader;
 pub mod bundler;
 pub mod env;
 pub mod filerouter;
@@ -136,7 +135,7 @@ impl BuiltinExtensions {
     .collect()
   }
 
-  pub fn load_modules<'a>(
+  pub fn load_extensions<'a>(
     extensions: &Vec<BuiltinExtension>,
     runtime: &mut JsRuntime,
   ) -> Result<()> {
@@ -156,7 +155,6 @@ impl BuiltinExtensions {
             )
             .await?;
           let receiver = runtime.mod_evaluate(mod_id);
-          runtime.run_event_loop(Default::default()).await?;
           receiver.await?;
         }
       }

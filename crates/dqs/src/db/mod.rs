@@ -1,4 +1,6 @@
 mod connection;
+
+#[allow(unused)]
 pub use connection::create_connection_pool;
 
 pub mod acl;

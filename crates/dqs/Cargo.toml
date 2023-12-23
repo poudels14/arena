@@ -42,25 +42,35 @@ nanoid.workspace = true
 dashmap.workspace = true
 num_cpus.workspace = true
 signal-hook.workspace = true
-common = { path = "../common" }
-jsruntime = { path = "../jsruntime" }
+async-trait.workspace = true
+
+deno_core = "=0.238.0"
+deno_webidl = "=0.128.0"
+deno_console = "=0.128.0"
+deno_url = "=0.128.0"
+deno_fetch = "=0.153.0"
+deno_web = "=0.159.0"
+deno_tls = "=0.115.0"
+deno_unsync = "0.3.1"
+
+common = { path = "../common", features = ["dotenv"] }
+runtime = { path = "../runtime", features = [], default-features = false }
 cloud = { path = "../cloud" }
 
-deno_core.workspace = true
-deno_webidl.workspace = true
-deno_console.workspace = true
-deno_url.workspace = true
-deno_web.workspace = true
-deno_fetch.workspace = true
 
 [build-dependencies]
-common = { path = "../common", features = ["fs_rerun_if_changed"] }
+common = { path = "../common", features = [] }
+runtime = { path = "../runtime", features = ["include-in-binary"] }
 cloud = { path = "../cloud" }
 futures.workspace = true
 url.workspace = true
-deno_core.workspace = true
-deno_console.workspace = true
-deno_url.workspace = true
-deno_fetch.workspace = true
-deno_web.workspace = true
-deno_webidl.workspace = true
+anyhow.workspace = true
+deno_core = "=0.238.0"
+deno_webidl = "=0.128.0"
+deno_console = "=0.128.0"
+deno_url = "=0.128.0"
+deno_fetch = "=0.153.0"
+deno_web = "=0.159.0"
+deno_tls = "=0.115.0"
+deno_unsync = "0.3.1"
+deno_ast = "0.31.6"

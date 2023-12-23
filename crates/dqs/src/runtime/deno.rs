@@ -1,9 +1,11 @@
+use std::net::IpAddr;
+use std::rc::Rc;
+use std::sync::Arc;
+
 use anyhow::Result;
 use cloud::identity::Identity;
 use cloud::pubsub::exchange::Exchange;
 use cloud::CloudExtensionProvider;
-use common::deno::extensions::server::HttpServerConfig;
-use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
 use deno_core::{
   v8, Extension, ExtensionFileSource, ExtensionFileSourceCode, JsRuntime,
   Snapshot,
@@ -12,9 +14,11 @@ use deno_fetch::CreateHttpClientOptions;
 use derivative::Derivative;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
-use jsruntime::permissions::PermissionsContainer;
-use std::net::IpAddr;
-use std::rc::Rc;
+use runtime::extensions::server::HttpServerConfig;
+use runtime::extensions::{
+  BuiltinExtensionProvider, BuiltinExtensions, BuiltinModule,
+};
+use runtime::permissions::PermissionsContainer;
 use tracing::error;
 
 use crate::arena::{self, ArenaRuntimeState, MainModule};
@@ -39,6 +43,10 @@ pub struct RuntimeOptions {
   /// This is useful if we need to restrict the outgoing network
   /// request to a specific network device/address
   pub egress_address: Option<IpAddr>,
+
+  #[derivative(Debug = "ignore")]
+  pub template_loader: Arc<dyn TemplateLoader>,
+
   pub state: ArenaRuntimeState,
 }
 
@@ -81,15 +89,21 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
     None
   };
 
-  let mut builtin_extensions = BuiltinExtensions::with_modules(vec![
+  let mut builtin_extensions = vec![
     BuiltinModule::Node(Some(vec!["crypto"])),
     BuiltinModule::Postgres,
     BuiltinModule::Sqlite,
     BuiltinModule::HttpServer(config.server_config.clone()),
     BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider { publisher })),
     BuiltinModule::Custom(Rc::new(arena::extension)),
-  ]);
-  extensions.extend(builtin_extensions.deno_extensions());
+  ]
+  .iter()
+  .map(|m| m.get_extension())
+  .collect();
+
+  extensions.extend(BuiltinExtensions::get_deno_extensions(
+    &mut builtin_extensions,
+  ));
   extensions.push(self::build_init_extension(&config));
 
   let create_params = config.heap_limits.map(|(initial, max)| {
@@ -102,12 +116,13 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
     module_loader: Some(Rc::new(AppkitModuleLoader {
       workspace_id: config.state.workspace_id,
       pool: config.db_pool.clone(),
+      template_loader: config.template_loader,
     })),
     extensions,
     ..Default::default()
   });
 
-  builtin_extensions.load_runtime_modules(&mut runtime)?;
+  BuiltinExtensions::load_extensions(&builtin_extensions, &mut runtime)?;
 
   // Note(sagar): if the heap limits are set, terminate the runtime manually
   if config.heap_limits.is_some() {
@@ -144,21 +159,22 @@ fn build_init_extension(config: &RuntimeOptions) -> Extension {
       op_state.put::<PermissionsContainer>(permissions);
 
       if let Some(egress_address) = egress_address {
-        let mut client = common::deno::fetch::get_default_http_client_builder(
-          &user_agent,
-          CreateHttpClientOptions {
-            root_cert_store: None,
-            ca_certs: vec![],
-            proxy: None,
-            unsafely_ignore_certificate_errors: None,
-            client_cert_chain_and_key: None,
-            pool_max_idle_per_host: None,
-            pool_idle_timeout: None,
-            http1: true,
-            http2: true,
-          },
-        )
-        .unwrap();
+        let mut client =
+          runtime::utils::fetch::get_default_http_client_builder(
+            &user_agent,
+            CreateHttpClientOptions {
+              root_cert_store: None,
+              ca_certs: vec![],
+              proxy: None,
+              unsafely_ignore_certificate_errors: None,
+              client_cert_chain_and_key: None,
+              pool_max_idle_per_host: None,
+              pool_idle_timeout: None,
+              http1: true,
+              http2: true,
+            },
+          )
+          .unwrap();
         client = client.local_address(egress_address);
         op_state.put::<reqwest::Client>(client.build().unwrap());
       }

@@ -3,8 +3,11 @@ mod core;
 mod env;
 mod extensions;
 mod loaders;
+#[allow(unused)]
 mod permissions;
 mod resolver;
+#[allow(unused)]
+mod transpiler;
 mod utils;
 
 use std::collections::HashSet;
@@ -19,7 +22,7 @@ use crate::config::RuntimeConfig;
 use crate::core::{IsolatedRuntime, RuntimeOptions};
 use crate::extensions::BuiltinExtensionProvider;
 use crate::extensions::BuiltinModule;
-use crate::loaders::{FileModuleLoader, ModuleLoaderOption};
+use crate::loaders::FileModuleLoader;
 use crate::permissions::FileSystemPermissions;
 use crate::permissions::PermissionsContainer;
 use crate::resolver::FilePathResolver;
@@ -40,13 +43,11 @@ async fn main() -> Result<()> {
         enable_console: true,
         config,
         module_loader: Some(Rc::new(FileModuleLoader::new(
-          ModuleLoaderOption {
-            transpile: true,
-            resolver: Rc::new(FilePathResolver::new(
-              PathBuf::from("./"),
-              Default::default(),
-            )),
-          },
+          Rc::new(FilePathResolver::new(
+            PathBuf::from("./"),
+            Default::default(),
+          )),
+          None,
         ))),
         enable_arena_global: true,
         permissions: PermissionsContainer {

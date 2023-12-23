@@ -134,8 +134,6 @@ impl FilePathResolver {
         debug!("matched alias: {}={}", k, value);
         return format!(
           "{}{}",
-          // TODO: remove me
-          // dont use file related config here and let file resolver handle it
           if value.starts_with(".") {
             format!("{}", self.project_root.join(value).to_str().unwrap())
           } else {

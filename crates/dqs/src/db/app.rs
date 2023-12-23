@@ -1,3 +1,4 @@
+#[allow(unused)]
 pub use apps::table;
 pub use diesel::prelude::*;
 use serde_json::Value;

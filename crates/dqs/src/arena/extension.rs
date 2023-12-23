@@ -1,9 +1,9 @@
 use anyhow::Context;
 use anyhow::Result;
-use common::deno::extensions::BuiltinExtension;
 use deno_core::{
   op2, Extension, ExtensionFileSource, ExtensionFileSourceCode, Op, OpState,
 };
+use runtime::extensions::BuiltinExtension;
 use serde_json::json;
 use serde_json::Value;
 use uuid::Uuid;

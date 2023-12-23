@@ -1,3 +1,6 @@
+use std::pin::Pin;
+use std::sync::Arc;
+
 use anyhow::{anyhow, bail, Error, Result};
 use deno_core::{
   futures::FutureExt, ModuleLoader, ModuleSourceFuture, ModuleSpecifier,
@@ -8,7 +11,6 @@ use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
 use loaders::ResourceLoader;
-use std::pin::Pin;
 use tracing::info;
 use url::Url;
 
@@ -21,8 +23,8 @@ use crate::specifier::{ParsedSpecifier, WidgetQuerySpecifier};
 #[derive(Clone)]
 pub struct AppkitModuleLoader {
   pub workspace_id: String,
-  pub pool: Pool<ConnectionManager<PgConnection>>,
-  pub template_loader: TemplateLoader,
+  pub pool: Option<Pool<ConnectionManager<PgConnection>>>,
+  pub template_loader: Arc<dyn TemplateLoader>,
 }
 
 impl ModuleLoader for AppkitModuleLoader {
@@ -115,11 +117,7 @@ impl ModuleLoader for AppkitModuleLoader {
           "/@dqs/template/app" => {
             return Ok::<ModuleSource, anyhow::Error>(ModuleSource::new(
               ModuleType::JavaScript,
-              loader
-                .template_loader
-                .load_app_template_code()
-                .await?
-                .into(),
+              loader.template_loader.load_app_template().await?.into(),
               &specifier,
             ))
           }
@@ -183,7 +181,11 @@ impl AppkitModuleLoader {
   ) -> Result<String> {
     // TODO(sagar): instead of loading widget query from db directly,
     // use registry
-    let connection = &mut self.pool.get()?;
+    let connection = &mut self
+      .pool
+      .clone()
+      .ok_or(anyhow!("Database not initialized"))?
+      .get()?;
     let widget = widgets::table
       .filter(widgets::id.eq(specifier.widget_id.to_string()))
       .first::<widget::Widget>(connection);

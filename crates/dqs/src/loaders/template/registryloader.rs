@@ -1,21 +1,24 @@
 use anyhow::Result;
+use async_trait::async_trait;
 
-use super::registry::Registry;
+use super::TemplateLoader;
 use crate::arena::MainModule;
+use crate::loaders::Registry;
 
 #[derive(Clone)]
-pub struct TemplateLoader {
+pub struct RegistryTemplateLoader {
   pub registry: Registry,
   pub module: MainModule,
 }
 
-impl TemplateLoader {
+#[async_trait]
+impl TemplateLoader for RegistryTemplateLoader {
   #[tracing::instrument(
     name = "AppkitModuleLoader::load_app_template_code",
     skip(self),
     level = "trace"
   )]
-  pub async fn load_app_template_code(&self) -> Result<String> {
+  async fn load_app_template(&self) -> Result<String> {
     if let MainModule::App { app } = &self.module {
       return self
         .registry
@@ -30,7 +33,7 @@ impl TemplateLoader {
     skip(self),
     level = "trace"
   )]
-  pub async fn load_plugin_template(&self) -> Result<String> {
+  async fn load_plugin_template(&self) -> Result<String> {
     if let MainModule::PluginWorkflowRun { workflow } = &self.module {
       return self
         .registry

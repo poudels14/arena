@@ -8,6 +8,10 @@ pub(crate) mod sql;
 pub(crate) mod template;
 
 pub use registry::Registry;
+#[allow(unused)]
+pub use template::{
+  FileTemplateLoader, RegistryTemplateLoader, TemplateLoader,
+};
 
 pub trait ResourceLoader {
   /// This should return a Javascript ESM module that exports a default

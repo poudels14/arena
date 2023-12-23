@@ -1,4 +1,4 @@
-use jsruntime::permissions::NetPermissions;
+use runtime::permissions::NetPermissions;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]

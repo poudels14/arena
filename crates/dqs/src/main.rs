@@ -1,3 +1,9 @@
+use std::env;
+use std::path::Path;
+use std::str::FromStr;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
+
 use anyhow::Result;
 use colored::Colorize;
 use common::{dotenv, required_env};
@@ -6,11 +12,6 @@ use signal_hook::consts::TERM_SIGNALS;
 use signal_hook::flag;
 use signal_hook::iterator::exfiltrator::SignalOnly;
 use signal_hook::iterator::SignalsInfo;
-use std::env;
-use std::path::Path;
-use std::str::FromStr;
-use std::sync::atomic::AtomicBool;
-use std::sync::Arc;
 use tracing_subscriber::filter::Directive;
 use tracing_subscriber::prelude::*;
 use tracing_tree::HierarchicalLayer;
@@ -72,6 +73,7 @@ fn main() -> Result<()> {
     .map(|addr| addr.parse())
     .transpose()?;
 
+  let _ = required_env!("DQS_HOST");
   let registry_host = required_env!("REGISTRY_HOST");
   let registry_api_key = required_env!("REGISTRY_API_KEY");
   let _ = required_env!("DATABASE_URL");

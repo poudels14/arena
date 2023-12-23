@@ -1,18 +1,21 @@
-use common::deno::extensions::server::HttpServerConfig;
-use common::deno::extensions::{
-  BuiltinExtension, BuiltinExtensions, BuiltinModule,
-};
-use common::deno::loader::BuiltInModuleLoader;
-use common::resolve_from_root;
-use deno_core::anyhow::{self, Result};
-use deno_core::{
-  Extension, ExtensionFileSource, JsRuntimeForSnapshot, RuntimeOptions,
-};
 use std::env;
 use std::path::Path;
 use std::path::PathBuf;
+use std::pin::Pin;
 use std::rc::Rc;
 use std::sync::Arc;
+
+use anyhow::{bail, Result};
+use deno_ast::ModuleSpecifier;
+use deno_core::{
+  Extension, ExtensionFileSource, JsRuntimeForSnapshot, RuntimeOptions,
+};
+use deno_core::{ModuleLoader, ModuleSourceFuture, ResolutionKind};
+use futures::FutureExt;
+use runtime::extensions::server::HttpServerConfig;
+use runtime::extensions::BuiltinExtensionProvider;
+use runtime::extensions::SourceCode;
+use runtime::extensions::{BuiltinExtension, BuiltinExtensions, BuiltinModule};
 use url::Url;
 
 struct Permissions;
@@ -41,6 +44,20 @@ impl deno_fetch::FetchPermissions for Permissions {
   }
 }
 
+macro_rules! include_from_project_root {
+  ($file:literal) => {{
+    println!(
+      "cargo:rerun-if-changed={}",
+      concat!(env!("CARGO_MANIFEST_DIR"), "/", $file)
+    );
+    SourceCode::Preserved(include_str!(concat!(
+      env!("CARGO_MANIFEST_DIR"),
+      "/",
+      $file
+    )))
+  }};
+}
+
 pub fn main() {
   let o = PathBuf::from(env::var_os("OUT_DIR").unwrap());
   generate_prod_snapshot(&o.join("WORKSPACE_DQS_SNAPSHOT.bin"));
@@ -49,7 +66,7 @@ pub fn main() {
 fn generate_prod_snapshot(path: &Path) {
   let mut runtime = get_basic_runtime();
 
-  BuiltinExtensions::with_modules(vec![
+  let builtin_extensions = vec![
     BuiltinModule::Node(Some(vec!["crypto"])),
     BuiltinModule::Postgres,
     BuiltinModule::Sqlite,
@@ -62,39 +79,38 @@ fn generate_prod_snapshot(path: &Path) {
       serve_dir: None,
     }),
     BuiltinModule::Custom(Rc::new(|| cloud::extension(Default::default()))),
-    BuiltinModule::Custom(Rc::new(|| BuiltinExtension {
-      snapshot_modules: vec![
-        (
-          "@arena/dqs/widget-server",
-          resolve_from_root!(
-            "../../js/arena-runtime/dist/dqs/widget-server.js",
-            true
+    BuiltinModule::Custom(Rc::new(|| {
+      BuiltinExtension::new(
+        None,
+        vec![
+          (
+            "@arena/dqs/widget-server",
+            include_from_project_root!(
+              "../../js/arena-runtime/dist/dqs/widget-server.js"
+            ),
           ),
-        ),
-        (
-          "@arena/dqs/plugin/workflow/lib",
-          resolve_from_root!(
-            "../../js/arena-runtime/dist/dqs/plugin/workflow/lib.js",
-            true
+          (
+            "@arena/dqs/utils",
+            include_from_project_root!(
+              "../../js/arena-runtime/dist/dqs/utils.js"
+            ),
           ),
-        ),
-        (
-          "@arena/dqs/utils",
-          resolve_from_root!("../../js/arena-runtime/dist/dqs/utils.js", true),
-        ),
-        (
-          "@arena/dqs/postgres",
-          resolve_from_root!(
-            "../../js/arena-runtime/dist/dqs/postgres.js",
-            true
+          (
+            "@arena/dqs/postgres",
+            include_from_project_root!(
+              "../../js/arena-runtime/dist/dqs/postgres.js"
+            ),
           ),
-        ),
-      ],
-      ..Default::default()
+        ],
+      )
     })),
-  ])
-  .load_snapshot_modules(&mut runtime)
-  .unwrap();
+  ]
+  .iter()
+  .map(|m| m.get_extension())
+  .collect();
+
+  BuiltinExtensions::load_extensions(&builtin_extensions, &mut runtime)
+    .expect("Error loading builtin extensions");
 
   let snapshot: &[u8] = &*runtime.snapshot();
   std::fs::write(path, snapshot).unwrap();
@@ -114,7 +130,7 @@ fn get_basic_runtime() -> JsRuntimeForSnapshot {
       ExtensionFileSource {
         specifier: "ext:runtime/http.js",
         code: deno_core::ExtensionFileSourceCode::IncludedInBinary(
-          include_str!("../../js/arena-runtime/core/http.js"),
+          include_str!("../runtime/js/core/http.js"),
         ),
       },
       ExtensionFileSource {
@@ -164,4 +180,48 @@ fn get_basic_runtime() -> JsRuntimeForSnapshot {
     ..Default::default()
   });
   runtime
+}
+
+pub struct BuiltInModuleLoader {}
+
+impl ModuleLoader for BuiltInModuleLoader {
+  fn resolve(
+    &self,
+    specifier: &str,
+    _referrer: &str,
+    _kind: ResolutionKind,
+  ) -> Result<ModuleSpecifier> {
+    let specifier = specifier.strip_prefix("node:").unwrap_or(specifier);
+    // Note(sagar): since all modules during build are builtin modules,
+    // add url schema `builtin://` prefix
+    let specifier = match specifier.starts_with("builtin://") {
+      true => specifier.to_string(),
+      false => format!("builtin://{}", specifier),
+    };
+
+    match Url::parse(&specifier) {
+      Ok(url) => Ok(url),
+      _ => {
+        bail!("Failed to resolve specifier: {:?}", specifier);
+      }
+    }
+  }
+
+  fn load(
+    &self,
+    module_specifier: &ModuleSpecifier,
+    maybe_referrer: Option<&ModuleSpecifier>,
+    _is_dynamic: bool,
+  ) -> Pin<Box<ModuleSourceFuture>> {
+    let specifier = module_specifier.clone();
+    let referrer = maybe_referrer.as_ref().map(|r| r.to_string());
+    async move {
+      bail!(
+        "Module loading not supported: specifier = {:?}, referrer = {:?}",
+        specifier.as_str(),
+        referrer
+      );
+    }
+    .boxed_local()
+  }
 }

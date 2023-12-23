@@ -2,10 +2,10 @@
 
 members = [
   "common",
-  # "workspace",
-  # "dqs",
+  "dqs",
   # "registry",
   # "vectordb",
+  # "workspace",
   "cloud",
   "dagger",
   "faiss",

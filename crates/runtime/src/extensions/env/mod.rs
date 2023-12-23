@@ -34,15 +34,6 @@ pub fn extension() -> BuiltinExtension {
 #[op2]
 #[serde]
 fn op_load_env(state: &mut OpState) -> Result<serde_json::Value> {
-  // TODO: remove me
-  // let mut env_vars = {
-  //   state
-  //     .try_borrow::<ArenaConfig>()
-  //     .as_ref()
-  //     .and_then(|c| c.env.clone())
-  //     .unwrap_or_default()
-  // };
-
   let mut env_vars = IndexMap::new();
 
   std::env::vars().for_each(|(key, value)| {

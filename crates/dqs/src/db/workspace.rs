@@ -1,6 +1,7 @@
 pub use diesel::prelude::*;
 use serde_json::Value;
 use std::time::SystemTime;
+#[allow(unused)]
 pub use workspaces::table;
 
 #[derive(Queryable, Debug, Clone)]

@@ -1,15 +1,3 @@
-use anyhow::{anyhow, bail, Context, Result};
-use cloud::pubsub::exchange::Exchange;
-use common::beam;
-use common::deno::extensions::server::response::ParsedHttpResponse;
-use common::deno::extensions::server::{HttpRequest, HttpServerConfig};
-use common::deno::resources::env_variable::EnvironmentVariableStore;
-use deno_core::normalize_path;
-use diesel::prelude::*;
-use diesel::r2d2::{ConnectionManager, Pool};
-use diesel::PgConnection;
-use jsruntime::permissions::{FileSystemPermissions, PermissionsContainer};
-use serde_json::Value;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::net::IpAddr;
@@ -18,6 +6,19 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::SystemTime;
+
+use anyhow::{anyhow, bail, Context, Result};
+use cloud::pubsub::exchange::Exchange;
+use common::beam;
+use deno_core::normalize_path;
+use diesel::prelude::*;
+use diesel::r2d2::{ConnectionManager, Pool};
+use diesel::PgConnection;
+use runtime::env::EnvironmentVariableStore;
+use runtime::extensions::server::response::ParsedHttpResponse;
+use runtime::extensions::server::{HttpRequest, HttpServerConfig};
+use runtime::permissions::{FileSystemPermissions, PermissionsContainer};
+use serde_json::Value;
 use tokio::sync::{mpsc, oneshot, watch, Mutex};
 
 use crate::arena::{ArenaRuntimeState, MainModule};
@@ -26,6 +27,7 @@ use crate::db;
 use crate::db::deployment::{dqs_deployments, Deployment};
 use crate::db::workspace::workspaces;
 use crate::loaders::registry::Registry;
+use crate::loaders::RegistryTemplateLoader;
 use crate::runtime::Command;
 use crate::runtime::{deno::RuntimeOptions, ServerEvents};
 
@@ -99,6 +101,10 @@ impl DqsServer {
           permissions,
           exchange,
           state,
+          template_loader: Arc::new(RegistryTemplateLoader {
+            registry: options.registry,
+            module: options.module,
+          }),
         },
         events_tx,
       )

@@ -59,12 +59,6 @@ pub struct RuntimeOptions {
 
   pub config: RuntimeConfig,
 
-  /// Arena config to be used for the runtime
-  /// If None is passed, package.json is checked
-  /// in the current directory as well as up the directory tree
-  // #[derivative(Default(value = "Option::None"))]
-  // pub config: Option<ArenaConfig>,
-
   /// If set to true, `globalThis.Deno` and `globalThis.Arena` will be
   /// left intact. Else, Deno will be removed from globalThis and Arena
   /// will only have few required fields
@@ -164,7 +158,7 @@ impl IsolatedRuntime {
       );
     }
 
-    BuiltinExtensions::load_modules(
+    BuiltinExtensions::load_extensions(
       &options.builtin_extensions,
       &mut js_runtime,
     )?;
@@ -252,11 +246,6 @@ impl IsolatedRuntime {
       r#"
         Arena.core = Deno.core;
         Arena.core.setMacrotaskCallback(globalThis.__bootstrap.handleTimerMacrotask);
-        // TODO: remove me
-        // Object.assign(globalThis.Arena, {
-        //   config: Arena.core.ops.op_load_arena_config()
-        // });
-        // Arena.core.opAsync("op_load_arena_config_async");
       "#
     ));
 

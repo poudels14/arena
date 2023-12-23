@@ -36,6 +36,11 @@ macro_rules! js_dist {
 
 macro_rules! include_source_code {
   ($file:expr $(,)?) => {{
+    #[cfg(feature = "fs_rerun_if_changed")]
+    {
+      println!("cargo:rerun-if-changed={}", $file);
+    }
+
     // Include the code as Snapshot if "include-in-binary" feature is ON
     #[cfg(feature = "include-in-binary")]
     let source = crate::extensions::SourceCode::Preserved(include_str!($file));

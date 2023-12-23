@@ -1,5 +1,4 @@
 pub use diesel::prelude::*;
-pub use dqs_nodes::table;
 
 /// Dqs node
 #[derive(Queryable, Insertable, AsChangeset, Debug, Clone)]
