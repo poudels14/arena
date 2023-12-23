@@ -40,6 +40,7 @@ impl Command {
   #[tracing::instrument(skip_all)]
   pub async fn execute(&self) -> Result<()> {
     let project_root = ArenaConfig::find_project_root()?;
+    let arena_config = ArenaConfig::load(&project_root)?;
     let mut builtin_modules = vec![
       BuiltinModule::Fs,
       BuiltinModule::Node(None),
@@ -74,11 +75,16 @@ impl Command {
         egress_addr,
         ..Default::default()
       },
+      enable_arena_global: true,
       enable_console: true,
       module_loader: Some(Rc::new(FileModuleLoader::new(
         Rc::new(FilePathResolver::new(
           project_root.clone(),
-          Default::default(),
+          arena_config
+            .server
+            .javascript
+            .and_then(|j| j.resolve)
+            .unwrap_or_default(),
         )),
         Some(Rc::new(BabelTranspiler::new(project_root.clone()))),
       ))),

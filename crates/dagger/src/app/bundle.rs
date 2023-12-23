@@ -23,6 +23,7 @@ impl Command {
     let cwd = std::env::current_dir()?;
     let cwd = cwd.to_str().unwrap();
     let project_root = ArenaConfig::find_project_root()?;
+    let arena_config = ArenaConfig::load(&project_root)?;
 
     let builtin_extensions = vec![
       BuiltinModule::Fs,
@@ -42,7 +43,14 @@ impl Command {
     let mut runtime = IsolatedRuntime::new(RuntimeOptions {
       enable_console: true,
       module_loader: Some(Rc::new(FileModuleLoader::new(
-        Rc::new(FilePathResolver::new(project_root, Default::default())),
+        Rc::new(FilePathResolver::new(
+          project_root,
+          arena_config
+            .server
+            .javascript
+            .and_then(|j| j.resolve)
+            .unwrap_or_default(),
+        )),
         None,
       ))),
       builtin_extensions,

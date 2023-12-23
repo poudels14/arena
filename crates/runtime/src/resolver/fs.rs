@@ -44,6 +44,18 @@ pub struct FilePathResolver {
   pub(crate) cache: Rc<RefCell<ResolverCache>>,
 }
 
+impl FilePathResolver {
+  pub fn new(project_root: PathBuf, config: ResolverConfig) -> Self {
+    Self {
+      project_root,
+      config,
+      cache: Rc::new(RefCell::new(ResolverCache {
+        ..Default::default()
+      })),
+    }
+  }
+}
+
 impl Resolver for FilePathResolver {
   #[instrument(skip(self), level = "trace")]
   fn resolve(
@@ -109,16 +121,6 @@ impl Resolver for FilePathResolver {
 }
 
 impl FilePathResolver {
-  pub fn new(project_root: PathBuf, config: ResolverConfig) -> Self {
-    Self {
-      project_root,
-      config,
-      cache: Rc::new(RefCell::new(ResolverCache {
-        ..Default::default()
-      })),
-    }
-  }
-
   fn resolve_alias(&self, specifier: &str) -> String {
     let alias = &self.config.alias;
     for k in alias.keys() {

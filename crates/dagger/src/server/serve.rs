@@ -98,10 +98,12 @@ impl Command {
 
     let mut runtime = IsolatedRuntime::new(RuntimeOptions {
       enable_console: true,
+      enable_arena_global: self.enable_cloud_ext,
       module_loader: Some(Rc::new(FileModuleLoader::new(
         Rc::new(FilePathResolver::new(
           cwd.clone(),
           arena_config
+            .server
             .javascript
             .and_then(|j| j.resolve)
             .unwrap_or_default(),
@@ -109,7 +111,6 @@ impl Command {
         None,
       ))),
       builtin_extensions,
-      enable_arena_global: self.enable_cloud_ext,
       permissions: PermissionsContainer {
         fs: Some(FileSystemPermissions::allow_all(cwd.clone())),
         net: Some(NetPermissions::allow_all()),
