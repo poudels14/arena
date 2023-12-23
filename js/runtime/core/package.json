@@ -1,0 +1,15 @@
+{
+  "name": "@arena/runtime",
+  "version": "0.1.0",
+  "description": "Javascript files for non-core Arena runtime extension modules",
+  "type": "module",
+  "author": "Sagar Poudel",
+  "private": true,
+  "license": "UNLICENSED",
+  "dependencies": {},
+  "devDependencies": {
+    "commander": "^10.0.0",
+    "esbuild": "^0.17.10",
+    "prettier": "^2.8.4"
+  }
+}

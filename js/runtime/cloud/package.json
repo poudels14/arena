@@ -1,0 +1,13 @@
+{
+  "name": "@arena/cloud",
+  "version": "0.1.0",
+  "description": "Cloud extension for Arena runtime",
+  "type": "module",
+  "author": "Sagar Poudel",
+  "private": true,
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@arena/db": "workspace:^",
+    "@arena/sdk": "workspace:^"
+  }
+}

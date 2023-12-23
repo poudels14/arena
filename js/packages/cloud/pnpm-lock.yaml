@@ -1,6 +1,0 @@
-lockfileVersion: '6.0'
-
-dependencies:
-  '@arena/sdk':
-    specifier: workspace:^
-    version: link:../sdk
