@@ -24,8 +24,7 @@
       "javascript": {
         "resolve": {
           "alias": {
-            "~": "./src",
-            "@arena/core/router": "@arena/runtime/server"
+            "~": "./src"
           },
           "conditions": [
             "solid",

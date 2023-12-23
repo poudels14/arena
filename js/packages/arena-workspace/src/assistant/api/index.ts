@@ -1,4 +1,4 @@
-import { createRouter } from "@arena/runtime/server";
+import { createRouter } from "@arena/core/router";
 import * as chat from "./chat";
 import * as documents from "./documents";
 import * as plugins from "./plugins";

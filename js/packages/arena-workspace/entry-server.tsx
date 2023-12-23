@@ -43,6 +43,17 @@ const fileRouter = createFileRouter({
   },
   resolve: {
     preserveSymlink: true,
+    conditions: ["solid", "browser"],
+    alias: {
+      "~": "./src",
+    },
+    dedupe: [
+      "solid-js",
+      "@solidjs/router",
+      "@solidjs/meta",
+      "@arena/core",
+      "@arena/solid-store",
+    ],
   },
 });
 

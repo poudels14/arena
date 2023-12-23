@@ -1,4 +1,4 @@
-import { mergedRouter } from "@arena/runtime/server";
+import { mergedRouter } from "@arena/core/router";
 import { assistantRouter } from "~/assistant/api";
 
 const router = mergedRouter({

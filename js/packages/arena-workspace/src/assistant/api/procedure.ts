@@ -1,4 +1,4 @@
-import { procedure } from "@arena/runtime/server";
+import { procedure } from "@arena/core/router";
 import { Context } from "~/api/procedure";
 
 type AssistantContext = Context & {};
