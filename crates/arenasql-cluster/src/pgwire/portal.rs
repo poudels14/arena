@@ -4,8 +4,10 @@ use arenasql::datafusion::LogicalPlan;
 use dashmap::DashMap;
 use getset::{Getters, Setters};
 use pgwire::api::portal::Portal;
+use pgwire::api::results::FieldInfo;
 use pgwire::api::stmt::StoredStatement;
 use pgwire::api::store::PortalStore;
+use pgwire::api::Type;
 
 use super::ArenaQuery;
 
@@ -13,6 +15,10 @@ use super::ArenaQuery;
 #[getset(get = "pub", set = "pub")]
 pub struct ArenaPortalState {
   query_plan: Option<LogicalPlan>,
+  /// List of parameter types for the query
+  params: Vec<Type>,
+  /// List of fields/columns in that the query plan returns
+  fields: Vec<FieldInfo>,
 }
 
 #[allow(unused)]

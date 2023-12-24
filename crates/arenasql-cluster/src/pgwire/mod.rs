@@ -9,4 +9,3 @@ pub(crate) mod rowconverter;
 pub(crate) mod statement;
 
 pub use parser::{ArenaQuery, ArenaQueryParser};
-pub use portal::ArenaPortalStore;

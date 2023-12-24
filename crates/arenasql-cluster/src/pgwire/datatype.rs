@@ -14,7 +14,7 @@ pub fn to_field_info(field: &DatafusionField) -> FieldInfo {
   )
 }
 
-fn derive_pg_type(
+pub fn derive_pg_type(
   data_type: &DatafusionDataType,
   metadata: &HashMap<String, String>,
 ) -> Type {
