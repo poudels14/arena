@@ -7,7 +7,6 @@ use arenasql::execution::{
   SessionState, DEFAULT_SCHEMA_NAME,
 };
 use arenasql::runtime::RuntimeEnv;
-use dashmap::DashMap;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation};
 use pgwire::api::ClientInfo;
 use uuid::Uuid;
@@ -21,7 +20,7 @@ use crate::auth::{
 use crate::error::{ArenaClusterError, ArenaClusterResult, Error};
 use crate::extension::admin_exetension;
 use crate::io::file::File;
-use crate::pgwire::{ArenaPortalStore, ArenaQueryParser};
+use crate::pgwire::ArenaQueryParser;
 use crate::schema::{
   self, ADMIN_USERNAME, APPS_USERNAME, MANIFEST_FILE, SYSTEM_SCHEMA_NAME,
 };
@@ -34,11 +33,6 @@ pub struct ArenaSqlCluster {
   pub(crate) manifest: Arc<schema::Cluster>,
   pub(crate) runtime: Arc<RuntimeEnv>,
   pub(crate) parser: Arc<ArenaQueryParser>,
-  /// Portal stores should be unique to each session since different
-  /// statements can be stored under same default name and sharing
-  /// portals across sessions would lead to stored statements being
-  /// overridden
-  pub(crate) poral_stores: Arc<DashMap<String, Arc<ArenaPortalStore>>>,
   pub(crate) session_store: Arc<AuthenticatedSessionStore>,
   pub(crate) storage: Arc<ClusterStorageFactory>,
   pub(crate) jwt_secret: Option<String>,
@@ -73,7 +67,6 @@ impl ArenaSqlCluster {
       manifest,
       runtime: Arc::new(RuntimeEnv::default()),
       parser: Arc::new(ArenaQueryParser {}),
-      poral_stores: Arc::new(DashMap::new()),
       session_store: Arc::new(AuthenticatedSessionStore::new()),
       storage: Arc::new(ClusterStorageFactory::new(storage_options)),
       jwt_secret: options.jwt_secret.clone(),
