@@ -12,7 +12,8 @@ use tokio::runtime::Handle;
 
 use super::table::TableProvider;
 use crate::schema::{IndexType, Table, TableIndex};
-use crate::storage::Transaction;
+use crate::storage::{KeyValueGroup, Transaction};
+use crate::{index_rows_prefix_key, table_rows_prefix_key};
 
 /// Returns error if schema isn't found for the given table
 pub fn get_schema_provider(
@@ -99,6 +100,71 @@ impl DfSchemaProvider for SchemaProvider {
     schema_lock.table = Some(table.clone());
     state.hold_table_schema_lock(schema_lock)?;
 
+    Ok(Some(
+      Arc::new(TableProvider::new(table, self.transaction.clone()))
+        as Arc<dyn DfTableProvider>,
+    ))
+  }
+
+  #[allow(unused_variables)]
+  fn deregister_table(
+    &self,
+    name: &str,
+  ) -> Result<Option<Arc<dyn DfTableProvider>>> {
+    let state = &self.transaction.state();
+    let table = match state.get_table(&self.schema, name) {
+      Some(table) => table,
+      None => return Ok(None),
+    };
+
+    let storage_handler = self.transaction.lock(true)?;
+
+    let mut schema_lock = tokio::task::block_in_place(|| {
+      Handle::current().block_on(async {
+        state
+          .acquire_table_schema_write_lock(self.schema.as_ref(), &name)
+          .await
+      })
+    })?;
+
+    // delete index rows
+    for index in &table.indexes {
+      let mut index_rows_iter = storage_handler.kv.scan_with_prefix(
+        KeyValueGroup::IndexRows,
+        &index_rows_prefix_key!(index.id),
+      )?;
+
+      // TODO: is there a way to do bulk delete?
+      while let Some((index_row_key, _)) = index_rows_iter.get() {
+        storage_handler
+          .kv
+          .delete(KeyValueGroup::IndexRows, index_row_key)?;
+        index_rows_iter.next();
+      }
+    }
+
+    // delete rows
+    let mut table_rows_iter = storage_handler.kv.scan_with_prefix(
+      KeyValueGroup::Rows,
+      &table_rows_prefix_key!(table.id),
+    )?;
+
+    // TODO: is there a way to do bulk delete?
+    while let Some((table_row_key, _)) = table_rows_iter.get() {
+      storage_handler
+        .kv
+        .delete(KeyValueGroup::Rows, table_row_key)?;
+      table_rows_iter.next();
+    }
+
+    storage_handler.delete_table_schema(
+      &self.catalog,
+      &self.schema,
+      &table.name,
+    )?;
+
+    schema_lock.table = Some(table.clone());
+    state.hold_table_schema_lock(schema_lock)?;
     Ok(Some(
       Arc::new(TableProvider::new(table, self.transaction.clone()))
         as Arc<dyn DfTableProvider>,

@@ -49,7 +49,7 @@ impl StorageHandler {
       let index_key =
         index_row_key!(table_index.id, &serialized_index_key_columns);
 
-      if self.kv.get(KeyValueGroup::Indexes, &index_key)?.is_some() {
+      if self.kv.get(KeyValueGroup::IndexRows, &index_key)?.is_some() {
         return Err(Error::UniqueConstaintViolated {
           data: projected_cells.iter().map(|c| (*c).to_owned()).collect(),
           columns: table.project_columns(&table_index.columns()),
@@ -58,7 +58,7 @@ impl StorageHandler {
       }
       self
         .kv
-        .put(KeyValueGroup::Indexes, &index_key, row_id_bytes)?;
+        .put(KeyValueGroup::IndexRows, &index_key, row_id_bytes)?;
     } else {
       // If index allows duplicates, add row_id to the key-value key
       let serialized_index_key_columns =
@@ -70,7 +70,7 @@ impl StorageHandler {
           ))?;
       let index_key =
         index_row_key!(table_index.id, &serialized_index_key_columns);
-      self.kv.put(KeyValueGroup::Indexes, &index_key, &vec![])?;
+      self.kv.put(KeyValueGroup::IndexRows, &index_key, &vec![])?;
     }
     Ok(())
   }
@@ -90,6 +90,6 @@ impl StorageHandler {
     let index_key =
       index_row_key!(table_index.id, &serialized_index_key_columns);
 
-    self.kv.delete(KeyValueGroup::Indexes, &index_key)
+    self.kv.delete(KeyValueGroup::IndexRows, &index_key)
   }
 }

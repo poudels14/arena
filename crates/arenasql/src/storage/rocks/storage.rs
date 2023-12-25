@@ -98,7 +98,7 @@ impl RocksStorage {
           RocksOptions::default(),
         ),
         ColumnFamilyDescriptor::new(
-          KeyValueGroup::Indexes.to_string(),
+          KeyValueGroup::IndexRows.to_string(),
           indexes_cf_options,
         ),
         ColumnFamilyDescriptor::new(

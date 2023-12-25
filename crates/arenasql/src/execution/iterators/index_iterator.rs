@@ -44,7 +44,7 @@ impl<'a> IndexIterator<'a> {
     let mut index_iter = self
       .storage
       .kv
-      .scan_with_prefix(KeyValueGroup::Indexes, &index_scan_prefix)?;
+      .scan_with_prefix(KeyValueGroup::IndexRows, &index_scan_prefix)?;
 
     match (self.index.is_unique(), self.requires_table_lookup()) {
       (true, false) => {

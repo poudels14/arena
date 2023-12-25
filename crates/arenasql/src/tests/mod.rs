@@ -11,6 +11,7 @@ use crate::SingleCatalogListProvider;
 
 mod datatype;
 mod delete_query;
+mod drop_table;
 mod insert_query;
 mod schema;
 mod select_query;

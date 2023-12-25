@@ -161,6 +161,10 @@ impl Error {
               msg
             );
             format!("Unsupported query")
+          }
+          // table '...' not found"
+          else if msg.contains("table") && msg.contains("not found") {
+            msg.to_owned()
           } else {
             eprintln!(
               "Unknown query error: {}:{}: {:?}",

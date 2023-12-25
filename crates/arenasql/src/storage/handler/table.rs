@@ -77,4 +77,16 @@ impl StorageHandler {
       &table_bytes,
     )
   }
+
+  pub fn delete_table_schema(
+    &self,
+    catalog: &str,
+    schema: &str,
+    table_name: &str,
+  ) -> Result<()> {
+    self.kv.delete(
+      KeyValueGroup::Schemas,
+      table_schema_key!(catalog, schema, &table_name),
+    )
+  }
 }

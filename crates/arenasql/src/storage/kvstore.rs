@@ -34,9 +34,9 @@ pub enum KeyValueGroup {
   /// All schemas (database, table, etc) are stored under this key type
   #[strum(serialize = "SCHEMAS")]
   Schemas = 1,
-  /// Table indices are stored under this key space
-  #[strum(serialize = "INDEXES")]
-  Indexes = 2,
+  /// "Rows" corresponding to table indices are stored under this key space
+  #[strum(serialize = "INDEX_ROWS")]
+  IndexRows = 2,
   /// Row data is stored under this key space
   #[strum(serialize = "ROWS")]
   Rows = 3,

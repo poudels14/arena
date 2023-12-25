@@ -8,6 +8,7 @@ pub enum StatementType {
   Query,
   Insert,
   Create,
+  Drop,
   Delete,
   Update,
   Alter,
@@ -29,6 +30,7 @@ impl From<&SQLStatement> for StatementType {
       SQLStatement::Update { .. } => Self::Update,
       SQLStatement::AlterIndex { .. } => Self::Alter,
       SQLStatement::Execute { .. } => Self::Execute,
+      SQLStatement::Drop { .. } => Self::Drop,
       stmt => unimplemented!("Statement type not supported: {}", stmt),
     }
   }
@@ -44,6 +46,7 @@ impl StatementType {
       Self::Query => "SELECT",
       Self::Insert => "INSERT",
       Self::Create => "CREATE",
+      Self::Drop => "DROP",
       Self::Delete => "DELETE",
       Self::Update => "UPDATE",
       Self::Alter => "ALTER",
