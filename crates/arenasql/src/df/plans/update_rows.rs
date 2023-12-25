@@ -19,8 +19,8 @@ use derivative::Derivative;
 use derive_builder::Builder;
 use futures::{StreamExt, TryStreamExt};
 
+use crate::execution::TransactionHandle;
 use crate::schema::{RowId, Table};
-use crate::storage::Transaction;
 use crate::utils::rowconverter;
 use crate::Error;
 
@@ -32,7 +32,7 @@ pub struct UpdateRowsExecutionPlan {
   #[builder(setter(skip), default = "self.default_schema()")]
   schema: SchemaRef,
   #[derivative(Debug = "ignore")]
-  transaction: Transaction,
+  transaction: TransactionHandle,
 }
 
 impl UpdateRowsExecutionPlanBuilder {

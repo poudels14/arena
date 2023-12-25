@@ -19,8 +19,8 @@ use crate::df::plans::insert_rows;
 use crate::df::plans::scan_table::TableScanerBuilder;
 use crate::df::plans::update_rows::UpdateRowsExecutionPlanBuilder;
 use crate::execution::filter::Filter;
+use crate::execution::TransactionHandle;
 use crate::schema;
-use crate::storage::Transaction;
 
 pub fn get_table_ref<'a>(
   state: &'a SessionState,
@@ -39,13 +39,13 @@ pub struct TableProvider {
   table: Arc<schema::Table>,
   schema: SchemaRef,
   constraints: Option<Constraints>,
-  transaction: Transaction,
+  transaction: TransactionHandle,
 }
 
 impl TableProvider {
   pub(crate) fn new(
     table: Arc<schema::Table>,
-    transaction: Transaction,
+    transaction: TransactionHandle,
   ) -> Self {
     Self {
       schema: table.get_df_schema(),

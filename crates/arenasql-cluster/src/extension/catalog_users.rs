@@ -109,18 +109,18 @@ impl CustomExecutionPlan for SetCatalogUserCredentials {
         ],
       );
 
-      let txn = plan.transaction.storage_transaction();
-      let users_table = txn
-        .state()
+      let handle = plan.transaction.handle();
+      let users_table = handle
         .get_table(SYSTEM_SCHEMA_NAME, "users")
         .ok_or_else(|| {
           Error::RelationDoesntExist(format!("{}.users", SYSTEM_SCHEMA_NAME))
         })?;
-      let storage = txn.lock(false)?;
+      let storage = handle.lock(false)?;
       let cols = vec![0];
 
       let mut rows_iter = HeapIterator::new(&storage, &users_table, &cols);
-      let existing_users = scan_catalog_users(&mut rows_iter, &txn.serializer)?;
+      let existing_users =
+        scan_catalog_users(&mut rows_iter, &handle.serializer())?;
 
       for (row_id, user) in existing_users {
         if user.catalog == plan.user.catalog
@@ -142,7 +142,9 @@ impl CustomExecutionPlan for SetCatalogUserCredentials {
       storage.insert_row(
         &users_table,
         &row_id,
-        &vec![SerializedCell::Blob(&txn.serializer.serialize(&plan.user)?)],
+        &vec![SerializedCell::Blob(
+          &handle.serializer().serialize(&plan.user)?,
+        )],
       )?;
 
       Ok(dataframe)
@@ -206,18 +208,18 @@ impl CustomExecutionPlan for ListCatalogUserCredentials {
         ],
       );
 
-      let txn = plan.transaction.storage_transaction();
-      let users_table = txn
-        .state()
+      let handle = plan.transaction.handle();
+      let users_table = handle
         .get_table(SYSTEM_SCHEMA_NAME, "users")
         .ok_or_else(|| {
           Error::RelationDoesntExist(format!("{}.users", SYSTEM_SCHEMA_NAME))
         })?;
-      let storage = txn.lock(false)?;
+      let storage = handle.lock(false)?;
       let cols = vec![0];
 
       let mut rows_iter = HeapIterator::new(&storage, &users_table, &cols);
-      let existing_users = scan_catalog_users(&mut rows_iter, &txn.serializer)?;
+      let existing_users =
+        scan_catalog_users(&mut rows_iter, &handle.serializer())?;
 
       existing_users
         .iter()

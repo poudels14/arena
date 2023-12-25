@@ -92,11 +92,7 @@ impl<'a> ColumnEncoder for &Arc<dyn Array> {
                 .collect::<Vec<f32>>(),
             )
           });
-          encoder.encode_field_with_type_and_format(
-            &float_arr,
-            &Type::JSONB,
-            pgwire::api::results::FieldFormat::Text,
-          )
+          encoder.encode_field(&float_arr)
         })
         .collect(),
       dt => Err(PgWireError::ApiError(Box::new(

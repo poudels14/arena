@@ -1,6 +1,8 @@
 use std::fmt;
 use std::sync::Arc;
 
+use datafusion::arrow::array::UInt64Array;
+use datafusion::arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use datafusion::execution::TaskContext;
 use datafusion::physical_plan::{DisplayAs, DisplayFormatType};
 use derivative::Derivative;
@@ -9,8 +11,10 @@ use futures::StreamExt;
 use sqlparser::ast::Statement as SQLStatement;
 
 use crate::df::providers::{get_schema_provider, get_table_ref};
-use crate::execution::{CustomExecutionPlan, ExecutionPlanResponse};
-use crate::execution::{SessionState, Transaction};
+use crate::execution::Transaction;
+use crate::execution::{
+  CustomExecutionPlan, ExecutionPlanResponse, TransactionHandle,
+};
 use crate::schema::{DataFrame, IndexType, Row, Table, TableIndex};
 use crate::storage::{KeyValueGroup, StorageHandler};
 use crate::{bail, table_rows_prefix_key, Error, Result};
@@ -23,7 +27,6 @@ macro_rules! bail_unsupported_query {
 
 /// Returns a custom execution plan extension to create index
 pub fn extension(
-  _state: &SessionState,
   transaction: &Transaction,
   stmt: &SQLStatement,
 ) -> Result<Option<Arc<dyn CustomExecutionPlan>>> {
@@ -65,8 +68,7 @@ pub fn extension(
       }
 
       let table = transaction
-        .storage_transaction()
-        .state()
+        .handle()
         .get_table(&table_ref.schema, &table_name)
         .unwrap();
       let column_projection = columns
@@ -94,7 +96,7 @@ pub fn extension(
 
       return Ok(Some(Arc::new(
         CreateIndexExecutionPlanBuilder::default()
-          .transaction(transaction.clone())
+          .transaction(transaction.handle().clone())
           .create_index(create_index)
           .build()
           .unwrap(),
@@ -109,7 +111,7 @@ pub fn extension(
 #[derivative(Debug)]
 pub struct CreateIndexExecutionPlan {
   #[derivative(Debug = "ignore")]
-  transaction: Transaction,
+  transaction: TransactionHandle,
   create_index: CreateIndex,
 }
 
@@ -137,13 +139,24 @@ impl DisplayAs for CreateIndexExecutionPlan {
 }
 
 impl CustomExecutionPlan for CreateIndexExecutionPlan {
+  fn schema(&self) -> SchemaRef {
+    Arc::new(Schema::new(vec![Field::new(
+      "count",
+      DataType::UInt64,
+      false,
+    )]))
+  }
+
   fn execute(
     &self,
     _partition: usize,
     _context: Arc<TaskContext>,
   ) -> crate::Result<ExecutionPlanResponse> {
-    let transaction = self.transaction.storage_transaction().clone();
     let create_index = self.create_index.clone();
+    let transaction = self.transaction.clone();
+
+    let response =
+      DataFrame::from_arrays(vec![Arc::new(UInt64Array::from(vec![0]))]);
     let stream = futures::stream::once(async move {
       let CreateIndex {
         name: index_name,
@@ -163,7 +176,7 @@ impl CustomExecutionPlan for CreateIndexExecutionPlan {
 
       if index_with_same_name_exist {
         if if_not_exists {
-          return Ok(DataFrame::empty());
+          return Ok(response);
         } else {
           bail!(Error::RelationAlreadyExists(index_name.unwrap()));
         }
@@ -174,8 +187,7 @@ impl CustomExecutionPlan for CreateIndexExecutionPlan {
         false => IndexType::NonUnique(columns),
       };
 
-      let state = transaction.state();
-      let mut table_lock = state
+      let mut table_lock = transaction
         .acquire_table_schema_write_lock(schema.as_ref(), &table.name)
         .await?;
 
@@ -188,9 +200,8 @@ impl CustomExecutionPlan for CreateIndexExecutionPlan {
       backfill_index_data(&storage_handler, &table, &new_index)?;
 
       table_lock.table = Some(Arc::new(table));
-      state.hold_table_schema_lock(table_lock)?;
-
-      Ok(DataFrame::empty())
+      transaction.hold_table_schema_lock(table_lock)?;
+      Ok(response)
     })
     .boxed();
 

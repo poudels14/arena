@@ -52,9 +52,12 @@ impl ColumnArrayBuilder {
       DataType::Text => ColumnArrayBuilder::String(
         StringBuilder::with_capacity(capacity, capacity * 250),
       ),
-      DataType::Varchar { len } => ColumnArrayBuilder::String(
-        StringBuilder::with_capacity(capacity, capacity * *len as usize),
-      ),
+      DataType::Varchar { len } => {
+        ColumnArrayBuilder::String(StringBuilder::with_capacity(
+          capacity,
+          capacity * len.unwrap_or(1000) as usize,
+        ))
+      }
       DataType::Binary => {
         ColumnArrayBuilder::Binary(BinaryBuilder::with_capacity(capacity, 1000))
       }

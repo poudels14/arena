@@ -17,8 +17,8 @@ use sqlparser::ast::{Ident, Statement as SQLStatement};
 use crate::datafusion::RecordBatchStream;
 use crate::df::providers::table::TableProvider;
 use crate::df::providers::{get_schema_provider, get_table_ref};
+use crate::execution::TransactionHandle;
 use crate::schema::Table;
-use crate::storage::Transaction;
 use crate::utils::rowconverter;
 
 #[derive(Derivative, Clone)]
@@ -27,7 +27,7 @@ pub struct Sink {
   pub table: Arc<Table>,
   pub schema: SchemaRef,
   #[derivative(Debug = "ignore")]
-  pub transaction: Transaction,
+  pub transaction: TransactionHandle,
 }
 
 impl DisplayAs for Sink {

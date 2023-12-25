@@ -10,11 +10,9 @@ use tokio::sync::oneshot;
 
 use super::schema_factory::{SchemaFactory, SchemaFactoryBuilder};
 use super::state::StorageFactoryState;
-use crate::storage::locks::{SchemaLocks, SchemaLocksBuilder};
-use crate::storage::transaction::{
-  TransactionBuilder, TransactionStateBuilder,
-};
-use crate::storage::{KeyValueStoreProvider, Serializer, Transaction};
+use crate::execution::locks::{SchemaLocks, SchemaLocksBuilder};
+use crate::execution::TransactionHandle;
+use crate::storage::{KeyValueStoreProvider, Serializer};
 use crate::{bail, Error, Result};
 
 #[derive(Builder, Derivative, Getters)]
@@ -43,19 +41,19 @@ pub struct StorageFactory {
   wait_signal: Arc<tokio::sync::Mutex<Option<oneshot::Receiver<()>>>>,
 
   #[builder(private)]
-  state: StorageFactoryState,
+  state: Arc<StorageFactoryState>,
 }
 
 impl StorageFactory {
   pub fn being_transaction(
     &self,
     schemas: Arc<Vec<String>>,
-  ) -> Result<Transaction> {
+  ) -> Result<TransactionHandle> {
     if self.state.shutdown_triggered() {
       bail!(Error::DatabaseClosed);
     }
 
-    let kv_store = self.kv_provider.new_transaction()?;
+    let kvstore = self.kv_provider.new_transaction()?;
     // Clear all schemas for now, it's easier
     if self.state.should_reload_schema() {
       self.schemas.clear();
@@ -90,20 +88,12 @@ impl StorageFactory {
       })
       .collect::<Result<BTreeMap<String, Arc<SchemaFactory>>>>()?;
 
-    let txn_state = TransactionStateBuilder::default()
-      .schema_factories(schema_factories.into())
-      .storage_factory_state(self.state.clone())
-      .build()
-      .unwrap();
-    self.state.increase_active_transaction_count();
-    Ok(
-      TransactionBuilder::default()
-        .kv_store(Arc::new(kv_store))
-        .serializer(self.serializer.clone())
-        .state(Arc::new(txn_state))
-        .build()
-        .unwrap(),
-    )
+    Ok(TransactionHandle::new(
+      self.serializer.clone(),
+      Arc::new(kvstore),
+      schema_factories.into(),
+      self.state.clone(),
+    ))
   }
 
   /// This waits for all transactions using this storage to complete
@@ -147,7 +137,7 @@ impl StorageFactoryBuilder {
 
     let (tx, rx) = oneshot::channel();
     self.wait_signal = Some(Arc::new(tokio::sync::Mutex::new(Some(rx))));
-    self.state = Some(StorageFactoryState::new(Some(tx)));
+    self.state = Some(Arc::new(StorageFactoryState::new(Some(tx))));
     self
   }
 }

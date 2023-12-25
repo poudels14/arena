@@ -3,11 +3,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
+use arenasql::execution::factory::{StorageFactory, StorageFactoryBuilder};
 use arenasql::rocks::{BackupEngine, BackupEngineOptions, Env};
 use arenasql::storage::rocks::{self, RocksStorage};
 use arenasql::storage::{
-  self, KeyValueStoreProvider, MemoryKeyValueStoreProvider, Serializer,
-  StorageFactoryBuilder,
+  KeyValueStoreProvider, MemoryKeyValueStoreProvider, Serializer,
 };
 use dashmap::DashMap;
 use futures::future::join_all;
@@ -22,7 +22,7 @@ use crate::schema::SYSTEM_CATALOG_NAME;
 pub struct ClusterStorageFactory {
   #[getset(get = "pub")]
   options: StorageOption,
-  storages: DashMap<String, Arc<storage::StorageFactory>>,
+  storages: DashMap<String, Arc<StorageFactory>>,
 }
 
 #[derive(Debug, Default, Getters, Setters)]
@@ -62,7 +62,7 @@ impl ClusterStorageFactory {
   pub fn get_catalog(
     &self,
     db_name: &str,
-  ) -> ArenaClusterResult<Option<Arc<storage::StorageFactory>>> {
+  ) -> ArenaClusterResult<Option<Arc<StorageFactory>>> {
     let storage = self.storages.get(db_name);
     match storage {
       Some(storage) => Ok(Some(storage.value().clone())),
@@ -188,7 +188,7 @@ impl ClusterStorageFactory {
 
   async fn checkpoint_catalog(
     checkpoint_dir: PathBuf,
-    storage: &storage::StorageFactory,
+    storage: &StorageFactory,
     catalog_name: &str,
     timetamp: &SystemTime,
   ) -> ArenaClusterResult<()> {

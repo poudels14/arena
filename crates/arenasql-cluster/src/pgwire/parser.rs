@@ -30,7 +30,7 @@ impl QueryParser for ArenaQueryParser {
     let (sql, header) =
       parse_auth_header(&sql).unwrap_or_else(|_| (sql, AuthHeader::None));
 
-    let stmts = arenasql::ast::parse_and_sanitize(sql)?
+    let stmts = arenasql::ast::parse(sql)?
       .into_iter()
       .map(|stmt| Box::new(stmt))
       .collect();

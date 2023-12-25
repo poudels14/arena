@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use arenasql::datafusion::ScalarUDF;
 use arenasql::execution::{
-  CustomExecutionPlan, ScalarUdfExecutionPlan, SessionState, Transaction,
+  CustomExecutionPlan, ScalarUdfExecutionPlan, Transaction,
 };
 use arenasql::Result;
 use once_cell::sync::Lazy;
@@ -16,7 +16,6 @@ pub(crate) mod catalog_users;
 
 /// Returns a custom admin execution plan extension
 pub fn admin_exetension(
-  _state: &SessionState,
   transaction: &Transaction,
   stmt: &Statement,
 ) -> Result<Option<Arc<dyn CustomExecutionPlan>>> {

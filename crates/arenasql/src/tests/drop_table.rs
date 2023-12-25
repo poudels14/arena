@@ -33,8 +33,8 @@ async fn drop_table_test_all_data_deleted() {
 
   let _ = execute_query!(txn, r#"DROP TABLE test_table"#).unwrap();
 
-  let storage_txn = txn.storage_transaction();
-  let storage = storage_txn.lock(true).unwrap();
+  let handle = txn.handle();
+  let storage = handle.lock(true).unwrap();
 
   let index_scanner = storage
     .kv

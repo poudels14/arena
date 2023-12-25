@@ -5,8 +5,8 @@ mod table;
 
 use std::sync::Arc;
 
-use super::transaction::TransactionState;
 use super::{KeyValueGroup, KeyValueStore, Serializer};
+use crate::execution::TransactionLock;
 
 /// Uses interior mutability to store the KeyValue provider trait
 /// because owned reference to the trait is required in order to
@@ -15,7 +15,7 @@ pub struct StorageHandler {
   pub(crate) kv: Arc<Box<dyn KeyValueStore>>,
   pub(crate) serializer: Serializer,
   #[allow(unused)]
-  pub(crate) transaction_state: Option<Arc<TransactionState>>,
+  pub(crate) transaction_lock: Option<TransactionLock>,
 }
 
 impl StorageHandler {
@@ -33,7 +33,7 @@ impl StorageHandler {
 
 impl Drop for StorageHandler {
   fn drop(&mut self) {
-    if let Some(state) = &self.transaction_state {
+    if let Some(state) = &self.transaction_lock {
       state.unlock().unwrap();
     }
   }

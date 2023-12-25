@@ -6,8 +6,8 @@ use derivative::Derivative;
 use derive_builder::Builder;
 use parking_lot::{Mutex, RwLock};
 
+use crate::execution::locks::{SchemaLocks, TableSchemaWriteLock};
 use crate::schema::Table;
-use crate::storage::locks::{SchemaLocks, TableSchemaWriteLock};
 use crate::storage::{KeyValueStoreProvider, Serializer, StorageHandler};
 use crate::Result;
 
@@ -42,7 +42,7 @@ impl SchemaFactory {
     let storage_handler = StorageHandler {
       kv: Arc::new(kv),
       serializer: self.serializer.clone(),
-      transaction_state: None,
+      transaction_lock: None,
     };
 
     let all_tables =

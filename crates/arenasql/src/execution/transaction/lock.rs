@@ -2,76 +2,32 @@ use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
-use derivative::Derivative;
-use derive_builder::Builder;
 use strum_macros::FromRepr;
 
-use crate::schema::Table;
-use crate::storage::factory::{SchemaFactory, StorageFactoryState};
-use crate::storage::locks::TableSchemaWriteLock;
-use crate::{Error, Result};
+use crate::error::Error;
+use crate::execution::factory::{SchemaFactory, StorageFactoryState};
+use crate::Result;
 
-/// Don't implement clone so that when this is dropped,
-/// we can guarantee that the transaction with this state
-/// was closed (committed/rolledback)
-#[derive(Builder, Derivative)]
-pub struct TransactionState {
-  #[builder(default = "Arc::new(BTreeMap::new())")]
-  schema_factories: Arc<BTreeMap<String, Arc<SchemaFactory>>>,
-  storage_factory_state: StorageFactoryState,
-  /// LockState value
-  #[builder(setter(skip), default = "Arc::new(AtomicUsize::new(1))")]
-  lock: Arc<AtomicUsize>,
+#[derive(Clone)]
+pub struct TransactionLock {
+  pub(super) lock: Arc<AtomicUsize>,
+  pub(super) schema_factories: Arc<BTreeMap<String, Arc<SchemaFactory>>>,
+  pub(super) storage_factory_state: Arc<StorageFactoryState>,
 }
 
-impl Drop for TransactionState {
-  fn drop(&mut self) {
-    self.storage_factory_state.reduce_active_transaction_count();
-  }
+#[derive(Debug, FromRepr)]
+#[repr(usize)]
+enum LockState {
+  Unknown = 0,
+  Free = 1,
+  // Any number between [2 - (MAX - 1)]
+  // means it's read locked
+  // ReadLocked => 2 <-> (MAX - 1),
+  WriteLocked = usize::MAX - 1,
+  Closed = usize::MAX,
 }
 
-impl TransactionState {
-  #[inline]
-  pub async fn acquire_table_schema_write_lock(
-    &self,
-    schema: &str,
-    table_name: &str,
-  ) -> Result<TableSchemaWriteLock> {
-    self
-      .schema_factories
-      .get(schema)
-      .unwrap()
-      .acquire_table_schema_write_lock(table_name)
-      .await
-  }
-
-  /// Holds the write lock to the table until this transaction is dropped
-  pub fn hold_table_schema_lock(
-    &self,
-    lock: TableSchemaWriteLock,
-  ) -> Result<()> {
-    self
-      .schema_factories
-      .get(lock.schema.as_ref())
-      .unwrap()
-      .hold_table_schema_lock(lock)
-  }
-
-  pub fn get_table(&self, schema: &str, name: &str) -> Option<Arc<Table>> {
-    self
-      .schema_factories
-      .get(schema)
-      .and_then(|sf| sf.get_table(name))
-  }
-
-  pub fn table_names(&self, schema: &str) -> Vec<String> {
-    self
-      .schema_factories
-      .get(schema)
-      .map(|sf| sf.table_names())
-      .unwrap_or_default()
-  }
-
+impl TransactionLock {
   #[inline]
   pub fn lock(&self, exclusive: bool) -> Result<()> {
     let state = self.lock.load(Ordering::SeqCst);
@@ -205,16 +161,4 @@ impl TransactionState {
     }
     Ok(())
   }
-}
-
-#[derive(Debug, FromRepr)]
-#[repr(usize)]
-pub(super) enum LockState {
-  Unknown = 0,
-  Free = 1,
-  // Any number between [2 - (MAX - 1)]
-  // means it's read locked
-  // ReadLocked => 2 <-> (MAX - 1),
-  WriteLocked = usize::MAX - 1,
-  Closed = usize::MAX,
 }

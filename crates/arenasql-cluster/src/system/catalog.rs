@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use arenasql::datafusion::{DatafusionCatalogList, DatafusionCatalogProvider};
-use arenasql::storage::Transaction;
+use arenasql::execution::TransactionHandle;
 use arenasql::{CatalogListProvider, CatalogProvider};
 use derive_builder::Builder;
 
@@ -28,20 +28,20 @@ impl CatalogListProvider for ArenaClusterCatalogListProvider {
     &self,
     _catalog: Arc<str>,
     schemas: Arc<Vec<String>>,
-    transaction: Transaction,
-  ) -> Option<Arc<dyn DatafusionCatalogList>> {
-    Some(Arc::new(DirectoryCatalogList {
+    transaction: TransactionHandle,
+  ) -> Arc<dyn DatafusionCatalogList> {
+    Arc::new(DirectoryCatalogList {
       options: self.options.clone(),
       schemas,
       transaction,
-    }))
+    })
   }
 }
 
 pub struct DirectoryCatalogList {
   options: CatalogListOptions,
   schemas: Arc<Vec<String>>,
-  transaction: Transaction,
+  transaction: TransactionHandle,
 }
 
 impl DirectoryCatalogList {

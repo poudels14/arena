@@ -16,8 +16,8 @@ use futures::StreamExt;
 use crate::datafusion::{RecordBatch, RecordBatchStream};
 use crate::execution::filter::Filter;
 use crate::execution::iterators::{HeapIterator, IndexIterator};
+use crate::execution::TransactionHandle;
 use crate::schema::{DataFrame, DataType, Table};
-use crate::storage::Transaction;
 
 #[derive(Derivative, Clone, Builder)]
 #[derivative(Debug)]
@@ -27,7 +27,7 @@ pub struct TableScaner {
   projection: Vec<usize>,
   projected_schema: SchemaRef,
   #[derivative(Debug = "ignore")]
-  pub transaction: Transaction,
+  pub transaction: TransactionHandle,
   filters: Vec<Filter>,
   limit: Option<usize>,
 }
@@ -103,7 +103,7 @@ impl TableScaner {
     schema: SchemaRef,
     filters: Vec<Filter>,
     limit: Option<usize>,
-    transaction: Transaction,
+    transaction: TransactionHandle,
   ) -> Result<RecordBatch, DataFusionError> {
     // Only pass in physical columns since virutal columns like
     // ctid are default included

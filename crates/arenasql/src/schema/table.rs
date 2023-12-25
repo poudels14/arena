@@ -8,9 +8,10 @@ use datafusion::common::Constraints as DfConstraints;
 use datafusion::datasource::TableProvider as DfTableProvider;
 use inflector::Inflector;
 use serde::{Deserialize, Serialize};
+use sqlparser::ast::{ColumnOption, Statement};
 
 use super::{
-  Column, ColumnId, Constraint, IndexType, TableIndex, TableIndexId,
+  Column, ColumnId, Constraint, DataType, IndexType, TableIndex, TableIndexId,
 };
 use crate::Result;
 
@@ -30,15 +31,9 @@ impl Table {
     id: TableId,
     name: &str,
     provider: Arc<dyn DfTableProvider>,
+    stmt: &Statement,
   ) -> Result<Self> {
-    let columns = provider
-      .schema()
-      .fields
-      .iter()
-      .enumerate()
-      .map(|(idx, field)| Column::from_field(idx as ColumnId, field))
-      .collect::<Result<Vec<Column>>>()?;
-
+    let columns = get_columns_from_query_stmt(stmt, provider.schema())?;
     Ok(Table {
       id,
       name: name.to_owned(),
@@ -58,7 +53,7 @@ impl Table {
     let fields: Vec<DfField> = self
       .columns
       .iter()
-      .map(|col| col.to_field(&self.name))
+      .map(|col| col.to_field(&self))
       .chain(vec![DfField::new("ctid", DfDataType::UInt64, false)])
       .collect();
     DfSchemaRef::new(DfSchema::new(fields))
@@ -119,5 +114,36 @@ impl Table {
       .iter()
       .map(|proj| &self.columns[*proj].name)
       .collect()
+  }
+}
+
+fn get_columns_from_query_stmt(
+  stmt: &Statement,
+  schema: DfSchemaRef,
+) -> Result<Vec<Column>> {
+  match stmt {
+    Statement::CreateTable { columns, .. } => {
+      columns
+        .iter()
+        .zip(schema.fields.iter())
+        .enumerate()
+        .map(|(index, (col, field))| {
+          let not_nullable = col.options.iter().any(|opt| match opt.option {
+            ColumnOption::NotNull => true,
+            _ => false,
+          });
+
+          Ok(Column {
+            id: index as ColumnId,
+            name: col.name.value.clone(),
+            data_type: DataType::from_column_def(&col, field)?,
+            nullable: !not_nullable,
+            // TODO
+            default_value: None,
+          })
+        })
+        .collect::<Result<Vec<Column>>>()
+    }
+    _ => unimplemented!(),
   }
 }

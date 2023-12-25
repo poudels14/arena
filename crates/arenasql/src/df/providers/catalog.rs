@@ -8,15 +8,15 @@ use datafusion::catalog::{
 use derive_builder::Builder;
 
 use super::schema::SchemaProviderBuilder;
-use crate::storage::Transaction;
+use crate::execution::TransactionHandle;
 
 pub trait CatalogListProvider: Send + Sync {
   fn get_catalog_list(
     &self,
     catalog: Arc<str>,
     schemas: Arc<Vec<String>>,
-    transaction: Transaction,
-  ) -> Option<Arc<dyn DfCatalogList>>;
+    transaction: TransactionHandle,
+  ) -> Arc<dyn DfCatalogList>;
 }
 
 pub struct NoopCatalogListProvider {}
@@ -26,8 +26,8 @@ impl CatalogListProvider for NoopCatalogListProvider {
     &self,
     _catalog: Arc<str>,
     _schemas: Arc<Vec<String>>,
-    _transaction: Transaction,
-  ) -> Option<Arc<dyn DfCatalogList>> {
+    _transaction: TransactionHandle,
+  ) -> Arc<dyn DfCatalogList> {
     unimplemented!()
   }
 }
@@ -45,9 +45,9 @@ impl CatalogListProvider for SingleCatalogListProvider {
     &self,
     catalog: Arc<str>,
     schemas: Arc<Vec<String>>,
-    transaction: Transaction,
-  ) -> Option<Arc<dyn DfCatalogList>> {
-    Some(Arc::new(
+    transaction: TransactionHandle,
+  ) -> Arc<dyn DfCatalogList> {
+    Arc::new(
       SingleCatalogListBuilder::default()
         .catalog(catalog.clone())
         .provider(Arc::new(CatalogProvider {
@@ -57,7 +57,7 @@ impl CatalogListProvider for SingleCatalogListProvider {
         }))
         .build()
         .unwrap(),
-    ))
+    )
   }
 }
 
@@ -96,7 +96,7 @@ impl DfCatalogList for SingleCatalogList {
 pub struct CatalogProvider {
   pub catalog: Arc<str>,
   pub schemas: Arc<Vec<String>>,
-  pub transaction: Transaction,
+  pub transaction: TransactionHandle,
 }
 
 impl DfCatalogProvider for CatalogProvider {

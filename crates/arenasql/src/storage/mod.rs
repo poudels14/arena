@@ -1,21 +1,16 @@
-pub(self) mod factory;
 mod handler;
 mod kvstore;
-mod locks;
 mod memory;
 mod serializer;
-mod transaction;
 
 pub mod rocks;
 
-pub use factory::{StorageFactory, StorageFactoryBuilder};
 pub use handler::StorageHandler;
 pub use kvstore::{
   KeyValueGroup, KeyValueIterator, KeyValueStore, KeyValueStoreProvider,
 };
 pub use memory::{MemoryKeyValueStore, MemoryKeyValueStoreProvider};
 pub use serializer::*;
-pub use transaction::Transaction;
 
 #[macro_export]
 macro_rules! last_table_id_key {

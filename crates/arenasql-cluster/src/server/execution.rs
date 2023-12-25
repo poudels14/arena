@@ -6,7 +6,9 @@ use arenasql::ast::statement::StatementType;
 use arenasql::execution::Transaction;
 use arenasql::response::ExecutionResponse;
 use futures::{Stream, StreamExt};
-use pgwire::api::results::{FieldInfo, QueryResponse, Response, Tag};
+use pgwire::api::results::{
+  FieldFormat, FieldInfo, QueryResponse, Response, Tag,
+};
 use pgwire::api::ClientInfo;
 use pgwire::error::PgWireResult;
 use pgwire::messages::data::DataRow;
@@ -24,6 +26,7 @@ impl ArenaSqlCluster {
     &self,
     client: &C,
     query: ArenaQuery,
+    field_format: FieldFormat,
   ) -> PgWireResult<Vec<Response<'a>>>
   where
     C: ClientInfo,
@@ -40,7 +43,12 @@ impl ArenaSqlCluster {
     let mut results = Vec::with_capacity(query.stmts.len());
     for stmt in query.stmts.into_iter() {
       let result = self
-        .execute_single_statement(&session, &mut active_transaction, stmt)
+        .execute_single_statement(
+          &session,
+          &mut active_transaction,
+          stmt,
+          field_format,
+        )
         .await?;
       results.push(result);
     }
@@ -52,6 +60,7 @@ impl ArenaSqlCluster {
     session: &Arc<AuthenticatedSession>,
     active_transaction: &mut Option<Transaction>,
     stmt: Box<Statement>,
+    field_format: FieldFormat,
   ) -> PgWireResult<Response<'a>> {
     let stmt_type = StatementType::from(stmt.as_ref());
     Ok(if stmt_type.is_begin() {
@@ -81,14 +90,20 @@ impl ArenaSqlCluster {
       // SELECT response stream will still need a valid transaction
       // when scanning rows
       let transaction_to_commit = if !chained { Some(txn) } else { None };
-      Self::map_to_pgwire_response(&stmt_type, response, transaction_to_commit)
-        .await?
+      Self::map_to_pgwire_response(
+        &stmt_type,
+        response,
+        field_format,
+        transaction_to_commit,
+      )
+      .await?
     })
   }
 
   pub(crate) async fn map_to_pgwire_response<'a>(
     stmt_type: &StatementType,
     response: ExecutionResponse,
+    field_format: FieldFormat,
     // If transaction is not None, it will be committed
     // after the row stream is complete
     transaction: Option<Transaction>,
@@ -96,7 +111,7 @@ impl ArenaSqlCluster {
     match stmt_type {
       // TODO: drop future/stream when connection drops?
       StatementType::Query | StatementType::Execute => {
-        Self::to_row_stream(response, transaction)
+        Self::to_row_stream(response, field_format, transaction)
       }
       _ => {
         if let Some(transaction) = transaction {
@@ -112,6 +127,7 @@ impl ArenaSqlCluster {
 
   fn to_row_stream<'a>(
     response: ExecutionResponse,
+    field_format: FieldFormat,
     // Transaction to commit at the end of the stream
     transaction: Option<Transaction>,
   ) -> PgWireResult<Response<'a>> {
@@ -120,7 +136,7 @@ impl ArenaSqlCluster {
       .schema()
       .fields
       .iter()
-      .map(|field| datatype::to_field_info(field.as_ref()))
+      .map(|field| datatype::to_field_info(field.as_ref(), field_format))
       .collect();
     let schema = Arc::new(fields);
 

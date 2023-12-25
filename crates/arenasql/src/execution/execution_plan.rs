@@ -17,14 +17,11 @@ use derive_new::new;
 use futures::{Stream, StreamExt};
 use sqlparser::ast::Statement as SQLStatement;
 
-use crate::execution::Transaction;
+use super::Transaction;
 use crate::schema::DataFrame;
-
-use super::SessionState;
 
 pub type ExecutionPlanExtension = Arc<
   dyn Fn(
-      &SessionState,
       &Transaction,
       &SQLStatement,
     ) -> crate::Result<Option<Arc<dyn CustomExecutionPlan>>>
@@ -33,9 +30,7 @@ pub type ExecutionPlanExtension = Arc<
 >;
 
 pub trait CustomExecutionPlan: Send + Sync {
-  fn schema(&self) -> SchemaRef {
-    SchemaRef::new(Schema::empty())
-  }
+  fn schema(&self) -> SchemaRef;
 
   fn execute(
     &self,

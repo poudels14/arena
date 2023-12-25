@@ -11,8 +11,9 @@ use derive_builder::Builder;
 use tokio::runtime::Handle;
 
 use super::table::TableProvider;
+use crate::execution::TransactionHandle;
 use crate::schema::{IndexType, Table, TableIndex};
-use crate::storage::{KeyValueGroup, Transaction};
+use crate::storage::KeyValueGroup;
 use crate::{index_rows_prefix_key, table_rows_prefix_key};
 
 /// Returns error if schema isn't found for the given table
@@ -35,7 +36,7 @@ pub fn get_schema_provider(
 pub struct SchemaProvider {
   pub catalog: Arc<str>,
   pub schema: Arc<str>,
-  pub transaction: Transaction,
+  pub transaction: TransactionHandle,
 }
 
 #[async_trait]
@@ -45,12 +46,12 @@ impl DfSchemaProvider for SchemaProvider {
   }
 
   fn table_names(&self) -> Vec<String> {
-    self.transaction.state().table_names(&self.schema)
+    self.transaction.table_names(&self.schema)
   }
 
   // Note: for each insert, this table gets called twice
   async fn table(&self, name: &str) -> Option<Arc<dyn DfTableProvider>> {
-    let table = self.transaction.state().get_table(&self.schema, name)?;
+    let table = self.transaction.get_table(&self.schema, name)?;
     Some(
       Arc::new(TableProvider::new(table, self.transaction.clone()))
         as Arc<dyn DfTableProvider>,
@@ -63,10 +64,16 @@ impl DfSchemaProvider for SchemaProvider {
     name: String,
     table_provider: Arc<dyn DfTableProvider>,
   ) -> Result<Option<Arc<dyn DfTableProvider>>> {
+    let query_stmt = self.transaction.active_statement().as_ref().unwrap();
     let storage_handler = self.transaction.lock(true)?;
     let new_table_id = storage_handler.get_next_table_id()?;
 
-    let mut table = Table::from_provider(new_table_id, &name, table_provider)?;
+    let mut table = Table::from_provider(
+      new_table_id,
+      &name,
+      table_provider,
+      query_stmt.as_ref(),
+    )?;
     let constraints = table.constraints.clone();
     constraints
       .map(|constraints| {
@@ -85,11 +92,11 @@ impl DfSchemaProvider for SchemaProvider {
       })
       .transpose()?;
 
-    let state = &self.transaction.state();
+    let handle = &self.transaction;
     let table = Arc::new(table);
     let mut schema_lock = tokio::task::block_in_place(|| {
       Handle::current().block_on(async {
-        state
+        handle
           .acquire_table_schema_write_lock(self.schema.as_ref(), &name)
           .await
       })
@@ -98,7 +105,7 @@ impl DfSchemaProvider for SchemaProvider {
     storage_handler.put_table_schema(&self.catalog, &self.schema, &table)?;
 
     schema_lock.table = Some(table.clone());
-    state.hold_table_schema_lock(schema_lock)?;
+    handle.hold_table_schema_lock(schema_lock)?;
 
     Ok(Some(
       Arc::new(TableProvider::new(table, self.transaction.clone()))
@@ -111,8 +118,7 @@ impl DfSchemaProvider for SchemaProvider {
     &self,
     name: &str,
   ) -> Result<Option<Arc<dyn DfTableProvider>>> {
-    let state = &self.transaction.state();
-    let table = match state.get_table(&self.schema, name) {
+    let table = match self.transaction.get_table(&self.schema, name) {
       Some(table) => table,
       None => return Ok(None),
     };
@@ -121,7 +127,8 @@ impl DfSchemaProvider for SchemaProvider {
 
     let mut schema_lock = tokio::task::block_in_place(|| {
       Handle::current().block_on(async {
-        state
+        self
+          .transaction
           .acquire_table_schema_write_lock(self.schema.as_ref(), &name)
           .await
       })
@@ -164,7 +171,7 @@ impl DfSchemaProvider for SchemaProvider {
     )?;
 
     schema_lock.table = Some(table.clone());
-    state.hold_table_schema_lock(schema_lock)?;
+    self.transaction.hold_table_schema_lock(schema_lock)?;
     Ok(Some(
       Arc::new(TableProvider::new(table, self.transaction.clone()))
         as Arc<dyn DfTableProvider>,
@@ -172,10 +179,6 @@ impl DfSchemaProvider for SchemaProvider {
   }
 
   fn table_exist(&self, name: &str) -> bool {
-    self
-      .transaction
-      .state()
-      .get_table(&self.schema, name)
-      .is_some()
+    self.transaction.get_table(&self.schema, name).is_some()
   }
 }

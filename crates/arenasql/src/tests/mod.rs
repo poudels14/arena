@@ -2,11 +2,12 @@ use std::sync::Arc;
 
 use tempdir::TempDir;
 
+use crate::execution::factory::StorageFactoryBuilder;
 use crate::execution::{
   Privilege, SessionConfig, SessionContext, DEFAULT_SCHEMA_NAME,
 };
 use crate::runtime::RuntimeEnv;
-use crate::storage::{rocks, StorageFactoryBuilder};
+use crate::storage::rocks;
 use crate::SingleCatalogListProvider;
 
 mod datatype;

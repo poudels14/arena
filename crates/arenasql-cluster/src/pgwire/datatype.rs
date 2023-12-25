@@ -4,13 +4,16 @@ use arenasql::datafusion::{DatafusionDataType, DatafusionField};
 use pgwire::api::results::{FieldFormat, FieldInfo};
 use pgwire::api::Type;
 
-pub fn to_field_info(field: &DatafusionField) -> FieldInfo {
+pub fn to_field_info(
+  field: &DatafusionField,
+  field_format: FieldFormat,
+) -> FieldInfo {
   FieldInfo::new(
     field.name().clone(),
     None,
     None,
     derive_pg_type(field.data_type(), field.metadata()),
-    FieldFormat::Text,
+    field_format,
   )
 }
 
@@ -27,21 +30,23 @@ pub fn derive_pg_type(
     DatafusionDataType::Float32 => Type::FLOAT4,
     DatafusionDataType::Float64 => Type::FLOAT8,
     DatafusionDataType::Utf8
+      if metadata.get("type").map(|t| t.as_str()) == Some("VARCHAR") =>
+    {
+      Type::VARCHAR
+    }
+    DatafusionDataType::Utf8 => Type::TEXT,
+    DatafusionDataType::Decimal256(76, 1)
       if metadata.get("type").map(|t| t.as_str()) == Some("JSONB") =>
     {
       Type::JSONB
     }
-    DatafusionDataType::Utf8 => Type::TEXT,
+    DatafusionDataType::Decimal256(76, 1) => {
+      Type::JSONB
+    }
     // Note: FLOAT4_ARRAY is serialized as JSONB for now :shrug:
     DatafusionDataType::List(_)
       if metadata.get("type").map(|t| t.as_str()) == Some("FLOAT4_ARRAY") =>
     {
-      Type::JSONB
-    }
-
-    // Precision 41 = JSONB
-    // 50 and beyond is used for VECTOR
-    DatafusionDataType::Decimal256(p, _) if *p == 41u8 || *p >= 50u8 => {
       Type::JSONB
     }
     dt => unimplemented!("Type conversion not implemented for: {}", dt),

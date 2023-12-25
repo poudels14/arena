@@ -13,7 +13,9 @@ use pgwire::api::portal::Portal;
 use pgwire::api::query::{
   ExtendedQueryHandler, SimpleQueryHandler, StatementOrPortal,
 };
-use pgwire::api::results::{DescribeResponse, FieldInfo, Response};
+use pgwire::api::results::{
+  DescribeResponse, FieldFormat, FieldInfo, Response,
+};
 use pgwire::api::stmt::QueryParser;
 use pgwire::api::store::PortalStore;
 use pgwire::api::{ClientInfo, ClientPortalStore, Type};
@@ -147,14 +149,19 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
 
     let stmt_type = StatementType::from(stmt.as_ref());
     let response = transaction
-      .execute_logical_plan(&stmt_type, final_plan)
+      .execute_logical_plan(&stmt_type, stmt.into(), final_plan)
       .await?;
     // Commit the transaction if it's not a chained transaction
     // i.e. if it wasn't explicitly started by `BEGIN` command
     let transaction_to_commit = if !chained { Some(transaction) } else { None };
 
-    Self::map_to_pgwire_response(&stmt_type, response, transaction_to_commit)
-      .await
+    Self::map_to_pgwire_response(
+      &stmt_type,
+      response,
+      FieldFormat::Binary,
+      transaction_to_commit,
+    )
+    .await
   }
 
   #[tracing::instrument(skip_all, level = "trace")]
@@ -206,7 +213,8 @@ impl SimpleQueryHandler for ArenaSqlCluster {
     C: ClientInfo + Unpin + Send + Sync,
   {
     let parsed_query = self.parser.parse_sql(query, &[Type::ANY]).await?;
-    let results_fut = self.execute_query(client, parsed_query);
+    let results_fut =
+      self.execute_query(client, parsed_query, FieldFormat::Text);
 
     match results_fut.await {
       Ok(response) => Ok(response),
@@ -247,7 +255,7 @@ fn get_params_and_field_types(
     .schema()
     .fields()
     .iter()
-    .map(|f| datatype::to_field_info(f.field().as_ref()))
+    .map(|f| datatype::to_field_info(f.field().as_ref(), FieldFormat::Binary))
     .collect();
 
   Ok((params, field))

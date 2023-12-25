@@ -2,7 +2,7 @@ use datafusion::arrow::datatypes::Field;
 use derive_new::new;
 use serde::{Deserialize, Serialize};
 
-use super::{DataType, OwnedSerializedCell};
+use super::{DataType, OwnedSerializedCell, Table};
 use crate::Result;
 
 pub type ColumnId = u8;
@@ -27,12 +27,10 @@ impl Column {
     })
   }
 
-  pub fn to_field(&self, table_name: &str) -> Field {
+  pub fn to_field(&self, table: &Table) -> Field {
     let (data_type, mut metadata) = self.data_type.to_df_datatype();
-    metadata.extend([
-      ("table".to_owned(), table_name.to_owned()),
-      ("type".to_owned(), self.data_type.to_string()),
-    ]);
+    metadata.insert("TABLE_NAME".to_owned(), table.name.to_owned());
+    metadata.insert("TABLE_ID".to_owned(), table.id.to_string());
     Field::new(self.name.clone(), data_type, self.nullable)
       .with_metadata(metadata)
   }
