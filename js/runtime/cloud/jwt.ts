@@ -1,6 +1,4 @@
-namespace Arena {
-  export let core: any;
-}
+declare var Arena;
 
 type Header = {
   alg:

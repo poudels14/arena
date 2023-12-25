@@ -10,9 +10,7 @@ import {
 } from "@arena/sdk/db/vectordb";
 import { assert } from "@arena/sdk/utils/assert";
 
-namespace Arena {
-  export let core: any;
-}
+declare var Arena;
 
 const { opAsync } = Arena.core;
 class VectorDatabase implements Client {

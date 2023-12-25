@@ -6,7 +6,6 @@
   "author": "Sagar Poudel",
   "private": true,
   "license": "UNLICENSED",
-  "dependencies": {},
   "devDependencies": {
     "commander": "^10.0.0",
     "esbuild": "^0.17.10",

@@ -1,9 +1,9 @@
-import { createRouter, procedure } from "@arena/runtime/server";
+import { createRouter, procedure } from "@arena/core/router";
 import {
-  DatabaseConfig,
+  DatabaseClient,
   DatabaseClients,
-  setupDatabase,
-  SqliteDatabaseClient,
+  DatabaseConfig,
+  runDatabaseMigration,
 } from "@arena/sdk/db";
 // @ts-expect-error
 import { databases } from "@dqs/template/app";
@@ -38,13 +38,13 @@ const router = createRouter({
 });
 
 const setupDatabases = async (
-  auditClient: SqliteDatabaseClient,
+  auditClient: DatabaseClient,
   dbs: DatabaseClients<{}>
 ) => {
   for (const [dbName, db] of Object.entries(
     databases as Record<string, DatabaseConfig>
   )) {
-    await setupDatabase(auditClient, dbs[dbName], db);
+    await runDatabaseMigration(auditClient, dbs[dbName], db);
   }
 };
 

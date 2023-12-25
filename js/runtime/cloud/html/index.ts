@@ -1,3 +1,4 @@
+declare var Arena;
 const { opAsync } = Arena.core;
 
 const extractText = async (htmlContent: String): Promise<string[]> => {

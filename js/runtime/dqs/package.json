@@ -9,6 +9,7 @@
   "dependencies": {
     "@arena/core": "workspace:^",
     "@arena/db": "workspace:^",
-    "@arena/sdk": "workspace:^"
+    "@arena/sdk": "workspace:^",
+    "zod": "^3.22.4"
   }
 }

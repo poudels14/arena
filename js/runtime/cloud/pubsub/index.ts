@@ -1,7 +1,4 @@
-namespace Arena {
-  export let core: any;
-}
-
+declare var Arena;
 const { ops } = Arena.core;
 
 type Data =

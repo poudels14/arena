@@ -248,7 +248,7 @@ declare function encodeToBase64Url(digetst: any): string;
  * Following node modules are only accessible when node modules are enabled
  */
 declare var path: any;
-// declare var process: any;
+declare var process: any;
 declare var Buffer: any;
 
 declare module "node:path";
