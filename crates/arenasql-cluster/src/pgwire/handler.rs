@@ -126,14 +126,11 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
     let plan =
       match portal.state().as_ref().and_then(|s| s.query_plan().clone()) {
         Some(plan) => plan,
-        None => transaction
-          .create_verified_logical_plan(stmt.clone())
-          .await
-          .expect(&format!(
-            "Error creating verified logical plain at: {}:{}",
-            file!(),
-            line!()
-          )),
+        None => {
+          transaction
+            .create_verified_logical_plan(stmt.clone())
+            .await?
+        }
       };
 
     // TODO: remove this
@@ -189,12 +186,7 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
         let txn = session.create_transaction()?;
         txn
           .create_verified_logical_plan(stmt.statement().stmts[0].clone())
-          .await
-          .expect(&format!(
-            "Error creating verified logical plain at: {}:{}",
-            file!(),
-            line!()
-          ))
+          .await?
       }
     };
     let (params, fields) = get_params_and_field_types(&plan)?;
@@ -238,7 +230,7 @@ fn get_params_and_field_types(
     .map(|(id, r#type)| {
       let index = id[1..]
         .parse::<usize>()
-        .expect(&format!("Error parsing papam index: {:?}", id));
+        .expect(&format!("Error parsing param index: {:?}", id));
       (
         index,
         r#type

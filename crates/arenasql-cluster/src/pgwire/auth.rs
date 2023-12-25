@@ -90,19 +90,20 @@ impl StartupHandler for ArenaAuthHandler {
       .get("database")
       .map_or_else(|| SYSTEM_CATALOG_NAME.to_owned(), |d| d.clone());
 
-    // Only check for the system users in cluster manifest if the connection
-    // is trying to use system catalog
-    if database == SYSTEM_CATALOG_NAME {
-      metadata
-        .get("user")
-        .and_then(|name| self.cluster.manifest.get_user(&name))
-        .ok_or_else(|| Error::UserDoesntExist("null".to_owned()))?;
-    }
-
     let username = metadata
       .get("user")
       // idk if user is ever None :shrug:
       .ok_or_else(|| Error::UserDoesntExist("null".to_owned()))?;
+
+    // Only check for the system users in cluster manifest if the connection
+    // is trying to use system catalog
+    if database == SYSTEM_CATALOG_NAME {
+      self
+        .cluster
+        .manifest
+        .get_user(&username)
+        .ok_or_else(|| Error::UserDoesntExist(username.to_owned()))?;
+    }
 
     // "apps" user shouldn't have any privilege by default
     // A proper privilege will be given to the queries if the

@@ -38,6 +38,12 @@ pub fn derive_pg_type(
     {
       Type::JSONB
     }
+
+    // Precision 41 = JSONB
+    // 50 and beyond is used for VECTOR
+    DatafusionDataType::Decimal256(p, _) if *p == 41u8 || *p >= 50u8 => {
+      Type::JSONB
+    }
     dt => unimplemented!("Type conversion not implemented for: {}", dt),
   }
 }
