@@ -34,9 +34,9 @@ export type Document = {
   content: any;
 };
 
-export type DocumentBlobs = Record<string, ArrayBuffer>;
+export type DocumentBlobs = Record<string, Buffer | string>;
 
-export type SearchCollectionOptions = {
+export type SearchOptions = {
   includeChunkContent: boolean;
   contentEncoding?: string;
   minScore?: number;
@@ -46,32 +46,48 @@ export type SearchCollectionOptions = {
   afterContext?: number;
 };
 
-export type SearchCollectionResult = {
-  score: number;
-  documentId: string;
-  chunkIndex: number;
-  start: number;
-  end: number;
-  content: string;
-  // empty if the matched embedding doesn't have metadata
-  metadata: Record<string, any>;
+export namespace SearchResult {
+  export type Document = {
+    id: string;
+    metadata?: Record<string, any>;
+  };
+
+  export type Embedding = {
+    score: number;
+    documentId: string;
+    index: number;
+    start: number;
+    end: number;
+    content: string;
+    // [beforeContext, afterContext]
+    context?: [string | undefined, string | undefined];
+    // empty if the matched embedding doesn't have metadata
+    metadata: Record<string, any>;
+  };
+}
+
+export type SearchResult = {
+  documents: SearchResult.Document[];
+  embeddings: SearchResult.Embedding[];
+  metrics: any;
 };
 
-export type Config = AbstractDatabaseConfig<
-  {
-    /**
-     * Database type
-     */
-    type: "arena-vectordb";
-  },
-  Client
->;
+export type Config = AbstractDatabaseConfig<{
+  /**
+   * Database type
+   */
+  type: "arena-vectordb";
+}>;
 
-export type Client = {
+type QueryClient = {
   /**
    * Execute SQL query on the vector database
    */
   query(sql: string): Promise<any>;
+};
+
+export type Client = QueryClient & {
+  transaction<T>(closure: () => T | Promise<T>): Promise<void>;
 
   createCollection(
     collectionId: string,
@@ -124,6 +140,6 @@ export type Client = {
     collectionId: string,
     queryVector: number[],
     k: number,
-    options?: SearchCollectionOptions
-  ): Promise<[SearchCollectionResult[], any]>;
+    options?: SearchOptions
+  ): Promise<SearchResult>;
 };

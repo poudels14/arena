@@ -17,24 +17,29 @@ class Client {
   /**
    * @type {ConnectionConfig} config
    */
-  config;
-  rid;
+  #config;
+  #rid;
 
   constructor(config) {
-    this.config = config;
+    this.#config = config;
   }
 
   async connect() {
-    const rid = await opAsync("op_postgres_create_connection", this.config);
-    this.rid = rid;
+    const rid = await opAsync("op_postgres_create_connection", this.#config);
+    this.#rid = rid;
   }
 
   isConnected() {
-    return ops.op_postgres_is_connected(this.rid);
+    return ops.op_postgres_is_connected(this.#rid);
   }
 
   async query(query, params, options) {
-    if (this.rid == undefined) {
+    // reconnect if the connection was disconnected somehow
+    if (!this.isConnected()) {
+      await this.connect();
+    }
+
+    if (this.#rid == undefined) {
       throw new Error("Connection not initialized");
     }
 
@@ -50,7 +55,7 @@ class Client {
 
     const { rows, columns } = await opAsync(
       "op_postgres_execute_query",
-      this.rid,
+      this.#rid,
       sql,
       params || [],
       options || {
