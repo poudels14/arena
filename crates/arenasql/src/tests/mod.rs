@@ -16,6 +16,7 @@ mod drop_table;
 mod insert_query;
 mod schema;
 mod select_query;
+mod statement;
 mod update_query;
 
 #[macro_export]

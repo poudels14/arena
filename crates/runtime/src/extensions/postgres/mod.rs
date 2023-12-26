@@ -7,18 +7,18 @@ use std::rc::Rc;
 use anyhow::anyhow;
 use anyhow::Result;
 use deno_core::op2;
-use deno_core::serde::{Deserialize, Serialize};
-use deno_core::serde_json::Value;
+use deno_core::serde::Deserialize;
 use deno_core::Extension;
 use deno_core::Resource;
 use deno_core::{Op, OpState, ResourceId};
 use deno_unsync::JoinHandle;
 use derivative::Derivative;
-use heck::ToLowerCamelCase;
 use tokio_postgres::Client;
 use tracing::error;
 
 use self::query::Param;
+use self::query::QueryOptions;
+use self::query::QueryResponse;
 use super::r#macro::include_source_code;
 use super::BuiltinExtension;
 use crate::env::EnvironmentVariable;
@@ -45,13 +45,6 @@ fn init() -> Extension {
     enabled: true,
     ..Default::default()
   }
-}
-
-#[derive(Default, Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct QueryOptions {
-  /// Whether to update column names to camel case
-  pub camel_case: bool,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -128,36 +121,6 @@ impl Resource for PostgresConnectionResource {
   }
 }
 
-#[derive(Clone, Debug, Serialize)]
-pub struct QueryResponse {
-  columns: Columns,
-  /**
-   * Note(sagar): send data as array since sending as Object is almost
-   * 4x slower than sending as array and reducing the array as objects
-   * on JS side. Repeating column names for each row/col also probably
-   * added to the serialization cost
-   */
-  rows: Vec<Vec<Value>>,
-
-  /// Only set if the query returns rows
-  row_count: Option<u64>,
-
-  modified_rows: Option<u64>,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct Columns {
-  /**
-   * Raw name of the columns
-   */
-  raw: Vec<String>,
-  /**
-   * Formatted column names
-   * For example, these are CamedCased if `queryoptions.camel_case` is true
-   */
-  values: Vec<String>,
-}
-
 #[op2(async)]
 #[smi]
 pub async fn op_postgres_create_connection(
@@ -227,36 +190,13 @@ pub async fn op_postgres_execute_query(
     .resource_table
     .get::<PostgresConnectionResource>(rid)?;
 
-  let query_response =
-    query::execute_query(&resource.client, &query, &params).await?;
-
-  let defaut_options = QueryOptions::default();
-  let camel_case = options
-    .as_ref()
-    .unwrap_or(resource.options.as_ref().unwrap_or(&defaut_options))
-    .camel_case;
-
-  let cased_column = query_response
-    .columns
-    .iter()
-    .map(|c| {
-      if camel_case {
-        c.to_lower_camel_case()
-      } else {
-        c.to_string()
-      }
-    })
-    .collect();
-
-  Ok(QueryResponse {
-    columns: Columns {
-      raw: query_response.columns,
-      values: cased_column,
-    },
-    rows: query_response.rows,
-    modified_rows: query_response.modified_rows,
-    row_count: query_response.row_count,
-  })
+  query::execute_query(
+    &resource.client,
+    &query,
+    &params,
+    &options.unwrap_or_default(),
+  )
+  .await
 }
 
 #[op2(fast)]

@@ -53,7 +53,7 @@ class Client {
       params = query.params;
     }
 
-    const { rows, columns } = await opAsync(
+    const { rows, fields, ...rest } = await opAsync(
       "op_postgres_execute_query",
       this.#rid,
       sql,
@@ -63,7 +63,9 @@ class Client {
       }
     );
 
-    let cols = columns.values;
+    let cols = fields.map((f) => {
+      return f.casedName || f.name;
+    });
     const mappedRows = rows.map((r) => {
       return cols.reduce((agg, c, i) => {
         agg[c] = r[i];
@@ -72,7 +74,9 @@ class Client {
     });
 
     return {
+      ...rest,
       rows: mappedRows,
+      fields,
     };
   }
 

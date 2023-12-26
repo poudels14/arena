@@ -4,11 +4,15 @@ mod lock;
 use std::borrow::BorrowMut;
 use std::sync::Arc;
 
+use datafusion::common::DFSchema;
 use datafusion::execution::context::{
   SQLOptions, SessionConfig as DfSessionConfig,
   SessionContext as DfSessionContext, SessionState as DfSessionState,
 };
-use datafusion::logical_expr::{Extension, LogicalPlan};
+use datafusion::logical_expr::{
+  Extension, LogicalPlan, Statement as LogicalStatement, TransactionAccessMode,
+  TransactionIsolationLevel, TransactionStart,
+};
 use datafusion::physical_plan::{execute_stream, ExecutionPlan};
 use getset::Getters;
 use once_cell::sync::Lazy;
@@ -151,6 +155,16 @@ impl Transaction {
       return Ok(LogicalPlan::Extension(Extension {
         node: Arc::new(CustomLogicalPlan::create(plan.schema())),
       }));
+    }
+
+    if stmt_type.is_begin() {
+      return Ok(LogicalPlan::Statement(LogicalStatement::TransactionStart(
+        TransactionStart {
+          access_mode: TransactionAccessMode::ReadWrite,
+          schema: DFSchema::empty().into(),
+          isolation_level: TransactionIsolationLevel::Serializable,
+        },
+      )));
     }
 
     // TODO: creating physical plan from SQL is expensive

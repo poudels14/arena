@@ -8,6 +8,7 @@ use bytes::BufMut;
 use bytes::BytesMut;
 use deno_core::serde_json::{json, Value};
 use futures::TryStreamExt;
+use heck::ToLowerCamelCase;
 use postgres::types::ToSql;
 use postgres::types::Type;
 use serde::{Deserialize, Serialize};
@@ -20,32 +21,56 @@ use uuid::Uuid;
 #[derive(Clone, Debug, Deserialize)]
 pub struct Param(Value);
 
-#[derive(Clone, Debug, Serialize)]
-pub struct QueryResponse {
-  pub columns: Vec<String>,
-
-  pub rows: Vec<Vec<Value>>,
-
-  /// Only set if the query returns rows
-  pub row_count: Option<u64>,
-
-  pub modified_rows: Option<u64>,
+#[derive(Default, Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QueryOptions {
+  /// Whether to update column names to camel case
+  pub camel_case: Option<bool>,
 }
 
-/**
- * Returns a tuple of (columns, rows) where the order of the values
- * in each row is same as the order of `columns`.
- */
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QueryResponse {
+  /// Only set if the query returns rows
+  row_count: Option<u64>,
+
+  /**
+   * Note(sagar): send data as array since sending as Object is almost
+   * 4x slower than sending as array and reducing the array as objects
+   * on JS side. Repeating column names for each row/col also probably
+   * added to the serialization cost
+   */
+  rows: Vec<Vec<Value>>,
+
+  fields: Vec<Field>,
+
+  #[serde(skip_serializing_if = "Option::is_none")]
+  modified_rows: Option<u64>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Field {
+  name: String,
+
+  // Camel cased name if applicable
+  cased_name: Option<String>,
+
+  #[serde(rename(serialize = "dataTypeID"))]
+  data_type_id: u32,
+}
+
 #[tracing::instrument(skip(client, params), level = "debug")]
 pub async fn execute_query(
   client: &Client,
   query: &str,
   params: &Option<Vec<Param>>,
+  options: &QueryOptions,
 ) -> Result<QueryResponse, Error> {
   let mut response = QueryResponse {
-    columns: vec![],
-    rows: vec![],
     row_count: None,
+    rows: vec![],
+    fields: vec![],
     modified_rows: None,
   };
   let res: Vec<Row> =
@@ -60,9 +85,22 @@ pub async fn execute_query(
       }
     }?;
 
-  response.columns = res
+  response.fields = res
     .get(0)
-    .map(|row| row.columns().iter().map(|c| c.name().to_string()).collect())
+    .map(|row| {
+      row
+        .columns()
+        .iter()
+        .map(|c| Field {
+          name: c.name().to_string(),
+          cased_name: options
+            .camel_case
+            .filter(|c| *c)
+            .map(|_| c.name().to_lower_camel_case()),
+          data_type_id: c.type_().oid(),
+        })
+        .collect()
+    })
     .unwrap_or_default();
 
   response.rows = res
