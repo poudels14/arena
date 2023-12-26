@@ -30,7 +30,7 @@ class Client {
   }
 
   isConnected() {
-    return ops.op_postgres_is_connected(this.#rid);
+    return this.#rid != undefined && ops.op_postgres_is_connected(this.#rid);
   }
 
   async query(query, params, options) {
@@ -57,7 +57,7 @@ class Client {
       "op_postgres_execute_query",
       this.#rid,
       sql,
-      params || [],
+      params,
       options || {
         camelCase: true,
       }
@@ -74,6 +74,25 @@ class Client {
     return {
       rows: mappedRows,
     };
+  }
+
+  async transaction(closure) {
+    await this.query("BEGIN");
+    await Promise.resolve(closure())
+      .then(async () => {
+        await this.query("COMMIT");
+      })
+      .catch(async (e) => {
+        await this.query("ROLLBACK");
+        throw e;
+      });
+  }
+
+  // Noop if the connection is already closed
+  close() {
+    if (this.#rid) {
+      ops.op_postgres_close(this.#rid);
+    }
   }
 }
 

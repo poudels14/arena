@@ -1,5 +1,5 @@
-mod postgres;
-mod tls;
+mod connection;
+mod query;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -18,7 +18,7 @@ use tokio::task::JoinHandle;
 use tokio_postgres::Client;
 use tracing::error;
 
-use self::postgres::QueryOptions;
+use self::query::Param;
 use super::r#macro::include_source_code;
 use super::BuiltinExtension;
 use crate::env::EnvironmentVariable;
@@ -45,6 +45,13 @@ fn init() -> Extension {
     enabled: true,
     ..Default::default()
   }
+}
+
+#[derive(Default, Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QueryOptions {
+  /// Whether to update column names to camel case
+  pub camel_case: bool,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -87,31 +94,6 @@ impl ConnectionCredential {
   }
 }
 
-#[derive(Clone, Debug, Serialize)]
-pub struct QueryResponse {
-  columns: Columns,
-  /**
-   * Note(sagar): send data as array since sending as Object is almost
-   * 4x slower than sending as array and reducing the array as objects
-   * on JS side. Repeating column names for each row/col also probably
-   * added to the serialization cost
-   */
-  rows: Vec<Vec<Value>>,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct Columns {
-  /**
-   * Raw name of the columns
-   */
-  raw: Vec<String>,
-  /**
-   * Formatted column names
-   * For example, these are CamedCased if `queryoptions.camel_case` is true
-   */
-  values: Vec<String>,
-}
-
 #[derive(Clone, Debug)]
 pub struct PostgresConnectionResource {
   pub client: Rc<Client>,
@@ -125,6 +107,36 @@ impl Resource for PostgresConnectionResource {
     self.handle.abort();
     drop(self);
   }
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct QueryResponse {
+  columns: Columns,
+  /**
+   * Note(sagar): send data as array since sending as Object is almost
+   * 4x slower than sending as array and reducing the array as objects
+   * on JS side. Repeating column names for each row/col also probably
+   * added to the serialization cost
+   */
+  rows: Vec<Vec<Value>>,
+
+  /// Only set if the query returns rows
+  row_count: Option<u64>,
+
+  modified_rows: Option<u64>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct Columns {
+  /**
+   * Raw name of the columns
+   */
+  raw: Vec<String>,
+  /**
+   * Formatted column names
+   * For example, these are CamedCased if `queryoptions.camel_case` is true
+   */
+  values: Vec<String>,
 }
 
 #[op2(async)]
@@ -147,7 +159,7 @@ pub async fn op_postgres_create_connection(
   };
 
   let (client, connection) =
-    postgres::create_connection(&connection_string).await?;
+    connection::create_connection(&connection_string).await?;
 
   let handle = tokio::spawn(async {
     if let Err(e) = connection.await {
@@ -190,7 +202,7 @@ pub async fn op_postgres_execute_query(
   state: Rc<RefCell<OpState>>,
   #[smi] rid: ResourceId,
   #[string] query: String,
-  #[serde] params: Vec<postgres::Param>,
+  #[serde] params: Option<Vec<Param>>,
   #[serde] options: Option<QueryOptions>,
 ) -> Result<QueryResponse> {
   let resource = state
@@ -198,8 +210,8 @@ pub async fn op_postgres_execute_query(
     .resource_table
     .get::<PostgresConnectionResource>(rid)?;
 
-  let (cols_raw, rows) =
-    postgres::execute_query(&resource.client, &query, &params).await?;
+  let query_response =
+    query::execute_query(&resource.client, &query, &params).await?;
 
   let defaut_options = QueryOptions::default();
   let camel_case = options
@@ -207,7 +219,8 @@ pub async fn op_postgres_execute_query(
     .unwrap_or(resource.options.as_ref().unwrap_or(&defaut_options))
     .camel_case;
 
-  let cols = cols_raw
+  let cased_column = query_response
+    .columns
     .iter()
     .map(|c| {
       if camel_case {
@@ -220,9 +233,23 @@ pub async fn op_postgres_execute_query(
 
   Ok(QueryResponse {
     columns: Columns {
-      raw: cols_raw,
-      values: cols,
+      raw: query_response.columns,
+      values: cased_column,
     },
-    rows,
+    rows: query_response.rows,
+    modified_rows: query_response.modified_rows,
+    row_count: query_response.row_count,
   })
+}
+
+#[op2(fast)]
+pub fn op_postgres_close(
+  state: &mut OpState,
+  #[smi] rid: ResourceId,
+) -> Result<()> {
+  let _ = state
+    .resource_table
+    .take::<PostgresConnectionResource>(rid)
+    .ok();
+  Ok(())
 }
