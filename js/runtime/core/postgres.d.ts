@@ -17,8 +17,10 @@ type Client = {
   query<T>(sql: string, parameters?: any[]): Promise<{ rows: T[] }>;
   query<T>(query: {
     sql: string;
-    params: readonly any[];
+    params?: readonly any[];
   }): Promise<{ rows: T[] }>;
+
+  close(): void;
 };
 
 export const Client: new (config: ClientConfig) => Client;

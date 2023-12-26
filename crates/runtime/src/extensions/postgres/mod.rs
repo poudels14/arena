@@ -69,7 +69,7 @@ enum ConnectionCredential {
     host: String,
     port: String,
     username: String,
-    password: String,
+    password: Option<String>,
     database: String,
   },
 }
@@ -86,10 +86,17 @@ impl ConnectionCredential {
         username,
         password,
         database,
-      } => format!(
-        "postgresql://{}:{}@{}:{}/{}",
-        username, password, host, port, database
-      ),
+      } => match password {
+        Some(password) => {
+          format!(
+            "postgresql://{}:{}@{}:{}/{}",
+            username, password, host, port, database
+          )
+        }
+        None => {
+          format!("postgresql://{}@{}:{}/{}", username, host, port, database)
+        }
+      },
     }
   }
 }
