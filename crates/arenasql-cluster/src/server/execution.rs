@@ -3,15 +3,15 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use arenasql::ast::statement::StatementType;
-use arenasql::execution::Transaction;
-use arenasql::response::ExecutionResponse;
-use futures::{Stream, StreamExt};
-use pgwire::api::results::{
+use arenasql::datafusion::{LogicalPlan, ScalarValue};
+use arenasql::pgwire::api::results::{
   FieldFormat, FieldInfo, QueryResponse, Response, Tag,
 };
-use pgwire::api::ClientInfo;
-use pgwire::error::PgWireResult;
-use pgwire::messages::data::DataRow;
+use arenasql::pgwire::api::ClientInfo;
+use arenasql::pgwire::error::PgWireResult;
+use arenasql::pgwire::messages::data::DataRow;
+use arenasql::response::ExecutionResponse;
+use futures::{Stream, StreamExt};
 use sqlparser::ast::Statement;
 
 use super::ArenaSqlCluster;
@@ -39,16 +39,10 @@ impl ArenaSqlCluster {
     // It seems like, in Postgres, all the statements in a single query
     // are run in the same transaction unless BEING/COMMIT/ROLLBACK is
     // explicity used
-    let mut active_transaction = session.get_active_transaction();
     let mut results = Vec::with_capacity(query.stmts.len());
     for stmt in query.stmts.into_iter() {
       let result = self
-        .execute_single_statement(
-          &session,
-          &mut active_transaction,
-          stmt,
-          field_format,
-        )
+        .execute_single_statement(&session, stmt, field_format)
         .await?;
       results.push(result);
     }
@@ -58,63 +52,96 @@ impl ArenaSqlCluster {
   pub async fn execute_single_statement<'a>(
     &self,
     session: &Arc<AuthenticatedSession>,
-    active_transaction: &mut Option<Transaction>,
     stmt: Box<Statement>,
     field_format: FieldFormat,
   ) -> PgWireResult<Response<'a>> {
     let stmt_type = StatementType::from(stmt.as_ref());
-    Ok(if stmt_type.is_begin() {
-      *active_transaction = Some(session.begin_transaction()?);
-      Response::Execution(Tag::new_for_execution(stmt_type.to_string(), None))
+    if stmt_type.is_begin() {
+      session.begin_new_transaction()?;
+      Ok(Response::Execution(Tag::new_for_execution(
+        stmt_type.to_string(),
+        None,
+      )))
     } else if stmt_type.is_commit() {
-      active_transaction.take().map(|t| t.commit()).transpose()?;
+      let active_transaction = session.get_active_transaction();
+      active_transaction.map(|t| t.commit()).transpose()?;
       session.clear_transaction();
-      Response::Execution(Tag::new_for_execution(stmt_type.to_string(), None))
+      Ok(Response::Execution(Tag::new_for_execution(
+        stmt_type.to_string(),
+        None,
+      )))
     } else if stmt_type.is_rollback() {
-      active_transaction
-        .take()
-        .map(|t| t.rollback())
-        .transpose()?;
+      let active_transaction = session.get_active_transaction();
+      active_transaction.map(|t| t.rollback()).transpose()?;
       session.clear_transaction();
-      Response::Execution(Tag::new_for_execution(stmt_type.to_string(), None))
+      Ok(Response::Execution(Tag::new_for_execution(
+        stmt_type.to_string(),
+        None,
+      )))
     } else {
-      let (txn, chained) = active_transaction.as_ref().map_or_else(
+      Self::execute_plan(&session, stmt, None, None, field_format).await
+    }
+  }
+
+  pub(crate) async fn execute_plan<'a>(
+    session: &AuthenticatedSession,
+    stmt: Box<Statement>,
+    logical_plan: Option<LogicalPlan>,
+    params: Option<Vec<ScalarValue>>,
+    field_format: FieldFormat,
+  ) -> PgWireResult<Response<'a>> {
+    let (transaction, chained_transaction) =
+      session.get_active_transaction().map_or_else(
         || session.create_transaction().map(|t| (t, false)),
         |txn| Ok((txn.clone(), true)),
       )?;
-      let response = txn.execute(stmt.clone()).await?;
 
-      // Commit the transaction if it's not a chained transaction
-      // i.e. if it wasn't explicitly started by `BEGIN` command
-      // Don't commit the SELECT statement's transaction since the
-      // SELECT response stream will still need a valid transaction
-      // when scanning rows
-      let transaction_to_commit = if !chained { Some(txn) } else { None };
-      Self::map_to_pgwire_response(
-        &stmt_type,
-        response,
-        field_format,
-        transaction_to_commit,
-      )
-      .await?
-    })
-  }
+    let logical_plan = match logical_plan {
+      Some(logical_plan) => logical_plan,
+      None => {
+        transaction
+          .create_verified_logical_plan(stmt.clone())
+          .await?
+      }
+    };
 
-  pub(crate) async fn map_to_pgwire_response<'a>(
-    stmt_type: &StatementType,
-    response: ExecutionResponse,
-    field_format: FieldFormat,
-    // If transaction is not None, it will be committed
-    // after the row stream is complete
-    transaction: Option<Transaction>,
-  ) -> PgWireResult<Response<'a>> {
+    let final_logical_plan = match params {
+      Some(param_values) => logical_plan
+        .with_param_values(param_values)
+        .map_err(|e| arenasql::Error::DataFusionError(e.into()))
+        .expect(&format!(
+          "Error replace_params_with_values at: {}:{}",
+          file!(),
+          line!()
+        )),
+      None => logical_plan,
+    };
+
+    let stmt_type = StatementType::from(stmt.as_ref());
+    let response = transaction
+      .execute_logical_plan(&stmt_type, stmt, final_logical_plan)
+      .await?;
+
     match stmt_type {
       // TODO: drop future/stream when connection drops?
-      StatementType::Query | StatementType::Execute => {
-        Self::to_row_stream(response, field_format, transaction)
-      }
+      StatementType::Query | StatementType::Execute => Self::to_row_stream(
+        response,
+        field_format,
+        StreamCompletionHook::new(Box::new(move || {
+          // Commit the transaction if it's not a chained transaction
+          // i.e. if it wasn't explicitly started by `BEGIN` command
+          // Don't commit the SELECT statement's transaction since the
+          // SELECT response stream will still need a valid transaction
+          // when scanning rows
+          if !chained_transaction {
+            Ok(transaction.commit()?)
+          } else {
+            Ok(())
+          }
+        })),
+      ),
       _ => {
-        if let Some(transaction) = transaction {
+        if !chained_transaction {
           transaction.commit()?;
         }
         Ok(Response::Execution(Tag::new_for_execution(
@@ -128,8 +155,7 @@ impl ArenaSqlCluster {
   fn to_row_stream<'a>(
     response: ExecutionResponse,
     field_format: FieldFormat,
-    // Transaction to commit at the end of the stream
-    transaction: Option<Transaction>,
+    stream_completion_hook: StreamCompletionHook<'a>,
   ) -> PgWireResult<Response<'a>> {
     let response_stream = response.get_stream();
     let fields: Vec<FieldInfo> = response_stream
@@ -151,13 +177,7 @@ impl ArenaSqlCluster {
     });
     Ok(Response::Query(QueryResponse::new(
       rows_schema,
-      row_stream.chain(StreamCompletionHook::new(Box::new(|| {
-        if let Some(txn) = transaction {
-          Ok(txn.commit()?)
-        } else {
-          Ok(())
-        }
-      }))),
+      row_stream.chain(stream_completion_hook),
     )))
   }
 }

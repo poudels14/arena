@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use arenasql::datafusion::{DatafusionDataType, DatafusionField};
-use pgwire::api::results::{FieldFormat, FieldInfo};
-use pgwire::api::Type;
+use arenasql::pgwire::api::results::{FieldFormat, FieldInfo};
+use arenasql::pgwire::api::Type;
 
 pub fn to_field_info(
   field: &DatafusionField,
@@ -40,9 +40,7 @@ pub fn derive_pg_type(
     {
       Type::JSONB
     }
-    DatafusionDataType::Decimal256(76, 1) => {
-      Type::JSONB
-    }
+    DatafusionDataType::Decimal256(76, 1) => Type::JSONB,
     // Note: FLOAT4_ARRAY is serialized as JSONB for now :shrug:
     DatafusionDataType::List(_)
       if metadata.get("type").map(|t| t.as_str()) == Some("FLOAT4_ARRAY") =>

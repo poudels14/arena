@@ -3,21 +3,21 @@ use std::sync::Arc;
 
 use arenasql::arrow::as_string_array;
 use arenasql::execution::{Privilege, SessionContext};
+use arenasql::pgwire::api::auth::scram::{
+  gen_salted_password, MakeSASLScramAuthStartupHandler,
+  SASLScramAuthStartupHandler,
+};
+use arenasql::pgwire::api::auth::{
+  AuthSource, DefaultServerParameterProvider, LoginInfo, Password,
+  StartupHandler,
+};
+use arenasql::pgwire::api::{ClientInfo, MakeHandler};
+use arenasql::pgwire::error::{PgWireError, PgWireResult};
+use arenasql::pgwire::messages::{PgWireBackendMessage, PgWireFrontendMessage};
 use async_trait::async_trait;
 use derive_new::new;
 use futures::Sink;
 use log::debug;
-use pgwire::api::auth::scram::{
-  gen_salted_password, MakeSASLScramAuthStartupHandler,
-  SASLScramAuthStartupHandler,
-};
-use pgwire::api::auth::{
-  AuthSource, DefaultServerParameterProvider, LoginInfo, Password,
-  StartupHandler,
-};
-use pgwire::api::{ClientInfo, MakeHandler};
-use pgwire::error::{PgWireError, PgWireResult};
-use pgwire::messages::{PgWireBackendMessage, PgWireFrontendMessage};
 use rand::Rng;
 
 use crate::error::Error;

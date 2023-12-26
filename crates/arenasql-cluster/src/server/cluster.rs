@@ -6,9 +6,9 @@ use arenasql::execution::{
   ExecutionPlanExtension, Privilege, SessionConfig, SessionContext,
   SessionState, DEFAULT_SCHEMA_NAME,
 };
+use arenasql::pgwire::api::ClientInfo;
 use arenasql::runtime::RuntimeEnv;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation};
-use pgwire::api::ClientInfo;
 use uuid::Uuid;
 
 use super::storage::{ClusterStorageFactory, StorageOption};

@@ -2,26 +2,26 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use arenasql::ast::statement::StatementType;
 use arenasql::bytes::Bytes;
 use arenasql::datafusion::{LogicalPlan, ScalarValue};
+use arenasql::pgwire;
+use arenasql::pgwire::api::portal::Portal;
+use arenasql::pgwire::api::query::{
+  ExtendedQueryHandler, SimpleQueryHandler, StatementOrPortal,
+};
+use arenasql::pgwire::api::results::{
+  DescribeResponse, FieldFormat, FieldInfo, Response,
+};
+use arenasql::pgwire::api::stmt::QueryParser;
+use arenasql::pgwire::api::store::PortalStore;
+use arenasql::pgwire::api::{ClientInfo, ClientPortalStore, Type};
+use arenasql::pgwire::error::{ErrorInfo, PgWireError, PgWireResult};
+use arenasql::pgwire::messages::extendedquery::{Bind, BindComplete};
+use arenasql::pgwire::messages::PgWireBackendMessage;
 use async_trait::async_trait;
 use futures::{Sink, SinkExt};
 use itertools::Itertools;
 use nom::AsBytes;
-use pgwire::api::portal::Portal;
-use pgwire::api::query::{
-  ExtendedQueryHandler, SimpleQueryHandler, StatementOrPortal,
-};
-use pgwire::api::results::{
-  DescribeResponse, FieldFormat, FieldInfo, Response,
-};
-use pgwire::api::stmt::QueryParser;
-use pgwire::api::store::PortalStore;
-use pgwire::api::{ClientInfo, ClientPortalStore, Type};
-use pgwire::error::{ErrorInfo, PgWireError, PgWireResult};
-use pgwire::messages::extendedquery::{Bind, BindComplete};
-use pgwire::messages::PgWireBackendMessage;
 
 use super::portal::ArenaPortalState;
 use super::{ArenaQuery, ArenaQueryParser};
@@ -35,7 +35,7 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
   type QueryParser = ArenaQueryParser;
 
   /// Prepares the logical plan for the query and bind the parameters to it
-  #[tracing::instrument(skip(self, client), level = "trace")]
+  #[tracing::instrument(skip(self, client), level = "DEBUG")]
   async fn on_bind<C>(&self, client: &mut C, message: Bind) -> PgWireResult<()>
   where
     C: ClientInfo
@@ -91,7 +91,7 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
     }
   }
 
-  #[tracing::instrument(skip_all, level = "trace")]
+  #[tracing::instrument(skip_all, level = "DEBUG")]
   async fn do_query<'p, 'h: 'p, C>(
     &'h self,
     client: &mut C,
@@ -101,22 +101,14 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
   where
     C: ClientInfo + Send,
   {
-    let session = self.get_client_session(client)?;
-    let (transaction, chained) = session.get_active_transaction().map_or_else(
-      || session.create_transaction().map(|t| (t, false)),
-      |txn| Ok((txn.clone(), true)),
-    )?;
-    let stmts = &portal.statement().statement().stmts;
-    let stmt = stmts[0].clone();
     let params = portal.parameters();
-
-    let prams_values = params
+    let params_values = params
       .iter()
       .zip::<&Vec<Type>>(
         portal
           .state()
           .as_ref()
-          .expect("Portal state to found")
+          .ok_or(PgWireError::PortalNotFound(portal.name().to_owned()))?
           .params(),
       )
       .map(|(param, r#type)| {
@@ -124,52 +116,26 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
       })
       .collect::<PgWireResult<Vec<ScalarValue>>>()?;
 
-    // Use existing plan if the portal has it
-    let plan =
-      match portal.state().as_ref().and_then(|s| s.query_plan().clone()) {
-        Some(plan) => plan,
-        None => {
-          transaction
-            .create_verified_logical_plan(stmt.clone())
-            .await?
-        }
-      };
-
-    // TODO: remove this
-    log::trace!("do_query raw params: = {:#?}", params);
-    log::trace!("do_query param values: = {:?}", prams_values);
-    let final_plan = plan
-      .with_param_values(prams_values)
-      .map_err(|e| arenasql::Error::DataFusionError(e.into()))
-      .expect(&format!(
-        "Error replace_params_with_values at: {}:{}",
-        file!(),
-        line!()
-      ));
-
-    let stmt_type = StatementType::from(stmt.as_ref());
-    let response = transaction
-      .execute_logical_plan(&stmt_type, stmt.into(), final_plan)
-      .await?;
-    // Commit the transaction if it's not a chained transaction
-    // i.e. if it wasn't explicitly started by `BEGIN` command
-    let transaction_to_commit = if !chained { Some(transaction) } else { None };
-
-    Self::map_to_pgwire_response(
-      &stmt_type,
-      response,
+    let session = self.get_client_session(client)?;
+    let stmts = &portal.statement().statement().stmts;
+    let stmt = stmts[0].clone();
+    let plan = portal.state().as_ref().and_then(|s| s.query_plan().clone());
+    Self::execute_plan(
+      &session,
+      stmt,
+      plan,
+      Some(params_values),
       FieldFormat::Binary,
-      transaction_to_commit,
     )
     .await
   }
 
-  #[tracing::instrument(skip_all, level = "trace")]
+  #[tracing::instrument(skip_all, level = "DEBUG")]
   fn query_parser(&self) -> Arc<Self::QueryParser> {
     self.parser.clone()
   }
 
-  #[tracing::instrument(skip_all, level = "trace")]
+  #[tracing::instrument(skip_all, level = "DEBUG")]
   async fn do_describe<C>(
     &self,
     client: &mut C,
@@ -187,23 +153,25 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
     };
 
     let plan = match maybe_plan {
-      Some(plan) => plan,
+      Some(plan) => Some(plan),
       None => {
+        let stmt = stmt.statement().stmts[0].clone();
         let session = self.get_client_session(client)?;
         let txn = session.create_transaction()?;
-        txn
-          .create_verified_logical_plan(stmt.statement().stmts[0].clone())
-          .await?
+        Some(txn.create_verified_logical_plan(stmt).await?)
       }
     };
-    let (params, fields) = get_params_and_field_types(&plan)?;
-    Ok(DescribeResponse::new(Some(params), fields))
+
+    let (params, fields) = plan
+      .map(|plan| get_params_and_field_types(&plan).map(|(p, f)| (Some(p), f)))
+      .unwrap_or_else(|| Ok((None, vec![])))?;
+    Ok(DescribeResponse::new(params, fields))
   }
 }
 
 #[async_trait]
 impl SimpleQueryHandler for ArenaSqlCluster {
-  #[tracing::instrument(skip_all, level = "trace")]
+  #[tracing::instrument(skip_all, level = "DEBUG")]
   async fn do_query<'a, C>(
     &self,
     client: &mut C,
@@ -255,7 +223,7 @@ fn get_params_and_field_types(
     .schema()
     .fields()
     .iter()
-    .map(|f| datatype::to_field_info(f.field().as_ref(), FieldFormat::Binary))
+    .map(|f| datatype::to_field_info(f.field().as_ref(), FieldFormat::Text))
     .collect();
 
   Ok((params, field))

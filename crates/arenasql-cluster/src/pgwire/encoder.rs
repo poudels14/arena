@@ -3,13 +3,13 @@ use std::sync::Arc;
 use arenasql::arrow::as_primitive_array;
 use arenasql::bytes::BufMut;
 use arenasql::datafusion::DatafusionDataType;
+use arenasql::pgwire::api::results::DataRowEncoder;
+use arenasql::pgwire::api::Type;
+use arenasql::pgwire::error::{PgWireError, PgWireResult};
+use arenasql::pgwire::types::ToSqlText;
 use arenasql::postgres_types::{IsNull, ToSql};
 use arenasql::{arrow, bytes, postgres_types};
 use arrow::Array;
-use pgwire::api::results::DataRowEncoder;
-use pgwire::api::Type;
-use pgwire::error::{PgWireError, PgWireResult};
-use pgwire::types::ToSqlText;
 use serde_json::json;
 
 use crate::error::ArenaClusterError;

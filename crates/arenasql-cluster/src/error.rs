@@ -1,8 +1,8 @@
 use std::fmt;
 use std::sync::Arc;
 
+use arenasql::pgwire::error::{ErrorInfo, PgWireError};
 use arenasql::rocks;
-use pgwire::error::{ErrorInfo, PgWireError};
 
 pub type ArenaClusterError = Error;
 pub type ArenaClusterResult<T> = Result<T, ArenaClusterError>;

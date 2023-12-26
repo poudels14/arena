@@ -40,7 +40,7 @@ impl AuthenticatedSession {
 
   /// Begins a new active transaction for this session
   #[inline]
-  pub fn begin_transaction(&self) -> Result<Transaction> {
+  pub fn begin_new_transaction(&self) -> Result<Transaction> {
     let transaction = self.context.begin_transaction()?;
     let mut lock = self.active_transaction.lock();
     *lock = Some(transaction.clone());

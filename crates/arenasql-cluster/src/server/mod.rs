@@ -4,9 +4,9 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
+use arenasql::pgwire::api::{MakeHandler, StatelessMakeHandler};
+use arenasql::pgwire::tokio::process_socket;
 use log::info;
-use pgwire::api::{MakeHandler, StatelessMakeHandler};
-use pgwire::tokio::process_socket;
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 

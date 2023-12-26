@@ -1,11 +1,12 @@
+use arenasql::pgwire;
+use arenasql::pgwire::api::stmt::QueryParser;
+use arenasql::pgwire::error::PgWireResult;
 use async_trait::async_trait;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_until};
 use nom::character::complete::{multispace0, newline};
 use nom::sequence::{pair, terminated};
 use nom::IResult;
-use pgwire::api::stmt::QueryParser;
-use pgwire::error::PgWireResult;
 use sqlparser::ast::Statement as SQLStatement;
 
 use crate::auth::AuthHeader;

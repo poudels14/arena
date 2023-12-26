@@ -1,7 +1,7 @@
 use arenasql::datafusion::LogicalPlan;
+use arenasql::pgwire::api::results::FieldInfo;
+use arenasql::pgwire::api::Type;
 use getset::{Getters, Setters};
-use pgwire::api::results::FieldInfo;
-use pgwire::api::Type;
 
 #[derive(Debug, Default, Clone, Getters, Setters)]
 #[getset(get = "pub", set = "pub")]
