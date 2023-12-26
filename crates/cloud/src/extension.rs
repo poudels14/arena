@@ -14,7 +14,7 @@ macro_rules! cloud_module {
     let source =
       runtime::extensions::SourceCode::Preserved(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../js/arena-runtime/dist/cloud/",
+        "/../../js/runtime/dist/cloud/",
         $module,
         ".js"
       )));

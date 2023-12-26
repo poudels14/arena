@@ -86,19 +86,19 @@ fn generate_prod_snapshot(path: &Path) {
           (
             "@arena/dqs/widget-server",
             include_from_project_root!(
-              "../../js/arena-runtime/dist/dqs/widget-server.js"
+              "../../js/runtime/dist/dqs/widget-server.js"
             ),
           ),
           (
             "@arena/dqs/utils",
             include_from_project_root!(
-              "../../js/arena-runtime/dist/dqs/utils.js"
+              "../../js/runtime/dist/dqs/utils.js"
             ),
           ),
           (
             "@arena/dqs/postgres",
             include_from_project_root!(
-              "../../js/arena-runtime/dist/dqs/postgres.js"
+              "../../js/runtime/dist/dqs/postgres.js"
             ),
           ),
         ],
