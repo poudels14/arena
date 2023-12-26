@@ -42,45 +42,12 @@ impl ArenaSqlCluster {
     let mut results = Vec::with_capacity(query.stmts.len());
     for stmt in query.stmts.into_iter() {
       let result = self
-        .execute_single_statement(&session, stmt, field_format)
+        .execute_plan(&session, stmt, None, None, field_format)
+        .await
         .await?;
       results.push(result);
     }
     Ok(results)
-  }
-
-  pub async fn execute_single_statement<'a>(
-    &self,
-    session: &Arc<AuthenticatedSession>,
-    stmt: Box<Statement>,
-    field_format: FieldFormat,
-  ) -> PgWireResult<Response<'a>> {
-    let stmt_type = StatementType::from(stmt.as_ref());
-    if stmt_type.is_begin() {
-      session.begin_new_transaction()?;
-      Ok(Response::Execution(Tag::new_for_execution(
-        stmt_type.to_string(),
-        None,
-      )))
-    } else if stmt_type.is_commit() {
-      let active_transaction = session.get_active_transaction();
-      active_transaction.map(|t| t.commit()).transpose()?;
-      session.clear_transaction();
-      Ok(Response::Execution(Tag::new_for_execution(
-        stmt_type.to_string(),
-        None,
-      )))
-    } else if stmt_type.is_rollback() {
-      let active_transaction = session.get_active_transaction();
-      active_transaction.map(|t| t.rollback()).transpose()?;
-      session.clear_transaction();
-      Ok(Response::Execution(Tag::new_for_execution(
-        stmt_type.to_string(),
-        None,
-      )))
-    } else {
-      Self::execute_plan(&session, stmt, None, None, field_format).await
-    }
   }
 
   pub(crate) async fn execute_plan<'a>(
@@ -90,6 +57,31 @@ impl ArenaSqlCluster {
     params: Option<Vec<ScalarValue>>,
     field_format: FieldFormat,
   ) -> PgWireResult<Response<'a>> {
+    let stmt_type = StatementType::from(stmt.as_ref());
+    if stmt_type.is_begin() {
+      session.begin_new_transaction()?;
+      return Ok(Response::Execution(Tag::new_for_execution(
+        stmt_type.to_string(),
+        None,
+      )));
+    } else if stmt_type.is_commit() {
+      let active_transaction = session.get_active_transaction();
+      active_transaction.map(|t| t.commit()).transpose()?;
+      session.clear_transaction();
+      return Ok(Response::Execution(Tag::new_for_execution(
+        stmt_type.to_string(),
+        None,
+      )));
+    } else if stmt_type.is_rollback() {
+      let active_transaction = session.get_active_transaction();
+      active_transaction.map(|t| t.rollback()).transpose()?;
+      session.clear_transaction();
+      return Ok(Response::Execution(Tag::new_for_execution(
+        stmt_type.to_string(),
+        None,
+      )));
+    }
+
     let (transaction, chained_transaction) =
       session.get_active_transaction().map_or_else(
         || session.create_transaction().map(|t| (t, false)),
@@ -117,7 +109,6 @@ impl ArenaSqlCluster {
       None => logical_plan,
     };
 
-    let stmt_type = StatementType::from(stmt.as_ref());
     let response = transaction
       .execute_logical_plan(&stmt_type, stmt, final_logical_plan)
       .await?;

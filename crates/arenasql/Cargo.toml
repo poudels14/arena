@@ -52,10 +52,11 @@ parking_lot = "0.12.1"
 glam = "0.24.2"
 ultraviolet = "0.9.2"
 ordered-float = "4.2.0"
+chrono = "0.4.31"
+log = "0.4"
 
 [dependencies.pgwire]
-git = "https://github.com/poudels14/pgwire"
-rev = "775f4eb4b"
+path = "../../pgwire"
 
 [dev-dependencies]
 criterion.workspace = true

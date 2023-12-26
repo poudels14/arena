@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
+use arenasql::ast::statement::StatementType;
 use arenasql::bytes::Bytes;
 use arenasql::datafusion::{LogicalPlan, ScalarValue};
 use arenasql::pgwire;
@@ -101,33 +102,27 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
   where
     C: ClientInfo + Send,
   {
-    let params = portal.parameters();
-    let params_values = params
-      .iter()
-      .zip::<&Vec<Type>>(
-        portal
-          .state()
-          .as_ref()
-          .ok_or(PgWireError::PortalNotFound(portal.name().to_owned()))?
-          .params(),
-      )
-      .map(|(param, r#type)| {
-        convert_bytes_to_scalar_value(param.as_ref(), r#type)
-      })
-      .collect::<PgWireResult<Vec<ScalarValue>>>()?;
-
     let session = self.get_client_session(client)?;
     let stmts = &portal.statement().statement().stmts;
     let stmt = stmts[0].clone();
     let plan = portal.state().as_ref().and_then(|s| s.query_plan().clone());
-    Self::execute_plan(
-      &session,
-      stmt,
-      plan,
-      Some(params_values),
-      FieldFormat::Binary,
-    )
-    .await
+
+    let params_values = portal
+      .state()
+      .as_ref()
+      .map(|portal_state| {
+        portal_state
+          .params()
+          .iter()
+          .zip(portal.parameters())
+          .map(|(r#type, param)| {
+            convert_bytes_to_scalar_value(param.as_ref(), r#type)
+          })
+          .collect::<PgWireResult<Vec<ScalarValue>>>()
+      })
+      .transpose()?;
+    Self::execute_plan(&session, stmt, plan, params_values, FieldFormat::Binary)
+      .await
   }
 
   #[tracing::instrument(skip_all, level = "DEBUG")]
@@ -152,14 +147,16 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
       StatementOrPortal::Statement(stmt) => (None, stmt),
     };
 
+    let stmt = stmt.statement().stmts[0].clone();
+    let stmt_type = StatementType::from(stmt.as_ref());
     let plan = match maybe_plan {
       Some(plan) => Some(plan),
       None => {
-        let stmt = stmt.statement().stmts[0].clone();
         let session = self.get_client_session(client)?;
         let txn = session.create_transaction()?;
         Some(txn.create_verified_logical_plan(stmt).await?)
       }
+      _ => None,
     };
 
     let (params, fields) = plan

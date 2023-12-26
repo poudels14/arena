@@ -65,6 +65,11 @@ impl StatementType {
   }
 
   #[inline]
+  pub fn is_execute(&self) -> bool {
+    *self == Self::Query
+  }
+
+  #[inline]
   pub fn is_begin(&self) -> bool {
     *self == Self::Begin
   }

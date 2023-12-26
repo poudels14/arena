@@ -1,11 +1,15 @@
 use std::any::Any;
+use std::collections::HashMap;
 use std::fmt::Formatter;
+use std::hash::Hash;
 use std::pin::Pin;
 use std::sync::Arc;
 
 use datafusion::arrow::datatypes::{Schema, SchemaRef};
+use datafusion::common::{DFField, DFSchema, DFSchemaRef};
 use datafusion::error::Result;
 use datafusion::execution::TaskContext;
+use datafusion::logical_expr::{Expr, LogicalPlan, UserDefinedLogicalNodeCore};
 use datafusion::physical_expr::PhysicalSortExpr;
 use datafusion::physical_plan::stream::RecordBatchStreamAdapter;
 use datafusion::physical_plan::{
@@ -111,5 +115,59 @@ impl ExecutionPlan for CustomExecutionPlanAdapter {
       df_stream
         .map(move |df| df.map(|df| df.to_record_batch(schema.clone()))?),
     )))
+  }
+}
+
+#[derive(PartialEq, Eq, Hash, Debug, new)]
+pub struct CustomLogicalPlan {
+  schema: DFSchemaRef,
+}
+
+impl CustomLogicalPlan {
+  pub fn create(schema: SchemaRef) -> Self {
+    let schema = DFSchema::new_with_metadata(
+      schema
+        .fields
+        .iter()
+        .map(|f| {
+          DFField::new_unqualified(
+            f.name(),
+            f.data_type().clone(),
+            f.is_nullable(),
+          )
+        })
+        .collect(),
+      HashMap::new(),
+    )
+    .unwrap()
+    .into();
+
+    Self { schema }
+  }
+}
+
+impl UserDefinedLogicalNodeCore for CustomLogicalPlan {
+  fn name(&self) -> &str {
+    "CustomLogicalPlan"
+  }
+
+  fn schema(&self) -> &DFSchemaRef {
+    &self.schema
+  }
+
+  fn inputs(&self) -> Vec<&LogicalPlan> {
+    vec![]
+  }
+
+  fn fmt_for_explain(&self, _f: &mut Formatter) -> std::fmt::Result {
+    unimplemented!()
+  }
+
+  fn from_template(&self, _exprs: &[Expr], _inputs: &[LogicalPlan]) -> Self {
+    unimplemented!()
+  }
+
+  fn expressions(&self) -> Vec<Expr> {
+    vec![]
   }
 }

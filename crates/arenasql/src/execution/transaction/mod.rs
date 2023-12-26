@@ -8,12 +8,13 @@ use datafusion::execution::context::{
   SQLOptions, SessionConfig as DfSessionConfig,
   SessionContext as DfSessionContext, SessionState as DfSessionState,
 };
-use datafusion::logical_expr::LogicalPlan;
+use datafusion::logical_expr::{Extension, LogicalPlan};
 use datafusion::physical_plan::{execute_stream, ExecutionPlan};
 use getset::Getters;
 use once_cell::sync::Lazy;
 use sqlparser::ast::Statement as SQLStatement;
 
+use super::execution_plan::CustomLogicalPlan;
 use super::planner::ArenaQueryPlanner;
 use super::response::ExecutionResponse;
 use super::{
@@ -117,6 +118,10 @@ impl Transaction {
     &self,
     mut stmt: Box<SQLStatement>,
   ) -> Result<LogicalPlan> {
+    // Check if the current session can execute the given statement
+    if !self.session_config.privilege.can_execute(stmt.as_ref()) {
+      return Err(Error::InsufficientPrivilege);
+    }
     let state = self.datafusion_context.state();
     let stmt_type = StatementType::from(stmt.as_ref());
     // Modify stmt if needed
@@ -137,6 +142,17 @@ impl Transaction {
       ast::cast_unsupported_data_types(&mut statement)?;
     }
 
+    let custom_plan = DEFAULT_EXTENSIONS
+      .iter()
+      .chain(self.session_config.execution_plan_extensions.iter())
+      .find_map(|ext| ext(&self, &stmt).transpose())
+      .transpose()?;
+    if let Some(plan) = custom_plan {
+      return Ok(LogicalPlan::Extension(Extension {
+        node: Arc::new(CustomLogicalPlan::create(plan.schema())),
+      }));
+    }
+
     // TODO: creating physical plan from SQL is expensive
     // look into caching physical plans
     let plan = state
@@ -151,35 +167,11 @@ impl Transaction {
     &self,
     stmt: Box<SQLStatement>,
   ) -> Result<ExecutionResponse> {
+    let logical_plan = self.create_verified_logical_plan(stmt.clone()).await?;
     let stmt_type = StatementType::from(stmt.as_ref());
-    let custom_plan = DEFAULT_EXTENSIONS
-      .iter()
-      .chain(self.session_config.execution_plan_extensions.iter())
-      .find_map(|ext| ext(&self, &stmt).transpose())
-      .transpose()?;
-
-    match custom_plan {
-      Some(plan) => {
-        // Check if the current session can execute the given statement
-        if !self.session_config.privilege.can_execute(stmt.as_ref()) {
-          return Err(Error::InsufficientPrivilege);
-        }
-
-        self
-          .execute_stream(
-            &stmt_type,
-            Arc::new(CustomExecutionPlanAdapter::new(plan)),
-          )
-          .await
-      }
-      None => {
-        let logical_plan =
-          self.create_verified_logical_plan(stmt.clone()).await?;
-        self
-          .execute_logical_plan(&stmt_type, stmt, logical_plan)
-          .await
-      }
-    }
+    self
+      .execute_logical_plan(&stmt_type, stmt, logical_plan)
+      .await
   }
 
   #[tracing::instrument(skip_all, level = "debug")]
@@ -190,10 +182,21 @@ impl Transaction {
     stmt: Box<SQLStatement>,
     plan: LogicalPlan,
   ) -> Result<ExecutionResponse> {
-    // Check if the current session can execute the given statement
-    if !self.session_config.privilege.can_execute(stmt.as_ref()) {
-      return Err(Error::InsufficientPrivilege);
-    }
+    if let LogicalPlan::Extension(_) = plan {
+      log::debug!("Using custom execution plan");
+      let custom_plan = DEFAULT_EXTENSIONS
+        .iter()
+        .chain(self.session_config.execution_plan_extensions.iter())
+        .find_map(|ext| ext(&self, &stmt).transpose())
+        .transpose()?;
+
+      return self
+        .execute_stream(
+          &stmt_type,
+          Arc::new(CustomExecutionPlanAdapter::new(custom_plan.unwrap())),
+        )
+        .await;
+    };
 
     let mut statement = stmt;
     let mut handle = self;
