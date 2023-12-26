@@ -2,7 +2,6 @@ use std::fmt::Write;
 
 use anyhow::anyhow;
 use anyhow::bail;
-use anyhow::Context;
 use anyhow::Error;
 use anyhow::Result;
 use bytes::BufMut;
@@ -14,7 +13,6 @@ use postgres::types::Type;
 use serde::{Deserialize, Serialize};
 use tokio_postgres::types::IsNull;
 use tokio_postgres::Client;
-use tokio_postgres::SimpleQueryMessage;
 use tokio_postgres::{Column, Row};
 use tracing::error;
 use uuid::Uuid;

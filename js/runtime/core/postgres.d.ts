@@ -3,10 +3,11 @@ type ClientConfig = {
     | string
     | {
         host: string;
-        port: string;
-        username: string;
+        port: number;
+        user: string;
         password: string;
         database: string;
+        ssl?: boolean;
       };
 };
 

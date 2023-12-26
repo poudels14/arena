@@ -5,7 +5,6 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use anyhow::anyhow;
-use anyhow::bail;
 use anyhow::Result;
 use deno_core::op2;
 use deno_core::serde::{Deserialize, Serialize};
@@ -13,8 +12,9 @@ use deno_core::serde_json::Value;
 use deno_core::Extension;
 use deno_core::Resource;
 use deno_core::{Op, OpState, ResourceId};
+use deno_unsync::JoinHandle;
+use derivative::Derivative;
 use heck::ToLowerCamelCase;
-use tokio::task::JoinHandle;
 use tokio_postgres::Client;
 use tracing::error;
 
@@ -67,10 +67,11 @@ enum ConnectionCredential {
   String(String),
   Config {
     host: String,
-    port: String,
-    username: String,
+    port: i32,
+    user: String,
     password: Option<String>,
     database: String,
+    ssl: Option<bool>,
   },
 }
 
@@ -83,28 +84,39 @@ impl ConnectionCredential {
       ConnectionCredential::Config {
         host,
         port,
-        username,
+        user,
         password,
         database,
+        ..
       } => match password {
         Some(password) => {
           format!(
             "postgresql://{}:{}@{}:{}/{}",
-            username, password, host, port, database
+            user, password, host, port, database
           )
         }
         None => {
-          format!("postgresql://{}@{}:{}/{}", username, host, port, database)
+          format!("postgresql://{}@{}:{}/{}", user, host, port, database)
         }
       },
     }
   }
+
+  pub fn ssl(&self) -> bool {
+    match self {
+      // TODO: parse string for ?ssl=true param
+      ConnectionCredential::String(_) => false,
+      ConnectionCredential::Config { ssl, .. } => ssl.unwrap_or(false),
+    }
+  }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Derivative)]
+#[derivative(Debug)]
 pub struct PostgresConnectionResource {
   pub client: Rc<Client>,
   options: Option<QueryOptions>,
+  #[derivative(Debug = "ignore")]
   pub handle: Rc<JoinHandle<()>>,
 }
 
@@ -152,24 +164,22 @@ pub async fn op_postgres_create_connection(
   state: Rc<RefCell<OpState>>,
   #[serde] config: ConnectionConfig,
 ) -> Result<ResourceId> {
-  let connection_string = match config.credential {
-    Some(cred) => {
-      let cred_value = cred
-        .get_value(&state.borrow())
-        .map_err(|_| anyhow!("Failed to get database connection credential"))?;
+  let cred_value = config
+    .credential
+    .ok_or_else(|| anyhow!("connectionString is missing from config"))?
+    .get_value(&state.borrow())
+    .map_err(|_| anyhow!("Failed to get database connection credential"))?;
 
-      serde_json::from_value::<ConnectionCredential>(cred_value)
-        .map_err(|_| anyhow!("unable to parse connection credential"))?
-        .to_connection_string()
-    }
-    None => bail!("connectionString is missing from config"),
-  };
+  let credential =
+    serde_json::from_value::<ConnectionCredential>(cred_value)
+      .map_err(|_| anyhow!("unable to parse connection credential"))?;
+  let connection_string = credential.to_connection_string();
 
   let (client, connection) =
-    connection::create_connection(&connection_string).await?;
+    connection::create_connection(&connection_string, credential.ssl()).await?;
 
-  let handle = tokio::spawn(async {
-    if let Err(e) = connection.await {
+  let handle = deno_unsync::spawn(async move {
+    if let Err(e) = connection.listen().await {
       error!("connection error: {}", e);
     }
   });
