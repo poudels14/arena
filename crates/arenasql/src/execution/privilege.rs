@@ -86,7 +86,8 @@ impl Privilege {
   }
 
   pub fn can_execute(&self, stmt: &SQLStatement) -> bool {
-    (*self & Self::get_required_privilege(stmt)).bits() > 0
+    let required = Self::get_required_privilege(stmt);
+    (*self & required) == required
   }
 }
 
