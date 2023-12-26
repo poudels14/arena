@@ -1,3 +1,6 @@
 [submodule "crates/faiss/faiss"]
 	path = crates/faiss/faiss
 	url = https://github.com/facebookresearch/faiss
+[submodule "pgwire"]
+	path = pgwire
+	url = git@github.com:poudels14/pgwire.git
