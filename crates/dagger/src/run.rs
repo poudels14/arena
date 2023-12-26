@@ -40,7 +40,7 @@ impl Command {
   #[tracing::instrument(skip_all)]
   pub async fn execute(&self) -> Result<()> {
     let project_root = ArenaConfig::find_project_root()?;
-    let arena_config = ArenaConfig::load(&project_root)?;
+    let arena_config = ArenaConfig::load(&project_root).unwrap_or_default();
     let mut builtin_modules = vec![
       BuiltinModule::Fs,
       BuiltinModule::Node(None),
