@@ -198,7 +198,6 @@ dependencies = [
  "derive-new",
  "derive_builder",
  "env_logger",
- "faiss",
  "futures",
  "getset",
  "glam",
@@ -208,14 +207,13 @@ dependencies = [
  "once_cell",
  "ordered-float 4.2.0",
  "parking_lot",
- "pgwire",
+ "pgwire 0.18.0",
  "postgres-types",
  "rand 0.8.5",
  "rocksdb",
  "serde",
  "serde_json",
  "simdutf8",
- "slab",
  "sqlparser 0.39.0",
  "strum",
  "strum_macros",
@@ -244,6 +242,7 @@ dependencies = [
  "env_logger",
  "futures",
  "getset",
+ "itertools 0.10.5",
  "jsonwebtoken",
  "log",
  "nom",
@@ -251,7 +250,7 @@ dependencies = [
  "once_cell",
  "parking_lot",
  "pathdiff",
- "pgwire",
+ "pgwire 0.17.0",
  "rand 0.8.5",
  "serde",
  "serde_json",
@@ -260,6 +259,7 @@ dependencies = [
  "tikv-jemallocator",
  "tokio",
  "tokio-stream",
+ "tracing",
  "urlencoding",
  "uuid 0.8.2",
 ]
@@ -1961,7 +1961,7 @@ dependencies = [
  "rustls-pemfile",
  "rustls-webpki 0.101.7",
  "serde",
- "webpki-roots 0.25.3",
+ "webpki-roots",
 ]
 
 [[package]]
@@ -1977,7 +1977,7 @@ dependencies = [
  "rustls-pemfile",
  "rustls-webpki 0.101.7",
  "serde",
- "webpki-roots 0.25.3",
+ "webpki-roots",
 ]
 
 [[package]]
@@ -2987,7 +2987,7 @@ dependencies = [
  "rustls-native-certs",
  "tokio",
  "tokio-rustls 0.24.1",
- "webpki-roots 0.25.3",
+ "webpki-roots",
 ]
 
 [[package]]
@@ -4006,9 +4006,9 @@ checksum = "0ab1bc2a289d34bd04a330323ac98a1b4bc82c9d9fcb1e66b63caa84da26b575"
 
 [[package]]
 name = "openssl"
-version = "0.10.61"
+version = "0.10.62"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b8419dc8cc6d866deb801274bba2e6f8f6108c1bb7fcc10ee5ab864931dbb45"
+checksum = "8cde4d2d9200ad5909f8dac647e29482e07c3a35de8a13fce7c9c7747ad9f671"
 dependencies = [
  "bitflags 2.4.1",
  "cfg-if",
@@ -4038,9 +4038,9 @@ checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
 
 [[package]]
 name = "openssl-sys"
-version = "0.9.97"
+version = "0.9.98"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3eaad34cdd97d81de97964fc7f29e2d104f483840d906ef56daa1912338460b"
+checksum = "c1665caf8ab2dc9aef43d1c0023bd904633a6a05cb30b0ad59bec2ae986e57a7"
 dependencies = [
  "cc",
  "libc",
@@ -4335,6 +4335,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "pgwire"
+version = "0.18.0"
+source = "git+https://github.com/poudels14/pgwire?rev=775f4eb4b#775f4eb4b3d2d86cd58cd5c77c8b4e8fb643fc2e"
+dependencies = [
+ "async-trait",
+ "base64 0.21.5",
+ "bytes",
+ "chrono",
+ "derive-new",
+ "futures",
+ "getset",
+ "hex",
+ "log",
+ "md5",
+ "postgres-types",
+ "rand 0.8.5",
+ "ring 0.17.7",
+ "stringprep",
+ "thiserror",
+ "time",
+ "tokio",
+ "tokio-rustls 0.25.0",
+ "tokio-util",
+ "x509-certificate",
+]
+
+[[package]]
 name = "phf"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4553,6 +4580,19 @@ dependencies = [
  "futures-util",
  "log",
  "tokio",
+ "tokio-postgres",
+]
+
+[[package]]
+name = "postgres-openssl"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1de0ea6504e07ca78355a6fb88ad0f36cafe9e696cbc6717f16a207f3a60be72"
+dependencies = [
+ "futures",
+ "openssl",
+ "tokio",
+ "tokio-openssl",
  "tokio-postgres",
 ]
 
@@ -5089,7 +5129,7 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-streams",
  "web-sys",
- "webpki-roots 0.25.3",
+ "webpki-roots",
  "winreg",
 ]
 
@@ -5252,17 +5292,16 @@ dependencies = [
  "md4",
  "mime",
  "once_cell",
+ "openssl",
  "pathdiff",
  "postgres",
+ "postgres-openssl",
  "rand 0.8.5",
  "reqwest",
  "ring 0.16.20",
  "ripemd",
  "rsa",
  "rusqlite",
- "rustls 0.21.10",
- "rustls-native-certs",
- "rustls-pemfile",
  "serde",
  "serde_json",
  "sha-1",
@@ -5278,14 +5317,12 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-postgres",
- "tokio-rustls 0.24.1",
  "tokio-stream",
  "tower",
  "tower-http 0.3.5",
  "tracing",
  "url",
  "uuid 0.8.2",
- "webpki-roots 0.23.1",
 ]
 
 [[package]]
@@ -5398,16 +5435,6 @@ name = "rustls-pki-types"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e7673e0aa20ee4937c6aacfc12bb8341cfbf054cdd21df6bec5fd0629fe9339b"
-
-[[package]]
-name = "rustls-webpki"
-version = "0.100.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f6a5fc258f1c1276dfe3016516945546e2d5383911efc0fc4f1cdc5df3a4ae3"
-dependencies = [
- "ring 0.16.20",
- "untrusted 0.7.1",
-]
 
 [[package]]
 name = "rustls-webpki"
@@ -6699,6 +6726,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-openssl"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ffab79df67727f6acf57f1ff743091873c24c579b1e2ce4d8f53e47ded4d63d"
+dependencies = [
+ "futures-util",
+ "openssl",
+ "openssl-sys",
+ "tokio",
+]
+
+[[package]]
 name = "tokio-postgres"
 version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6812,7 +6851,7 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
- "webpki-roots 0.25.3",
+ "webpki-roots",
 ]
 
 [[package]]
@@ -7432,15 +7471,6 @@ checksum = "50c24a44ec86bb68fbecd1b3efed7e85ea5621b39b35ef2766b66cd984f8010f"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "webpki-roots"
-version = "0.23.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b03058f88386e5ff5310d9111d53f48b17d732b401aeb83a8d5190f2ac459338"
-dependencies = [
- "rustls-webpki 0.100.3",
 ]
 
 [[package]]

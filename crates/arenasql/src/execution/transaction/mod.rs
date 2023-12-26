@@ -151,11 +151,6 @@ impl Transaction {
     &self,
     stmt: Box<SQLStatement>,
   ) -> Result<ExecutionResponse> {
-    // Check if the current session can execute the given statement
-    if !self.session_config.privilege.can_execute(stmt.as_ref()) {
-      return Err(Error::InsufficientPrivilege);
-    }
-
     let stmt_type = StatementType::from(stmt.as_ref());
     let custom_plan = DEFAULT_EXTENSIONS
       .iter()
@@ -165,6 +160,11 @@ impl Transaction {
 
     match custom_plan {
       Some(plan) => {
+        // Check if the current session can execute the given statement
+        if !self.session_config.privilege.can_execute(stmt.as_ref()) {
+          return Err(Error::InsufficientPrivilege);
+        }
+
         self
           .execute_stream(
             &stmt_type,
@@ -190,6 +190,11 @@ impl Transaction {
     stmt: Box<SQLStatement>,
     plan: LogicalPlan,
   ) -> Result<ExecutionResponse> {
+    // Check if the current session can execute the given statement
+    if !self.session_config.privilege.can_execute(stmt.as_ref()) {
+      return Err(Error::InsufficientPrivilege);
+    }
+
     let mut statement = stmt;
     let mut handle = self;
     #[allow(unused)]

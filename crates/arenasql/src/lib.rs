@@ -29,6 +29,8 @@ pub mod rocks {
   pub use rocksdb::Error;
 }
 
+pub use pgwire;
+
 pub mod datafusion {
   pub use datafusion::arrow::datatypes::{
     DataType as DatafusionDataType, Field as DatafusionField, Fields, Schema,

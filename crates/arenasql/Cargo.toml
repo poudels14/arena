@@ -27,7 +27,6 @@ env_logger.workspace = true
 async-trait.workspace = true
 simdutf8.workspace = true
 rand.workspace = true
-pgwire.workspace = true
 getset.workspace = true
 derive-new.workspace = true
 bincode.workspace = true
@@ -35,7 +34,7 @@ bitflags.workspace = true
 libsql = { version = "0.1.11", features = ["core"] }
 libsql-sys = "0.2.14"
 datafusion = { version = "33.0.0", features = [] }
-sqlparser = { version = "0.39.0", features = ["serde", "visitor"] }
+sqlparser = { version = "0.39.0", features = ["serde"] }
 rocksdb = { version = "0.21.0", default-features = false, features = [
   "lz4",
   "multi-threaded-cf",
@@ -54,6 +53,9 @@ glam = "0.24.2"
 ultraviolet = "0.9.2"
 ordered-float = "4.2.0"
 
+[dependencies.pgwire]
+git = "https://github.com/poudels14/pgwire"
+rev = "775f4eb4b"
 
 [dev-dependencies]
 criterion.workspace = true
