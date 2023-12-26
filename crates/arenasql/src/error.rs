@@ -86,9 +86,11 @@ impl Error {
   /// Error message
   pub fn message(&self) -> String {
     match self {
+      Self::UnsupportedDataType(t) => {
+        format!("Unsupported data type: {:?}", t)
+      }
       Self::ParserError(msg)
       | Self::UnsupportedOperation(msg)
-      | Self::UnsupportedDataType(msg)
       | Self::InvalidDataType(msg)
       | Self::UnsupportedQueryFilter(msg)
       | Self::UnsupportedQuery(msg)
@@ -173,6 +175,17 @@ impl Error {
               msg
             );
             format!("Unknown error")
+          }
+        }
+        DataFusionError::Execution(msg) => {
+          let lowercase_msg = msg.to_lowercase();
+          if lowercase_msg.contains("table")
+            && lowercase_msg.contains("doesn't exist")
+          {
+            lowercase_msg
+          } else {
+            eprintln!("Execution error at {}:{}: {:?}", file!(), line!(), msg);
+            format!("Internal error")
           }
         }
         err => {
