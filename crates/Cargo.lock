@@ -191,6 +191,7 @@ dependencies = [
  "bincode",
  "bitflags 2.4.1",
  "bytes",
+ "chrono",
  "criterion",
  "dashmap",
  "datafusion",
@@ -204,6 +205,7 @@ dependencies = [
  "itertools 0.12.0",
  "libsql",
  "libsql-sys",
+ "log",
  "once_cell",
  "ordered-float 4.2.0",
  "parking_lot",
@@ -4309,7 +4311,6 @@ dependencies = [
 [[package]]
 name = "pgwire"
 version = "0.18.0"
-source = "git+https://github.com/poudels14/pgwire?rev=775f4eb4b#775f4eb4b3d2d86cd58cd5c77c8b4e8fb643fc2e"
 dependencies = [
  "async-trait",
  "base64 0.21.5",

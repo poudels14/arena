@@ -20,6 +20,7 @@ pub enum ColumnArrayBuilder {
   String(StringBuilder),
   Binary(BinaryBuilder),
   Vector(ListBuilder<Float32Builder>),
+  Timestamp(StringBuilder),
 }
 
 impl ColumnArrayBuilder {
@@ -50,14 +51,17 @@ impl ColumnArrayBuilder {
         ColumnArrayBuilder::Float64(Float64Builder::with_capacity(capacity))
       }
       DataType::Text => ColumnArrayBuilder::String(
-        StringBuilder::with_capacity(capacity, capacity * 250),
+        StringBuilder::with_capacity(capacity, capacity * 1000),
       ),
       DataType::Varchar { len } => {
         ColumnArrayBuilder::String(StringBuilder::with_capacity(
           capacity,
-          capacity * len.unwrap_or(1000) as usize,
+          capacity * len.unwrap_or(100) as usize,
         ))
       }
+      DataType::Timestamp => ColumnArrayBuilder::Timestamp(
+        StringBuilder::with_capacity(capacity, capacity * 25),
+      ),
       DataType::Binary => {
         ColumnArrayBuilder::Binary(BinaryBuilder::with_capacity(capacity, 1000))
       }
@@ -88,6 +92,9 @@ impl ColumnArrayBuilder {
         let vector = value.as_vector().unwrap();
         builder.append_option(Some(vector.clone().iter().map(|f| Some(*f))))
       }
+      Self::Timestamp(ref mut builder) => {
+        builder.append_option(value.as_iso_string())
+      }
     }
   }
 
@@ -105,6 +112,7 @@ impl ColumnArrayBuilder {
       Self::String(mut v) => Arc::new(v.finish()) as ArrayRef,
       Self::Binary(mut v) => Arc::new(v.finish()) as ArrayRef,
       Self::Vector(mut v) => Arc::new(v.finish()) as ArrayRef,
+      Self::Timestamp(mut v) => Arc::new(v.finish()) as ArrayRef,
     }
   }
 }

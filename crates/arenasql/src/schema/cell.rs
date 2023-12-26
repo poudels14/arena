@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use chrono::{NaiveDateTime, SecondsFormat};
 use datafusion::arrow::array::{
   as_boolean_array, as_generic_list_array, as_primitive_array, as_string_array,
   ArrayRef,
@@ -37,6 +38,7 @@ pub enum SerializedCell<'a> {
   // Vec<f32> can't be deserialized to &'a [f32] because converting [u8]
   // to f32 requires allocation
   Vector(Arc<Vec<f32>>) = 11,
+  Timestamp(i64) = 12,
 }
 
 // Note: this should only be used when it's impossible to use
@@ -55,6 +57,7 @@ pub enum OwnedSerializedCell {
   Float64(f64) = 9,
   Blob(Arc<Vec<u8>>) = 10,
   Vector(Arc<Vec<f32>>) = 11,
+  Timestamp(i64) = 12,
 }
 
 impl<'a> Default for SerializedCell<'a> {
@@ -166,7 +169,30 @@ impl<'a> SerializedCell<'a> {
             .collect();
         res?
       }
-      _ => unimplemented!(),
+      DataType::Timestamp => {
+        let result: Result<Vec<SerializedCell<'b>>> = as_string_array(array)
+          .iter()
+          .map(|value| {
+            value
+              .map(|v| {
+                let date =
+                  chrono::DateTime::parse_from_rfc3339(&v).map_err(|_| {
+                    df_error!(Error::InvalidQuery(format!(
+                      "Can't convert {:?} to Timestamp",
+                      v
+                    )))
+                  })?;
+                Ok(SerializedCell::Timestamp(date.timestamp_millis()))
+              })
+              .unwrap_or_else(|| Ok(SerializedCell::Null))
+          })
+          .collect();
+        result?
+      }
+      dt => unimplemented!(
+        "ColumnArray to Vec<SerializedCell> not implemented for type: {:?}",
+        dt
+      ),
     })
   }
 
@@ -185,6 +211,7 @@ impl<'a> SerializedCell<'a> {
       Self::Float64(v) => OwnedSerializedCell::Float64(v),
       Self::Blob(blob) => OwnedSerializedCell::Blob(Arc::new(blob.to_vec())),
       Self::Vector(ref v) => OwnedSerializedCell::Vector(Arc::new(v.to_vec())),
+      Self::Timestamp(v) => OwnedSerializedCell::Timestamp(v),
     }
   }
 
@@ -199,101 +226,122 @@ impl<'a> SerializedCell<'a> {
   #[inline]
   pub fn as_bool(&self) -> Option<bool> {
     match self {
-      SerializedCell::Null => None,
-      SerializedCell::Boolean(value) => Some(*value),
-      _ => unreachable!(),
+      Self::Null => None,
+      Self::Boolean(value) => Some(*value),
+      _ => self.error_converting_to("boolean"),
     }
   }
 
   #[inline]
   pub fn as_i16(&self) -> Option<i16> {
     match self {
-      SerializedCell::Null => None,
-      SerializedCell::Int16(value) => Some(*value),
-      _ => unreachable!(),
+      Self::Null => None,
+      Self::Int16(value) => Some(*value),
+      _ => self.error_converting_to("i16"),
     }
   }
 
   #[inline]
   pub fn as_i32(&self) -> Option<i32> {
     match self {
-      SerializedCell::Null => None,
-      SerializedCell::Int32(value) => Some(*value),
-      _ => unreachable!(),
+      Self::Null => None,
+      Self::Int32(value) => Some(*value),
+      _ => self.error_converting_to("i32"),
     }
   }
 
   #[inline]
   pub fn as_u32(&self) -> Option<u32> {
     match self {
-      SerializedCell::Null => None,
-      SerializedCell::UInt32(value) => Some(*value),
-      _ => unreachable!(),
+      Self::Null => None,
+      Self::UInt32(value) => Some(*value),
+      _ => self.error_converting_to("u32"),
     }
   }
 
   #[inline]
   pub fn as_i64(&self) -> Option<i64> {
     match self {
-      SerializedCell::Null => None,
-      SerializedCell::Int64(value) => Some(*value),
-      _ => unreachable!(),
+      Self::Null => None,
+      Self::Int64(value) => Some(*value),
+      _ => self.error_converting_to("i64"),
     }
   }
 
   #[inline]
   pub fn as_u64(&self) -> Option<u64> {
     match self {
-      SerializedCell::Null => None,
-      SerializedCell::UInt64(value) => Some(*value),
-      _ => unreachable!(),
+      Self::Null => None,
+      Self::UInt64(value) => Some(*value),
+      _ => self.error_converting_to("u64"),
     }
   }
 
   #[inline]
   pub fn as_f32(&self) -> Option<f32> {
     match self {
-      SerializedCell::Null => None,
-      SerializedCell::Float32(value) => Some(*value),
-      _ => unreachable!(),
+      Self::Null => None,
+      Self::Float32(value) => Some(*value),
+      _ => self.error_converting_to("f32"),
     }
   }
 
   #[inline]
   pub fn as_f64(&self) -> Option<f64> {
     match self {
-      SerializedCell::Null => None,
-      SerializedCell::Float64(value) => Some(*value),
-      _ => unreachable!(),
+      Self::Null => None,
+      Self::Float64(value) => Some(*value),
+      _ => self.error_converting_to("f64"),
     }
   }
 
   #[inline]
   pub fn as_bytes(&self) -> Option<&'a [u8]> {
     match self {
-      SerializedCell::Null => None,
-      SerializedCell::Blob(value) => Some(value),
-      _ => unreachable!(),
+      Self::Null => None,
+      Self::Blob(value) => Some(value),
+      _ => self.error_converting_to("bytes"),
     }
   }
 
   #[inline]
   pub fn as_str(&self) -> Option<&'a str> {
     match self {
-      SerializedCell::Null => None,
-      SerializedCell::Blob(bytes) => unsafe {
+      Self::Null => None,
+      Self::Blob(bytes) => unsafe {
         Some(std::str::from_utf8_unchecked(bytes))
       },
-      v => unreachable!("Trying to convert {:?} to string", &v),
+      _ => self.error_converting_to("string"),
+    }
+  }
+
+  #[inline]
+  pub fn as_iso_string(&self) -> Option<String> {
+    match self {
+      Self::Null => None,
+      Self::Timestamp(v) => match NaiveDateTime::from_timestamp_millis(*v) {
+        Some(date) => {
+          Some(date.and_utc().to_rfc3339_opts(SecondsFormat::Millis, true))
+        }
+        None => {
+          eprintln!("Error converting {:?} to RFC3339 datetime", v);
+          None
+        }
+      },
+      _ => self.error_converting_to("iso string"),
     }
   }
 
   #[inline]
   pub fn as_vector(&self) -> Option<Arc<Vec<f32>>> {
     match self {
-      SerializedCell::Null => None,
-      SerializedCell::Vector(v) => Some(v.clone()),
-      v => unreachable!("Trying to convert {:?} to float vector", &v),
+      Self::Null => None,
+      Self::Vector(v) => Some(v.clone()),
+      _ => self.error_converting_to("float vector"),
     }
+  }
+
+  fn error_converting_to<T>(&self, ty: &str) -> Option<T> {
+    unreachable!("Trying to convert {:?} to {}", &self, &ty);
   }
 }

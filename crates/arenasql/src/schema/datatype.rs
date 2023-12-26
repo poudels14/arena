@@ -1,7 +1,8 @@
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::sync::Arc;
 
-use datafusion::arrow::datatypes::{DataType as DfDataType, Field};
+use datafusion::arrow::datatypes::{DataType as DfDataType, Field, TimeUnit};
 use postgres_types::Type;
 use serde::{Deserialize, Serialize};
 use sqlparser::ast::{ColumnDef, DataType as SQLDataType};
@@ -61,6 +62,9 @@ pub enum DataType {
   Vector {
     len: usize,
   } = 14,
+  // Posgres Type::TIMESTAMP
+  #[strum(serialize = "TIMESTAMP")]
+  Timestamp = 15,
 }
 
 impl DataType {
@@ -105,9 +109,17 @@ impl DataType {
       DfDataType::UInt32 => Ok(Self::UInt32),
       DfDataType::Int64 => Ok(Self::Int64),
       DfDataType::UInt64 => Ok(Self::UInt64),
-      DfDataType::Utf8 => Ok(Self::Text),
+      DfDataType::Utf8 => {
+        let metadata = field.metadata();
+        let dt = match Self::from_str(metadata.get("TYPE").unwrap()).unwrap() {
+          Self::Timestamp => Self::Timestamp,
+          _ => Self::Text,
+        };
+        Ok(dt)
+      }
       DfDataType::Float32 => Ok(Self::Float32),
       DfDataType::Float64 => Ok(Self::Float64),
+      DfDataType::Timestamp(TimeUnit::Nanosecond, _) => Ok(Self::Timestamp),
       DfDataType::Decimal256(76, 1) => {
         let metadata = field.metadata();
         let len = metadata.get("LENGTH").and_then(|l| l.parse::<usize>().ok());
@@ -131,7 +143,7 @@ impl DataType {
           }
         }
         Err(Error::UnsupportedDataType(format!(
-          "Data type [{}] not supported",
+          "Data type {:?} not supported",
           v
         )))
       }
@@ -154,6 +166,7 @@ impl DataType {
       Self::Decimal { p: _, s: _ } => Type::NUMERIC.oid(),
       Self::Jsonb => Type::JSONB.oid(),
       Self::Vector { .. } => Type::FLOAT4_ARRAY.oid(),
+      Self::Timestamp => Type::TIMESTAMP.oid(),
     }
   }
 
@@ -188,6 +201,7 @@ impl DataType {
           true,
         )))
       }
+      Self::Timestamp => DfDataType::Utf8,
     };
 
     (df_data_type, metadata)
