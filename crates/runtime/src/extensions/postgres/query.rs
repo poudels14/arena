@@ -44,11 +44,6 @@ pub async fn execute_query(
   query: &str,
   params: &Option<Vec<Param>>,
 ) -> Result<QueryResponse, Error> {
-  // If there are no params, execute it as simple query
-  if params.as_ref().map(|p| p.is_empty()).unwrap_or(true) {
-    return execute_simple_query(client, query).await;
-  }
-
   let mut response = QueryResponse {
     columns: vec![],
     rows: vec![],
@@ -86,51 +81,6 @@ pub async fn execute_query(
   response.row_count = Some(response.rows.len() as u64);
 
   return Ok(response);
-}
-
-async fn execute_simple_query(
-  client: &Client,
-  query: &str,
-) -> Result<QueryResponse> {
-  let mut response = QueryResponse {
-    columns: vec![],
-    rows: vec![],
-    row_count: None,
-    modified_rows: None,
-  };
-
-  let simple_response = client
-    .simple_query(query)
-    .await
-    .context("Error executing simple query")?;
-
-  let mut columns: Option<Vec<String>> = None;
-  response.rows = simple_response
-    .iter()
-    .map(|message| match message {
-      SimpleQueryMessage::Row(row) => {
-        if columns.is_none() {
-          response.row_count = Some(simple_response.len() as u64);
-          columns =
-            Some(row.columns().iter().map(|c| c.name().to_string()).collect());
-        }
-
-        row
-          .columns()
-          .iter()
-          .enumerate()
-          .map(|(index, _)| Value::from(row.get(index)))
-          .collect()
-      }
-      SimpleQueryMessage::CommandComplete(len) => {
-        response.modified_rows = Some(*len);
-        vec![]
-      }
-      _ => unimplemented!(),
-    })
-    .collect::<Vec<Vec<Value>>>();
-
-  Ok(response)
 }
 
 macro_rules! convert_to_json_value {
