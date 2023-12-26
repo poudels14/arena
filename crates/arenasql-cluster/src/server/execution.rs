@@ -41,10 +41,8 @@ impl ArenaSqlCluster {
     // explicity used
     let mut results = Vec::with_capacity(query.stmts.len());
     for stmt in query.stmts.into_iter() {
-      let result = self
-        .execute_plan(&session, stmt, None, None, field_format)
-        .await
-        .await?;
+      let result =
+        Self::execute_plan(&session, stmt, None, None, field_format).await?;
       results.push(result);
     }
     Ok(results)

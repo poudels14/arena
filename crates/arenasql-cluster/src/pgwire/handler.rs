@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use arenasql::ast::statement::StatementType;
 use arenasql::bytes::Bytes;
 use arenasql::datafusion::{LogicalPlan, ScalarValue};
 use arenasql::pgwire;
@@ -148,7 +147,6 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
     };
 
     let stmt = stmt.statement().stmts[0].clone();
-    let stmt_type = StatementType::from(stmt.as_ref());
     let plan = match maybe_plan {
       Some(plan) => Some(plan),
       None => {
@@ -156,7 +154,6 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
         let txn = session.create_transaction()?;
         Some(txn.create_verified_logical_plan(stmt).await?)
       }
-      _ => None,
     };
 
     let (params, fields) = plan
