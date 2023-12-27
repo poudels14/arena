@@ -7,7 +7,6 @@ use arenasql::datafusion::{LogicalPlan, ScalarValue};
 use arenasql::pgwire::api::results::{
   FieldFormat, FieldInfo, QueryResponse, Response, Tag,
 };
-use arenasql::pgwire::api::ClientInfo;
 use arenasql::pgwire::error::PgWireResult;
 use arenasql::pgwire::messages::data::DataRow;
 use arenasql::response::ExecutionResponse;
@@ -15,39 +14,10 @@ use futures::{Stream, StreamExt};
 use sqlparser::ast::Statement;
 
 use super::ArenaSqlCluster;
-use crate::auth::{AuthHeader, AuthenticatedSession};
-use crate::pgwire::ArenaQuery;
+use crate::auth::AuthenticatedSession;
 use crate::pgwire::{datatype, rowconverter};
 
 impl ArenaSqlCluster {
-  // TODO: to improve performance, instead of returning response from this
-  // function, send the rows directly to client
-  pub async fn execute_query<'a, C>(
-    &self,
-    client: &C,
-    query: ArenaQuery,
-    field_format: FieldFormat,
-  ) -> PgWireResult<Vec<Response<'a>>>
-  where
-    C: ClientInfo,
-  {
-    let session = match &query.client {
-      AuthHeader::None => self.get_client_session(client),
-      header => self.get_or_create_new_session(client, &header),
-    }?;
-
-    // It seems like, in Postgres, all the statements in a single query
-    // are run in the same transaction unless BEING/COMMIT/ROLLBACK is
-    // explicity used
-    let mut results = Vec::with_capacity(query.stmts.len());
-    for stmt in query.stmts.into_iter() {
-      let result =
-        Self::execute_plan(&session, stmt, None, None, field_format).await?;
-      results.push(result);
-    }
-    Ok(results)
-  }
-
   pub(crate) async fn execute_plan<'a>(
     session: &AuthenticatedSession,
     stmt: Box<Statement>,

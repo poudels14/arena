@@ -118,7 +118,7 @@ impl ExecutionPlan for CustomExecutionPlanAdapter {
   }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, new)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, new)]
 pub struct CustomLogicalPlan {
   schema: DFSchemaRef,
 }
@@ -164,7 +164,7 @@ impl UserDefinedLogicalNodeCore for CustomLogicalPlan {
   }
 
   fn from_template(&self, _exprs: &[Expr], _inputs: &[LogicalPlan]) -> Self {
-    unimplemented!()
+    self.clone()
   }
 
   fn expressions(&self) -> Vec<Expr> {

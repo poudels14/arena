@@ -12,11 +12,13 @@ use arenasql::pgwire::api::query::{
 use arenasql::pgwire::api::results::{
   DescribeResponse, FieldFormat, FieldInfo, Response,
 };
-use arenasql::pgwire::api::stmt::QueryParser;
+use arenasql::pgwire::api::stmt::{QueryParser, StoredStatement};
 use arenasql::pgwire::api::store::PortalStore;
 use arenasql::pgwire::api::{ClientInfo, ClientPortalStore, Type};
-use arenasql::pgwire::error::{ErrorInfo, PgWireError, PgWireResult};
-use arenasql::pgwire::messages::extendedquery::{Bind, BindComplete};
+use arenasql::pgwire::error::{PgWireError, PgWireResult};
+use arenasql::pgwire::messages::extendedquery::{
+  Bind, BindComplete, Parse, ParseComplete,
+};
 use arenasql::pgwire::messages::PgWireBackendMessage;
 use async_trait::async_trait;
 use futures::{Sink, SinkExt};
@@ -25,6 +27,7 @@ use nom::AsBytes;
 
 use super::portal::ArenaPortalState;
 use super::{ArenaQuery, ArenaQueryParser};
+use crate::auth::AuthHeader;
 use crate::pgwire::datatype;
 use crate::server::ArenaSqlCluster;
 
@@ -33,6 +36,51 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
   type PortalState = ArenaPortalState;
   type Statement = ArenaQuery;
   type QueryParser = ArenaQueryParser;
+
+  async fn on_parse<C>(
+    &self,
+    client: &mut C,
+    message: Parse,
+  ) -> PgWireResult<()>
+  where
+    C: ClientInfo
+      + ClientPortalStore
+      + Sink<PgWireBackendMessage>
+      + Unpin
+      + Send
+      + Sync,
+    C::PortalStore: PortalStore<Statement = Self::Statement>,
+    C::Error: Debug,
+    PgWireError: From<<C as Sink<PgWireBackendMessage>>::Error>,
+  {
+    let parser = Arc::new(ArenaQueryParser {});
+    let stmt = StoredStatement::parse(&message, parser).await?;
+    let statement = stmt.statement();
+
+    let session = match &statement.client {
+      AuthHeader::None => self.get_client_session(client),
+      header => self.get_or_create_new_session(client, &header),
+    }?;
+
+    // Note: create verified plan to make sure query is valid
+    // Query could be invalid if it uses table that doesn't exits, etc
+    // TODO: for a single prepared statement, verified logical plan is
+    // created in several stages. Figure out a way to minimize the number
+    // of times verified logical plan is created
+    let transaction = session.create_transaction()?;
+    for stmt in statement.stmts.clone().into_iter() {
+      transaction
+        .create_verified_logical_plan(stmt.into())
+        .await?;
+    }
+
+    client.portal_store().put_statement(Arc::new(stmt));
+    client
+      .send(PgWireBackendMessage::ParseComplete(ParseComplete::new()))
+      .await?;
+
+    Ok(())
+  }
 
   /// Prepares the logical plan for the query and bind the parameters to it
   #[tracing::instrument(skip(self, client), level = "DEBUG")]
@@ -124,9 +172,9 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
       .await
   }
 
-  #[tracing::instrument(skip_all, level = "DEBUG")]
+  // This is not needed since this handler has custom on_parse
   fn query_parser(&self) -> Arc<Self::QueryParser> {
-    self.parser.clone()
+    unimplemented!()
   }
 
   #[tracing::instrument(skip_all, level = "DEBUG")]
@@ -174,24 +222,39 @@ impl SimpleQueryHandler for ArenaSqlCluster {
   where
     C: ClientInfo + Unpin + Send + Sync,
   {
-    let parsed_query = self.parser.parse_sql(query, &[Type::ANY]).await?;
-    let results_fut =
-      self.execute_query(client, parsed_query, FieldFormat::Text);
+    let parser = Arc::new(ArenaQueryParser {});
+    let parsed_query = parser.parse_sql(query, &[Type::ANY]).await?;
+    let session = match &parsed_query.client {
+      AuthHeader::None => self.get_client_session(client),
+      header => self.get_or_create_new_session(client, &header),
+    }?;
 
-    match results_fut.await {
-      Ok(response) => Ok(response),
-      Err(e) => Ok(vec![Response::Error(Box::new(ErrorInfo::new(
-        "ERROR".to_owned(),
-        "XX000".to_owned(),
-        e.to_string(),
-      )))]),
+    // It seems like, in Postgres, all the statements in a single query
+    // are run in the same transaction unless BEING/COMMIT/ROLLBACK is
+    // explicity used
+    let mut results = Vec::with_capacity(parsed_query.stmts.len());
+    for stmt in parsed_query.stmts.into_iter() {
+      let result =
+        Self::execute_plan(&session, stmt, None, None, FieldFormat::Text)
+          .await?;
+      results.push(result);
     }
+    Ok(results)
   }
 }
 
 fn get_params_and_field_types(
   plan: &LogicalPlan,
 ) -> PgWireResult<(Vec<Type>, Vec<FieldInfo>)> {
+  // Note: only return param and field types for certain plans
+  // Do it for others as needed
+  match plan {
+    LogicalPlan::Projection(_) => {}
+    LogicalPlan::TableScan(_) => {}
+    LogicalPlan::Dml(_) => {}
+    _ => return Ok((vec![], vec![])),
+  }
+
   // Expects placeholder to be in format "${index}"
   let params = plan
     .get_parameter_types()

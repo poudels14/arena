@@ -20,7 +20,6 @@ use crate::auth::{
 use crate::error::{ArenaClusterError, ArenaClusterResult, Error};
 use crate::extension::admin_exetension;
 use crate::io::file::File;
-use crate::pgwire::ArenaQueryParser;
 use crate::schema::{
   self, ADMIN_USERNAME, APPS_USERNAME, MANIFEST_FILE, SYSTEM_SCHEMA_NAME,
 };
@@ -32,7 +31,6 @@ use crate::system::{
 pub struct ArenaSqlCluster {
   pub(crate) manifest: Arc<schema::Cluster>,
   pub(crate) runtime: Arc<RuntimeEnv>,
-  pub(crate) parser: Arc<ArenaQueryParser>,
   pub(crate) session_store: Arc<AuthenticatedSessionStore>,
   pub(crate) storage: Arc<ClusterStorageFactory>,
   pub(crate) jwt_secret: Option<String>,
@@ -66,7 +64,6 @@ impl ArenaSqlCluster {
     Ok(Self {
       manifest,
       runtime: Arc::new(RuntimeEnv::default()),
-      parser: Arc::new(ArenaQueryParser {}),
       session_store: Arc::new(AuthenticatedSessionStore::new()),
       storage: Arc::new(ClusterStorageFactory::new(storage_options)),
       jwt_secret: options.jwt_secret.clone(),
