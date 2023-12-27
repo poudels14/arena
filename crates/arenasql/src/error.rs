@@ -2,7 +2,9 @@ use std::fmt;
 use std::sync::Arc;
 
 use datafusion::error::DataFusionError;
+use once_cell::sync::Lazy;
 use pgwire::error::{ErrorInfo, PgWireError};
+use regex::Regex;
 use sqlparser::parser::{self, ParserError};
 
 use crate::schema::{Column, OwnedSerializedCell};
@@ -32,6 +34,7 @@ pub enum Error {
     column: String,
   },
   DatabaseAlreadyExists(String),
+  // relation = table or index
   RelationAlreadyExists(String),
   RelationDoesntExist(String),
   SchemaDoesntExist(String),
@@ -39,6 +42,7 @@ pub enum Error {
   UnsupportedQueryFilter(String),
   UnsupportedQuery(String),
   InvalidQuery(String),
+  InvalidParameter(String),
   InternalError(String),
   DatabaseClosed,
   IOError(String),
@@ -47,6 +51,9 @@ pub enum Error {
   DataFusionError(Arc<DataFusionError>),
   ReservedWord(String),
 }
+
+const RE_TABLE_NOT_FOUND: Lazy<Regex> =
+  Lazy::new(|| Regex::new(r"table '(?P<rel>[\w.]+)' not found").unwrap());
 
 impl Error {
   /// PostgresSQL code
@@ -61,6 +68,10 @@ impl Error {
       Self::UniqueConstaintViolated { .. } => "23505",
       // insufficient_privilege
       Self::InsufficientPrivilege => "42501",
+      // undefined_table or index
+      Self::RelationDoesntExist(_) => "42P01",
+      // duplicate_table or duplicate index
+      Self::RelationAlreadyExists(_) => "42P07",
       // internal_error
       Self::UnsupportedOperation(_)
       | Self::UnsupportedDataType(_)
@@ -70,8 +81,6 @@ impl Error {
       | Self::InvalidQuery(_)
       | Self::NullConstraintViolated { .. }
       | Self::DatabaseAlreadyExists(_)
-      | Self::RelationAlreadyExists(_)
-      | Self::RelationDoesntExist(_)
       | Self::SchemaDoesntExist(_)
       | Self::ColumnDoesntExist(_)
       | Self::IOError(_)
@@ -79,6 +88,7 @@ impl Error {
       | Self::InternalError(_)
       | Self::DatabaseClosed
       | Self::ReservedWord(_)
+      | Self::InvalidParameter(_)
       | Self::DataFusionError(_) => "XX000",
     }
   }
@@ -98,6 +108,7 @@ impl Error {
       | Self::IOError(msg)
       | Self::SerdeError(msg)
       | Self::ReservedWord(msg)
+      | Self::InvalidParameter(msg)
       | Self::InvalidTransactionState(msg) => msg.to_owned(),
       Self::InsufficientPrivilege => format!("permission denied"),
       Self::InternalError(msg) => {
@@ -221,8 +232,17 @@ impl From<rocksdb::Error> for Error {
 }
 
 impl From<DataFusionError> for Error {
-  fn from(e: DataFusionError) -> Self {
-    Self::DataFusionError(Arc::new(e))
+  fn from(err: DataFusionError) -> Self {
+    match err {
+      DataFusionError::Plan(ref msg) => {
+        if let Some(capture) = RE_TABLE_NOT_FOUND.captures(msg) {
+          return Self::RelationDoesntExist(capture["rel"].to_owned());
+        }
+      }
+      _ => {}
+    }
+
+    Self::DataFusionError(Arc::new(err))
   }
 }
 
@@ -259,4 +279,17 @@ pub fn null_constraint_violation(table: &str, column: &str) -> DataFusionError {
     table: table.to_owned(),
     column: column.to_owned(),
   }))
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::error::RE_TABLE_NOT_FOUND;
+
+  #[test]
+  fn table_not_found_regex_test() {
+    let caps = RE_TABLE_NOT_FOUND
+      .captures("table 'ai_assistant.public.tmp_dqs_nodes2' not found")
+      .unwrap();
+    assert_eq!(&caps["rel"], "ai_assistant.public.tmp_dqs_nodes2");
+  }
 }

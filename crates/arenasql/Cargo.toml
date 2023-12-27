@@ -54,6 +54,7 @@ ultraviolet = "0.9.2"
 ordered-float = "4.2.0"
 chrono = "0.4.31"
 log = "0.4"
+regex = "1.10.2"
 
 [dependencies.pgwire]
 path = "../../pgwire"

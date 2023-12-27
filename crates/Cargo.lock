@@ -212,6 +212,7 @@ dependencies = [
  "pgwire",
  "postgres-types",
  "rand 0.8.5",
+ "regex",
  "rocksdb",
  "serde",
  "serde_json",
