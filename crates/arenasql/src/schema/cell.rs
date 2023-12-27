@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use bytes::BufMut;
+use bytes::BytesMut;
 use chrono::{NaiveDateTime, SecondsFormat};
 use datafusion::arrow::array::{
   as_boolean_array, as_generic_list_array, as_primitive_array, as_string_array,
@@ -9,9 +11,11 @@ use datafusion::arrow::datatypes::{
   Float32Type, Float64Type, Int16Type, Int32Type, Int64Type, UInt32Type,
   UInt64Type,
 };
+use datafusion::common::cast::as_binary_array;
 use datafusion::error::Result;
 use datafusion::scalar::ScalarValue;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use super::{Column, DataType};
 use crate::error::null_constraint_violation;
@@ -31,14 +35,16 @@ pub enum SerializedCell<'a> {
   UInt64(u64) = 7,
   Float32(f32) = 8,
   Float64(f64) = 9,
-  // Using the reference for bytes prevents data cloning during
-  // deserialization
-  Blob(&'a [u8]) = 10,
+  String(&'a str) = 10,
+  Json(&'a [u8]) = 11,
   // TODO: convert f32 to u16 when storing in order to store bfloat16
   // Vec<f32> can't be deserialized to &'a [f32] because converting [u8]
   // to f32 requires allocation
-  Vector(Arc<Vec<f32>>) = 11,
-  Timestamp(i64) = 12,
+  Vector(Arc<Vec<f32>>) = 12,
+  Timestamp(i64) = 13,
+  // Using the reference for bytes prevents data cloning during
+  // deserialization
+  Blob(&'a [u8]) = 14,
 }
 
 // Note: this should only be used when it's impossible to use
@@ -55,19 +61,21 @@ pub enum OwnedSerializedCell {
   UInt64(u64) = 7,
   Float32(f32) = 8,
   Float64(f64) = 9,
-  Blob(Arc<Vec<u8>>) = 10,
-  Vector(Arc<Vec<f32>>) = 11,
-  Timestamp(i64) = 12,
+  String(Arc<str>) = 10,
+  Json(Arc<Vec<u8>>) = 11,
+  Vector(Arc<Vec<f32>>) = 12,
+  Timestamp(i64) = 13,
+  Blob(Arc<Vec<u8>>) = 14,
 }
 
-impl<'a> Default for SerializedCell<'a> {
+impl Default for OwnedSerializedCell {
   fn default() -> Self {
-    SerializedCell::Null
+    Self::Null
   }
 }
 
-impl<'a> SerializedCell<'a> {
-  pub fn from_scalar(scalar: &'a ScalarValue) -> Self {
+impl OwnedSerializedCell {
+  pub fn from_scalar(scalar: &ScalarValue) -> Self {
     match scalar {
       ScalarValue::Null => Self::Null,
       ScalarValue::Boolean(v) => {
@@ -83,20 +91,20 @@ impl<'a> SerializedCell<'a> {
       }
       ScalarValue::Utf8(v) | ScalarValue::LargeUtf8(v) => v
         .as_ref()
-        .map(|v| Self::Blob(v.as_bytes()))
+        .map(|v| Self::String(v.as_str().into()))
         .unwrap_or_default(),
       _ => unimplemented!(),
     }
   }
 }
 
-impl<'a> SerializedCell<'a> {
+impl OwnedSerializedCell {
   /// Converts arrow column array to Vec of SerializedCell
   pub fn column_array_to_vec<'b>(
     table_name: &str,
     column: &Column,
     array: &'b ArrayRef,
-  ) -> Result<Vec<SerializedCell<'b>>> {
+  ) -> Result<Vec<OwnedSerializedCell>> {
     if !column.nullable && array.null_count() > 0 {
       return Err(null_constraint_violation(table_name, &column.name));
     }
@@ -104,52 +112,55 @@ impl<'a> SerializedCell<'a> {
     Ok(match &column.data_type {
       DataType::Boolean => as_boolean_array(array)
         .iter()
-        .map(|v| v.map(|v| SerializedCell::Boolean(v)).unwrap_or_default())
+        .map(|v| v.map(|v| Self::Boolean(v)).unwrap_or_default())
         .collect(),
       DataType::Int16 => as_primitive_array::<Int16Type>(array)
         .iter()
-        .map(|v| v.map(|v| SerializedCell::Int16(v)).unwrap_or_default())
+        .map(|v| v.map(|v| Self::Int16(v)).unwrap_or_default())
         .collect(),
       DataType::Int32 => as_primitive_array::<Int32Type>(array)
         .iter()
-        .map(|v| v.map(|v| SerializedCell::Int32(v)).unwrap_or_default())
+        .map(|v| v.map(|v| Self::Int32(v)).unwrap_or_default())
         .collect(),
       DataType::UInt32 => as_primitive_array::<UInt32Type>(array)
         .iter()
-        .map(|v| v.map(|v| SerializedCell::UInt32(v)).unwrap_or_default())
+        .map(|v| v.map(|v| Self::UInt32(v)).unwrap_or_default())
         .collect(),
       DataType::Int64 => as_primitive_array::<Int64Type>(array)
         .iter()
-        .map(|v| v.map(|v| SerializedCell::Int64(v)).unwrap_or_default())
+        .map(|v| v.map(|v| Self::Int64(v)).unwrap_or_default())
         .collect(),
       DataType::UInt64 => as_primitive_array::<UInt64Type>(array)
         .iter()
-        .map(|v| v.map(|v| SerializedCell::UInt64(v)).unwrap_or_default())
+        .map(|v| v.map(|v| Self::UInt64(v)).unwrap_or_default())
         .collect(),
       DataType::Float32 => as_primitive_array::<Float32Type>(array)
         .iter()
-        .map(|v| v.map(|v| SerializedCell::Float32(v)).unwrap_or_default())
+        .map(|v| v.map(|v| Self::Float32(v)).unwrap_or_default())
         .collect(),
       DataType::Float64 => as_primitive_array::<Float64Type>(array)
         .iter()
-        .map(|v| v.map(|v| SerializedCell::Float64(v)).unwrap_or_default())
+        .map(|v| v.map(|v| Self::Float64(v)).unwrap_or_default())
         .collect(),
       DataType::Varchar { len: _ } | DataType::Text => as_string_array(array)
         .iter()
-        .map(|v| {
-          v.map(|v| SerializedCell::Blob(v.as_bytes()))
-            .unwrap_or_default()
-        })
+        .map(|v| v.map(|v| Self::String(v.into())).unwrap_or_default())
         .collect(),
-      DataType::Jsonb => as_string_array(array)
+      DataType::Jsonb => as_binary_array(array)
+        .expect("Unable to downcast to Jsonb binary array")
         .iter()
         .map(|v| {
-          v.map(|v| SerializedCell::Blob(v.as_bytes()))
-            .unwrap_or_default()
+          v.map(|v| {
+            let mut bytes = BytesMut::with_capacity(v.len()+100).writer();
+            let parsed_json: Value = serde_json::from_slice(v).unwrap();
+            serde_json::ser::to_writer(&mut bytes, &parsed_json).unwrap();
+            Self::Json(bytes.into_inner().to_vec().into())
+          })
+          .unwrap_or_default()
         })
         .collect(),
       DataType::Vector { len } => {
-        let res: Result<Vec<SerializedCell<'b>>> =
+        let res: Result<Vec<Self>> =
           as_generic_list_array::<i32>(array)
             .iter()
             .map(|maybe_vector| {
@@ -164,13 +175,13 @@ impl<'a> SerializedCell<'a> {
                   "Expected vector of length \"{}\" but got vector of length \"{}\""
                 , len, vector.len()))));
               }
-              Ok(SerializedCell::Vector::<'b>(vector))
+              Ok(Self::Vector(vector))
             })
             .collect();
         res?
       }
       DataType::Timestamp => {
-        let result: Result<Vec<SerializedCell<'b>>> = as_string_array(array)
+        let result: Result<Vec<Self>> = as_string_array(array)
           .iter()
           .map(|value| {
             value
@@ -182,39 +193,43 @@ impl<'a> SerializedCell<'a> {
                       e
                     )))
                   })?;
-                Ok(SerializedCell::Timestamp(date.timestamp_micros()))
+                Ok(Self::Timestamp(date.timestamp_micros()))
               })
-              .unwrap_or_else(|| Ok(SerializedCell::Null))
+              .unwrap_or_else(|| Ok(Self::Null))
           })
           .collect();
         result?
       }
       dt => unimplemented!(
-        "ColumnArray to Vec<SerializedCell> not implemented for type: {:?}",
+        "ColumnArray to Vec<OwnedSerializedCell> not implemented for type: {:?}",
         dt
       ),
     })
   }
 
-  // Note: this clones the data, so use it as little as possible
-  // This is meant to be used mostly during error generation
-  pub fn to_owned(&self) -> OwnedSerializedCell {
-    match *self {
-      Self::Null => OwnedSerializedCell::Null,
-      Self::Boolean(v) => OwnedSerializedCell::Boolean(v),
-      Self::Int16(v) => OwnedSerializedCell::Int16(v),
-      Self::Int32(v) => OwnedSerializedCell::Int32(v),
-      Self::UInt32(v) => OwnedSerializedCell::UInt32(v),
-      Self::Int64(v) => OwnedSerializedCell::Int64(v),
-      Self::UInt64(v) => OwnedSerializedCell::UInt64(v),
-      Self::Float32(v) => OwnedSerializedCell::Float32(v),
-      Self::Float64(v) => OwnedSerializedCell::Float64(v),
-      Self::Blob(blob) => OwnedSerializedCell::Blob(Arc::new(blob.to_vec())),
-      Self::Vector(ref v) => OwnedSerializedCell::Vector(Arc::new(v.to_vec())),
-      Self::Timestamp(v) => OwnedSerializedCell::Timestamp(v),
+  #[inline]
+  pub fn is_null(&self) -> bool {
+    match self {
+      Self::Null => true,
+      _ => false,
     }
   }
 
+  #[inline]
+  pub fn as_u64(&self) -> Option<u64> {
+    match self {
+      Self::Null => None,
+      Self::UInt64(value) => Some(*value),
+      _ => self.error_converting_to("u64"),
+    }
+  }
+
+  fn error_converting_to<T>(&self, ty: &str) -> Option<T> {
+    unreachable!("Trying to convert {:?} to {}", &self, &ty);
+  }
+}
+
+impl<'a> SerializedCell<'a> {
   #[inline]
   pub fn is_null(&self) -> bool {
     match self {
@@ -297,6 +312,7 @@ impl<'a> SerializedCell<'a> {
 
   #[inline]
   pub fn as_bytes(&self) -> Option<&'a [u8]> {
+    // unimplemented!()
     match self {
       Self::Null => None,
       Self::Blob(value) => Some(value),
@@ -305,12 +321,19 @@ impl<'a> SerializedCell<'a> {
   }
 
   #[inline]
+  pub fn as_json_bytes(&self) -> Option<&'a [u8]> {
+    match self {
+      Self::Null => None,
+      Self::Json(bytes) => Some(bytes),
+      _ => self.error_converting_to("json bytes"),
+    }
+  }
+
+  #[inline]
   pub fn as_str(&self) -> Option<&'a str> {
     match self {
       Self::Null => None,
-      Self::Blob(bytes) => unsafe {
-        Some(std::str::from_utf8_unchecked(bytes))
-      },
+      Self::String(s) => Some(s),
       _ => self.error_converting_to("string"),
     }
   }

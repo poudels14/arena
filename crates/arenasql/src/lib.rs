@@ -75,4 +75,5 @@ pub mod arrow {
   pub use datafusion::arrow::datatypes::{
     Float32Type, Float64Type, Int32Type, UInt32Type, UInt64Type,
   };
+  pub use datafusion::common::cast::as_binary_array;
 }

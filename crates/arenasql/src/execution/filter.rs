@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use datafusion::logical_expr::{Expr, Like, Operator};
 
-use crate::schema::{SerializedCell, Table, TableIndex};
+use crate::schema::{OwnedSerializedCell, Table, TableIndex};
 use crate::{Error, Result};
 
 #[derive(Debug, Clone)]
@@ -103,15 +103,15 @@ impl Filter {
 
   /// Returns the literal used in '=' expression if the
   /// filter is of type '=', else returns `None`.
-  pub fn get_binary_eq_literal<'a>(&'a self) -> Option<SerializedCell<'a>> {
+  pub fn get_binary_eq_literal<'a>(&'a self) -> Option<OwnedSerializedCell> {
     match self {
       Self::BinaryExpr {
         op, left, right, ..
       } => match op {
         Operator::Eq => match right.as_ref() {
-          Expr::Literal(lit) => Some(SerializedCell::from_scalar(lit)),
+          Expr::Literal(lit) => Some(OwnedSerializedCell::from_scalar(lit)),
           _ => match left.as_ref() {
-            Expr::Literal(lit) => Some(SerializedCell::from_scalar(lit)),
+            Expr::Literal(lit) => Some(OwnedSerializedCell::from_scalar(lit)),
             _ => None,
           },
         },

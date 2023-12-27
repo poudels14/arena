@@ -103,50 +103,33 @@ impl DataType {
   }
 
   pub fn from_field(field: &Field) -> Result<Self> {
-    match field.data_type() {
-      DfDataType::Boolean => Ok(Self::Boolean),
-      DfDataType::Int32 => Ok(Self::Int32),
-      DfDataType::UInt32 => Ok(Self::UInt32),
-      DfDataType::Int64 => Ok(Self::Int64),
-      DfDataType::UInt64 => Ok(Self::UInt64),
-      DfDataType::Utf8 => {
-        let metadata = field.metadata();
-        let dt = match metadata.get("TYPE") {
-          Some(ty) => Self::from_str(ty).unwrap(),
-          None => Self::Text,
-        };
-        Ok(dt)
+    let metadata = field.metadata();
+    let len = metadata.get("LENGTH").and_then(|l| l.parse::<usize>().ok());
+    match metadata.get("TYPE") {
+      Some(ty) => {
+        let dt = Self::from_str(ty).unwrap();
+        return Ok(match dt {
+          Self::Varchar { .. } => Self::Varchar { len },
+          Self::Vector { .. } => Self::Vector { len: len.unwrap() },
+          dt => dt,
+        });
       }
-      DfDataType::Float32 => Ok(Self::Float32),
-      DfDataType::Float64 => Ok(Self::Float64),
-      DfDataType::Timestamp(TimeUnit::Nanosecond, _) => Ok(Self::Timestamp),
-      DfDataType::Decimal256(76, 1) => {
-        let metadata = field.metadata();
-        let len = metadata.get("LENGTH").and_then(|l| l.parse::<usize>().ok());
-        match metadata.get("TYPE").map(|t| t.as_str()) {
-          Some("JSON") => Ok(Self::Jsonb),
-          Some("VECTOR") => Ok(Self::Vector { len: len.unwrap() }),
-          v => panic!("Invalid \"TYPE\" in field metadata: {:?}", v),
-        }
-      }
-      DfDataType::Binary => Ok(Self::Binary),
-      v => {
-        if let DfDataType::List(sub_field) = v {
-          match *sub_field.data_type() {
-            DfDataType::Float32 => {
-              if let Some(len) = field.metadata().get("LENGTH") {
-                let len = len.parse::<usize>().unwrap();
-                return Ok(Self::Vector { len });
-              }
-            }
-            _ => {}
-          }
-        }
-        Err(Error::UnsupportedDataType(format!(
+      None => match field.data_type() {
+        DfDataType::Boolean => Ok(Self::Boolean),
+        DfDataType::Int32 => Ok(Self::Int32),
+        DfDataType::UInt32 => Ok(Self::UInt32),
+        DfDataType::Int64 => Ok(Self::Int64),
+        DfDataType::UInt64 => Ok(Self::UInt64),
+        DfDataType::Utf8 => Ok(Self::Text),
+        DfDataType::Float32 => Ok(Self::Float32),
+        DfDataType::Float64 => Ok(Self::Float64),
+        DfDataType::Timestamp(TimeUnit::Nanosecond, _) => Ok(Self::Timestamp),
+        DfDataType::Binary => Ok(Self::Binary),
+        dt => Err(Error::UnsupportedDataType(format!(
           "Data type {:?} not supported",
-          v
-        )))
-      }
+          dt
+        ))),
+      },
     }
   }
 
@@ -192,7 +175,7 @@ impl DataType {
         }
         DfDataType::Utf8
       }
-      Self::Jsonb => DfDataType::Utf8,
+      Self::Jsonb => DfDataType::Binary,
       Self::Vector { len } => {
         metadata.insert("LENGTH".to_owned(), len.to_string());
         DfDataType::List(Arc::new(Field::new(

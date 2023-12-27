@@ -1,5 +1,5 @@
 use super::StorageHandler;
-use crate::schema::{OwnedRow, Row, Table};
+use crate::schema::{OwnedRow, Table};
 use crate::storage::KeyValueGroup;
 use crate::{table_rows_prefix_key, Result};
 
@@ -24,7 +24,7 @@ impl StorageHandler {
     &self,
     table: &Table,
     row_id: &[u8],
-    row: &Row<'_>,
+    row: &OwnedRow,
   ) -> Result<()> {
     let row_bytes = self.serializer.serialize(&row)?;
     self.kv.put(

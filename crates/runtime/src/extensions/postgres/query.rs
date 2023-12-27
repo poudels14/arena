@@ -147,6 +147,12 @@ fn get_json_value(
     &Type::INT8 => {
       convert_to_json_value!(row, col_index, i64, |v| Value::from(v))
     }
+    &Type::FLOAT4 => {
+      convert_to_json_value!(row, col_index, f32, |v| Value::from(v))
+    }
+    &Type::FLOAT8 => {
+      convert_to_json_value!(row, col_index, f64, |v| Value::from(v))
+    }
     &Type::TEXT | &Type::VARCHAR => {
       convert_to_json_value!(row, col_index, &str, |v| Value::from(v))
     }
@@ -168,8 +174,11 @@ fn get_json_value(
     }
     &Type::TIMESTAMP => {
       convert_to_json_value!(row, col_index, NaiveDateTime, |value| {
-        Value::from(value.to_string())
+        Value::from(value.and_utc().to_rfc3339())
       })
+    }
+    &Type::FLOAT4_ARRAY => {
+      convert_to_json_value!(row, col_index, Vec<f32>, |v| { Value::from(v) })
     }
     t => Err(anyhow!("UnsupportedDataTypeError: {}", t)),
   }

@@ -1,5 +1,7 @@
 use crate::execution::filter::Filter;
-use crate::schema::{DataFrame, Row, RowId, SerializedCell, Table, TableIndex};
+use crate::schema::{
+  DataFrame, OwnedSerializedCell, Row, RowId, SerializedCell, Table, TableIndex,
+};
 use crate::storage::{KeyValueGroup, KeyValueIterator, StorageHandler};
 use crate::{
   index_row_key, index_rows_prefix_key, table_row_key, Error, Result,
@@ -199,7 +201,7 @@ impl<'a> IndexIterator<'a> {
   /// the vec length at the begining of the serialized value, so that should
   /// be changed to match the number of index columns if the returned
   /// row doesn't have all the columns in the index)
-  fn select_eq_filters_for_prefix(&'a self) -> Vec<SerializedCell<'a>> {
+  fn select_eq_filters_for_prefix(&'a self) -> Vec<OwnedSerializedCell> {
     self
       .index
       .columns()
@@ -219,19 +221,19 @@ impl<'a> IndexIterator<'a> {
       })
       .take_while(|lit| lit.is_some())
       .map(|v| v.unwrap())
-      .collect::<Vec<SerializedCell<'a>>>()
+      .collect::<Vec<OwnedSerializedCell>>()
   }
 
   fn generate_index_scan_prefix<'b>(
     &self,
-    eq_filter_for_prefix: &Vec<SerializedCell<'b>>,
+    eq_filter_for_prefix: &Vec<OwnedSerializedCell>,
   ) -> Result<Vec<u8>> {
     match eq_filter_for_prefix.len() > 0 {
       true => {
         let mut serialized_prefix_filters = self
           .storage
           .serializer
-          .serialize::<Vec<SerializedCell<'b>>>(&eq_filter_for_prefix)?;
+          .serialize::<Vec<OwnedSerializedCell>>(&eq_filter_for_prefix)?;
         // When the Vec<cell> is serialized, first byte(s) is the length of
         // the Vec. So, if the index being used is a composite index but the
         // number of `=` filters being used is less than that length, then

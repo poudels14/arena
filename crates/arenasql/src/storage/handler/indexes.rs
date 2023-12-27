@@ -1,6 +1,6 @@
 use super::StorageHandler;
 use crate::schema::{
-  Row, RowTrait, SerializedCell, Table, TableIndex, TableIndexId,
+  OwnedRow, OwnedSerializedCell, RowTrait, Table, TableIndex, TableIndexId,
 };
 use crate::storage::{KeyValueGroup, Serializer};
 use crate::{index_row_key, last_table_index_id_key, Error, Result};
@@ -34,7 +34,7 @@ impl StorageHandler {
     table: &Table,
     table_index: &TableIndex,
     row_id_bytes: &[u8],
-    row: &Row<'_>,
+    row: &OwnedRow,
   ) -> Result<()> {
     let projected_cells = row.project(&table_index.columns());
     let projected_cells_has_null = projected_cells.iter().any(|c| c.is_null());
@@ -45,7 +45,7 @@ impl StorageHandler {
       let serialized_index_key_columns =
         self
           .serializer
-          .serialize::<Vec<&SerializedCell<'_>>>(&projected_cells)?;
+          .serialize::<Vec<&OwnedSerializedCell>>(&projected_cells)?;
       let index_key =
         index_row_key!(table_index.id, &serialized_index_key_columns);
 
@@ -64,7 +64,7 @@ impl StorageHandler {
       let serialized_index_key_columns =
         self
           .serializer
-          .serialize::<(Vec<&SerializedCell<'_>>, &[u8])>(&(
+          .serialize::<(Vec<&OwnedSerializedCell>, &[u8])>(&(
             projected_cells,
             row_id_bytes,
           ))?;

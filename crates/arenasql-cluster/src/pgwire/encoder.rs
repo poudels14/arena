@@ -1,6 +1,7 @@
+use std::io::Write;
 use std::sync::Arc;
 
-use arenasql::arrow::{as_primitive_array, as_string_array};
+use arenasql::arrow::{as_binary_array, as_primitive_array, as_string_array};
 use arenasql::bytes::BufMut;
 use arenasql::datafusion::DatafusionDataType;
 use arenasql::pgwire::api::results::DataRowEncoder;
@@ -10,7 +11,6 @@ use arenasql::pgwire::types::ToSqlText;
 use arenasql::postgres_types::{IsNull, ToSql};
 use arenasql::{arrow, bytes, postgres_types};
 use arrow::Array;
-use serde_json::json;
 
 use crate::error::ArenaClusterError;
 
@@ -62,9 +62,17 @@ pub fn encode_column_array(
     DatafusionDataType::Float64 => {
       encode_all_fields!(arrow::Float64Array, array, encoders)
     }
-    DatafusionDataType::Binary => {
-      encode_all_fields!(arrow::BinaryArray, array, encoders)
-    }
+    DatafusionDataType::Binary => match *pg_type {
+      Type::JSONB => as_binary_array(array)
+        .expect("Unable to downcast to Jsonb binary array")
+        .iter()
+        .zip(encoders)
+        .map(|(value, encoder)| {
+          encoder.encode_field(&value.map(|v| SerializedJson(&v)))
+        })
+        .collect(),
+      _ => encode_all_fields!(arrow::BinaryArray, array, encoders),
+    },
     // Multiple data types are stored as Utf8 because of datafusion's poor
     // custom data type support. so, do proper conversion here
     DatafusionDataType::Utf8 => match *pg_type {
@@ -85,34 +93,42 @@ pub fn encode_column_array(
         .collect(),
       _ => encode_all_fields!(arrow::StringArray, array, encoders),
     },
-    DatafusionDataType::List(_) => array
-      .as_any()
-      .downcast_ref::<arrow::ListArray>()
-      .unwrap()
-      .iter()
-      .zip(encoders)
-      .map(|(arrays, encoder)| {
-        let float_arr = arrays.map(|array| {
-          FloatArray(
+    DatafusionDataType::List(field) => match pg_type.clone() {
+      Type::FLOAT4_ARRAY => array
+        .as_any()
+        .downcast_ref::<arrow::ListArray>()
+        .unwrap()
+        .iter()
+        .zip(encoders)
+        .map(|(arr, encoder)| {
+          let float_arr = arr.map(|array| {
             as_primitive_array::<arrow::Float32Type>(&array)
               .iter()
               .map(|v| v.unwrap())
-              .collect::<Vec<f32>>(),
-          )
-        });
-        encoder.encode_field(&float_arr)
-      })
-      .collect(),
+              .collect::<Vec<f32>>()
+          });
+          encoder.encode_field(&float_arr)
+        })
+        .collect(),
+      ty => {
+        unimplemented!(
+          "Converting List[{:?}] to {:?} not implemented",
+          field,
+          ty
+        )
+      }
+    },
     dt => Err(PgWireError::ApiError(Box::new(
       ArenaClusterError::UnsupportedDataType(dt.to_string()),
     ))),
   }
 }
 
+/// Json that's already serialized to bytes
 #[derive(Debug)]
-struct FloatArray(Vec<f32>);
+struct SerializedJson<'a>(&'a [u8]);
 
-impl ToSqlText for FloatArray {
+impl<'a> ToSqlText for SerializedJson<'a> {
   fn to_sql_text(
     &self,
     _ty: &Type,
@@ -121,13 +137,53 @@ impl ToSqlText for FloatArray {
   where
     Self: Sized,
   {
-    serde_json::ser::to_writer(out.writer(), &json!(self.0))?;
+    let n = out.writer().write(self.0)?;
+    assert_eq!(n, self.0.len());
     Ok(postgres_types::IsNull::No)
   }
 }
 
-impl ToSql for FloatArray {
+impl<'a> ToSql for SerializedJson<'a> {
   fn to_sql(
+    &self,
+    ty: &Type,
+    out: &mut bytes::BytesMut,
+  ) -> Result<postgres_types::IsNull, Box<dyn std::error::Error + Sync + Send>>
+  where
+    Self: Sized,
+  {
+    if *ty == Type::JSONB {
+      // Need this for binary format
+      out.put_u8(1);
+    }
+
+    let n = out.writer().write(self.0)?;
+    assert_eq!(n, self.0.len());
+    Ok(IsNull::No)
+  }
+
+  fn to_sql_checked(
+    &self,
+    ty: &Type,
+    out: &mut bytes::BytesMut,
+  ) -> Result<postgres_types::IsNull, Box<dyn std::error::Error + Sync + Send>>
+  {
+    self.to_sql(ty, out)
+  }
+
+  fn accepts(_ty: &Type) -> bool
+  where
+    Self: Sized,
+  {
+    true
+  }
+}
+
+#[derive(Debug)]
+struct Jsonb<'a>(&'a str);
+
+impl<'a> ToSqlText for Jsonb<'a> {
+  fn to_sql_text(
     &self,
     _ty: &Type,
     out: &mut bytes::BytesMut,
@@ -135,7 +191,25 @@ impl ToSql for FloatArray {
   where
     Self: Sized,
   {
-    serde_json::ser::to_writer(out.writer(), &json!(self.0))?;
+    serde_json::ser::to_writer(out.writer(), &self.0)?;
+    Ok(postgres_types::IsNull::No)
+  }
+}
+
+impl<'a> ToSql for Jsonb<'a> {
+  fn to_sql(
+    &self,
+    ty: &Type,
+    out: &mut bytes::BytesMut,
+  ) -> Result<postgres_types::IsNull, Box<dyn std::error::Error + Sync + Send>>
+  where
+    Self: Sized,
+  {
+    if *ty == Type::JSONB {
+      // Need this for binary format
+      out.put_u8(1);
+    }
+    serde_json::ser::to_writer(out.writer(), &self.0)?;
     Ok(IsNull::No)
   }
 

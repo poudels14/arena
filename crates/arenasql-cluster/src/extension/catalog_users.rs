@@ -10,7 +10,9 @@ use arenasql::execution::{
   convert_literals_to_columnar_values, CustomExecutionPlan,
   ExecutionPlanResponse, Transaction,
 };
-use arenasql::schema::{DataFrame, DataType, SerializedCell};
+use arenasql::schema::{
+  DataFrame, DataType, OwnedSerializedCell, SerializedCell,
+};
 use arenasql::storage::Serializer;
 use arenasql::{Error, Result};
 use futures::Stream;
@@ -131,9 +133,9 @@ impl CustomExecutionPlan for SetCatalogUserCredentials {
         dataframe.append_row(
           &row_id,
           &vec![
-            &SerializedCell::Blob(user.catalog.as_bytes()),
-            &SerializedCell::Blob(user.username.as_bytes()),
-            &SerializedCell::Blob(user.password.as_bytes()),
+            &SerializedCell::String(user.catalog.as_str()),
+            &SerializedCell::String(user.username.as_str()),
+            &SerializedCell::String(user.password.as_str()),
           ],
         );
       }
@@ -142,8 +144,8 @@ impl CustomExecutionPlan for SetCatalogUserCredentials {
       storage.insert_row(
         &users_table,
         &row_id,
-        &vec![SerializedCell::Blob(
-          &handle.serializer().serialize(&plan.user)?,
+        &vec![OwnedSerializedCell::Blob(
+          handle.serializer().serialize(&plan.user)?.into(),
         )],
       )?;
 
@@ -228,9 +230,9 @@ impl CustomExecutionPlan for ListCatalogUserCredentials {
           dataframe.append_row(
             &row_id,
             &vec![
-              &SerializedCell::Blob(user.catalog.as_bytes()),
-              &SerializedCell::Blob(user.username.as_bytes()),
-              &SerializedCell::Blob(user.password.as_bytes()),
+              &SerializedCell::String(user.catalog.as_str()),
+              &SerializedCell::String(user.username.as_str()),
+              &SerializedCell::String(user.password.as_str()),
             ],
           );
         });

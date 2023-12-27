@@ -15,7 +15,7 @@ use crate::execution::Transaction;
 use crate::execution::{
   CustomExecutionPlan, ExecutionPlanResponse, TransactionHandle,
 };
-use crate::schema::{DataFrame, IndexType, Row, Table, TableIndex};
+use crate::schema::{DataFrame, IndexType, OwnedRow, Table, TableIndex};
 use crate::storage::{KeyValueGroup, StorageHandler};
 use crate::{bail, table_rows_prefix_key, Error, Result};
 
@@ -223,7 +223,7 @@ fn backfill_index_data(
     let row_id_bytes = &row_key[table_row_prefix.len()..];
     let row = storage_handler
       .serializer
-      .deserialize::<Row<'_>>(row_bytes)?;
+      .deserialize::<OwnedRow>(row_bytes)?;
 
     storage_handler.add_row_to_index(table, &new_index, row_id_bytes, &row)?;
     rows_iter.next();

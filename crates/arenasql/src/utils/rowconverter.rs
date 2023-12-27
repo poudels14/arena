@@ -2,7 +2,7 @@ use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::error::Result;
 
 use crate::error::null_constraint_violation;
-use crate::schema::{Column, DataType, Row, SerializedCell, Table};
+use crate::schema::{Column, DataType, OwnedRow, OwnedSerializedCell, Table};
 
 // TODO: maybe just return raw bytes instead of SerializedCell?
 pub fn convert_to_rows<'a>(
@@ -10,7 +10,7 @@ pub fn convert_to_rows<'a>(
   batch: &'a RecordBatch,
   // Whether to include columns like ctid, etc
   include_virutal_columns: bool,
-) -> Result<Vec<Row<'a>>> {
+) -> Result<Vec<OwnedRow>> {
   let row_count = batch.num_rows();
   let mut columns = table.columns.clone();
   if include_virutal_columns {
@@ -28,8 +28,11 @@ pub fn convert_to_rows<'a>(
     .iter()
     .map(|col| {
       let values = batch.column_by_name(&col.name).map(|columns_data| {
-        let cell =
-          SerializedCell::column_array_to_vec(&table.name, &col, columns_data);
+        let cell = OwnedSerializedCell::column_array_to_vec(
+          &table.name,
+          &col,
+          columns_data,
+        );
         cell
       });
       match values {
@@ -41,14 +44,14 @@ pub fn convert_to_rows<'a>(
             Ok(
               (0..row_count)
                 .into_iter()
-                .map(|_| SerializedCell::Null)
+                .map(|_| OwnedSerializedCell::Null)
                 .collect(),
             )
           }
         }
       }
     })
-    .collect::<Result<Vec<Vec<SerializedCell<'_>>>>>()?;
+    .collect::<Result<Vec<Vec<OwnedSerializedCell>>>>()?;
 
   // Convert col * row array to row * column
   let mut flat_rows_vec = Vec::with_capacity(row_count);
