@@ -28,7 +28,13 @@ class Client {
   #rid;
 
   constructor(config) {
-    this.#config = config;
+    const { host, port, user, password, database, ssl, ...rest } = config;
+    this.#config = {
+      // If config.credential is set instead of "host", "port", etc,
+      // ...rest should override this since this will be invalid
+      credential: { host, port, user, password, database, ssl },
+      ...rest,
+    };
   }
 
   async connect() {
@@ -111,6 +117,10 @@ class Client {
     if (this.#rid) {
       ops.op_postgres_close(this.#rid);
     }
+  }
+
+  end() {
+    this.close();
   }
 
   // This is for drizzle support
