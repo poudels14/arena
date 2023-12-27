@@ -111,9 +111,9 @@ impl DataType {
       DfDataType::UInt64 => Ok(Self::UInt64),
       DfDataType::Utf8 => {
         let metadata = field.metadata();
-        let dt = match Self::from_str(metadata.get("TYPE").unwrap()).unwrap() {
-          Self::Timestamp => Self::Timestamp,
-          _ => Self::Text,
+        let dt = match metadata.get("TYPE") {
+          Some(ty) => Self::from_str(ty).unwrap(),
+          None => Self::Text,
         };
         Ok(dt)
       }
@@ -150,23 +150,23 @@ impl DataType {
     }
   }
 
-  pub fn to_oid(&self) -> u32 {
+  pub fn pg_type(&self) -> postgres_types::Type {
     match self {
-      Self::Boolean => Type::BOOL.oid(),
-      Self::Binary => Type::BYTEA.oid(),
-      Self::Int16 => Type::INT2.oid(),
-      Self::Int32 => Type::INT4.oid(),
-      Self::UInt32 => Type::INT8.oid(),
-      Self::Int64 => Type::INT8.oid(),
-      Self::UInt64 => Type::INT8.oid(),
-      Self::Varchar { .. } => Type::VARCHAR.oid(),
-      Self::Text => Type::TEXT.oid(),
-      Self::Float32 => Type::FLOAT4.oid(),
-      Self::Float64 => Type::FLOAT8.oid(),
-      Self::Decimal { p: _, s: _ } => Type::NUMERIC.oid(),
-      Self::Jsonb => Type::JSONB.oid(),
-      Self::Vector { .. } => Type::FLOAT4_ARRAY.oid(),
-      Self::Timestamp => Type::TIMESTAMP.oid(),
+      Self::Boolean => Type::BOOL,
+      Self::Binary => Type::BYTEA,
+      Self::Int16 => Type::INT2,
+      Self::Int32 => Type::INT4,
+      Self::UInt32 => Type::INT8,
+      Self::Int64 => Type::INT8,
+      Self::UInt64 => Type::INT8,
+      Self::Varchar { .. } => Type::VARCHAR,
+      Self::Text => Type::TEXT,
+      Self::Float32 => Type::FLOAT4,
+      Self::Float64 => Type::FLOAT8,
+      Self::Decimal { p: _, s: _ } => Type::NUMERIC,
+      Self::Jsonb => Type::JSONB,
+      Self::Vector { .. } => Type::FLOAT4_ARRAY,
+      Self::Timestamp => Type::TIMESTAMP,
     }
   }
 
@@ -201,6 +201,7 @@ impl DataType {
           true,
         )))
       }
+      // Datafusion can't convert Timestamp to Uint64, so use utf8
       Self::Timestamp => DfDataType::Utf8,
     };
 

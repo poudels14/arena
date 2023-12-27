@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use arenasql::arrow::as_primitive_array;
+use arenasql::arrow::{as_primitive_array, as_string_array};
 use arenasql::bytes::BufMut;
 use arenasql::datafusion::DatafusionDataType;
 use arenasql::pgwire::api::results::DataRowEncoder;
@@ -13,13 +13,6 @@ use arrow::Array;
 use serde_json::json;
 
 use crate::error::ArenaClusterError;
-
-pub trait ColumnEncoder {
-  fn encode_column_array(
-    &self,
-    encoders: &mut [DataRowEncoder],
-  ) -> PgWireResult<Vec<()>>;
-}
 
 #[macro_export]
 macro_rules! encode_all_fields {
@@ -35,70 +28,84 @@ macro_rules! encode_all_fields {
   };
 }
 
-impl<'a> ColumnEncoder for &Arc<dyn Array> {
-  fn encode_column_array(
-    &self,
-    encoders: &mut [DataRowEncoder],
-  ) -> PgWireResult<Vec<()>> {
-    match self.data_type() {
-      DatafusionDataType::Boolean => {
-        encode_all_fields!(arrow::BooleanArray, self, encoders)
-      }
-      DatafusionDataType::Int16 => {
-        encode_all_fields!(arrow::Int16Array, self, encoders)
-      }
-      DatafusionDataType::Int32 => {
-        encode_all_fields!(arrow::Int32Array, self, encoders)
-      }
-      DatafusionDataType::UInt32 => {
-        encode_all_fields!(arrow::UInt32Array, self, encoders)
-      }
-      DatafusionDataType::Int64 => {
-        encode_all_fields!(arrow::Int64Array, self, encoders)
-      }
-      DatafusionDataType::UInt64 => {
-        as_primitive_array::<arrow::UInt64Type>(self)
-          .iter()
-          .zip(encoders)
-          .map(|(value, encoder)| {
-            encoder.encode_field(&value.map(|v| v as i64))
-          })
-          .collect()
-      }
-      DatafusionDataType::Float32 => {
-        encode_all_fields!(arrow::Float32Array, self, encoders)
-      }
-      DatafusionDataType::Float64 => {
-        encode_all_fields!(arrow::Float64Array, self, encoders)
-      }
-      DatafusionDataType::Binary => {
-        encode_all_fields!(arrow::BinaryArray, self, encoders)
-      }
-      DatafusionDataType::Utf8 => {
-        encode_all_fields!(arrow::StringArray, self, encoders)
-      }
-      DatafusionDataType::List(_) => self
-        .as_any()
-        .downcast_ref::<arrow::ListArray>()
-        .unwrap()
+pub fn encode_column_array(
+  encoders: &mut [DataRowEncoder],
+  array: &Arc<dyn Array>,
+  pg_type: &Type,
+) -> PgWireResult<Vec<()>> {
+  match array.data_type() {
+    DatafusionDataType::Boolean => {
+      encode_all_fields!(arrow::BooleanArray, array, encoders)
+    }
+    DatafusionDataType::Int16 => {
+      encode_all_fields!(arrow::Int16Array, array, encoders)
+    }
+    DatafusionDataType::Int32 => {
+      encode_all_fields!(arrow::Int32Array, array, encoders)
+    }
+    DatafusionDataType::UInt32 => {
+      encode_all_fields!(arrow::UInt32Array, array, encoders)
+    }
+    DatafusionDataType::Int64 => {
+      encode_all_fields!(arrow::Int64Array, array, encoders)
+    }
+    DatafusionDataType::UInt64 => {
+      as_primitive_array::<arrow::UInt64Type>(array)
         .iter()
         .zip(encoders)
-        .map(|(arrays, encoder)| {
-          let float_arr = arrays.map(|array| {
-            FloatArray(
-              as_primitive_array::<arrow::Float32Type>(&array)
-                .iter()
-                .map(|v| v.unwrap())
-                .collect::<Vec<f32>>(),
-            )
-          });
-          encoder.encode_field(&float_arr)
+        .map(|(value, encoder)| encoder.encode_field(&value.map(|v| v as i64)))
+        .collect()
+    }
+    DatafusionDataType::Float32 => {
+      encode_all_fields!(arrow::Float32Array, array, encoders)
+    }
+    DatafusionDataType::Float64 => {
+      encode_all_fields!(arrow::Float64Array, array, encoders)
+    }
+    DatafusionDataType::Binary => {
+      encode_all_fields!(arrow::BinaryArray, array, encoders)
+    }
+    // Multiple data types are stored as Utf8 because of datafusion's poor
+    // custom data type support. so, do proper conversion here
+    DatafusionDataType::Utf8 => match *pg_type {
+      Type::TIMESTAMP => as_string_array(array)
+        .iter()
+        .zip(encoders)
+        .map(|(value, encoder)| {
+          encoder.encode_field(&value.and_then(|v| {
+            match arenasql::chrono::DateTime::parse_from_rfc3339(v) {
+              Ok(parsed) => Some(parsed),
+              Err(e) => {
+                eprintln!("Error parsing timestamp [{}]: {:?}", v, e);
+                None
+              }
+            }
+          }))
         })
         .collect(),
-      dt => Err(PgWireError::ApiError(Box::new(
-        ArenaClusterError::UnsupportedDataType(dt.to_string()),
-      ))),
-    }
+      _ => encode_all_fields!(arrow::StringArray, array, encoders),
+    },
+    DatafusionDataType::List(_) => array
+      .as_any()
+      .downcast_ref::<arrow::ListArray>()
+      .unwrap()
+      .iter()
+      .zip(encoders)
+      .map(|(arrays, encoder)| {
+        let float_arr = arrays.map(|array| {
+          FloatArray(
+            as_primitive_array::<arrow::Float32Type>(&array)
+              .iter()
+              .map(|v| v.unwrap())
+              .collect::<Vec<f32>>(),
+          )
+        });
+        encoder.encode_field(&float_arr)
+      })
+      .collect(),
+    dt => Err(PgWireError::ApiError(Box::new(
+      ArenaClusterError::UnsupportedDataType(dt.to_string()),
+    ))),
   }
 }
 

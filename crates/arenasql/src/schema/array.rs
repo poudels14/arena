@@ -20,6 +20,8 @@ pub enum ColumnArrayBuilder {
   String(StringBuilder),
   Binary(BinaryBuilder),
   Vector(ListBuilder<Float32Builder>),
+  // Need to store timestamp as string because DF can't cast
+  // timestamp to u64 or i64
   Timestamp(StringBuilder),
 }
 
@@ -60,7 +62,7 @@ impl ColumnArrayBuilder {
         ))
       }
       DataType::Timestamp => ColumnArrayBuilder::Timestamp(
-        StringBuilder::with_capacity(capacity, capacity * 25),
+        StringBuilder::with_capacity(capacity, capacity * 27),
       ),
       DataType::Binary => {
         ColumnArrayBuilder::Binary(BinaryBuilder::with_capacity(capacity, 1000))

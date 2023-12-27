@@ -176,13 +176,13 @@ impl<'a> SerializedCell<'a> {
             value
               .map(|v| {
                 let date =
-                  chrono::DateTime::parse_from_rfc3339(&v).map_err(|_| {
+                  chrono::DateTime::parse_from_rfc3339(&v).map_err(|e| {
                     df_error!(Error::InvalidQuery(format!(
-                      "Can't convert {:?} to Timestamp",
-                      v
+                      "Error parsing timestamp: {:?}",
+                      e
                     )))
                   })?;
-                Ok(SerializedCell::Timestamp(date.timestamp_millis()))
+                Ok(SerializedCell::Timestamp(date.timestamp_micros()))
               })
               .unwrap_or_else(|| Ok(SerializedCell::Null))
           })
@@ -319,9 +319,9 @@ impl<'a> SerializedCell<'a> {
   pub fn as_iso_string(&self) -> Option<String> {
     match self {
       Self::Null => None,
-      Self::Timestamp(v) => match NaiveDateTime::from_timestamp_millis(*v) {
+      Self::Timestamp(v) => match NaiveDateTime::from_timestamp_micros(*v) {
         Some(date) => {
-          Some(date.and_utc().to_rfc3339_opts(SecondsFormat::Millis, true))
+          Some(date.and_utc().to_rfc3339_opts(SecondsFormat::Micros, false))
         }
         None => {
           eprintln!("Error converting {:?} to RFC3339 datetime", v);

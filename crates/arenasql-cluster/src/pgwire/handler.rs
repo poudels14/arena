@@ -4,8 +4,7 @@ use std::sync::Arc;
 
 use arenasql::bytes::Bytes;
 use arenasql::datafusion::{LogicalPlan, ScalarValue};
-use arenasql::pgwire;
-use arenasql::pgwire::api::portal::Portal;
+use arenasql::pgwire::api::portal::{Format, Portal};
 use arenasql::pgwire::api::query::{
   ExtendedQueryHandler, SimpleQueryHandler, StatementOrPortal,
 };
@@ -20,6 +19,7 @@ use arenasql::pgwire::messages::extendedquery::{
   Bind, BindComplete, Parse, ParseComplete,
 };
 use arenasql::pgwire::messages::PgWireBackendMessage;
+use arenasql::{pgwire, Error};
 use async_trait::async_trait;
 use futures::{Sink, SinkExt};
 use itertools::Itertools;
@@ -57,16 +57,28 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
     let stmt = StoredStatement::parse(&message, parser).await?;
     let statement = stmt.statement();
 
+    // From Postgres doc:
+    // The query string contained in a Parse message cannot include more than
+    // one SQL statement; else a syntax error is reported.
+    if statement.stmts.len() > 1 {
+      return Err(
+        Error::InvalidQuery(format!("More than one SQL statement not allowed"))
+          .into(),
+      );
+    }
+
     let session = match &statement.client {
       AuthHeader::None => self.get_client_session(client),
       header => self.get_or_create_new_session(client, &header),
     }?;
 
-    // Note: create verified plan to make sure query is valid
+    // Note: create verified plan to make sure query is valid.
     // Query could be invalid if it uses table that doesn't exits, etc
     // TODO: for a single prepared statement, verified logical plan is
     // created in several stages. Figure out a way to minimize the number
-    // of times verified logical plan is created
+    // of times verified logical plan is created. Maybe just check for
+    // catalog/schema/table/column relations during parse instead of creating
+    // a verified plan
     let transaction = session.create_transaction()?;
     for stmt in statement.stmts.clone().into_iter() {
       transaction
@@ -162,8 +174,14 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
           .params()
           .iter()
           .zip(portal.parameters())
-          .map(|(r#type, param)| {
-            convert_bytes_to_scalar_value(param.as_ref(), r#type)
+          .enumerate()
+          .map(|(index, (r#type, param))| {
+            convert_bytes_to_scalar_value(
+              index,
+              param.as_ref(),
+              r#type,
+              portal.parameter_format(),
+            )
           })
           .collect::<PgWireResult<Vec<ScalarValue>>>()
       })
@@ -232,6 +250,10 @@ impl SimpleQueryHandler for ArenaSqlCluster {
     // It seems like, in Postgres, all the statements in a single query
     // are run in the same transaction unless BEING/COMMIT/ROLLBACK is
     // explicity used
+    // If an error occurs when executing a query with more than one statement,
+    // the further processing of the query should be stopped; meaning,
+    // statements remaining after the statement that errored shouldn't be
+    // executed
     let mut results = Vec::with_capacity(parsed_query.stmts.len());
     for stmt in parsed_query.stmts.into_iter() {
       let result =
@@ -287,19 +309,41 @@ fn get_params_and_field_types(
 }
 
 fn convert_bytes_to_scalar_value(
+  index: usize,
   bytes: Option<&Bytes>,
   r#type: &Type,
+  format: &Format,
 ) -> PgWireResult<ScalarValue> {
   let scalar = match *r#type {
     Type::BOOL => {
       ScalarValue::Boolean(bytes.map(|b| if b[0] > 0 { true } else { false }))
     }
-    Type::INT4 => ScalarValue::Int32(bytes.as_ref().and_then(|b| {
-      Some(i32::from_be_bytes(b.as_bytes().try_into().unwrap()))
-    })),
-    Type::INT8 => ScalarValue::Int64(bytes.as_ref().and_then(|b| {
-      Some(i64::from_be_bytes(b.as_bytes().try_into().unwrap()))
-    })),
+    Type::INT4 => ScalarValue::Int32(
+      bytes
+        .map(|by| match format {
+          Format::UnifiedText => parse_from_text(index, by),
+          Format::UnifiedBinary => by
+            .as_bytes()
+            .try_into()
+            .map_err(|_| invalid_param_err(index))
+            .map(|v| i32::from_be_bytes(v)),
+          _ => unimplemented!(),
+        })
+        .transpose()?,
+    ),
+    Type::INT8 => ScalarValue::Int64(
+      bytes
+        .map(|by| match format {
+          Format::UnifiedText => parse_from_text(index, by),
+          Format::UnifiedBinary => by
+            .as_bytes()
+            .try_into()
+            .map_err(|_| invalid_param_err(index))
+            .map(|v| i64::from_be_bytes(v)),
+          _ => unimplemented!(),
+        })
+        .transpose()?,
+    ),
     Type::TEXT | Type::VARCHAR => ScalarValue::Utf8(
       bytes.and_then(|b| std::str::from_utf8(&b).map(|s| s.to_owned()).ok()),
     ),
@@ -309,4 +353,17 @@ fn convert_bytes_to_scalar_value(
   };
 
   Ok(scalar)
+}
+
+fn parse_from_text<T: std::str::FromStr>(
+  index: usize,
+  bytes: &Bytes,
+) -> Result<T, Error> {
+  let str_value = std::str::from_utf8(bytes.as_bytes())
+    .map_err(|_| invalid_param_err(index))?;
+  str_value.parse::<T>().map_err(|_| invalid_param_err(index))
+}
+
+fn invalid_param_err(index: usize) -> Error {
+  Error::InvalidParameter(format!("Invalid parameter at index {}", index))
 }

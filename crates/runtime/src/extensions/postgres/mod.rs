@@ -193,7 +193,7 @@ pub async fn op_postgres_execute_query(
   query::execute_query(
     &resource.client,
     &query,
-    &params,
+    params,
     &options.unwrap_or_default(),
   )
   .await

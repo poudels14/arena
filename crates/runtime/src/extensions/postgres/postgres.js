@@ -12,6 +12,13 @@
  * @property {QueryOptions} [options]
  */
 
+function Field(obj) {
+  const self = this;
+  Object.entries(obj).forEach(([key, value]) => {
+    self[key] = value;
+  });
+}
+
 const { ops, opAsync } = Arena.core;
 class Client {
   /**
@@ -63,20 +70,27 @@ class Client {
       }
     );
 
-    let cols = fields.map((f) => {
-      return f.casedName || f.name;
-    });
-    const mappedRows = rows.map((r) => {
-      return cols.reduce((agg, c, i) => {
-        agg[c] = r[i];
-        return agg;
-      }, {});
-    });
-
     return {
       ...rest,
-      rows: mappedRows,
-      fields,
+      // Use getter such that they rows are mapped lazily
+      // This prevents having to map rows when using ORM like drizzle
+      // that doesn't need mapping
+      get rows() {
+        return rows.map((row) => {
+          return fields.reduce((agg, field, i) => {
+            agg[field._casedName || field.name] = row[i];
+            return agg;
+          }, {});
+        });
+      },
+      get fields() {
+        fields.map((field) => {
+          return new Field(field);
+        });
+      },
+      _raw: {
+        values: rows,
+      },
     };
   }
 
@@ -97,6 +111,19 @@ class Client {
     if (this.#rid) {
       ops.op_postgres_close(this.#rid);
     }
+  }
+
+  // This is for drizzle support
+  // Using this client with `drizzle` from "drizzle-orm/postgres-js"
+  // should work out of the box
+  unsafe(query, params) {
+    const client = this;
+    return {
+      async values() {
+        const res = await client.query(query, params);
+        return res._raw.values;
+      },
+    };
   }
 }
 

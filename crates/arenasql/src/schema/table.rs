@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use datafusion::arrow::datatypes::{
@@ -54,7 +55,11 @@ impl Table {
       .columns
       .iter()
       .map(|col| col.to_field(&self))
-      .chain(vec![DfField::new("ctid", DfDataType::UInt64, false)])
+      .chain(vec![DfField::new("ctid", DfDataType::UInt64, false)
+        .with_metadata(HashMap::from([(
+          "TYPE".to_owned(),
+          DataType::UInt64.to_string(),
+        )]))])
       .collect();
     DfSchemaRef::new(DfSchema::new(fields))
   }

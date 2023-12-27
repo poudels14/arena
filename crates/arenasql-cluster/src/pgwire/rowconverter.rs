@@ -1,11 +1,13 @@
 use std::sync::Arc;
 
+use arenasql::arrow::Array;
 use arenasql::datafusion::RecordBatch;
 use arenasql::pgwire::api::results::{DataRowEncoder, FieldInfo};
 use arenasql::pgwire::error::PgWireResult;
 use arenasql::pgwire::messages::data::DataRow;
+use arenasql::postgres_types::Type;
 
-use super::encoder::ColumnEncoder;
+use crate::pgwire::encoder;
 
 pub fn convert_to_rows<'a>(
   schema: &Arc<Vec<FieldInfo>>,
@@ -15,20 +17,20 @@ pub fn convert_to_rows<'a>(
     .map(|_| DataRowEncoder::new(schema.clone()))
     .collect::<Vec<DataRowEncoder>>();
 
-  let column_arrays: Vec<Box<dyn ColumnEncoder>> = schema
+  let column_arrays: Vec<(Arc<dyn Array>, Type)> = schema
     .iter()
     .map(|field| {
       batch
         .column_by_name(&field.name())
-        .map(|arr| Box::new(arr) as Box<dyn ColumnEncoder>)
+        .map(|arr| (arr.clone(), field.datatype().to_owned()))
         .unwrap()
     })
     .collect();
 
-  column_arrays.iter().for_each(|col_arr| {
-    col_arr
-      .encode_column_array(encoders.as_mut_slice())
-      .unwrap();
+  column_arrays.iter().for_each(|(col_arr, pg_type)| {
+    let _ =
+      encoder::encode_column_array(encoders.as_mut_slice(), col_arr, pg_type)
+        .unwrap();
   });
 
   encoders

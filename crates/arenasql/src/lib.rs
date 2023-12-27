@@ -29,6 +29,7 @@ pub mod rocks {
   pub use rocksdb::Error;
 }
 
+pub use chrono;
 pub use pgwire;
 
 pub mod datafusion {

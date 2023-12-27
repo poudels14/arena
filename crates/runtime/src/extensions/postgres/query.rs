@@ -6,6 +6,7 @@ use anyhow::Error;
 use anyhow::Result;
 use bytes::BufMut;
 use bytes::BytesMut;
+use chrono::NaiveDateTime;
 use deno_core::serde_json::{json, Value};
 use futures::TryStreamExt;
 use heck::ToLowerCamelCase;
@@ -53,8 +54,9 @@ pub struct QueryResponse {
 pub struct Field {
   name: String,
 
-  // Camel cased name if applicable
-  cased_name: Option<String>,
+  /// Camel cased name if applicable
+  #[serde(rename(serialize = "_casedName"))]
+  _cased_name: Option<String>,
 
   #[serde(rename(serialize = "dataTypeID"))]
   data_type_id: u32,
@@ -64,7 +66,7 @@ pub struct Field {
 pub async fn execute_query(
   client: &Client,
   query: &str,
-  params: &Option<Vec<Param>>,
+  params: Option<Vec<Param>>,
   options: &QueryOptions,
 ) -> Result<QueryResponse, Error> {
   let mut response = QueryResponse {
@@ -74,7 +76,7 @@ pub async fn execute_query(
     modified_rows: None,
   };
   let res: Vec<Row> =
-    match client.query_raw(query, params.as_ref().unwrap()).await {
+    match client.query_raw(query, &params.unwrap_or_default()).await {
       // TODO: stream the response?
       Ok(stream) => match stream.try_collect().await {
         Ok(data) => Ok::<Vec<Row>, anyhow::Error>(data),
@@ -93,7 +95,7 @@ pub async fn execute_query(
         .iter()
         .map(|c| Field {
           name: c.name().to_string(),
-          cased_name: options
+          _cased_name: options
             .camel_case
             .filter(|c| *c)
             .map(|_| c.name().to_lower_camel_case()),
@@ -165,8 +167,8 @@ fn get_json_value(
       )
     }
     &Type::TIMESTAMP => {
-      convert_to_json_value!(row, col_index, chrono::NaiveDateTime, |v| {
-        Value::from(v.to_string())
+      convert_to_json_value!(row, col_index, NaiveDateTime, |value| {
+        Value::from(value.to_string())
       })
     }
     t => Err(anyhow!("UnsupportedDataTypeError: {}", t)),
