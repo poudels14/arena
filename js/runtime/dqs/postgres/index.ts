@@ -1,6 +1,7 @@
 // @ts-ignore
 import { Client as PgClient } from "pg";
-import { SqlDataQueryConfig } from "@arena/db";
+import { PgDialect } from "drizzle-orm/pg-core";
+import { sql as drizzleSql } from "drizzle-orm";
 
 /**
  * Only available in Arena cloud
@@ -21,43 +22,47 @@ type ClientConfig = {
     username: string;
     password: string;
   };
-  pool?: SqlDataQueryConfig["pool"];
+
+  /**
+   * Whether to use the connection pool
+   *
+   * If not set, the connection will be initiated before executing the query
+   * and termiated after the query is completed
+   */
+  pool?: number;
   options?: QueryOptions;
 };
 
-class Client {
-  client: typeof PgClient;
-  constructor(config: ClientConfig) {
-    const { credential } = config;
-    this.client = new PgClient({
-      ...config,
-      ...(credential.host ? credential : {}),
-    });
-  }
-
-  async execute(query: string, parameters: any[], options?: QueryOptions) {
-    // Note(sagar): this is applicable to @arena cloud pg module
-    if (this.client.isConnected && !this.client.isConnected()) {
-      await this.client.connect();
-    } else {
-      // needed for npm `pg` module
-      await this.client.connect();
-    }
-    return await this.client.query(query, parameters, options);
-  }
-}
-
-const connect = (config: ClientConfig) => {
-  // TODO(sp): create connection pool
-  return new Client(config);
+type Query = {
+  /**
+   * Raw query string
+   */
+  sql: string;
+  /**
+   * Query parameters
+   */
+  params: any[];
 };
 
-const executeQuery = async (config: SqlDataQueryConfig) => {
-  // TODO(sagar): end connection after query if pool isn't used
+const executeQuery = async (config: ClientConfig & { query: Query }) => {
   const { query, credential } = config;
-  return await connect({ credential }).execute(query.sql, query.params);
+  const client = new PgClient({ credential });
+  const result = await client.execute(query.sql, query.params);
+
+  client.close();
+  return result;
 };
 
-export { connect, executeQuery };
-export { sql } from "@arena/db/pg";
-export type { SqlDataQueryConfig };
+type SQLResult = { sql: string; params: any[] };
+type SQL = (tag: TemplateStringsArray, ...args: any[]) => SQLResult;
+
+const pg = new PgDialect();
+const sql: SQL & typeof drizzleSql = Object.assign(
+  (tag: TemplateStringsArray, ...args: any[]): SQLResult => {
+    const sqlQuery = drizzleSql(tag, ...args);
+    return pg.sqlToQuery(sqlQuery);
+  },
+  drizzleSql
+);
+
+export { sql, executeQuery };

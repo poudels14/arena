@@ -8,8 +8,8 @@
   "license": "UNLICENSED",
   "dependencies": {
     "@arena/core": "workspace:^",
-    "@arena/db": "workspace:^",
     "@arena/sdk": "workspace:^",
+    "drizzle-orm": "^0.26.4",
     "zod": "^3.22.4"
   }
 }
