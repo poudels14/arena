@@ -57,21 +57,29 @@ pub fn transpile_js(
 
   if parsed.is_script() {
     let analysis = parsed.analyze_cjs();
-    let exports_remap = analysis
-      .exports
+    let mut exports = analysis.exports;
+    analysis
+      .reexports
+      .iter()
+      .map(|export| get_cjs_exports(&module_path.join(export)))
+      .collect::<Result<Vec<Vec<String>>>>()?
+      .into_iter()
+      .flatten()
+      .for_each(|export| {
+        exports.push(export);
+      });
+
+    let exports_remap = exports
       .iter()
       .map(|export| format!("{} : module_export_{}", export, export))
       .collect::<Vec<String>>()
       .join(", ");
 
-    let named_export = analysis
-      .exports
+    let named_export = exports
       .iter()
       .map(|export| format!("module_export_{} as {}", export, export))
       .collect::<Vec<String>>()
       .join(", ");
-
-    // TODO: collect reexports
 
     let module_dirname = module_path.parent().unwrap().to_str().unwrap();
     let module_fileurl = Url::from_file_path(module_path).unwrap();
@@ -108,4 +116,28 @@ pub fn transpile_js(
   }
 
   Ok(transpiled_code)
+}
+
+fn get_cjs_exports(filename: &PathBuf) -> Result<Vec<String>> {
+  let code = std::fs::read_to_string(filename)?;
+  let parsed = deno_ast::parse_program(ParseParams {
+    specifier: filename.to_str().unwrap().to_string(),
+    text_info: SourceTextInfo::from_string(code),
+    media_type: MediaType::Cjs,
+    capture_tokens: false,
+    scope_analysis: false,
+    maybe_syntax: None,
+  })?;
+
+  if parsed.is_script() {
+    let analysis = parsed.analyze_cjs();
+    let reexports = analysis
+      .reexports
+      .iter()
+      .map(|export| Ok(std::fs::read_to_string(filename.join(export))?))
+      .collect::<Result<Vec<String>>>()?;
+
+    return Ok(vec![reexports, analysis.exports].concat());
+  }
+  Ok(vec![])
 }

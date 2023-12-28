@@ -39,7 +39,7 @@ function createRequire(referrer) {
     const resolvedPath = url.pathname;
 
     if (moduleCache[resolvedPath]) {
-      return resolvedPath[resolvedPath].exports;
+      return moduleCache[resolvedPath].exports;
     }
 
     let moduleCode = core.ops.op_resolver_read_file(resolvedPath);
@@ -59,6 +59,7 @@ function createRequire(referrer) {
         resolvedPath,
         path.dirname(resolvedPath)
       );
+
       moduleCache[resolvedPath] = mod;
       return mod.exports;
     }
