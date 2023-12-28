@@ -25,7 +25,6 @@ use crate::config::node::ResolverConfig;
 use crate::extensions::BuiltinExtension;
 use crate::permissions::resolve_read_path;
 use crate::resolver::FilePathResolver;
-use crate::transpiler::commonjs;
 use crate::transpiler::jsx_analyzer::JsxAnalyzer;
 
 pub fn extension() -> BuiltinExtension {
@@ -168,7 +167,7 @@ fn transpile_code(
 
   let mut jsx_analyzer = JsxAnalyzer::new();
   let text_info = SourceTextInfo::from_string(code);
-  let parsed = deno_ast::parse_module_with_post_process(
+  let parsed = deno_ast::parse_program_with_post_process(
     ParseParams {
       specifier: filename_str.to_string(),
       text_info: text_info.clone(),
@@ -180,12 +179,11 @@ fn transpile_code(
       scope_analysis: false,
       maybe_syntax: None,
     },
-    |mut module| {
-      module.visit_children_with(&mut jsx_analyzer);
+    |program| {
+      program.visit_children_with(&mut jsx_analyzer);
       let config = &transpiler.as_ref().config;
-
-      commonjs::to_esm(&text_info.text().as_ref(), &mut module, true);
-      module.fold_with(&mut Optional::new(
+      // TODO: does the module have to be transformed to ESM?
+      program.fold_with(&mut Optional::new(
         plugins::resolver::init(transpiler.clone(), filename_str),
         config.resolve_import,
       ))

@@ -96,7 +96,7 @@ deno_fetch = "=0.153.0"
 deno_web = "=0.159.0"
 deno_tls = "=0.115.0"
 deno_unsync = "0.3.1"
-deno_ast = { version = "=0.31.6", features = ["transpiling"] }
+deno_ast = { version = "=0.31.6", features = ["transpiling", "cjs"] }
 
 
 [build-dependencies]

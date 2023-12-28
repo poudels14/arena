@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::path::Path;
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -10,13 +10,13 @@ use deno_core::OpState;
 use deno_core::Resource;
 use deno_core::ResourceId;
 
+use super::SourceCode;
 use crate::config::node::ResolverConfig;
 use crate::extensions::r#macro::js_dist;
 use crate::extensions::BuiltinExtension;
+use crate::permissions;
 use crate::resolver::FilePathResolver;
 use crate::resolver::Resolver;
-
-use super::SourceCode;
 
 pub fn extension(root: PathBuf) -> BuiltinExtension {
   BuiltinExtension::new(
@@ -33,7 +33,11 @@ pub fn extension(root: PathBuf) -> BuiltinExtension {
 
 deno_core::extension!(
   resolver,
-  ops = [op_resolver_new, op_resolver_resolve],
+  ops = [
+    op_resolver_new,
+    op_resolver_resolve,
+    op_resolver_read_file,
+  ],
   options = { root: PathBuf },
   state = |state, options| {
     state.put::<DefaultResolverConfig>(DefaultResolverConfig {
@@ -77,18 +81,40 @@ fn op_resolver_new(
   ))
 }
 
+/// Returns the resolved path relative to the project root and not
+/// the referrer
 #[op2]
 #[string]
 fn op_resolver_resolve(
-  state: Rc<RefCell<OpState>>,
+  state: &mut OpState,
   #[smi] rid: ResourceId,
   #[string] specifier: String,
   #[string] referrer: String,
 ) -> Result<Option<String>> {
-  let state = state.borrow_mut();
   let resolver = state.resource_table.get::<FilePathResolver>(rid)?;
   let default_config = state.borrow::<DefaultResolverConfig>();
-  resolve(&resolver, &default_config.root, &referrer, &specifier)
+  let resolved_path =
+    resolve(&resolver, &default_config.root, &referrer, &specifier)?;
+
+  match resolved_path {
+    Some(path) => {
+      // Note: make sure the resolve path can be accessed
+      // Just check the permission but return the above resolved path
+      permissions::resolve_read_path(state, &Path::new(&path))?;
+      Ok(Some(path))
+    }
+    None => Ok(None),
+  }
+}
+
+#[op2]
+#[string]
+fn op_resolver_read_file(
+  state: &mut OpState,
+  #[string] path: &str,
+) -> Result<String> {
+  let resolved_path = permissions::resolve_read_path(state, &Path::new(&path))?;
+  Ok(std::fs::read_to_string(resolved_path)?)
 }
 
 pub(crate) fn resolve(
@@ -97,16 +123,18 @@ pub(crate) fn resolve(
   referrer: &str,
   specifier: &str,
 ) -> Result<Option<String>> {
-  // TODO(sagar): does this not check file access permission?
-  let referrer = match referrer.starts_with(".") || referrer.starts_with("/") {
-    true => {
-      let p = root.join(referrer);
-      format!("file://{}", p.to_str().unwrap())
-    }
-    false => bail!(
-      "Only relative or absolute referrer is supported, passed = {:?}",
-      &referrer
-    ),
+  let referrer = match referrer.starts_with("file:///") {
+    true => referrer.to_owned(),
+    _ => match referrer.starts_with(".") || referrer.starts_with("/") {
+      true => {
+        let p = root.join(referrer);
+        format!("file://{}", p.to_str().unwrap())
+      }
+      false => bail!(
+        "Only relative or absolute referrer is supported, passed = {:?}",
+        &referrer
+      ),
+    },
   };
 
   let resolved = resolver.resolve(&specifier, &referrer)?;
