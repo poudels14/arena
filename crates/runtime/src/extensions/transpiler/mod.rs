@@ -15,18 +15,18 @@ use deno_core::{op2, Extension, Op, OpState, Resource, ResourceId};
 use indexmap::IndexMap;
 use serde::Deserialize;
 use serde::Serialize;
-use swc_common::chain;
 use swc_common::pass::Optional;
 use swc_ecma_visit::FoldWith;
 use swc_ecma_visit::VisitWith;
 
-use self::plugins::jsx_analyzer::JsxAnalyzer;
 use super::r#macro::js_dist;
 use super::resolver::DefaultResolverConfig;
 use crate::config::node::ResolverConfig;
 use crate::extensions::BuiltinExtension;
 use crate::permissions::resolve_read_path;
 use crate::resolver::FilePathResolver;
+use crate::transpiler::commonjs;
+use crate::transpiler::jsx_analyzer::JsxAnalyzer;
 
 pub fn extension() -> BuiltinExtension {
   BuiltinExtension::new(
@@ -167,10 +167,11 @@ fn transpile_code(
   };
 
   let mut jsx_analyzer = JsxAnalyzer::new();
+  let text_info = SourceTextInfo::from_string(code);
   let parsed = deno_ast::parse_module_with_post_process(
     ParseParams {
       specifier: filename_str.to_string(),
-      text_info: SourceTextInfo::from_string(code),
+      text_info: text_info.clone(),
       // Note(sagar): treat everything as typescript so that all transformations
       // are applied
       // TODO(sagar): allow configuring this with options argument
@@ -179,15 +180,14 @@ fn transpile_code(
       scope_analysis: false,
       maybe_syntax: None,
     },
-    |p| {
-      p.visit_children_with(&mut jsx_analyzer);
+    |mut module| {
+      module.visit_children_with(&mut jsx_analyzer);
       let config = &transpiler.as_ref().config;
-      p.fold_with(&mut chain!(
-        Optional::new(
-          plugins::resolver::init(transpiler.clone(), filename_str),
-          config.resolve_import,
-        ),
-        plugins::commonjs::to_esm(),
+
+      commonjs::to_esm(&text_info.text().as_ref(), &mut module, true);
+      module.fold_with(&mut Optional::new(
+        plugins::resolver::init(transpiler.clone(), filename_str),
+        config.resolve_import,
       ))
     },
   )?;

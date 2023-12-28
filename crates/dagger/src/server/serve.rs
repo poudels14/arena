@@ -1,11 +1,12 @@
-use std::env::current_dir;
 use std::path::Path;
 use std::rc::Rc;
 
 use anyhow::{bail, Result};
 use clap::Parser;
 use cloud::CloudExtensionProvider;
-use runtime::buildtools::{FileModuleLoader, FilePathResolver};
+use runtime::buildtools::{
+  transpiler::BabelTranspiler, FileModuleLoader, FilePathResolver,
+};
 use runtime::config::ArenaConfig;
 use runtime::deno::core::resolve_url_or_path;
 use runtime::extensions::server::HttpServerConfig;
@@ -47,7 +48,6 @@ pub struct Command {
 impl Command {
   #[tracing::instrument(skip_all)]
   pub async fn execute(&self) -> Result<()> {
-    let cwd = current_dir()?;
     let project_root = ArenaConfig::find_project_root()?;
     let arena_config = ArenaConfig::load(&project_root)?;
 
@@ -101,25 +101,25 @@ impl Command {
       enable_arena_global: self.enable_cloud_ext,
       module_loader: Some(Rc::new(FileModuleLoader::new(
         Rc::new(FilePathResolver::new(
-          cwd.clone(),
+          project_root.clone(),
           arena_config
             .server
             .javascript
             .and_then(|j| j.resolve)
             .unwrap_or_default(),
         )),
-        None,
+        Some(Rc::new(BabelTranspiler::new(project_root.clone()))),
       ))),
       builtin_extensions,
       permissions: PermissionsContainer {
-        fs: Some(FileSystemPermissions::allow_all(cwd.clone())),
+        fs: Some(FileSystemPermissions::allow_all(project_root.clone())),
         net: Some(NetPermissions::allow_all()),
         ..Default::default()
       },
       ..Default::default()
     })?;
 
-    let entry_file = resolve_url_or_path(&self.entry, &cwd)?;
+    let entry_file = resolve_url_or_path(&self.entry, &project_root)?;
     runtime
       .execute_main_module_code(
         &Url::parse("file:///main").unwrap(),

@@ -4,7 +4,7 @@ use anyhow::Result;
 use clap::Parser;
 use cloud::CloudExtensionProvider;
 use runtime::buildtools::{
-  BabelTranspiler, FileModuleLoader, FilePathResolver,
+  transpiler::BabelTranspiler, FileModuleLoader, FilePathResolver,
 };
 use runtime::config::{ArenaConfig, RuntimeConfig};
 use runtime::deno::core::resolve_url_or_path;

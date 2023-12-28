@@ -4,7 +4,7 @@ use std::rc::Rc;
 use anyhow::Result;
 use cloud::CloudExtensionProvider;
 use runtime::buildtools::{
-  BabelTranspiler, FileModuleLoader, FilePathResolver,
+  transpiler::BabelTranspiler, FileModuleLoader, FilePathResolver,
 };
 use runtime::config::ArenaConfig;
 use runtime::extensions::server::HttpServerConfig;

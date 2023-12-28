@@ -199,12 +199,7 @@ impl IsolatedRuntime {
     receiver.await
   }
 
-  /// Note: the caller is responsbile for running the event loop and
-  /// calling await on the receiver. For example:
-  /// ```
-  /// runtime.run_event_loop(Default::default()).await?;
-  /// receiver.await
-  /// ```
+  /// Execute main module code and wait for the runtime
   #[allow(dead_code)]
   pub async fn execute_main_module_code(
     &mut self,
