@@ -27,6 +27,7 @@ pub fn transpile_js(
   module_path: &Path,
   media_type: &MediaType,
   code: &str,
+  convert_cjs_to_esm: bool,
 ) -> Result<String> {
   let mut jsx_analyzer = JsxAnalyzer::new();
   let module_filename = module_path.to_str().unwrap();
@@ -53,8 +54,11 @@ pub fn transpile_js(
     ..Default::default()
   })?;
 
-  let transpiled_code = transpiled_result.text;
+  if !convert_cjs_to_esm {
+    return Ok(transpiled_result.text);
+  }
 
+  let transpiled_code = transpiled_result.text;
   if parsed.is_script() {
     let analysis = parsed.analyze_cjs();
     let mut exports = analysis.exports;
