@@ -1,14 +1,17 @@
-use super::super::super::resolver::resolve;
-use super::super::Transpiler;
 use anyhow::{anyhow, Result};
 use deno_core::normalize_path;
-use std::borrow::Borrow;
-use std::path::Path;
-use std::rc::Rc;
 use swc_ecma_ast::{CallExpr, Callee, Expr, Lit, Str};
 use swc_ecma_ast::{ExportAll, ImportDecl};
 use swc_ecma_visit::VisitMutWith;
 use swc_ecma_visit::{as_folder, Fold, VisitMut};
+
+use std::borrow::Borrow;
+use std::path::Path;
+use std::rc::Rc;
+
+use super::super::super::resolver::resolve;
+use super::super::Transpiler;
+use crate::resolver::ResolutionType;
 
 pub(crate) struct Resolver {
   transpiler: Rc<Transpiler>,
@@ -113,6 +116,7 @@ fn resolve_path(
     &transpiler.root,
     referrer,
     specifier,
+    ResolutionType::Import,
   )?;
 
   // Note(sagar): prefix resolved path with "/" so that all resolved paths

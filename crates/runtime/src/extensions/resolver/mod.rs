@@ -16,6 +16,7 @@ use crate::extensions::r#macro::js_dist;
 use crate::extensions::BuiltinExtension;
 use crate::permissions;
 use crate::resolver::FilePathResolver;
+use crate::resolver::ResolutionType;
 use crate::resolver::Resolver;
 
 pub fn extension(root: PathBuf) -> BuiltinExtension {
@@ -90,11 +91,17 @@ fn op_resolver_resolve(
   #[smi] rid: ResourceId,
   #[string] specifier: String,
   #[string] referrer: String,
+  #[serde] resolution_type: Option<ResolutionType>,
 ) -> Result<Option<String>> {
   let resolver = state.resource_table.get::<FilePathResolver>(rid)?;
   let default_config = state.borrow::<DefaultResolverConfig>();
-  let resolved_path =
-    resolve(&resolver, &default_config.root, &referrer, &specifier)?;
+  let resolved_path = resolve(
+    &resolver,
+    &default_config.root,
+    &referrer,
+    &specifier,
+    resolution_type.unwrap_or(ResolutionType::Import),
+  )?;
 
   match resolved_path {
     Some(path) => {
@@ -122,6 +129,7 @@ pub(crate) fn resolve(
   root: &PathBuf,
   referrer: &str,
   specifier: &str,
+  resolution_type: ResolutionType,
 ) -> Result<Option<String>> {
   let referrer = match referrer.starts_with("file:///") {
     true => referrer.to_owned(),
@@ -137,7 +145,7 @@ pub(crate) fn resolve(
     },
   };
 
-  let resolved = resolver.resolve(&specifier, &referrer)?;
+  let resolved = resolver.resolve(&specifier, &referrer, resolution_type)?;
   let relative = pathdiff::diff_paths::<&PathBuf, &PathBuf>(
     &resolved.to_file_path().map_err(|e| anyhow!("{:?}", e))?,
     &root,

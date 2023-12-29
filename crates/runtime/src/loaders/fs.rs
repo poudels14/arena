@@ -11,14 +11,16 @@ use deno_core::{
 };
 use futures::future::FutureExt;
 
-use crate::buildtools;
+use crate::buildtools::transpiler::SwcTranspiler;
 use crate::resolver::ModuleResolver;
+use crate::resolver::ResolutionType;
 use crate::resolver::Resolver;
 use crate::transpiler::ModuleTranspiler;
 
 pub struct FileModuleLoader {
   resolver: Rc<dyn Resolver>,
   transpiler: Option<Rc<dyn ModuleTranspiler>>,
+  default_js_transpiler: SwcTranspiler,
 }
 
 impl FileModuleLoader {
@@ -27,8 +29,9 @@ impl FileModuleLoader {
     transpiler: Option<Rc<dyn ModuleTranspiler>>,
   ) -> Self {
     Self {
-      resolver,
+      resolver: resolver.clone(),
       transpiler,
+      default_js_transpiler: SwcTranspiler::new(resolver),
     }
   }
 }
@@ -44,12 +47,15 @@ impl ModuleLoader for FileModuleLoader {
     referrer: &str,
     _kind: ResolutionKind,
   ) -> Result<ModuleSpecifier, Error> {
-    Ok(
-      ModuleResolver::new(Some(self.resolver.clone()))
-        .resolve(&specifier, referrer)?,
-    )
+    Ok(ModuleResolver::new(Some(self.resolver.clone())).resolve(
+      &specifier,
+      referrer,
+      // All resolutions using file loader is import type
+      ResolutionType::Import,
+    )?)
   }
 
+  #[tracing::instrument(skip(self), level = "debug")]
   fn load(
     &self,
     module_specifier: &ModuleSpecifier,
@@ -58,6 +64,7 @@ impl ModuleLoader for FileModuleLoader {
   ) -> Pin<Box<ModuleSourceFuture>> {
     let module_specifier = module_specifier.clone();
     let transpiler = self.transpiler.clone();
+    let default_js_transpiler = self.default_js_transpiler.clone();
     async move {
       let path = module_specifier.to_file_path().map_err(|_| {
         anyhow!(
@@ -100,7 +107,7 @@ impl ModuleLoader for FileModuleLoader {
           // So, if it's not enabled, don't transpile cjs to esm
           let convert_cjs_to_esm = transpiler.is_some();
           if module_type == ModuleType::JavaScript {
-            code = buildtools::transpiler::transpile_js(
+            code = default_js_transpiler.transpile(
               &path,
               &media_type,
               &code,

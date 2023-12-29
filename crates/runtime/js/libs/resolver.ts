@@ -10,8 +10,13 @@ class Resolver {
     this.root = root;
   }
 
-  resolve(specifier, referrer) {
-    return ops.op_resolver_resolve(this.#rid, specifier, referrer);
+  resolve(specifier, referrer, resolutionType: "Require" | "Import") {
+    return ops.op_resolver_resolve(
+      this.#rid,
+      specifier,
+      referrer,
+      resolutionType
+    );
   }
 }
 

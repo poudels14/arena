@@ -16,7 +16,7 @@ pub mod buildtools {
   pub use crate::resolver::FilePathResolver;
   pub mod transpiler {
     pub use crate::transpiler::{
-      jsx_analyzer::JsxAnalyzer, transpile_js, BabelTranspiler,
+      jsx_analyzer::JsxAnalyzer, BabelTranspiler, SwcTranspiler,
     };
   }
 }

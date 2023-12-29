@@ -14,7 +14,7 @@ use serde_json::Value;
 use tracing::{debug, error, instrument, Level};
 use url::{ParseError, Url};
 
-use super::Resolver;
+use super::{ResolutionType, Resolver};
 use crate::config::node::{Package, ResolverConfig};
 
 const SUPPORTED_EXTENSIONS: [&'static str; 9] = [
@@ -62,6 +62,7 @@ impl Resolver for FilePathResolver {
     &self,
     specifier: &str,
     base: &str,
+    resolution: ResolutionType,
   ) -> Result<ModuleSpecifier, ModuleResolutionError> {
     let specifier = self.resolve_alias(specifier);
     let url = match Url::parse(&specifier) {
@@ -83,7 +84,7 @@ impl Resolver for FilePathResolver {
         } else {
           Some(base.to_string())
         };
-        return self.resolve_npm_module(&specifier, maybe_referrer);
+        return self.resolve_npm_module(&specifier, maybe_referrer, resolution);
       }
 
       // 3. Return the result of applying the URL parser to specifier with base
@@ -165,6 +166,7 @@ impl FilePathResolver {
     &self,
     specifier: &str,
     maybe_referrer: Option<String>,
+    resolution: ResolutionType,
   ) -> Result<ModuleSpecifier, ModuleResolutionError> {
     match maybe_referrer.as_ref() {
       Some(referrer) => {
@@ -217,6 +219,17 @@ impl FilePathResolver {
           )
           .ok();
 
+          if resolution == ResolutionType::Require {
+            if let Some(main) =
+              maybe_package.as_ref().and_then(|p| p.main.clone())
+            {
+              let main_path = node_modules_dir.join(specifier).join(&main);
+              return self
+                .convert_to_url(main_path)
+                .map_err(|_| InvalidPath(node_modules_dir.join(main)));
+            }
+          }
+
           let resolved = self
             .load_npm_package(
               &node_modules_dir,
@@ -235,17 +248,7 @@ impl FilePathResolver {
               )
             })
             .or_else(|e| {
-              debug!("error loading from imports: {}", e);
-              if let Some(package) = maybe_package.as_ref() {
-                if let Some(main) = package.main.as_ref() {
-                  return Ok(node_modules_dir.join(main));
-                }
-              }
-              Err(anyhow!("package.json \"main\" not found"))
-            })
-            .or_else(|e| {
               debug!("error loading as directory: {}", e);
-
               self.load_from_imports(
                 &specifier,
                 maybe_package

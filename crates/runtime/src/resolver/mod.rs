@@ -2,17 +2,27 @@ use std::rc::Rc;
 
 use deno_core::{ModuleResolutionError, ModuleSpecifier};
 use derive_new::new;
+use serde::Deserialize;
 use tracing::{debug, error};
 use url::Url;
 
 mod fs;
 pub use fs::FilePathResolver;
 
+#[derive(Debug, PartialEq, Deserialize)]
+pub enum ResolutionType {
+  // Use this if the npm module is being resolved by `require(...)`
+  // for which CJS module needs to be resolved
+  Require,
+  Import,
+}
+
 pub trait Resolver {
   fn resolve(
     &self,
     specifier: &str,
     base: &str,
+    resolution_type: ResolutionType,
   ) -> Result<ModuleSpecifier, ModuleResolutionError>;
 }
 
@@ -26,6 +36,7 @@ impl Resolver for ModuleResolver {
     &self,
     specifier: &str,
     base: &str,
+    resolution_type: ResolutionType,
   ) -> Result<ModuleSpecifier, ModuleResolutionError> {
     // TODO(sagar): cache the resolved module specifier?
     let specifier = specifier.strip_prefix("node:").unwrap_or(specifier);
@@ -38,7 +49,7 @@ impl Resolver for ModuleResolver {
       }
       Err(err) => match self.extension.as_ref() {
         // If it wasn't a builtin module, use resolver extension if its set
-        Some(ext) => ext.resolve(&specifier, base),
+        Some(ext) => ext.resolve(&specifier, base, resolution_type),
         _ => {
           error!("Parsing specifier failed! specifier = {specifier:?}");
           Err(ModuleResolutionError::InvalidUrl(err))

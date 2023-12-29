@@ -51,8 +51,8 @@ impl Command {
 
     if self.enable_build_tools {
       builtin_modules.extend(vec![
-        BuiltinModule::Transpiler,
         BuiltinModule::Resolver(project_root.clone()),
+        BuiltinModule::Transpiler,
         BuiltinModule::Babel,
         BuiltinModule::Rollup,
       ])

@@ -23,7 +23,7 @@ function createRequire(referrer) {
       );
     }
     try {
-      const resolved = resolver.resolve(args[0], referrer);
+      const resolved = resolver.resolve(args[0], referrer, "Require");
       return path.join(resolver.root, resolved);
     } catch (e) {
       console.error("Error resolving path [", args[0], "]:", e);
@@ -41,7 +41,6 @@ function createRequire(referrer) {
     if (moduleCache[resolvedPath]) {
       return moduleCache[resolvedPath].exports;
     }
-
     let moduleCode = core.ops.op_resolver_read_file(resolvedPath);
     if (moduleCode) {
       moduleCode = moduleCode.replace(/^#!.*?\n/, "");
