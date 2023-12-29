@@ -97,11 +97,11 @@ impl Resolver for FilePathResolver {
           .to_file_path()
           .map_err(|_| InvalidBaseUrl(ParseError::RelativeUrlWithoutBase))?;
 
-        load_as_file(&filepath)
+        resolve_as_file(&filepath)
           .or_else(|e| {
             debug!("error loading as file: {:?}", e);
             let maybe_package = load_package_json_in_dir(&filepath).ok();
-            load_as_directory(&filepath, &maybe_package)
+            resolve_as_directory(&filepath, &maybe_package)
           })
           .and_then(|p| self.convert_to_url(p))
           .map_err(|_| InvalidPath(filepath))?
@@ -231,25 +231,25 @@ impl FilePathResolver {
           }
 
           let resolved = self
-            .load_npm_package(
+            .resolve_npm_package(
               &node_modules_dir,
               &parsed_specifier,
               &maybe_package,
             )
             .or_else(|e| {
               debug!("error loading npm package export: {}", e);
-              load_as_file(&node_modules_dir.join(specifier))
+              resolve_as_file(&node_modules_dir.join(specifier))
             })
             .or_else(|e| {
               debug!("error loading as file: {}", e);
-              load_as_directory(
+              resolve_as_directory(
                 &node_modules_dir.join(specifier),
                 &maybe_package,
               )
             })
             .or_else(|e| {
               debug!("error loading as directory: {}", e);
-              self.load_from_imports(
+              self.resolve_from_imports(
                 &specifier,
                 maybe_package
                   .as_ref()
@@ -301,7 +301,7 @@ impl FilePathResolver {
     }
   }
 
-  fn load_npm_package(
+  fn resolve_npm_package(
     &self,
     base_dir: &PathBuf,
     specifier: &ParsedSpecifier,
@@ -328,7 +328,7 @@ impl FilePathResolver {
   /// Some packages have "imports" field in package.json that maps
   /// specifier to the filename and the aliased specifier is used
   /// to import modules; this is used to load those "aliased" modules
-  fn load_from_imports(
+  fn resolve_from_imports(
     &self,
     specifier: &str,
     package: Option<(&Package, &PathBuf)>,
@@ -507,7 +507,7 @@ fn get_matching_export(
 }
 
 #[tracing::instrument(level = "trace")]
-pub fn load_as_file(file: &PathBuf) -> Result<PathBuf> {
+pub fn resolve_as_file(file: &PathBuf) -> Result<PathBuf> {
   if file.is_file() {
     return Ok(file.clone());
   }
@@ -529,30 +529,32 @@ pub fn load_as_file(file: &PathBuf) -> Result<PathBuf> {
   bail!("file not found: {:?}", file);
 }
 
-pub fn load_index(path: &PathBuf) -> Result<PathBuf> {
+pub fn resolve_index(path: &PathBuf) -> Result<PathBuf> {
   debug!("checking index file at: {:?}", path);
-  load_as_file(&path.join("index"))
+  resolve_as_file(&path.join("index"))
 }
 
 /// if the directory contains package.json, package arg is not None
-pub fn load_as_directory(
+pub fn resolve_as_directory(
   path: &PathBuf,
   maybe_package: &Option<Package>,
 ) -> Result<PathBuf> {
-  debug!("load_as_directory path: {:?}", path);
+  debug!("resolve_as_directory path: {:?}", path);
 
   if let Some(package) = maybe_package.as_ref() {
     // Note(sagar): prioritize ESM module
     if let Some(module) = &package.module {
       let module_file = path.join(module);
-      return load_as_file(&module_file).or_else(|_| load_index(&module_file));
+      return resolve_as_file(&module_file)
+        .or_else(|_| resolve_index(&module_file));
     }
 
     if let Some(main) = &package.main {
       let main_file = path.join(main);
-      return load_as_file(&main_file).or_else(|_| load_index(&main_file));
+      return resolve_as_file(&main_file)
+        .or_else(|_| resolve_index(&main_file));
     }
   };
   debug!("package.json not found in {:?}", &path);
-  load_index(&path)
+  resolve_index(&path)
 }

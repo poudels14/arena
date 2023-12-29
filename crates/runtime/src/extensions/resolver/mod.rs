@@ -9,6 +9,7 @@ use deno_core::op2;
 use deno_core::OpState;
 use deno_core::Resource;
 use deno_core::ResourceId;
+use url::Url;
 
 use super::SourceCode;
 use crate::config::node::ResolverConfig;
@@ -18,6 +19,24 @@ use crate::permissions;
 use crate::resolver::FilePathResolver;
 use crate::resolver::ResolutionType;
 use crate::resolver::Resolver;
+
+// Set default __internalCreateRequire that throws extension not enable error
+static DEFAULT_CREATE_REQUIRE: &'static str = r#"
+((global) => {
+  global.__internalCreateRequire =
+    global.__internalCreateRequire ||
+    ((path) => {
+      throw new Error("Resolver extension must be enabled to use require(...)");
+    });
+})(globalThis);"#;
+
+pub fn inject_create_require(current_module: &Url) -> String {
+  let module_url = current_module.as_str();
+  format!(
+    "{}\nconst require = __internalCreateRequire(\"{module_url}\");",
+    DEFAULT_CREATE_REQUIRE
+  )
+}
 
 pub fn extension(root: PathBuf) -> BuiltinExtension {
   BuiltinExtension::new(
@@ -114,6 +133,7 @@ fn op_resolver_resolve(
   }
 }
 
+#[tracing::instrument(skip(state), level = "debug")]
 #[op2]
 #[string]
 fn op_resolver_read_file(

@@ -6,6 +6,7 @@ use deno_ast::{EmitOptions, MediaType, ParseParams, SourceTextInfo};
 use swc_ecma_visit::VisitWith;
 use url::Url;
 
+use crate::extensions::resolver::inject_create_require;
 use crate::resolver::{ResolutionType, Resolver};
 use crate::transpiler::jsx_analyzer::JsxAnalyzer;
 
@@ -92,14 +93,11 @@ impl SwcTranspiler {
         .join(", ");
 
       let module_dirname = module_path.parent().unwrap().to_str().unwrap();
-      let module_fileurl = Url::from_file_path(module_path).unwrap();
-      let module_fileurl = module_fileurl.as_str();
+      let module_url = Url::from_file_path(module_path).unwrap();
 
       return Ok(
         vec![
-          &format!(
-            "const require = __internalCreateRequire(\"{module_fileurl}\");"
-          ),
+          &inject_create_require(&module_url),
           &format!("var __filename = \"{module_filename}\";"),
           &format!("var __dirname = \"{module_dirname}\";"),
           "var __commonJS = (cb, mod) => () =>",

@@ -55,11 +55,18 @@ impl ModuleLoader for FileModuleLoader {
     )?)
   }
 
-  #[tracing::instrument(skip(self), level = "debug")]
+  #[tracing::instrument(
+    skip_all,
+    fields(
+      module_specifier=module_specifier.as_str(),
+      referrer=_referrer.map(|r| r.as_str())
+    ),
+    level = "debug")
+  ]
   fn load(
     &self,
     module_specifier: &ModuleSpecifier,
-    _maybe_referrer: Option<&ModuleSpecifier>,
+    _referrer: Option<&ModuleSpecifier>,
     _is_dynamic: bool,
   ) -> Pin<Box<ModuleSourceFuture>> {
     let module_specifier = module_specifier.clone();
