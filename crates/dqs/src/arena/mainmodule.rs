@@ -39,7 +39,7 @@ impl MainModule {
       Self::App { app: _ } => Ok((
         Url::parse("builtin:///main")?,
         Some(
-          include_str!("../../../../js/arena-runtime/dist/dqs/app-server.js")
+          include_str!("../../../../js/runtime/dist/dqs/app-server.js")
             .to_owned()
             .into(),
         ),
@@ -47,11 +47,9 @@ impl MainModule {
       Self::PluginWorkflowRun { workflow: _ } => Ok((
         Url::parse("builtin:///main")?,
         Some(
-          include_str!(
-            "../../../../js/arena-runtime/dist/dqs/plugin-workflow.js"
-          )
-          .to_owned()
-          .into(),
+          include_str!("../../../../js/runtime/dist/dqs/plugin-workflow.js")
+            .to_owned()
+            .into(),
         ),
       )),
       Self::Inline { code } => {

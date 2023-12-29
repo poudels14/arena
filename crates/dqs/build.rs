@@ -91,15 +91,11 @@ fn generate_prod_snapshot(path: &Path) {
           ),
           (
             "@arena/dqs/utils",
-            include_from_project_root!(
-              "../../js/runtime/dist/dqs/utils.js"
-            ),
+            include_from_project_root!("../../js/runtime/dist/dqs/utils.js"),
           ),
           (
             "@arena/dqs/postgres",
-            include_from_project_root!(
-              "../../js/runtime/dist/dqs/postgres.js"
-            ),
+            include_from_project_root!("../../js/runtime/dist/dqs/postgres.js"),
           ),
         ],
       )
