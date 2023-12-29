@@ -1,21 +1,24 @@
-use super::errors::{self};
-use super::websocket::WebsocketStream;
-use anyhow::{anyhow, Result};
+use std::borrow::Cow;
+use std::cell::{Ref, RefCell};
+use std::time::{Duration, Instant};
+
+use anyhow::Result;
 use axum::response::sse::{Event, KeepAlive};
 use axum::response::{sse::Sse, IntoResponse, Response};
 use bytes::Bytes;
 use deno_core::{ByteString, Resource, StringOrBuffer};
+use derivative::Derivative;
 use http::header::{CONTENT_TYPE, UPGRADE};
 use http::{HeaderName, HeaderValue};
 use http_body::Body;
 use hyper::Body as HyperBody;
-use std::borrow::Cow;
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::time::{Duration, Instant};
+use serde::Deserialize;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tokio_stream::wrappers::ReceiverStream;
+
+use super::errors::{self};
+use super::websocket::WebsocketStream;
 
 pub trait IntoHttpResponse: IntoResponse {
   fn into_response(self) -> axum::response::Response;
@@ -27,7 +30,7 @@ pub struct ParsedHttpResponse {
   pub status: u16,
   pub headers: Vec<(ByteString, ByteString)>,
   pub data: Option<StringOrBuffer>,
-  pub stream: Option<ReceiverStream<Result<Event>>>,
+  pub stream: Option<StreamResponseReader>,
   pub websocket_tx: Option<oneshot::Sender<WebsocketStream>>,
 }
 
@@ -72,29 +75,30 @@ impl ParsedHttpResponse {
         )?,
       ),
       None if self.stream.is_some() => {
-        if self
+        let is_text_stream = self
           .get_header(CONTENT_TYPE)
-          .map(|h| h != mime::TEXT_EVENT_STREAM.as_ref().as_bytes())
-          .unwrap_or(true)
-        {
-          return Err(
-            anyhow!(
-              "Stream is only supported when content-type is {}",
-              mime::TEXT_EVENT_STREAM
-            )
-            .into(),
+          .map(|h| h == mime::TEXT_EVENT_STREAM.as_ref().as_bytes())
+          .unwrap_or(true);
+        let stream = self.stream.unwrap();
+        if is_text_stream {
+          return Ok(
+            Sse::new(stream.get_text_stream())
+              .keep_alive(
+                KeepAlive::new()
+                  .interval(Duration::from_secs(30))
+                  .text("keep-alive"),
+              )
+              .into_response(),
+          );
+        } else {
+          return Ok(
+            response_builder.body(
+              HyperBody::wrap_stream(stream.get_bytes_stream())
+                .map_err(|e| axum::Error::new(e))
+                .boxed_unsync(),
+            )?,
           );
         }
-        let stream = self.stream.unwrap();
-        Ok(
-          Sse::new(stream)
-            .keep_alive(
-              KeepAlive::new()
-                .interval(Duration::from_secs(30))
-                .text("keep-alive"),
-            )
-            .into_response(),
-        )
       }
       None => Ok(
         response_builder.body(
@@ -107,15 +111,103 @@ impl ParsedHttpResponse {
   }
 }
 
-pub struct StreamResponseWriter(pub RefCell<mpsc::Sender<Result<Event>>>);
+#[derive(Debug, Deserialize)]
+pub enum StreamType {
+  Bytes,
+  Events,
+}
+
+pub fn channel(
+  stream_type: StreamType,
+) -> (StreamResponseWriter, StreamResponseReader) {
+  match stream_type {
+    StreamType::Bytes => {
+      let (tx, rx) = mpsc::channel(20);
+      (
+        StreamResponseWriter::Bytes(tx.into()),
+        StreamResponseReader::Bytes(rx.into()),
+      )
+    }
+    StreamType::Events => {
+      let (tx, rx) = mpsc::channel(20);
+      (
+        StreamResponseWriter::Events(tx.into()),
+        StreamResponseReader::Events(rx.into()),
+      )
+    }
+  }
+}
+
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub enum StreamResponseReader {
+  // Used when streaming data
+  Bytes(#[derivative(Debug = "ignore")] ReceiverStream<Result<Bytes>>),
+  // Used for text/stream response type
+  Events(#[derivative(Debug = "ignore")] ReceiverStream<Result<Event>>),
+}
+
+impl StreamResponseReader {
+  pub fn get_bytes_stream(self) -> ReceiverStream<Result<Bytes>> {
+    match self {
+      Self::Bytes(stream) => stream,
+      Self::Events(_) => {
+        unreachable!("Can't get normal stream from text stream")
+      }
+    }
+  }
+
+  pub fn get_text_stream(self) -> ReceiverStream<Result<Event>> {
+    match self {
+      Self::Bytes(_) => {
+        unreachable!("Can't get text stream from normal stream")
+      }
+      Self::Events(stream) => stream,
+    }
+  }
+}
+
+pub enum StreamResponseWriter {
+  Bytes(RefCell<mpsc::Sender<Result<Bytes>>>),
+  Events(RefCell<mpsc::Sender<Result<Event>>>),
+}
+
+impl StreamResponseWriter {
+  #[inline]
+  pub fn event_sender<'a>(&'a self) -> Ref<'a, mpsc::Sender<Result<Event>>> {
+    match self {
+      Self::Bytes(_) => unimplemented!(),
+      Self::Events(tx) => tx.borrow(),
+    }
+  }
+
+  #[inline]
+  pub async fn write_bytes(&self, bytes: Result<Bytes>) -> Result<()> {
+    match self {
+      Self::Bytes(tx) => {
+        tx.borrow().send(bytes).await?;
+        Ok(())
+      }
+      Self::Events(_) => unimplemented!(),
+    }
+  }
+
+  #[inline]
+  pub async fn write_text(&self, text: &str) -> Result<()> {
+    match self {
+      Self::Bytes(_) => unimplemented!(),
+      Self::Events(tx) => {
+        tx.borrow()
+          .send(Ok(Event::default().data::<&str>(&text)))
+          .await?;
+        Ok(())
+      }
+    }
+  }
+}
 
 impl Resource for StreamResponseWriter {
   fn name(&self) -> Cow<str> {
-    "streamResponseWriter".into()
-  }
-
-  fn close(self: Rc<Self>) {
-    drop(self.0.try_borrow_mut());
-    drop(self);
+    "StreamResponseWriter".into()
   }
 }

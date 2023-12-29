@@ -12,7 +12,7 @@ pub enum Error {
   HyperError,
   HttpError,
   RequestParsingError,
-  AnyhowError(Box<anyhow::Error>),
+  AnyhowError(String),
   InvalidHeaderNameError,
   InvalidHeaderValueError,
   ResponseBuilder,
@@ -48,7 +48,7 @@ impl From<http::Error> for Error {
 
 impl From<anyhow::Error> for Error {
   fn from(e: anyhow::Error) -> Self {
-    Self::AnyhowError(e.into())
+    Self::AnyhowError(e.to_string())
   }
 }
 

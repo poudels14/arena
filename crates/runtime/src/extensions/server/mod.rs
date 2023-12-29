@@ -14,15 +14,13 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use anyhow::{anyhow, bail, Result};
-use axum::response::sse::Event;
 use deno_core::{
   op2, ByteString, Extension, Op, OpState, Resource, ResourceId, StringOrBuffer,
 };
-use tokio::sync::{mpsc, oneshot};
-use tokio_stream::wrappers::ReceiverStream;
+use tokio::sync::oneshot;
 
 use self::resources::{HttpConnection, HttpResponseHandle};
-use self::response::{ParsedHttpResponse, StreamResponseWriter};
+use self::response::{ParsedHttpResponse, StreamResponseWriter, StreamType};
 use super::r#macro::js_dist;
 use super::BuiltinExtension;
 use crate::extensions::server::websocket::WebsocketStream;
@@ -55,7 +53,8 @@ fn init(config: HttpServerConfig) -> Extension {
       vec![
         op_http_start::DECL,
         op_http_send_response::DECL,
-        op_http_write_data_to_stream::DECL,
+        op_http_write_text_to_stream::DECL,
+        op_http_write_bytes_to_stream::DECL,
         op_http_close_stream::DECL,
         websocket::op_websocket_recv::DECL,
         websocket::op_websocket_send::DECL,
@@ -102,7 +101,7 @@ async fn op_http_start(
 /// and send websocket messages
 /// It returns a tuple of (resource_id, null, null) if stream option is
 /// true and data can be written to the returned resource id using
-/// `op_http_write_data_to_stream`
+/// `op_http_write_to_stream`
 #[op2(async)]
 #[serde]
 async fn op_http_send_response(
@@ -111,7 +110,7 @@ async fn op_http_send_response(
   #[smi] status: u16,
   #[serde] headers: Vec<(ByteString, ByteString)>,
   #[serde] data: Option<StringOrBuffer>,
-  stream: Option<bool>,
+  #[serde] stream: Option<StreamType>,
 ) -> Result<Option<(ResourceId, Option<ResourceId>, Option<StringOrBuffer>)>> {
   let handle = {
     state
@@ -121,14 +120,13 @@ async fn op_http_send_response(
   };
 
   let (stream, writer_id) = match stream {
-    Some(true) => {
-      let (tx, rx) = mpsc::channel(20);
-      let stream = ReceiverStream::new(rx);
+    Some(r#type) => {
+      let (writer, reader) = response::channel(r#type);
       let writer_id = state
         .borrow_mut()
         .resource_table
-        .add::<StreamResponseWriter>(StreamResponseWriter(RefCell::new(tx)));
-      (Some(stream), Some(writer_id))
+        .add::<StreamResponseWriter>(writer);
+      (Some(reader), Some(writer_id))
     }
     _ => (None, None),
   };
@@ -176,16 +174,15 @@ async fn op_http_send_response(
   bail!("Error sending response");
 }
 
-/// Write data to the given writeable stream and returns the length of
-/// bytes written
+/// Write textual data to the given stream and returns the length
+/// of the bytes written.
 /// if it failed to write (probably because the stream is already closed),
 /// returns -1
 #[op2(async)]
-async fn op_http_write_data_to_stream(
+async fn op_http_write_text_to_stream(
   state: Rc<RefCell<OpState>>,
   #[smi] writer_id: ResourceId,
-  #[string] event: String,
-  #[serde] data: StringOrBuffer,
+  #[string] data: String,
 ) -> Result<i32> {
   let writer = {
     state
@@ -194,27 +191,40 @@ async fn op_http_write_data_to_stream(
       .get::<StreamResponseWriter>(writer_id)?
   };
 
-  #[allow(unused_assignments)]
-  let mut len = 0;
-  let event = match event.as_ref() {
-    "data" => {
-      let str = match data {
-        StringOrBuffer::String(s) => {
-          len = s.len();
-          s
-        }
-        StringOrBuffer::Buffer(b) => {
-          len = b.len();
-          simdutf8::basic::from_utf8(&b)?.to_owned()
-        }
-      };
-      Ok(Event::default().data::<&str>(&str))
+  let len = data.len();
+  match writer.write_text(&data).await {
+    Ok(_) => return Ok(len.try_into().unwrap()),
+    // If there's any error writing to the stream, close the stream resource
+    // and return error
+    Err(_) => {
+      state
+        .borrow_mut()
+        .resource_table
+        .take::<StreamResponseWriter>(writer_id)?
+        .close();
+      return Ok(-1);
     }
-    _ => bail!("Unknown event"),
+  }
+}
+
+/// Write buffer to the given stream and returns the length of bytes written
+/// if it failed to write (probably because the stream is already closed),
+/// returns -1
+#[op2(async)]
+async fn op_http_write_bytes_to_stream(
+  state: Rc<RefCell<OpState>>,
+  #[smi] writer_id: ResourceId,
+  #[buffer(copy)] bytes: bytes::Bytes,
+) -> Result<i32> {
+  let writer = {
+    state
+      .borrow()
+      .resource_table
+      .get::<StreamResponseWriter>(writer_id)?
   };
 
-  let sender = writer.0.borrow();
-  match sender.send(event).await {
+  let len = bytes.len();
+  match writer.write_bytes(Ok(bytes)).await {
     Ok(_) => return Ok(len.try_into().unwrap()),
     // If there's any error writing to the stream, close the stream resource
     // and return error
