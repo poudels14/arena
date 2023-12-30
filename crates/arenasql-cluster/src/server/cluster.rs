@@ -209,7 +209,7 @@ impl ArenaSqlCluster {
         ..Default::default()
       },
       session_state,
-    ))
+    )?)
   }
 
   pub async fn graceful_shutdown(&self) -> Result<()> {

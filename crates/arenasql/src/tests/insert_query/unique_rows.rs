@@ -3,7 +3,7 @@ use crate::tests::create_session_context;
 #[tokio::test(flavor = "multi_thread")]
 async fn dont_throw_when_inserting_unique_row() {
   let session = create_session_context();
-  let txn = session.begin_transaction().unwrap();
+  let txn = session.new_transaction().unwrap();
 
   let _ = txn
     .execute_sql(
@@ -35,7 +35,7 @@ async fn dont_throw_when_inserting_unique_row() {
 #[tokio::test(flavor = "multi_thread")]
 async fn throw_when_inserting_duplicate_row() {
   let session = create_session_context();
-  let txn = session.begin_transaction().unwrap();
+  let txn = session.new_transaction().unwrap();
 
   let _ = txn
     .execute_sql(

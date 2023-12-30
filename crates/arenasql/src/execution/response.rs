@@ -1,9 +1,14 @@
+use std::pin::Pin;
+use std::task::{Context, Poll};
+
 use datafusion::arrow::array::as_primitive_array;
 use datafusion::arrow::datatypes::Int64Type;
 use datafusion::arrow::datatypes::UInt64Type;
 use datafusion::arrow::record_batch::RecordBatch;
-use datafusion::error::DataFusionError;
+use datafusion::error::{DataFusionError, Result as DataFusionResult};
+use datafusion::physical_plan::stream::RecordBatchStreamAdapter;
 use derivative::Derivative;
+use futures::Stream;
 use futures::StreamExt;
 
 use crate::ast::statement::StatementType;
@@ -17,9 +22,19 @@ pub struct ExecutionResponse {
   record_batches: Option<Vec<RecordBatch>>,
   #[derivative(Debug = "ignore")]
   stream: Option<RecordBatchStream>,
+  #[derivative(Debug = "ignore")]
+  stream_completion_hook: Option<Pin<Box<StreamCompletionHook>>>,
 }
 
 impl ExecutionResponse {
+  pub fn empty() -> Self {
+    Self {
+      record_batches: None,
+      stream: None,
+      stream_completion_hook: None,
+    }
+  }
+
   /// Datafusion doesn't execute some queries like INSERT until the stream
   /// is polled. So, poll the stream here for those types of query and return
   /// a new stream of the polled values
@@ -45,12 +60,39 @@ impl ExecutionResponse {
     Ok(Self {
       record_batches,
       stream,
+      stream_completion_hook: None,
     })
   }
 
-  /// Panics if it's not a SELECT query
+  pub fn set_stream_completion_hook(
+    &mut self,
+    hook: StreamCompletionHook,
+  ) -> ArenaResult<()> {
+    if self.stream_completion_hook.is_some() {
+      panic!("Stream completion hook already set");
+    } else if self.stream.is_some() {
+      self.stream_completion_hook = Some(Box::pin(hook));
+      Ok(())
+    } else {
+      // If the stream was already collected, call the hook
+      let mut hook = hook.hook;
+      let cb = hook.take().unwrap();
+      cb()
+    }
+  }
+
+  /// Panics if it's not a SELECT query; i.e. doesn't have a response
+  /// stream
   pub fn get_stream(self) -> RecordBatchStream {
-    self.stream.unwrap()
+    let stream = self.stream.unwrap();
+    if let Some(hook) = self.stream_completion_hook {
+      Box::pin(RecordBatchStreamAdapter::new(
+        stream.schema(),
+        stream.chain(hook),
+      ))
+    } else {
+      stream
+    }
   }
 
   pub async fn collect_batches(self) -> ArenaResult<Vec<RecordBatch>> {
@@ -119,5 +161,41 @@ impl ExecutionResponse {
         Ok(arr.value(0))
       })
       .sum()
+  }
+}
+
+pub struct StreamCompletionHook {
+  hook: Option<Box<dyn (FnOnce() -> ArenaResult<()>) + Send + Sync>>,
+}
+
+unsafe impl Send for StreamCompletionHook {}
+unsafe impl Sync for StreamCompletionHook {}
+
+impl StreamCompletionHook {
+  pub fn new<F>(hook: Box<F>) -> Self
+  where
+    F: (FnOnce() -> ArenaResult<()>) + Send + Sync + 'static,
+  {
+    Self { hook: Some(hook) }
+  }
+}
+
+impl Stream for StreamCompletionHook {
+  type Item = DataFusionResult<RecordBatch>;
+
+  fn poll_next(
+    mut self: Pin<&mut Self>,
+    _cx: &mut Context<'_>,
+  ) -> Poll<Option<Self::Item>> {
+    let hook = self.hook.take().unwrap();
+    if let Err(err) = hook() {
+      Poll::Ready(Some(Err(err.into())))
+    } else {
+      Poll::Ready(None)
+    }
+  }
+
+  fn size_hint(&self) -> (usize, Option<usize>) {
+    (0, None)
   }
 }

@@ -12,7 +12,7 @@ use crate::tests::create_session_context;
 #[tokio::test(flavor = "multi_thread")]
 async fn eq_filter_returns_single_row_iterator() {
   let session = create_session_context();
-  let txn = session.begin_transaction().unwrap();
+  let txn = session.new_transaction().unwrap();
 
   execute_query!(
     txn,
@@ -66,7 +66,7 @@ async fn eq_filter_returns_single_row_iterator() {
 #[tokio::test(flavor = "multi_thread")]
 async fn le_filter_returns_multi_row_iterator() {
   let session = create_session_context();
-  let txn = session.begin_transaction().unwrap();
+  let txn = session.new_transaction().unwrap();
 
   execute_query!(
     txn,

@@ -39,10 +39,11 @@ async fn main() -> Result<()> {
       ..Default::default()
     },
     Default::default(),
-  );
+  )
+  .unwrap();
 
   {
-    let txn = session_context.begin_transaction().unwrap();
+    let txn = session_context.new_transaction().unwrap();
 
     let _res = txn
       .execute_sql(

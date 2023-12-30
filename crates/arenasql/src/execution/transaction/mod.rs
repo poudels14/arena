@@ -2,6 +2,7 @@ mod handle;
 mod lock;
 
 use std::borrow::BorrowMut;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use datafusion::common::DFSchema;
@@ -32,11 +33,16 @@ use crate::{ast, Error, Result};
 pub use handle::TransactionHandle;
 pub use lock::TransactionLock;
 
+static TRANSACTION_ID: Lazy<Arc<AtomicUsize>> =
+  Lazy::new(|| Arc::new(AtomicUsize::new(1)));
+
 pub const DEFAULT_EXTENSIONS: Lazy<Arc<Vec<ExecutionPlanExtension>>> =
   Lazy::new(|| Arc::new(vec![Arc::new(create_index::extension)]));
 
 #[derive(Getters, Clone)]
 pub struct Transaction {
+  #[allow(unused)]
+  pub id: usize,
   #[getset(get = "pub")]
   session_config: Arc<SessionConfig>,
   #[getset(get = "pub")]
@@ -45,7 +51,7 @@ pub struct Transaction {
   df_session_config: Arc<DfSessionConfig>,
   #[getset(get = "pub")]
   datafusion_context: Arc<DfSessionContext>,
-  handle: TransactionHandle,
+  pub(crate) handle: TransactionHandle,
 }
 
 impl Transaction {
@@ -88,7 +94,9 @@ impl Transaction {
     custom_functions::register_all(&datafusion_context);
 
     let sql_options = SQLOptions::new();
+
     Self {
+      id: TRANSACTION_ID.fetch_add(1, Ordering::AcqRel),
       session_config,
       session_state,
       sql_options,
@@ -259,11 +267,6 @@ impl Transaction {
       self.datafusion_context.task_ctx().into(),
     )?;
     ExecutionResponse::from_stream(stmt_type, response).await
-  }
-
-  #[inline]
-  pub fn closed(&self) -> bool {
-    self.handle.closed()
   }
 
   #[inline]

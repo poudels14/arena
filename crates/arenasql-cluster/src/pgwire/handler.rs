@@ -79,7 +79,7 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
     // of times verified logical plan is created. Maybe just check for
     // catalog/schema/table/column relations during parse instead of creating
     // a verified plan
-    let transaction = session.create_transaction()?;
+    let transaction = session.context().active_transaction();
     for stmt in statement.stmts.clone().into_iter() {
       transaction
         .create_verified_logical_plan(stmt.into())
@@ -110,7 +110,6 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
     PgWireError: From<<C as Sink<PgWireBackendMessage>>::Error>,
   {
     let session = self.get_client_session(client)?;
-    let txn = session.create_transaction()?;
 
     let statement_name = message
       .statement_name()
@@ -123,7 +122,8 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
       // If the query planning was successful, add the plan to the portal
       // state. It could fail if the placeholder type can't be resolved just
       // from the query itself and needs the paramter values as well
-      let state = match txn
+      let transaction = session.context().new_transaction()?;
+      let state = match transaction
         .create_verified_logical_plan(query.stmts[0].clone())
         .await
       {
@@ -217,7 +217,7 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
       Some(plan) => Some(plan),
       None => {
         let session = self.get_client_session(client)?;
-        let txn = session.create_transaction()?;
+        let txn = session.context().active_transaction();
         Some(txn.create_verified_logical_plan(stmt).await?)
       }
     };

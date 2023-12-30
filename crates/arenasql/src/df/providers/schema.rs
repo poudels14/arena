@@ -94,7 +94,7 @@ impl DfSchemaProvider for SchemaProvider {
 
     let handle = &self.transaction;
     let table = Arc::new(table);
-    let mut schema_lock = tokio::task::block_in_place(|| {
+    let schema_lock = tokio::task::block_in_place(|| {
       Handle::current().block_on(async {
         handle
           .acquire_table_schema_write_lock(self.schema.as_ref(), &name)
@@ -104,8 +104,7 @@ impl DfSchemaProvider for SchemaProvider {
 
     storage_handler.put_table_schema(&self.catalog, &self.schema, &table)?;
 
-    schema_lock.table = Some(table.clone());
-    handle.hold_table_schema_lock(schema_lock)?;
+    handle.hold_table_schema_lock(table.clone(), schema_lock)?;
 
     Ok(Some(
       Arc::new(TableProvider::new(table, self.transaction.clone()))
@@ -125,7 +124,7 @@ impl DfSchemaProvider for SchemaProvider {
 
     let storage_handler = self.transaction.lock(true)?;
 
-    let mut schema_lock = tokio::task::block_in_place(|| {
+    let schema_lock = tokio::task::block_in_place(|| {
       Handle::current().block_on(async {
         self
           .transaction
@@ -170,8 +169,9 @@ impl DfSchemaProvider for SchemaProvider {
       &table.name,
     )?;
 
-    schema_lock.table = Some(table.clone());
-    self.transaction.hold_table_schema_lock(schema_lock)?;
+    self
+      .transaction
+      .hold_table_schema_lock(table.clone(), schema_lock)?;
     Ok(Some(
       Arc::new(TableProvider::new(table, self.transaction.clone()))
         as Arc<dyn DfTableProvider>,

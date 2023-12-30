@@ -4,7 +4,6 @@ use dashmap::DashMap;
 use derive_builder::Builder;
 use tokio::sync::{OwnedRwLockWriteGuard, RwLock};
 
-use crate::schema::Table;
 use crate::Result;
 
 #[derive(Builder, Clone, Debug)]
@@ -30,7 +29,7 @@ impl SchemaLocks {
 
     Ok(TableSchemaWriteLock {
       schema: self.schema.clone(),
-      table: None,
+      table: table_name.into(),
       lock: Arc::new(owned_lock),
     })
   }
@@ -39,6 +38,6 @@ impl SchemaLocks {
 #[derive(Clone, Debug)]
 pub struct TableSchemaWriteLock {
   pub schema: Arc<str>,
-  pub table: Option<Arc<Table>>,
+  pub table: Arc<str>,
   pub lock: Arc<OwnedRwLockWriteGuard<String>>,
 }

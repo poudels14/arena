@@ -4,11 +4,11 @@ use crate::execute_query;
 use crate::tests::create_session_context;
 
 #[tokio::test(flavor = "multi_thread")]
-async fn another_txn_shouldnt_find_table_until_create_table_is_committed() {
+async fn another_txn_shouldnt_find_table_if_create_table_is_not_committed() {
   let session = create_session_context();
   let mut tasks = vec![];
 
-  let txn = session.begin_transaction().unwrap();
+  let txn = session.new_transaction().unwrap();
   tasks.push(tokio::spawn(async move {
     let _ = execute_query!(
       txn,
@@ -18,12 +18,9 @@ async fn another_txn_shouldnt_find_table_until_create_table_is_committed() {
         )"#
     )
     .unwrap();
-
-    tokio::time::sleep(Duration::from_millis(100)).await;
-    txn.commit().unwrap();
   }));
 
-  let txn = session.begin_transaction().unwrap();
+  let txn = session.new_transaction().unwrap();
   tasks.push(tokio::spawn(async move {
     let res = execute_query!(txn, r#"SELECT * FROM unique_column;"#);
     drop(txn);
@@ -41,7 +38,7 @@ async fn another_txn_shouldnt_find_table_until_create_table_is_committed() {
 #[tokio::test(flavor = "multi_thread")]
 async fn another_txn_should_find_table_after_create_table_is_committed() {
   let session = create_session_context();
-  let txn = session.begin_transaction().unwrap();
+  let txn = session.new_transaction().unwrap();
   let task1 = tokio::spawn(async move {
     let _ = execute_query!(
       txn,
@@ -58,7 +55,7 @@ async fn another_txn_should_find_table_after_create_table_is_committed() {
   // transaction can't find the table
   tokio::time::sleep(Duration::from_millis(20)).await;
 
-  let txn = session.begin_transaction().unwrap();
+  let txn = session.new_transaction().unwrap();
   let task2 = tokio::spawn(async move {
     let res = execute_query!(txn, r#"SELECT * FROM unique_column;"#);
     drop(txn);

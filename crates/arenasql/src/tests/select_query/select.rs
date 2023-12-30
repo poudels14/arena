@@ -4,7 +4,7 @@ use crate::tests::create_session_context;
 #[tokio::test(flavor = "multi_thread")]
 async fn select_test_count_id() {
   let session = create_session_context();
-  let txn = session.begin_transaction().unwrap();
+  let txn = session.new_transaction().unwrap();
 
   execute_query!(
     txn,

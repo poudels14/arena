@@ -187,7 +187,7 @@ impl CustomExecutionPlan for CreateIndexExecutionPlan {
         false => IndexType::NonUnique(columns),
       };
 
-      let mut table_lock = transaction
+      let table_lock = transaction
         .acquire_table_schema_write_lock(schema.as_ref(), &table.name)
         .await?;
 
@@ -199,8 +199,7 @@ impl CustomExecutionPlan for CreateIndexExecutionPlan {
 
       backfill_index_data(&storage_handler, &table, &new_index)?;
 
-      table_lock.table = Some(Arc::new(table));
-      transaction.hold_table_schema_lock(table_lock)?;
+      transaction.hold_table_schema_lock(Arc::new(table), table_lock)?;
       Ok(response)
     })
     .boxed();

@@ -1,9 +1,11 @@
 use std::collections::BTreeMap;
+use std::ops::Deref;
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
 use derivative::Derivative;
 use getset::{Getters, Setters};
+use parking_lot::Mutex;
 use sqlparser::ast::Statement;
 
 use super::lock::TransactionLock;
@@ -24,6 +26,9 @@ pub struct TransactionHandle {
   kvstore: Arc<Box<dyn KeyValueStore>>,
   schema_factories: Arc<BTreeMap<String, Arc<SchemaFactory>>>,
   storage_factory_state: Arc<StorageFactoryState>,
+  // locked_tables: BTreeMap<String, Arc<Table>>,
+  // List if tables locked by this transaction
+  locked_tables: Arc<Mutex<Vec<Arc<Table>>>>,
   lock: TransactionLock,
   // NOTE: this is a hack to pass current query statement to the execution
   // plan so that execution plans can have access to sql data types instead
@@ -33,6 +38,8 @@ pub struct TransactionHandle {
   // TODO: remove this when datafusion support custom data types
   #[getset(get = "pub", set = "pub(crate)")]
   active_statement: Option<Arc<Statement>>,
+  #[getset(get = "pub", set = "pub(crate)")]
+  is_chained: bool,
 }
 
 unsafe impl Send for TransactionHandle {}
@@ -50,18 +57,21 @@ impl TransactionHandle {
     kvstore: Arc<Box<dyn KeyValueStore>>,
     schema_factories: Arc<BTreeMap<String, Arc<SchemaFactory>>>,
     storage_factory_state: Arc<StorageFactoryState>,
+    locked_tables: Arc<Mutex<Vec<Arc<Table>>>>,
   ) -> Self {
     Self {
       serializer,
       kvstore,
       schema_factories: schema_factories.clone(),
       storage_factory_state: storage_factory_state.clone(),
+      locked_tables,
       lock: TransactionLock {
         lock: Arc::new(AtomicUsize::new(1)),
         schema_factories,
         storage_factory_state,
       },
       active_statement: None,
+      is_chained: false,
     }
   }
 
@@ -115,8 +125,20 @@ impl TransactionHandle {
   /// Holds the write lock to the table until this transaction is dropped
   pub fn hold_table_schema_lock(
     &self,
+    table: Arc<Table>,
     lock: TableSchemaWriteLock,
   ) -> Result<()> {
+    let mut locked_tables = self.locked_tables.lock();
+    let existing_locked_table_index = locked_tables
+      .iter()
+      .position(|table| *table.name == *lock.lock.deref().deref());
+    // Remove the table from the locked tables if it exist
+    // so that the list will have updated data
+    if let Some(index) = existing_locked_table_index {
+      locked_tables.remove(index);
+    }
+    locked_tables.push(table);
+
     self
       .schema_factories
       .get(lock.schema.as_ref())
@@ -125,10 +147,21 @@ impl TransactionHandle {
   }
 
   pub fn get_table(&self, schema: &str, name: &str) -> Option<Arc<Table>> {
+    // Note: need to check locked_tables first to check if the
+    // table was updated by the current transaction but the change
+    // hasn't been committed
     self
-      .schema_factories
-      .get(schema)
-      .and_then(|sf| sf.get_table(name))
+      .locked_tables
+      .lock()
+      .iter()
+      .find(|locked_table| locked_table.name == name)
+      .cloned()
+      .or_else(|| {
+        self
+          .schema_factories
+          .get(schema)
+          .and_then(|sf| sf.get_table(name))
+      })
   }
 
   pub fn table_names(&self, schema: &str) -> Vec<String> {

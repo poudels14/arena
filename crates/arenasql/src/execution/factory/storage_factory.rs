@@ -53,12 +53,12 @@ impl StorageFactory {
       bail!(Error::DatabaseClosed);
     }
 
-    let kvstore = self.kv_provider.new_transaction()?;
     // Clear all schemas for now, it's easier
     if self.state.should_reload_schema() {
       self.schemas.clear();
     }
 
+    let kvstore = self.kv_provider.new_transaction()?;
     let schema_factories = schemas
       .iter()
       .map(|schema| match self.schemas.get(schema) {
@@ -93,6 +93,7 @@ impl StorageFactory {
       Arc::new(kvstore),
       schema_factories.into(),
       self.state.clone(),
+      Arc::new(Mutex::new(vec![])),
     ))
   }
 

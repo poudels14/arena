@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use derivative::Derivative;
 use derive_builder::Builder;
-use parking_lot::{Mutex, RwLock};
+use parking_lot::Mutex;
 
 use crate::execution::locks::{SchemaLocks, TableSchemaWriteLock};
 use crate::schema::Table;
@@ -30,9 +30,6 @@ pub struct SchemaFactory {
   #[builder(setter(skip), default = "Arc::new(Mutex::new(vec![]))")]
   pub(crate) locked_tables: Arc<Mutex<Vec<TableSchemaWriteLock>>>,
 
-  #[builder(setter(skip), default = "Arc::new(RwLock::new(vec![]))")]
-  table_locks: Arc<RwLock<Vec<String>>>,
-
   pub(crate) schema_locks: SchemaLocks,
 }
 
@@ -56,37 +53,11 @@ impl SchemaFactory {
   }
 
   pub fn table_names(&self) -> Vec<String> {
-    let mut tables: Vec<String> = self
-      .tables
-      .values()
-      .map(|t| t.name.clone())
-      .chain(
-        self
-          .locked_tables
-          .lock()
-          .iter()
-          .filter_map(|t| t.table.as_ref().map(|t| t.name.clone())),
-      )
-      .collect();
-    tables.dedup();
-    tables
+    self.tables.values().map(|t| t.name.clone()).collect()
   }
 
   pub fn get_table(&self, name: &str) -> Option<Arc<Table>> {
-    // Note: need to check locked_tables first to check if the
-    // table was updated by the current transaction but the change
-    // hasn't been committed
-    self
-      .locked_tables
-      .lock()
-      .iter()
-      .find_map(|t| {
-        t.table
-          .as_ref()
-          .filter(|t| t.name == name)
-          .map(|t| t.clone())
-      })
-      .or_else(|| self.tables.get(name).map(|kv| kv.clone()))
+    self.tables.get(name).map(|kv| kv.clone())
   }
 
   #[inline]
@@ -117,12 +88,9 @@ impl SchemaFactory {
     lock: TableSchemaWriteLock,
   ) -> Result<()> {
     let mut locked_tables = self.locked_tables.lock();
-    let existing_index = locked_tables.iter().position(|l| {
-      l.table
-        .as_ref()
-        .map(|t| *t.name == *lock.lock.deref().deref())
-        .unwrap_or(false)
-    });
+    let existing_index = locked_tables
+      .iter()
+      .position(|l| *l.table == *lock.lock.deref().deref());
     // Remove the table from the locked tables if it exist
     // so that the list will have updated data
     if let Some(index) = existing_index {

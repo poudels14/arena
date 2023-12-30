@@ -17,6 +17,7 @@ mod insert_query;
 mod schema;
 mod select_query;
 mod statement;
+mod transaction;
 mod update_query;
 
 #[macro_export]
@@ -59,4 +60,5 @@ pub(super) fn create_session_context() -> SessionContext {
     },
     Default::default(),
   )
+  .unwrap()
 }

@@ -5,7 +5,7 @@ use crate::tests::create_session_context;
 async fn indexes_test_create_index_after_creating_table_in_same_transaction() {
   let session = create_session_context();
 
-  let txn = session.begin_transaction().unwrap();
+  let txn = session.new_transaction().unwrap();
   let _ = execute_query!(
     txn,
     r#"CREATE TABLE IF NOT EXISTS unique_column (
@@ -30,7 +30,7 @@ async fn indexes_test_create_index_after_creating_table_in_same_transaction() {
 async fn indexes_test_create_index_after_creating_table_in_diff_transaction() {
   let session = create_session_context();
 
-  let txn = session.begin_transaction().unwrap();
+  let txn = session.active_transaction();
   let res = execute_query!(
     txn,
     r#"CREATE TABLE IF NOT EXISTS unique_column (
@@ -41,15 +41,14 @@ async fn indexes_test_create_index_after_creating_table_in_diff_transaction() {
   assert!(res.is_ok());
   txn.commit().unwrap();
 
-  let txn = session.begin_transaction().unwrap();
-
+  let txn = session.new_transaction().unwrap();
   let res = execute_query!(
     txn,
     r#"CREATE INDEX unique_column_id_key ON public.unique_column(id, name)"#
   );
   assert!(res.is_ok());
 
-  let txn = session.begin_transaction().unwrap();
+  let txn = session.new_transaction().unwrap();
   let res = execute_query!(txn, r#"SELECT * FROM unique_column;"#);
   assert!(res.is_ok());
 }
@@ -58,7 +57,7 @@ async fn indexes_test_create_index_after_creating_table_in_diff_transaction() {
 async fn indexes_test_index_with_same_name_in_same_txn_without_if_not_exist() {
   let session = create_session_context();
 
-  let txn = session.begin_transaction().unwrap();
+  let txn = session.new_transaction().unwrap();
   let res = execute_query!(
     txn,
     r#"CREATE TABLE IF NOT EXISTS unique_column (
@@ -69,7 +68,7 @@ async fn indexes_test_index_with_same_name_in_same_txn_without_if_not_exist() {
   assert!(res.is_ok());
 
   txn.commit().unwrap();
-  let txn = session.begin_transaction().unwrap();
+  let txn = session.new_transaction().unwrap();
 
   let res = execute_query!(
     txn,
@@ -91,7 +90,7 @@ async fn indexes_test_index_with_same_name_in_same_txn_without_if_not_exist() {
 async fn indexes_test_create_unique_index_and_verify_index_backfill() {
   let session = create_session_context();
 
-  let txn = session.begin_transaction().unwrap();
+  let txn = session.active_transaction();
   let _ = execute_query!(
     txn,
     r#"CREATE TABLE IF NOT EXISTS test_table (
@@ -167,7 +166,7 @@ async fn indexes_test_create_unique_index_and_verify_index_backfill() {
 async fn indexes_test_create_secondary_index_and_verify_index_backfill() {
   let session = create_session_context();
 
-  let txn = session.begin_transaction().unwrap();
+  let txn = session.new_transaction().unwrap();
   let _ = execute_query!(
     txn,
     r#"CREATE TABLE IF NOT EXISTS test_table (
@@ -239,7 +238,7 @@ async fn indexes_test_create_secondary_index_and_verify_index_backfill() {
 async fn indexes_test_create_unique_index_with_multiple_cols() {
   let session = create_session_context();
 
-  let txn = session.begin_transaction().unwrap();
+  let txn = session.new_transaction().unwrap();
   let _ = execute_query!(
     txn,
     r#"CREATE TABLE IF NOT EXISTS test_table (
