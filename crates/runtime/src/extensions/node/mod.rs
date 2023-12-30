@@ -35,6 +35,8 @@ pub fn extension(module_filter: Option<Vec<&'static str>>) -> BuiltinExtension {
       ("tty", js_dist!("/node/tty.js")),
       ("util", js_dist!("/node/util.js")),
       ("url", js_dist!("/node/url.js")),
+      ("os", js_dist!("/node/os.js")),
+      ("stream", js_dist!("/node/stream.js")),
     ]
     .into_iter()
     .filter(|(specifier, _)| {

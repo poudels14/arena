@@ -25,13 +25,19 @@ impl Command {
     let project_root = ArenaConfig::find_project_root()?;
     let arena_config = ArenaConfig::load(&project_root)?;
 
+    let resolver_config = arena_config
+      .server
+      .javascript
+      .as_ref()
+      .and_then(|js| js.resolve.clone())
+      .unwrap_or_default();
     let builtin_extensions = vec![
       BuiltinModule::Fs,
       BuiltinModule::Env,
       BuiltinModule::Node(None),
       BuiltinModule::Postgres,
       BuiltinModule::Transpiler,
-      BuiltinModule::Resolver(project_root.clone()),
+      BuiltinModule::Resolver(project_root.clone(), resolver_config),
       BuiltinModule::Babel,
       BuiltinModule::Rollup,
       BuiltinModule::Bundler,

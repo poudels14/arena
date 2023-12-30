@@ -75,9 +75,15 @@ impl Command {
       }),
     ];
 
+    let resolver_config = arena_config
+      .server
+      .javascript
+      .as_ref()
+      .and_then(|js| js.resolve.clone())
+      .unwrap_or_default();
     if self.transpile {
       builtin_modules.extend(vec![
-        BuiltinModule::Resolver(project_root.clone()),
+        BuiltinModule::Resolver(project_root.clone(), resolver_config.clone()),
         BuiltinModule::Transpiler,
         BuiltinModule::Babel,
         BuiltinModule::Rollup,
@@ -108,7 +114,10 @@ impl Command {
             .and_then(|j| j.resolve)
             .unwrap_or_default(),
         )),
-        Some(Rc::new(BabelTranspiler::new(project_root.clone()))),
+        Some(Rc::new(BabelTranspiler::new(
+          project_root.clone(),
+          resolver_config,
+        ))),
       ))),
       builtin_extensions,
       permissions: PermissionsContainer {

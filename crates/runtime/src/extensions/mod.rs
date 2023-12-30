@@ -24,6 +24,7 @@ use tracing::debug;
 use url::Url;
 
 use self::server::HttpServerConfig;
+use crate::config::node::ResolverConfig;
 
 #[derive(Default, new)]
 pub struct BuiltinExtension {
@@ -65,7 +66,7 @@ pub enum BuiltinModule {
   Fs,
   Env,
   Node(Option<Vec<&'static str>>),
-  Resolver(PathBuf),
+  Resolver(PathBuf, ResolverConfig),
   Transpiler,
   Babel,
   Rollup,
@@ -88,7 +89,7 @@ impl BuiltinExtensionProvider for BuiltinModule {
       Self::Fs => self::fs::extension(),
       Self::Env => self::env::extension(),
       Self::Node(filter) => self::node::extension(filter.to_owned()),
-      Self::Resolver(root) => self::resolver::extension(root.clone()),
+      Self::Resolver(root, config) => self::resolver::extension(root, config),
       Self::Transpiler => self::transpiler::extension(),
       Self::Babel => self::babel::extension(),
       Self::Rollup => self::rollup::extension(),
@@ -118,7 +119,7 @@ impl BuiltinExtensions {
       BuiltinModule::Node(None),
       BuiltinModule::Postgres,
       BuiltinModule::Sqlite,
-      BuiltinModule::Resolver(PathBuf::default()),
+      BuiltinModule::Resolver(PathBuf::default(), Default::default()),
       BuiltinModule::Transpiler,
       BuiltinModule::Babel,
       BuiltinModule::Rollup,

@@ -11,6 +11,9 @@ const process = {
   cwd,
   env,
   argv: [],
+  versions: {
+    node: "18.19.0",
+  },
   on,
   memoryUsage,
   off(...args) {

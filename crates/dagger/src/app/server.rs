@@ -45,10 +45,20 @@ pub(super) async fn start_js_server(
     }),
   ];
 
+  let resolver_config = options
+    .config
+    .server
+    .javascript
+    .as_ref()
+    .and_then(|js| js.resolve.clone())
+    .unwrap_or_default();
   if options.transpile {
     builtin_modules.extend(vec![
       BuiltinModule::Sqlite,
-      BuiltinModule::Resolver(options.root_dir.clone()),
+      BuiltinModule::Resolver(
+        options.root_dir.clone(),
+        resolver_config.clone(),
+      ),
       BuiltinModule::Babel,
       BuiltinModule::Transpiler,
       BuiltinModule::FileRouter,
@@ -76,7 +86,10 @@ pub(super) async fn start_js_server(
           .and_then(|j| j.resolve)
           .unwrap_or_default(),
       )),
-      Some(Rc::new(BabelTranspiler::new(options.root_dir.clone()))),
+      Some(Rc::new(BabelTranspiler::new(
+        options.root_dir.clone(),
+        resolver_config,
+      ))),
     ))),
     permissions: PermissionsContainer {
       fs: Some(FileSystemPermissions::allow_all(options.root_dir)),

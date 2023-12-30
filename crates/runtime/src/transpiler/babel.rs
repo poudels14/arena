@@ -11,6 +11,7 @@ use tokio::sync::{mpsc, oneshot};
 use url::Url;
 
 use super::ModuleTranspiler;
+use crate::config::node::ResolverConfig;
 use crate::extensions::server::response::ParsedHttpResponse;
 use crate::extensions::server::{HttpRequest, HttpServerConfig};
 use crate::extensions::{BuiltinExtensionProvider, BuiltinModule};
@@ -23,7 +24,7 @@ pub struct BabelTranspiler {
 
 impl BabelTranspiler {
   // TODO: pass in BUILD tools snapshot
-  pub fn new(root_dir: PathBuf) -> Self {
+  pub fn new(root_dir: PathBuf, config: ResolverConfig) -> Self {
     let (transpiler_stream, stream_rx) = mpsc::channel(15);
 
     deno_unsync::spawn(async {
@@ -31,7 +32,7 @@ impl BabelTranspiler {
         enable_console: true,
         builtin_extensions: vec![
           BuiltinModule::Node(None),
-          BuiltinModule::Resolver(root_dir),
+          BuiltinModule::Resolver(root_dir, config),
           BuiltinModule::Babel,
           BuiltinModule::HttpServer(HttpServerConfig::Stream(Rc::new(
             RefCell::new(stream_rx),

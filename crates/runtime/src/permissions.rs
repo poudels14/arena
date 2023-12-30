@@ -25,6 +25,12 @@ pub fn resolve_read_path(state: &mut OpState, path: &Path) -> Result<PathBuf> {
   }
 }
 
+/// Use this to check permission if the path is already resolved
+pub fn check_read(state: &mut OpState, resolved_path: &Path) -> Result<()> {
+  let permissions = state.borrow_mut::<PermissionsContainer>();
+  permissions.check_read(&resolved_path)
+}
+
 /// resolves the given path from project prefix/root and checks for
 /// write permission. Returns Ok(resolved_path) if the permission
 /// for given path is granted, else returns error

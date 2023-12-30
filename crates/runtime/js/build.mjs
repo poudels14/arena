@@ -80,6 +80,8 @@ program
           tty: "libs/node/tty.ts",
           util: "libs/node/util.ts",
           buffer: "libs/node/buffer.ts",
+          os: "./libs/node/os.ts",
+          stream: "./libs/node/stream.ts",
         },
         outdir: "dist/node",
       }),

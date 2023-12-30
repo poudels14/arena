@@ -223,9 +223,12 @@ impl FilePathResolver {
             if let Some(main) =
               maybe_package.as_ref().and_then(|p| p.main.clone())
             {
-              let main_path = node_modules_dir.join(specifier).join(&main);
-              return self
-                .convert_to_url(main_path)
+              let main_path = node_modules_dir
+                .join(&parsed_specifier.package_name)
+                .join(&main);
+              return resolve_as_file(&main_path)
+                .or_else(|_| resolve_index(&main_path))
+                .and_then(|path| self.convert_to_url(path))
                 .map_err(|_| InvalidPath(node_modules_dir.join(main)));
             }
           }

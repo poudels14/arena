@@ -38,14 +38,17 @@ pub fn inject_create_require(current_module: &Url) -> String {
   )
 }
 
-pub fn extension(root: PathBuf) -> BuiltinExtension {
+pub fn extension(root: &PathBuf, config: &ResolverConfig) -> BuiltinExtension {
   BuiltinExtension::new(
-    Some(self::resolver::init_ops_and_esm(root)),
+    Some(self::resolver::init_ops_and_esm(
+      root.clone(),
+      config.clone(),
+    )),
     vec![
       ("@arena/runtime/resolver", js_dist!("/resolver.js")),
       (
-        "arena/resolver/setup",
-        SourceCode::Preserved(include_str!("./resolver.js")),
+        "arena/resolver/require",
+        SourceCode::Preserved(include_str!("./require.js")),
       ),
     ],
   )
@@ -58,11 +61,11 @@ deno_core::extension!(
     op_resolver_resolve,
     op_resolver_read_file,
   ],
-  options = { root: PathBuf },
-  state = |state, options| {
+  options = { root: PathBuf, config: ResolverConfig },
+  state = move |state, options| {
     state.put::<DefaultResolverConfig>(DefaultResolverConfig {
       root: options.root.to_owned(),
-      config: Default::default(),
+      config: options.config.clone(),
     });
   }
 );
@@ -85,12 +88,13 @@ fn op_resolver_new(
   state: &mut OpState,
   #[serde] config: Option<ResolverConfig>,
 ) -> Result<(ResourceId, String)> {
-  let default_config = state.borrow_mut::<DefaultResolverConfig>();
-  let root = default_config.root.clone();
-  let resolver = FilePathResolver::new(
-    root.clone(),
-    config.unwrap_or(default_config.config.clone()),
-  );
+  let default_config = state.borrow_mut::<DefaultResolverConfig>().clone();
+  let root = default_config.root;
+  let resolver_config = match config {
+    Some(config) => default_config.config.merge(config),
+    None => default_config.config,
+  };
+  let resolver = FilePathResolver::new(root.clone(), resolver_config);
   let rid = state.resource_table.add(resolver);
   Ok((
     rid,
@@ -138,13 +142,14 @@ fn op_resolver_resolve(
 #[string]
 fn op_resolver_read_file(
   state: &mut OpState,
-  #[string] path: &str,
+  #[string] resolved_path: &str,
 ) -> Result<String> {
-  let resolved_path = permissions::resolve_read_path(state, &Path::new(&path))?;
-  let content = std::fs::read_to_string(&resolved_path)?;
+  let path = &Path::new(&resolved_path);
+  permissions::check_read(state, &path)?;
+  let content = std::fs::read_to_string(&path)?;
   // If it's a json file, prefix the content with "module.exports" to convert it
   // to JS
-  if resolved_path.to_string_lossy().ends_with(".json") {
+  if resolved_path.ends_with(".json") {
     return Ok(format!("module.exports = {}", content));
   }
   Ok(content)

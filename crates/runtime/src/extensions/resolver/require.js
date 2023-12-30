@@ -3,15 +3,24 @@ import { Resolver } from "@arena/runtime/resolver";
 const { core } = Arena;
 
 const resolver = new Resolver({
-  preserveSymlink: false,
+  preserveSymlink: true,
 });
 
-const NODE_INTERNALS = ["fs", "path", "crypto", "tty", "url", "util"];
+const NODE_INTERNALS = [
+  "fs",
+  "path",
+  "crypto",
+  "tty",
+  "url",
+  "util",
+  "os",
+  "stream",
+];
 
 const moduleCache = {};
 const wrapper = [
-  "(function (exports, require, module, __filename, __dirname) { (function _commonJs(exports, require, module, __filename, __dirname) {",
-  "\n}).call(this, exports, require, module, __filename, __dirname); })",
+  "(function (exports, require, module, __filename, __dirname) { (function _commonJs(exports, require, module, __filename, __dirname, global) {",
+  "\n}).call(this, exports, require, module, __filename, __dirname, globalThis); })",
 ];
 
 // A very simple and super hacky support for require to make libraries like
@@ -24,13 +33,9 @@ function createRequire(referrer) {
         "Only one argument to require.resolve(...) supported, passed:" + args
       );
     }
-    try {
-      const resolved = resolver.resolve(args[0], referrer, "Require");
-      return path.join(resolver.root, resolved);
-    } catch (e) {
-      console.error("Error resolving path [", args[0], "]:", e);
-      return args[0];
-    }
+
+    const resolved = resolver.resolve(args[0], referrer, "Require");
+    return path.join(resolver.root, resolved);
   }
 
   function require(modulePath, ...args) {
@@ -41,14 +46,24 @@ function createRequire(referrer) {
     if (isNodeInternal) {
       resolvedPath = "node/" + modulePath;
     } else {
-      let resolvedRequirePath = resolve(modulePath);
-      const url = new URL("file://" + resolvedRequirePath);
-      resolvedPath = url.pathname;
+      // If error resolving, return undefined
+      try {
+        let resolvedRequirePath = resolve(modulePath);
+        const url = new URL("file://" + resolvedRequirePath);
+        resolvedPath = url.pathname;
+      } catch (e) {
+        return undefined;
+      }
     }
 
     if (moduleCache[resolvedPath]) {
       return moduleCache[resolvedPath].exports;
     }
+
+    // Set the cache before loading the code such that if there's a circular
+    // dependency, a reference to the module is returned before the module
+    // is loaded. This prevents infinite loop
+    moduleCache[resolvedPath] = { exports: {} };
 
     if (isNodeInternal) {
       moduleCode = `module.exports = Arena.__nodeInternal["${modulePath}"]`;
@@ -74,8 +89,8 @@ function createRequire(referrer) {
         path.dirname(resolvedPath)
       );
 
-      moduleCache[resolvedPath] = mod;
-      return mod.exports;
+      moduleCache[resolvedPath].exports = mod.exports;
+      return moduleCache[resolvedPath].exports;
     }
     throw new Error('Error loading "' + args[0] + '"');
   }
