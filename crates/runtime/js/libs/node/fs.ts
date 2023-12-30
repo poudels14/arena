@@ -8,6 +8,11 @@ const fs = {
   statSync,
 };
 
+Arena.__nodeInternal = {
+  ...(Arena.__nodeInternal || {}),
+  fs,
+};
+
 export { readFileSync, writeFileSync, statSync };
 export default fs;
 export * as promises from "./fs_promises";

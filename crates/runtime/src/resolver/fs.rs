@@ -8,8 +8,8 @@ use deno_core::ModuleResolutionError::{
   ImportPrefixMissing, InvalidPath, InvalidUrl,
 };
 use deno_core::{normalize_path, ModuleResolutionError, ModuleSpecifier};
-use indexmap::IndexMap;
 use indexmap::IndexSet;
+use indexmap::{indexset, IndexMap};
 use serde_json::Value;
 use tracing::{debug, error, instrument, Level};
 use url::{ParseError, Url};
@@ -235,6 +235,7 @@ impl FilePathResolver {
               &node_modules_dir,
               &parsed_specifier,
               &maybe_package,
+              &resolution,
             )
             .or_else(|e| {
               debug!("error loading npm package export: {}", e);
@@ -306,12 +307,13 @@ impl FilePathResolver {
     base_dir: &PathBuf,
     specifier: &ParsedSpecifier,
     maybe_package: &Option<Package>,
+    resolution: &ResolutionType,
   ) -> Result<PathBuf> {
     let package: &Package =
       maybe_package.as_ref().ok_or(anyhow!("not a npm package"))?;
 
     let package_export =
-      self.load_package_exports(base_dir, specifier, &package);
+      self.load_package_exports(base_dir, specifier, &package, resolution);
 
     if package_export.is_ok() {
       return package_export;
@@ -359,13 +361,16 @@ impl FilePathResolver {
     base_dir: &PathBuf,
     specifier: &ParsedSpecifier,
     package: &Package,
+    resolution: &ResolutionType,
   ) -> Result<PathBuf> {
     // TODO(sagar): handle other exports type
-    let resolved_path = normalize_path(
-      base_dir
-        .join(&package.name)
-        .join(self.get_package_json_export(&package, &specifier.sub_path)?),
-    );
+    let resolved_path = normalize_path(base_dir.join(&package.name).join(
+      self.get_package_json_export(
+        &package,
+        &specifier.sub_path,
+        resolution,
+      )?,
+    ));
 
     debug!("resolved path: {:?}", resolved_path);
 
@@ -419,6 +424,7 @@ impl FilePathResolver {
     &self,
     package: &Package,
     specifier_subpath: &str,
+    resolution: &ResolutionType,
   ) -> Result<String> {
     match package.exports.as_ref() {
       Some(exports) => {
@@ -428,7 +434,13 @@ impl FilePathResolver {
         // Exports are selected based on this doc:
         // https://webpack.js.org/guides/package-exports/
         if let Some(subpath_export) = exports.get(specifier_subpath) {
-          return get_matching_export(subpath_export, &self.config.conditions);
+          return match resolution {
+            ResolutionType::Require => get_matching_export(
+              subpath_export,
+              &indexset! {"require".to_owned()},
+            ),
+            _ => get_matching_export(subpath_export, &self.config.conditions),
+          };
         }
 
         bail!("not implemented")

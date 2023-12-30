@@ -1,5 +1,12 @@
+import { default as path } from "path";
+
+Arena.__nodeInternal = {
+  ...(Arena.__nodeInternal || {}),
+  path,
+};
+
+export default path;
 export {
-  default,
   basename,
   extname,
   dirname,

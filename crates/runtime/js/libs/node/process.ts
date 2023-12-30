@@ -10,6 +10,7 @@ const memoryUsage = noop;
 const process = {
   cwd,
   env,
+  argv: [],
   on,
   memoryUsage,
   off(...args) {

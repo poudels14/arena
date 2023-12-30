@@ -87,7 +87,7 @@ program
         ...options,
         minify: false,
         entryPoints: {
-          crypto: "libs/node/crypto/crypto.ts",
+          crypto: "libs/node/crypto/index.ts",
         },
         external: ["buffer"],
         outdir: "dist/node",

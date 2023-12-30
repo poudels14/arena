@@ -40,6 +40,9 @@ dependencies:
   events:
     specifier: ^3.3.0
     version: 3.3.0
+  file-uri-to-path:
+    specifier: ^2.0.0
+    version: 2.0.0
   lodash-es:
     specifier: ^4.17.21
     version: 4.17.21
@@ -71,8 +74,11 @@ dependencies:
     specifier: ^5.16.8
     version: 5.26.0
   url:
-    specifier: ^0.11.1
+    specifier: ^0.11.3
     version: 0.11.3
+  url-parse:
+    specifier: ^1.5.10
+    version: 1.5.10
   util:
     specifier: ^0.12.5
     version: 0.12.5
@@ -1012,6 +1018,11 @@ packages:
     engines: {node: '>=0.8.x'}
     dev: false
 
+  /file-uri-to-path@2.0.0:
+    resolution: {integrity: sha512-hjPFI8oE/2iQPVe4gbrJ73Pp+Xfub2+WI2LlXDbsaJBwT5wuMh35WNWVYYTpnz895shtwfyutMFLFywpQAFdLg==}
+    engines: {node: '>= 6'}
+    dev: false
+
   /for-each@0.3.3:
     resolution: {integrity: sha512-jqYfLp7mo9vIyQf8ykW2v7A+2N4QjeCeI5+Dz9XraiO1ign81wjiH7Fb9vSOWvQfNtmSa4H2RoQTrrXivdUZmw==}
     dependencies:
@@ -1795,6 +1806,14 @@ packages:
       side-channel: 1.0.4
     dev: false
 
+  /querystringify@2.2.0:
+    resolution: {integrity: sha512-FIqgj2EUvTa7R50u0rGsyTftzjYmv/a3hO345bZNrqabNqjtgiDMgmo4mkUjd+nzU5oF3dClKqFIPUKybUyqoQ==}
+    dev: false
+
+  /requires-port@1.0.0:
+    resolution: {integrity: sha512-KigOCHcocU3XODJxsu8i/j8T9tzT4adHiecwORRQ0ZZFcp7ahwXuRU1m+yuO90C5ZUyGeGfocHDI14M3L3yDAQ==}
+    dev: false
+
   /reserved-words@0.1.2:
     resolution: {integrity: sha512-0S5SrIUJ9LfpbVl4Yzij6VipUdafHrOTzvmfazSw/jeZrZtQK303OPZW+obtkaw7jQlTQppy0UvZWm9872PbRw==}
     dev: false
@@ -1988,6 +2007,13 @@ packages:
       browserslist: 4.22.2
       escalade: 3.1.1
       picocolors: 1.0.0
+    dev: false
+
+  /url-parse@1.5.10:
+    resolution: {integrity: sha512-WypcfiRhfeUP9vvF0j6rw0J3hrWrw6iZv3+22h6iRMJ/8z1Tj6XfLP4DsUix5MhMPnXpiHDoKyoZ/bdCkwBCiQ==}
+    dependencies:
+      querystringify: 2.2.0
+      requires-port: 1.0.0
     dev: false
 
   /url@0.11.3:

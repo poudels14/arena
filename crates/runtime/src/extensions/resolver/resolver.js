@@ -3,8 +3,10 @@ import { Resolver } from "@arena/runtime/resolver";
 const { core } = Arena;
 
 const resolver = new Resolver({
-  preserveSymlink: true,
+  preserveSymlink: false,
 });
+
+const NODE_INTERNALS = ["fs", "path", "crypto", "tty", "url", "util"];
 
 const moduleCache = {};
 const wrapper = [
@@ -32,17 +34,30 @@ function createRequire(referrer) {
   }
 
   function require(modulePath, ...args) {
-    let resolvedRequirePath = resolve(modulePath);
+    let resolvedPath;
+    let moduleCode;
 
-    const url = new URL("file://" + resolvedRequirePath);
-    const resolvedUrl = url.toString();
-    const resolvedPath = url.pathname;
+    let isNodeInternal = NODE_INTERNALS.indexOf(modulePath) >= 0;
+    if (isNodeInternal) {
+      resolvedPath = "node/" + modulePath;
+    } else {
+      let resolvedRequirePath = resolve(modulePath);
+      const url = new URL("file://" + resolvedRequirePath);
+      resolvedPath = url.pathname;
+    }
 
     if (moduleCache[resolvedPath]) {
       return moduleCache[resolvedPath].exports;
     }
-    let moduleCode = core.ops.op_resolver_read_file(resolvedPath);
+
+    if (isNodeInternal) {
+      moduleCode = `module.exports = Arena.__nodeInternal["${modulePath}"]`;
+    } else {
+      moduleCode = core.ops.op_resolver_read_file(resolvedPath);
+    }
+
     if (moduleCode) {
+      const resolvedUrl = "file://" + resolvedPath;
       moduleCode = moduleCode.replace(/^#!.*?\n/, "");
       const wrappedModuldeCode = `${wrapper[0]}${moduleCode}${wrapper[1]}`;
       const [func, err] = core.evalContext(wrappedModuldeCode, resolvedUrl);

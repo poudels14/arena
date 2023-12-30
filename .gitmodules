@@ -4,3 +4,6 @@
 [submodule "pgwire"]
 	path = pgwire
 	url = git@github.com:poudels14/pgwire.git
+[submodule "js/atlas"]
+	path = js/atlas
+	url = git@github.com:poudels14/atlas
