@@ -141,7 +141,13 @@ fn op_resolver_read_file(
   #[string] path: &str,
 ) -> Result<String> {
   let resolved_path = permissions::resolve_read_path(state, &Path::new(&path))?;
-  Ok(std::fs::read_to_string(resolved_path)?)
+  let content = std::fs::read_to_string(&resolved_path)?;
+  // If it's a json file, prefix the content with "module.exports" to convert it
+  // to JS
+  if resolved_path.to_string_lossy().ends_with(".json") {
+    return Ok(format!("module.exports = {}", content));
+  }
+  Ok(content)
 }
 
 pub(crate) fn resolve(
