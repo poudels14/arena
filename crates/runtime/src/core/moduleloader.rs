@@ -8,7 +8,7 @@ use deno_core::{
 };
 use derive_new::new;
 use futures::{Future, FutureExt};
-use tracing::{debug, error};
+use tracing::{debug, error, trace};
 use url::Url;
 
 #[derive(new)]
@@ -38,7 +38,7 @@ impl ModuleLoader for DefaultModuleLoader {
       // 1. Apply the URL parser to specifier.
       //    If the result is not failure, return he result.
       Ok(url) => {
-        debug!("module resolution not needed");
+        trace!("module resolution not needed");
         Ok(url)
       }
       Err(err) => match self.extension.as_ref() {

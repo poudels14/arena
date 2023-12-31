@@ -7,22 +7,20 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use url::Url;
 
+use crate::config::RuntimeConfig;
+
 /// resolves the given path from project prefix/root and checks for
 /// read permission. Returns Ok(resolved_path) if the permission
 /// for given path is granted, else returns error
 #[inline]
 #[allow(dead_code)]
 pub fn resolve_read_path(state: &mut OpState, path: &Path) -> Result<PathBuf> {
+  let project_root = state.borrow_mut::<RuntimeConfig>().project_root.clone();
   let permissions = state.borrow_mut::<PermissionsContainer>();
 
-  match permissions.fs.as_ref() {
-    Some(perm) => {
-      let resolved_path = resolve(&perm.root, path)?;
-      permissions.check_read(&resolved_path)?;
-      Ok(resolved_path)
-    }
-    None => bail!("No access to filesystem"),
-  }
+  let resolved_path = resolve_from_project_root(&project_root, path)?;
+  permissions.check_read(&resolved_path)?;
+  Ok(resolved_path)
 }
 
 /// Use this to check permission if the path is already resolved
@@ -37,16 +35,12 @@ pub fn check_read(state: &mut OpState, resolved_path: &Path) -> Result<()> {
 #[inline]
 #[allow(dead_code)]
 pub fn resolve_write_path(state: &mut OpState, path: &Path) -> Result<PathBuf> {
+  let project_root = state.borrow_mut::<RuntimeConfig>().project_root.clone();
   let permissions = state.borrow_mut::<PermissionsContainer>();
 
-  match permissions.fs.as_ref() {
-    Some(perm) => {
-      let resolved_path = resolve(&perm.root, path)?;
-      permissions.check_write(&resolved_path)?;
-      Ok(resolved_path)
-    }
-    None => bail!("No access to filesystem"),
-  }
+  let resolved_path = resolve_from_project_root(&project_root, path)?;
+  permissions.check_write(&resolved_path)?;
+  Ok(resolved_path)
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
@@ -294,10 +288,10 @@ mod tests {
 }
 
 #[inline]
-fn resolve(base: &Path, path: &Path) -> Result<PathBuf> {
-  if path.is_absolute() {
-    Ok(normalize_path(path))
-  } else {
-    Ok(normalize_path(base.join(path)))
-  }
+fn resolve_from_project_root(
+  project_root: &Path,
+  path: &Path,
+) -> Result<PathBuf> {
+  // Always resolve path from the project root!
+  Ok(normalize_path(project_root.join(path)))
 }

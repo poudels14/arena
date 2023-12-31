@@ -37,7 +37,7 @@ impl Command {
       BuiltinModule::Node(None),
       BuiltinModule::Postgres,
       BuiltinModule::Transpiler,
-      BuiltinModule::Resolver(project_root.clone(), resolver_config),
+      BuiltinModule::Resolver(resolver_config),
       BuiltinModule::Babel,
       BuiltinModule::Rollup,
       BuiltinModule::Bundler,
@@ -79,8 +79,8 @@ impl Command {
         "#,
           config_file
         ),
+        true,
       )
-      .await?;
-    runtime.run_event_loop().await
+      .await
   }
 }

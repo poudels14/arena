@@ -24,6 +24,8 @@ pub struct RuntimeConfig {
   /// This is useful if we need to restrict the outgoing network
   /// request to a specific network device/address
   pub egress_addr: Option<IpAddr>,
+
+  pub process_args: Vec<String>,
 }
 
 impl Default for RuntimeConfig {
@@ -33,6 +35,7 @@ impl Default for RuntimeConfig {
     Self {
       project_root: temp_dir.into_path(),
       egress_addr: None,
+      process_args: vec![],
     }
   }
 }

@@ -10,7 +10,7 @@ const isWindows = () => osType() === "windows";
 const isLinux = () => osType() === "linux";
 const cpus = () => [];
 
-const os = { platform, osType, isLinux, isWindows, cpus };
+const os = { platform, osType, type: osType, isLinux, isWindows, cpus };
 
 Arena.__nodeInternal = {
   ...(Arena.__nodeInternal || {}),
@@ -18,4 +18,4 @@ Arena.__nodeInternal = {
 };
 
 export default os;
-export { platform, osType, isWindows, isLinux, cpus };
+export { platform, osType, osType as type, isWindows, isLinux, cpus };

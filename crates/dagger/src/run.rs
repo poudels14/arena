@@ -16,9 +16,6 @@ use runtime::{IsolatedRuntime, RuntimeOptions};
 
 #[derive(Parser, Debug)]
 pub struct Command {
-  /// File to execute
-  file: String,
-
   /// Whether to auto-transpile code; default is auto-transpile on
   #[arg(short, long)]
   disable_transpile: bool,
@@ -34,6 +31,11 @@ pub struct Command {
   /// The network address to use for outgoing network requests from JS runtime
   #[arg(long)]
   egress_addr: Option<String>,
+
+  /// File to execute
+  file: String,
+
+  args: Vec<String>,
 }
 
 impl Command {
@@ -57,7 +59,7 @@ impl Command {
       .unwrap_or_default();
     if self.enable_build_tools {
       builtin_modules.extend(vec![
-        BuiltinModule::Resolver(project_root.clone(), resolver_config.clone()),
+        BuiltinModule::Resolver(resolver_config.clone()),
         BuiltinModule::Transpiler,
         BuiltinModule::Babel,
         BuiltinModule::Rollup,
@@ -79,6 +81,12 @@ impl Command {
     let mut runtime = IsolatedRuntime::new(RuntimeOptions {
       config: RuntimeConfig {
         egress_addr,
+        process_args: vec![
+          vec!["node".to_owned(), self.file.to_owned()],
+          self.args.clone(),
+        ]
+        .concat(),
+        project_root: project_root.clone(),
         ..Default::default()
       },
       enable_arena_global: true,
@@ -92,10 +100,7 @@ impl Command {
             .and_then(|j| j.resolve)
             .unwrap_or_default(),
         )),
-        Some(Rc::new(BabelTranspiler::new(
-          project_root.clone(),
-          resolver_config,
-        ))),
+        Some(Rc::new(BabelTranspiler::new(resolver_config).await)),
       ))),
       builtin_extensions: builtin_modules
         .iter()

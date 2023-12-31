@@ -1,6 +1,6 @@
-import { format, deprecate, debuglog, inspect } from "util";
+import { format, deprecate, debuglog, inspect, promisify } from "util";
 
-const util = { format, deprecate, debuglog, inspect };
+const util = { format, deprecate, debuglog, inspect, promisify };
 
 Arena.__nodeInternal = {
   ...(Arena.__nodeInternal || {}),
@@ -8,4 +8,4 @@ Arena.__nodeInternal = {
 };
 
 export default util;
-export { format, deprecate, debuglog, inspect };
+export { format, deprecate, debuglog, inspect, promisify };

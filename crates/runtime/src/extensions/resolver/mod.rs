@@ -13,6 +13,7 @@ use url::Url;
 
 use super::SourceCode;
 use crate::config::node::ResolverConfig;
+use crate::config::RuntimeConfig;
 use crate::extensions::r#macro::js_dist;
 use crate::extensions::BuiltinExtension;
 use crate::permissions;
@@ -38,12 +39,9 @@ pub fn inject_create_require(current_module: &Url) -> String {
   )
 }
 
-pub fn extension(root: &PathBuf, config: &ResolverConfig) -> BuiltinExtension {
+pub fn extension(config: &ResolverConfig) -> BuiltinExtension {
   BuiltinExtension::new(
-    Some(self::resolver::init_ops_and_esm(
-      root.clone(),
-      config.clone(),
-    )),
+    Some(self::resolver::init_ops_and_esm(config.clone())),
     vec![
       ("@arena/runtime/resolver", js_dist!("/resolver.js")),
       (
@@ -61,20 +59,11 @@ deno_core::extension!(
     op_resolver_resolve,
     op_resolver_read_file,
   ],
-  options = { root: PathBuf, config: ResolverConfig },
+  options = { config: ResolverConfig },
   state = move |state, options| {
-    state.put::<DefaultResolverConfig>(DefaultResolverConfig {
-      root: options.root.to_owned(),
-      config: options.config.clone(),
-    });
+    state.put::<ResolverConfig>(options.config.clone());
   }
 );
-
-#[derive(Clone)]
-pub struct DefaultResolverConfig {
-  pub root: PathBuf,
-  pub config: ResolverConfig,
-}
 
 impl Resource for FilePathResolver {
   fn close(self: Rc<Self>) {}
@@ -88,12 +77,14 @@ fn op_resolver_new(
   state: &mut OpState,
   #[serde] config: Option<ResolverConfig>,
 ) -> Result<(ResourceId, String)> {
-  let default_config = state.borrow_mut::<DefaultResolverConfig>().clone();
-  let root = default_config.root;
+  let default_config = state.borrow_mut::<ResolverConfig>().clone();
   let resolver_config = match config {
-    Some(config) => default_config.config.merge(config),
-    None => default_config.config,
+    Some(config) => default_config.merge(config),
+    None => default_config,
   };
+
+  let runtime_config = state.borrow_mut::<RuntimeConfig>().clone();
+  let root = runtime_config.project_root.clone();
   let resolver = FilePathResolver::new(root.clone(), resolver_config);
   let rid = state.resource_table.add(resolver);
   Ok((
@@ -117,10 +108,10 @@ fn op_resolver_resolve(
   #[serde] resolution_type: Option<ResolutionType>,
 ) -> Result<Option<String>> {
   let resolver = state.resource_table.get::<FilePathResolver>(rid)?;
-  let default_config = state.borrow::<DefaultResolverConfig>();
+  let runtime_config = state.borrow::<RuntimeConfig>();
   let resolved_path = resolve(
     &resolver,
-    &default_config.root,
+    &runtime_config.project_root,
     &referrer,
     &specifier,
     resolution_type.unwrap_or(ResolutionType::Import),
@@ -137,7 +128,7 @@ fn op_resolver_resolve(
   }
 }
 
-#[tracing::instrument(skip(state), level = "debug")]
+#[tracing::instrument(skip(state), level = "trace")]
 #[op2]
 #[string]
 fn op_resolver_read_file(

@@ -55,10 +55,7 @@ pub(super) async fn start_js_server(
   if options.transpile {
     builtin_modules.extend(vec![
       BuiltinModule::Sqlite,
-      BuiltinModule::Resolver(
-        options.root_dir.clone(),
-        resolver_config.clone(),
-      ),
+      BuiltinModule::Resolver(resolver_config.clone()),
       BuiltinModule::Babel,
       BuiltinModule::Transpiler,
       BuiltinModule::FileRouter,
@@ -86,10 +83,7 @@ pub(super) async fn start_js_server(
           .and_then(|j| j.resolve)
           .unwrap_or_default(),
       )),
-      Some(Rc::new(BabelTranspiler::new(
-        options.root_dir.clone(),
-        resolver_config,
-      ))),
+      Some(Rc::new(BabelTranspiler::new(resolver_config).await)),
     ))),
     permissions: PermissionsContainer {
       fs: Some(FileSystemPermissions::allow_all(options.root_dir)),
@@ -103,7 +97,7 @@ pub(super) async fn start_js_server(
     .execute_main_module_code(
       &Url::parse("file:///arena/app-server")?,
       main_module,
+      true,
     )
-    .await?;
-  runtime.run_event_loop().await
+    .await
 }

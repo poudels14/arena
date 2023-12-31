@@ -24,15 +24,16 @@ pub struct BabelTranspiler {
 
 impl BabelTranspiler {
   // TODO: pass in BUILD tools snapshot
-  pub fn new(root_dir: PathBuf, config: ResolverConfig) -> Self {
+  pub async fn new(config: ResolverConfig) -> Self {
     let (transpiler_stream, stream_rx) = mpsc::channel(15);
 
-    deno_unsync::spawn(async {
+    let (tx, rx) = oneshot::channel::<bool>();
+    deno_unsync::spawn(async move {
       let mut runtime = IsolatedRuntime::new(RuntimeOptions {
         enable_console: true,
         builtin_extensions: vec![
           BuiltinModule::Node(None),
-          BuiltinModule::Resolver(root_dir, config),
+          BuiltinModule::Resolver(config),
           BuiltinModule::Babel,
           BuiltinModule::HttpServer(HttpServerConfig::Stream(Rc::new(
             RefCell::new(stream_rx),
@@ -51,7 +52,7 @@ impl BabelTranspiler {
           r#"
           import { babel, presets } from "@arena/runtime/babel";
           import { serve } from "@arena/runtime/server";
-          await serve({
+          serve({
             async fetch(req) {
               const code = await req.text();
               const { code: transpiledCode } = babel.transform(code, {
@@ -68,15 +69,20 @@ impl BabelTranspiler {
             }
           });
           "#,
+          false,
         )
         .await
         .expect("Error running babel transpiler");
+
+      tx.send(true)
+        .expect("Error sending babel transpiler ready notif");
       runtime
         .run_event_loop()
         .await
         .expect("Error running babel transpiler");
     });
 
+    let _ = rx.await.expect("Failed to wait for babel transpiler");
     Self { transpiler_stream }
   }
 }

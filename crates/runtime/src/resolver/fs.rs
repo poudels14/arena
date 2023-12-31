@@ -11,7 +11,7 @@ use deno_core::{normalize_path, ModuleResolutionError, ModuleSpecifier};
 use indexmap::IndexSet;
 use indexmap::{indexset, IndexMap};
 use serde_json::Value;
-use tracing::{debug, error, instrument, Level};
+use tracing::{error, instrument, trace, Level};
 use url::{ParseError, Url};
 
 use super::{ResolutionType, Resolver};
@@ -84,7 +84,13 @@ impl Resolver for FilePathResolver {
         } else {
           Some(base.to_string())
         };
-        return self.resolve_npm_module(&specifier, maybe_referrer, resolution);
+        let resolved =
+          self.resolve_npm_module(&specifier, maybe_referrer, resolution);
+        tracing::trace!(
+          "resolved npm module: {:?}",
+          resolved.as_ref().map(|r| r.as_str())
+        );
+        return resolved;
       }
 
       // 3. Return the result of applying the URL parser to specifier with base
@@ -99,7 +105,7 @@ impl Resolver for FilePathResolver {
 
         resolve_as_file(&filepath)
           .or_else(|e| {
-            debug!("error loading as file: {:?}", e);
+            trace!("error loading as file: {:?}", e);
             let maybe_package = load_package_json_in_dir(&filepath).ok();
             resolve_as_directory(&filepath, &maybe_package)
           })
@@ -122,6 +128,7 @@ impl Resolver for FilePathResolver {
 }
 
 impl FilePathResolver {
+  #[tracing::instrument(skip(self), ret, level = "trace")]
   fn resolve_alias(&self, specifier: &str) -> String {
     let alias = &self.config.alias;
     for k in alias.keys() {
@@ -132,7 +139,6 @@ impl FilePathResolver {
             && &specifier[alias_len..alias_len + 1] == "/"))
       {
         let value = alias.get(k).unwrap();
-        debug!("matched alias: {}={}", k, value);
         return format!(
           "{}{}",
           if value.starts_with(".") {
@@ -200,7 +206,7 @@ impl FilePathResolver {
                   pathdiff::diff_paths::<&PathBuf, &PathBuf>(d, &root).unwrap()
                 })
                 .collect::<Vec<PathBuf>>();
-              debug!(
+              trace!(
                 "caching resolved node_modules directories: {:?}",
                 relative_dirs
               );
@@ -213,7 +219,7 @@ impl FilePathResolver {
         };
 
         for node_modules_dir in directories {
-          debug!("using node_module in: {}", &node_modules_dir.display());
+          trace!("using node_module in: {}", &node_modules_dir.display());
           let maybe_package = load_package_json_in_dir(
             &node_modules_dir.join(&parsed_specifier.package_name),
           )
@@ -241,18 +247,18 @@ impl FilePathResolver {
               &resolution,
             )
             .or_else(|e| {
-              debug!("error loading npm package export: {}", e);
+              trace!("error loading npm package export: {}", e);
               resolve_as_file(&node_modules_dir.join(specifier))
             })
             .or_else(|e| {
-              debug!("error loading as file: {}", e);
+              trace!("error loading as file: {}", e);
               resolve_as_directory(
                 &node_modules_dir.join(specifier),
                 &maybe_package,
               )
             })
             .or_else(|e| {
-              debug!("error loading as directory: {}", e);
+              trace!("error loading as directory: {}", e);
               self.resolve_from_imports(
                 &specifier,
                 maybe_package
@@ -359,6 +365,7 @@ impl FilePathResolver {
     bail!("package.json not available to load \"imports\" from");
   }
 
+  #[tracing::instrument(skip_all, level = "trace")]
   fn load_package_exports(
     &self,
     base_dir: &PathBuf,
@@ -368,15 +375,14 @@ impl FilePathResolver {
   ) -> Result<PathBuf> {
     // TODO(sagar): handle other exports type
     let resolved_path = normalize_path(base_dir.join(&package.name).join(
-      self.get_package_json_export(
+      self.get_matching_package_json_export(
         &package,
         &specifier.sub_path,
         resolution,
       )?,
     ));
 
-    debug!("resolved path: {:?}", resolved_path);
-
+    trace!("resolved path: {:?}", resolved_path);
     if resolved_path.exists() {
       return Ok(resolved_path);
     }
@@ -423,7 +429,7 @@ impl FilePathResolver {
   }
 
   #[tracing::instrument(skip(self, package), level = "trace")]
-  fn get_package_json_export(
+  fn get_matching_package_json_export(
     &self,
     package: &Package,
     specifier_subpath: &str,
@@ -477,6 +483,7 @@ fn parse_specifier(specifier: &str) -> ParsedSpecifier {
   }
 }
 
+#[tracing::instrument(skip(dir), level = "trace")]
 pub(crate) fn load_package_json_in_dir(dir: &Path) -> Result<Package> {
   let package_path = dir.join("package.json");
   if !package_path.exists() {
@@ -492,7 +499,7 @@ fn get_matching_export(
 ) -> Result<String> {
   if subpath_export.is_string() {
     let path = subpath_export.as_str().unwrap().to_string();
-    debug!(path, "using export");
+    trace!(path, "using export");
     return Ok(path);
   }
   let export = subpath_export.as_object().unwrap();
@@ -521,7 +528,7 @@ fn get_matching_export(
   );
 }
 
-#[tracing::instrument(level = "trace")]
+#[tracing::instrument(ret, level = "trace")]
 pub fn resolve_as_file(file: &PathBuf) -> Result<PathBuf> {
   if file.is_file() {
     return Ok(file.clone());
@@ -537,25 +544,23 @@ pub fn resolve_as_file(file: &PathBuf) -> Result<PathBuf> {
     };
     let file_with_extension = file.with_extension(&ext);
     if file_with_extension.exists() {
-      debug!("matched extension: {}", ext);
       return Ok(file_with_extension);
     }
   }
   bail!("file not found: {:?}", file);
 }
 
+#[tracing::instrument(level = "trace")]
 pub fn resolve_index(path: &PathBuf) -> Result<PathBuf> {
-  debug!("checking index file at: {:?}", path);
   resolve_as_file(&path.join("index"))
 }
 
 /// if the directory contains package.json, package arg is not None
+#[tracing::instrument(skip(maybe_package), level = "trace")]
 pub fn resolve_as_directory(
   path: &PathBuf,
   maybe_package: &Option<Package>,
 ) -> Result<PathBuf> {
-  debug!("resolve_as_directory path: {:?}", path);
-
   if let Some(package) = maybe_package.as_ref() {
     // Note(sagar): prioritize ESM module
     if let Some(module) = &package.module {
@@ -570,6 +575,5 @@ pub fn resolve_as_directory(
         .or_else(|_| resolve_index(&main_file));
     }
   };
-  debug!("package.json not found in {:?}", &path);
   resolve_index(&path)
 }

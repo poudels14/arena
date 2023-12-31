@@ -15,6 +15,7 @@ const NODE_INTERNALS = [
   "util",
   "os",
   "stream",
+  "module",
 ];
 
 const moduleCache = {};
@@ -109,3 +110,10 @@ function createRequire(referrer) {
 Object.assign(globalThis, {
   __internalCreateRequire: createRequire,
 });
+
+Arena.__nodeInternal = {
+  ...(Arena.__nodeInternal || {}),
+  module: {
+    createRequire,
+  },
+};

@@ -83,7 +83,7 @@ impl Command {
       .unwrap_or_default();
     if self.transpile {
       builtin_modules.extend(vec![
-        BuiltinModule::Resolver(project_root.clone(), resolver_config.clone()),
+        BuiltinModule::Resolver(resolver_config.clone()),
         BuiltinModule::Transpiler,
         BuiltinModule::Babel,
         BuiltinModule::Rollup,
@@ -114,10 +114,7 @@ impl Command {
             .and_then(|j| j.resolve)
             .unwrap_or_default(),
         )),
-        Some(Rc::new(BabelTranspiler::new(
-          project_root.clone(),
-          resolver_config,
-        ))),
+        Some(Rc::new(BabelTranspiler::new(resolver_config).await)),
       ))),
       builtin_extensions,
       permissions: PermissionsContainer {
@@ -140,9 +137,8 @@ impl Command {
           "#,
           entry_file
         ),
+        true,
       )
-      .await?;
-
-    runtime.run_event_loop().await
+      .await
   }
 }

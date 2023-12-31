@@ -20,8 +20,8 @@ use swc_ecma_visit::FoldWith;
 use swc_ecma_visit::VisitWith;
 
 use super::r#macro::js_dist;
-use super::resolver::DefaultResolverConfig;
 use crate::config::node::ResolverConfig;
+use crate::config::RuntimeConfig;
 use crate::extensions::BuiltinExtension;
 use crate::permissions::resolve_read_path;
 use crate::resolver::FilePathResolver;
@@ -90,14 +90,13 @@ fn op_transpiler_new(
   state: &mut OpState,
   #[serde] config: TranspilerConfig,
 ) -> Result<(ResourceId, String)> {
-  let build_config = state.borrow_mut::<DefaultResolverConfig>();
-
-  let resolver_config = build_config
-    .config
+  let resolver_config = state
+    .borrow_mut::<ResolverConfig>()
     .clone()
     .merge(config.resolver.clone().unwrap_or_default());
 
-  let root = build_config.root.clone();
+  let runtime_config = state.borrow_mut::<RuntimeConfig>();
+  let root = runtime_config.project_root.clone();
   let transpiler = Transpiler {
     root: root.clone(),
     config,

@@ -38,7 +38,7 @@ macro_rules! include_in_binary {
 }
 
 #[derive(Derivative)]
-#[derivative(Default)]
+#[derivative(Default, Debug)]
 pub struct RuntimeOptions {
   pub enable_console: bool,
 
@@ -51,10 +51,13 @@ pub struct RuntimeOptions {
   pub heap_limits: Option<(usize, usize)>,
 
   /// Additional extensions to add to the runtime
+  #[derivative(Debug = "ignore")]
   pub extensions: Vec<Extension>,
 
+  #[derivative(Debug = "ignore")]
   pub builtin_extensions: Vec<BuiltinExtension>,
 
+  #[derivative(Debug = "ignore")]
   pub module_loader: Option<Rc<dyn ModuleLoader>>,
 
   pub config: RuntimeConfig,
@@ -70,6 +73,7 @@ pub struct IsolatedRuntime {
 }
 
 impl IsolatedRuntime {
+  #[tracing::instrument(level = "debug")]
   pub fn new(mut options: RuntimeOptions) -> Result<IsolatedRuntime> {
     let permissions = options.permissions.clone();
     let runtime_config = options.config.clone();
@@ -205,6 +209,7 @@ impl IsolatedRuntime {
     &mut self,
     url: &Url,
     code: &str,
+    run_event_loop: bool,
   ) -> Result<()> {
     let mut runtime = self.runtime.borrow_mut();
     let mod_id = runtime
@@ -212,8 +217,11 @@ impl IsolatedRuntime {
       .await?;
     let receiver = runtime.mod_evaluate(mod_id);
 
-    runtime.run_event_loop(Default::default()).await?;
-    receiver.await
+    if run_event_loop {
+      runtime.run_event_loop(Default::default()).await?;
+      return receiver.await;
+    }
+    Ok(())
   }
 
   pub async fn run_event_loop(&mut self) -> Result<()> {

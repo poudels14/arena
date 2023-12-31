@@ -18,7 +18,6 @@ use deno_core::{Extension, JsRuntime, ModuleCode};
 use derivative::Derivative;
 use derive_new::new;
 use indexmap::IndexSet;
-use std::path::PathBuf;
 use std::rc::Rc;
 use tracing::debug;
 use url::Url;
@@ -66,7 +65,7 @@ pub enum BuiltinModule {
   Fs,
   Env,
   Node(Option<Vec<&'static str>>),
-  Resolver(PathBuf, ResolverConfig),
+  Resolver(ResolverConfig),
   Transpiler,
   Babel,
   Rollup,
@@ -89,7 +88,7 @@ impl BuiltinExtensionProvider for BuiltinModule {
       Self::Fs => self::fs::extension(),
       Self::Env => self::env::extension(),
       Self::Node(filter) => self::node::extension(filter.to_owned()),
-      Self::Resolver(root, config) => self::resolver::extension(root, config),
+      Self::Resolver(config) => self::resolver::extension(config),
       Self::Transpiler => self::transpiler::extension(),
       Self::Babel => self::babel::extension(),
       Self::Rollup => self::rollup::extension(),
@@ -119,7 +118,7 @@ impl BuiltinExtensions {
       BuiltinModule::Node(None),
       BuiltinModule::Postgres,
       BuiltinModule::Sqlite,
-      BuiltinModule::Resolver(PathBuf::default(), Default::default()),
+      BuiltinModule::Resolver(Default::default()),
       BuiltinModule::Transpiler,
       BuiltinModule::Babel,
       BuiltinModule::Rollup,

@@ -1,10 +1,11 @@
 mod crypto;
 mod digest;
 
-use deno_core::{op2, Extension, Op};
+use deno_core::{op2, Extension, Op, OpState};
 
 use super::r#macro::js_dist;
 use super::{BuiltinExtension, SourceCode};
+use crate::config::RuntimeConfig;
 
 /// Initialize a node BuiltinExtension
 /// If the `None` filter is passed, all node modules are included
@@ -55,6 +56,7 @@ pub fn init_ops() -> Extension {
     name: "arena/runtime/node",
     ops: vec![
       op_node_build_os::DECL,
+      op_node_process_args::DECL,
       crypto::op_node_create_hash::DECL,
       crypto::op_node_hash_update::DECL,
       crypto::op_node_hash_update_str::DECL,
@@ -72,4 +74,11 @@ pub fn init_ops() -> Extension {
 #[string]
 fn op_node_build_os() -> String {
   env!("TARGET").split('-').nth(2).unwrap().to_string()
+}
+
+#[op2]
+#[serde]
+fn op_node_process_args(state: &mut OpState) -> Vec<String> {
+  let config = state.borrow_mut::<RuntimeConfig>();
+  config.process_args.clone()
 }

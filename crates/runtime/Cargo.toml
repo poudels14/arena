@@ -31,7 +31,7 @@ tower = { version = "0.4.13" }
 tower-http = { version = "0.3.5", features = ["full"] }
 axum = "0.6.4"
 fastwebsockets = { version = "0.4.2", features = ["upgrade"] }
-tracing = "0.1.37"
+tracing = { version = "0.1.37", features = ["release_max_level_debug"] }
 futures = "0.3.25"
 bytes = "^1.4.0"
 once_cell = "1.17.1"
