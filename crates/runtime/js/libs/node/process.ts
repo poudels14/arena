@@ -23,6 +23,10 @@ const process = {
       console.log(...args);
     },
   },
+  stderr: {
+    isTTY: false,
+    fd: 2,
+  },
   hrtime: {
     bigint: () => {
       const milli = performance.now();
