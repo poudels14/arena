@@ -102,6 +102,12 @@ impl SwcTranspiler {
         .collect::<Vec<String>>()
         .join(", ");
 
+      // dont add default export if it's already there
+      let default_export = if !exports.iter().any(|e| e == "default") {
+        format!("export default named_exports_69;")
+      } else {
+        format!("")
+      };
       let module_dirname = module_path.parent().unwrap().to_str().unwrap();
       let module_url = Url::from_file_path(module_path).unwrap();
 
@@ -118,7 +124,7 @@ impl SwcTranspiler {
           "const named_exports_69 = require_module();",
           &format!("const {{ {exports_remap} }} = named_exports_69;"),
           &format!("export {{ {named_export} }};"),
-          "export default named_exports_69;",
+          &default_export,
           &transpiled_result
             .source_map
             .map(|sm| {

@@ -116,7 +116,7 @@ class Dirent {
         }
         return data;
       },
-      async readFile(path, encoding) {
+      async readFile(path, { encoding = "utf-8" }) {
         const data = await core.opAsync("op_fs_read_file_async", path);
         if (encoding) {
           const decoder = new TextDecoder(encoding);

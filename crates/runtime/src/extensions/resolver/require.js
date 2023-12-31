@@ -18,7 +18,7 @@ const NODE_INTERNALS = [
   "module",
 ];
 
-const moduleCache = {};
+const requireCache = {};
 const wrapper = [
   "(function (exports, require, module, __filename, __dirname) { (function _commonJs(exports, require, module, __filename, __dirname, global) {",
   "\n}).call(this, exports, require, module, __filename, __dirname, globalThis); })",
@@ -57,14 +57,14 @@ function createRequire(referrer) {
       }
     }
 
-    if (moduleCache[resolvedPath]) {
-      return moduleCache[resolvedPath].exports;
+    if (requireCache[resolvedPath]) {
+      return requireCache[resolvedPath].exports;
     }
 
     // Set the cache before loading the code such that if there's a circular
     // dependency, a reference to the module is returned before the module
     // is loaded. This prevents infinite loop
-    moduleCache[resolvedPath] = { exports: {} };
+    requireCache[resolvedPath] = { exports: {} };
 
     if (isNodeInternal) {
       moduleCode = `module.exports = Arena.__nodeInternal["${modulePath}"]`;
@@ -90,14 +90,15 @@ function createRequire(referrer) {
         path.dirname(resolvedPath)
       );
 
-      moduleCache[resolvedPath].exports = mod.exports;
-      return moduleCache[resolvedPath].exports;
+      requireCache[resolvedPath].exports = mod.exports;
+      return requireCache[resolvedPath].exports;
     }
     throw new Error('Error loading "' + args[0] + '"');
   }
 
   Object.assign(require, {
     resolve,
+    cache: requireCache,
   });
 
   return require;

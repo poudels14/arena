@@ -85,7 +85,7 @@ impl Resolver for FilePathResolver {
           Some(base.to_string())
         };
         let resolved =
-          self.resolve_npm_module(&specifier, maybe_referrer, resolution);
+          self.resolve_node_module(&specifier, maybe_referrer, resolution);
         tracing::trace!(
           "resolved npm module: {:?}",
           resolved.as_ref().map(|r| r.as_str())
@@ -106,7 +106,7 @@ impl Resolver for FilePathResolver {
         resolve_as_file(&filepath)
           .or_else(|_| {
             let maybe_package = load_package_json_in_dir(&filepath).ok();
-            resolve_as_directory(&filepath, &maybe_package)
+            resolve_as_directory(&filepath, &maybe_package, &resolution)
           })
           .and_then(|p| self.convert_to_url(p))
           .map_err(|_| InvalidPath(filepath))?
@@ -167,7 +167,7 @@ impl FilePathResolver {
   }
 
   #[tracing::instrument(skip_all, level = "trace")]
-  pub(crate) fn resolve_npm_module(
+  pub(crate) fn resolve_node_module(
     &self,
     specifier: &str,
     maybe_referrer: Option<String>,
@@ -219,45 +219,26 @@ impl FilePathResolver {
 
         for node_modules_dir in directories {
           trace!("using node_module in: {}", &node_modules_dir.display());
-          let maybe_package = load_package_json_in_dir(
-            &node_modules_dir.join(&parsed_specifier.package_name),
-          )
-          .ok();
 
-          if resolution == ResolutionType::Require {
-            if let Some(main) =
-              maybe_package.as_ref().and_then(|p| p.main.clone())
-            {
-              let main_path = node_modules_dir
-                .join(&parsed_specifier.package_name)
-                .join(&main);
-              return resolve_as_file(&main_path)
-                .or_else(|_| resolve_index(&main_path))
-                .and_then(|path| self.convert_to_url(path))
-                .map_err(|_| InvalidPath(node_modules_dir.join(main)));
-            }
-          }
-
+          let specifier_path = node_modules_dir.join(&specifier);
+          let maybe_package = load_package_json_in_dir(&specifier_path).ok();
           let resolved = self
-            .resolve_npm_package(
-              &node_modules_dir,
+            .resolve_node_package(
+              &specifier_path,
               &parsed_specifier,
               &maybe_package,
               &resolution,
             )
-            .or_else(|_| resolve_as_file(&node_modules_dir.join(specifier)))
+            .or_else(|_| resolve_as_file(&specifier_path))
             .or_else(|_| {
-              resolve_as_directory(
-                &node_modules_dir.join(specifier),
-                &maybe_package,
-              )
+              resolve_as_directory(&specifier_path, &maybe_package, &resolution)
             })
             .or_else(|_| {
               self.resolve_from_imports(
                 &specifier,
                 maybe_package
                   .as_ref()
-                  .map(|p| (p, node_modules_dir))
+                  .map(|p| (p, &specifier_path))
                   .or_else(|| {
                     cache.resolved_path_to_package_name.get(referrer).and_then(
                       |package_name| {
@@ -274,17 +255,23 @@ impl FilePathResolver {
             .and_then(|p| self.convert_to_url(p));
 
           if let Ok(resolved) = resolved {
-            if let Some(package) = maybe_package {
-              if !cache.packages.contains_key(&package.name) {
-                let used_node_modules_dir = node_modules_dir.clone();
+            if maybe_package.as_ref().is_some()
+              && maybe_package
+                .as_ref()
+                .and_then(|p| p.name.as_ref())
+                .is_some()
+            {
+              let package = maybe_package.unwrap();
+              let name = package.name.clone().unwrap();
+              if !cache.packages.contains_key(&name) {
                 cache.packages.insert(
-                  package.name.clone(),
-                  (package.clone(), used_node_modules_dir),
+                  name.clone(),
+                  (package.clone(), specifier_path.clone()),
                 );
               }
               cache
                 .resolved_path_to_package_name
-                .insert(resolved.as_str().to_owned(), package.name.clone());
+                .insert(resolved.as_str().to_owned(), name);
             } else {
               let referrer_package =
                 cache.resolved_path_to_package_name.get(referrer);
@@ -305,9 +292,20 @@ impl FilePathResolver {
     }
   }
 
-  fn resolve_npm_package(
+  #[tracing::instrument(skip_all, level = "trace")]
+  pub(crate) fn resolve_package_self(
     &self,
-    base_dir: &PathBuf,
+    _specifier: &str,
+    _maybe_referrer: Option<String>,
+    _resolution: ResolutionType,
+  ) -> Result<PathBuf> {
+    bail!("TODO")
+  }
+
+  #[tracing::instrument(skip(self, maybe_package), level = "trace")]
+  fn resolve_node_package(
+    &self,
+    package_dir: &PathBuf,
     specifier: &ParsedSpecifier,
     maybe_package: &Option<Package>,
     resolution: &ResolutionType,
@@ -315,11 +313,18 @@ impl FilePathResolver {
     let package: &Package =
       maybe_package.as_ref().ok_or(anyhow!("not a npm package"))?;
 
-    let package_export =
-      self.load_package_exports(base_dir, specifier, &package, resolution);
-
-    if package_export.is_ok() {
-      return package_export;
+    if *resolution == ResolutionType::Require {
+      return resolve_package_main(&package_dir, &package);
+    } else {
+      let package_export = self.resolve_package_exports(
+        package_dir,
+        specifier,
+        &package,
+        resolution,
+      );
+      if package_export.is_ok() {
+        return package_export;
+      }
     }
 
     // TODO(sagar): if package_json.module is present, use that
@@ -333,6 +338,7 @@ impl FilePathResolver {
   /// Some packages have "imports" field in package.json that maps
   /// specifier to the filename and the aliased specifier is used
   /// to import modules; this is used to load those "aliased" modules
+  #[tracing::instrument(skip(self, package), level = "trace")]
   fn resolve_from_imports(
     &self,
     specifier: &str,
@@ -346,9 +352,13 @@ impl FilePathResolver {
         .and_then(|conditional_imports| {
           get_matching_export(conditional_imports, &self.config.conditions).ok()
         })
-        .and_then(|alias| {
-          Some(normalize_path(base_dir.join(&package.name).join(alias)))
-        });
+        .and_then(|export| {
+          package
+            .name
+            .as_ref()
+            .map(|name| (base_dir.join(name).join(export)))
+        })
+        .and_then(|dir| Some(normalize_path(dir)));
 
       if let Some(resolved_path) = resolved_path {
         if resolved_path.exists() {
@@ -360,21 +370,20 @@ impl FilePathResolver {
   }
 
   #[tracing::instrument(skip_all, level = "trace")]
-  fn load_package_exports(
+  fn resolve_package_exports(
     &self,
-    base_dir: &PathBuf,
+    package_dir: &PathBuf,
     specifier: &ParsedSpecifier,
     package: &Package,
     resolution: &ResolutionType,
   ) -> Result<PathBuf> {
     // TODO(sagar): handle other exports type
-    let resolved_path = normalize_path(base_dir.join(&package.name).join(
-      self.get_matching_package_json_export(
+    let resolved_path =
+      normalize_path(package_dir.join(self.get_matching_package_json_export(
         &package,
         &specifier.sub_path,
         resolution,
-      )?,
-    ));
+      )?));
 
     trace!("resolved path: {:?}", resolved_path);
     if resolved_path.exists() {
@@ -477,7 +486,7 @@ fn parse_specifier(specifier: &str) -> ParsedSpecifier {
   }
 }
 
-#[tracing::instrument(skip(dir), level = "trace")]
+#[tracing::instrument(level = "trace")]
 pub(crate) fn load_package_json_in_dir(dir: &Path) -> Result<Package> {
   let package_path = dir.join("package.json");
   if !package_path.exists() {
@@ -487,6 +496,16 @@ pub(crate) fn load_package_json_in_dir(dir: &Path) -> Result<Package> {
   serde_json::from_str(std::str::from_utf8(&content)?).map_err(|e| anyhow!(e))
 }
 
+#[tracing::instrument(skip(package), level = "trace")]
+fn resolve_package_main(dir: &Path, package: &Package) -> Result<PathBuf> {
+  if let Some(main) = &package.main {
+    let main_path = dir.join(&main);
+    return resolve_as_file(&main_path).or_else(|_| resolve_index(&main_path));
+  }
+  bail!("package.json main doesn't exist")
+}
+
+#[tracing::instrument(level = "trace")]
 fn get_matching_export(
   subpath_export: &Value,
   conditions: &IndexSet<String>,
@@ -554,19 +573,26 @@ pub fn resolve_index(path: &PathBuf) -> Result<PathBuf> {
 pub fn resolve_as_directory(
   path: &PathBuf,
   maybe_package: &Option<Package>,
+  resolution: &ResolutionType,
 ) -> Result<PathBuf> {
   if let Some(package) = maybe_package.as_ref() {
-    // Note(sagar): prioritize ESM module
-    if let Some(module) = &package.module {
-      let module_file = path.join(module);
-      return resolve_as_file(&module_file)
-        .or_else(|_| resolve_index(&module_file));
-    }
+    if *resolution == ResolutionType::Require {
+      if let Ok(module) = resolve_package_main(&path, &package) {
+        return Ok(module);
+      }
+    } else {
+      // Note(sagar): prioritize ESM module
+      if let Some(module) = &package.module {
+        let module_file = path.join(module);
+        return resolve_as_file(&module_file)
+          .or_else(|_| resolve_index(&module_file));
+      }
 
-    if let Some(main) = &package.main {
-      let main_file = path.join(main);
-      return resolve_as_file(&main_file)
-        .or_else(|_| resolve_index(&main_file));
+      if let Some(main) = &package.main {
+        let main_file = path.join(main);
+        return resolve_as_file(&main_file)
+          .or_else(|_| resolve_index(&main_file));
+      }
     }
   };
   resolve_index(&path)

@@ -62,7 +62,7 @@ impl ArenaConfig {
     let config = package
       .arena
       .map(|mut a| {
-        a.name = package.name;
+        a.name = package.name.expect("\"name\" missing from package.json");
         a.version = package.version.unwrap_or_default();
         // merge top level env with client/server env
         if let Some(env) = a.env.as_ref() {

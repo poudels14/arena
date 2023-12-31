@@ -5,7 +5,8 @@ use serde_json::Value;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Package {
-  pub name: String,
+  /// Turns out some package.json inside main package will have missing name
+  pub name: Option<String>,
 
   #[serde(skip_serializing_if = "Option::is_none")]
   pub version: Option<String>,
