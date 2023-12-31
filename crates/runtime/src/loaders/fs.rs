@@ -10,6 +10,7 @@ use deno_core::{
   ModuleType, ResolutionKind,
 };
 use futures::future::FutureExt;
+use tracing::warn;
 
 use crate::buildtools::transpiler::SwcTranspiler;
 use crate::resolver::ModuleResolver;
@@ -121,19 +122,22 @@ impl ModuleLoader for FileModuleLoader {
               convert_cjs_to_esm,
             )?;
           }
-          match needs_transpilation {
-            true => match transpiler.clone() {
-              Some(transpiler) => {
-                let fut = transpiler.transpile(&path, &code);
-                tokio::pin!(fut);
-                fut.await?
+          match transpiler.clone() {
+            Some(transpiler) if needs_transpilation == true => {
+              let fut = transpiler.transpile(&path, &code);
+              tokio::pin!(fut);
+              fut.await?
+            }
+
+            _ => {
+              if needs_transpilation {
+                warn!(
+                  "Module {} might need transpilation but transpiler not set",
+                  module_specifier.as_str()
+                )
               }
-              None => bail!(
-                "Module {} needs to be transpiled but transpiler not set",
-                module_specifier.as_str()
-              ),
-            },
-            _ => code.into(),
+              code.into()
+            }
           }
         }
       };

@@ -3,6 +3,7 @@ use std::rc::Rc;
 use anyhow::Result;
 use clap::Parser;
 use cloud::CloudExtensionProvider;
+use runtime::buildtools::transpiler::ModuleTranspiler;
 use runtime::buildtools::{
   transpiler::BabelTranspiler, FileModuleLoader, FilePathResolver,
 };
@@ -43,13 +44,6 @@ impl Command {
   pub async fn execute(&self) -> Result<()> {
     let project_root = ArenaConfig::find_project_root()?;
     let arena_config = ArenaConfig::load(&project_root).unwrap_or_default();
-    let mut builtin_modules = vec![
-      BuiltinModule::Fs,
-      BuiltinModule::Node(None),
-      BuiltinModule::Env,
-      BuiltinModule::Postgres,
-      BuiltinModule::Sqlite,
-    ];
 
     let resolver_config = arena_config
       .server
@@ -57,13 +51,19 @@ impl Command {
       .as_ref()
       .and_then(|js| js.resolve.clone())
       .unwrap_or_default();
+    let mut builtin_modules = vec![
+      BuiltinModule::Fs,
+      BuiltinModule::Node(None),
+      BuiltinModule::Env,
+      BuiltinModule::Postgres,
+      BuiltinModule::Sqlite,
+      // enable resolver/transpiler by default since this is dev env
+      BuiltinModule::Resolver(resolver_config.clone()),
+      BuiltinModule::Transpiler,
+    ];
+
     if self.enable_build_tools {
-      builtin_modules.extend(vec![
-        BuiltinModule::Resolver(resolver_config.clone()),
-        BuiltinModule::Transpiler,
-        BuiltinModule::Babel,
-        BuiltinModule::Rollup,
-      ])
+      builtin_modules.extend(vec![BuiltinModule::Babel, BuiltinModule::Rollup])
     }
 
     if self.enable_cloud_ext {
@@ -72,6 +72,12 @@ impl Command {
       ));
       builtin_modules.push(cloud_ext.clone());
     }
+    let transpiler: Option<Rc<dyn ModuleTranspiler>> =
+      if self.enable_build_tools {
+        Some(Rc::new(BabelTranspiler::new(resolver_config).await))
+      } else {
+        None
+      };
 
     let egress_addr = self
       .egress_addr
@@ -100,7 +106,7 @@ impl Command {
             .and_then(|j| j.resolve)
             .unwrap_or_default(),
         )),
-        Some(Rc::new(BabelTranspiler::new(resolver_config).await)),
+        transpiler,
       ))),
       builtin_extensions: builtin_modules
         .iter()
