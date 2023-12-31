@@ -10,7 +10,7 @@ use runtime::config::{ArenaConfig, RuntimeConfig};
 use runtime::deno::core::resolve_url_or_path;
 use runtime::extensions::{BuiltinExtensionProvider, BuiltinModule};
 use runtime::permissions::{
-  FileSystemPermissions, NetPermissions, PermissionsContainer,
+  FileSystemPermissions, NetPermissions, PermissionsContainer, TimerPermissions,
 };
 use runtime::{IsolatedRuntime, RuntimeOptions};
 
@@ -109,7 +109,7 @@ impl Command {
       permissions: PermissionsContainer {
         fs: Some(FileSystemPermissions::allow_all("/".into())),
         net: Some(NetPermissions::allow_all()),
-        ..Default::default()
+        timer: Some(TimerPermissions::allow_hrtime()),
       },
       ..Default::default()
     })?;

@@ -12,7 +12,7 @@ use runtime::extensions::{
   BuiltinExtension, BuiltinExtensionProvider, BuiltinModule,
 };
 use runtime::permissions::{
-  FileSystemPermissions, NetPermissions, PermissionsContainer,
+  FileSystemPermissions, NetPermissions, PermissionsContainer, TimerPermissions,
 };
 use runtime::{IsolatedRuntime, RuntimeOptions};
 use url::Url;
@@ -88,7 +88,7 @@ pub(super) async fn start_js_server(
     permissions: PermissionsContainer {
       fs: Some(FileSystemPermissions::allow_all(options.root_dir)),
       net: Some(NetPermissions::allow_all()),
-      ..Default::default()
+      timer: Some(TimerPermissions::allow_hrtime()),
     },
     ..Default::default()
   })?;

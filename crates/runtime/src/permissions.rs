@@ -48,6 +48,12 @@ pub struct TimerPermissions {
   pub allow_hrtime: bool,
 }
 
+impl TimerPermissions {
+  pub fn allow_hrtime() -> Self {
+    Self { allow_hrtime: true }
+  }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct NetPermissions {
