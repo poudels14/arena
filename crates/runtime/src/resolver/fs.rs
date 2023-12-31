@@ -104,8 +104,7 @@ impl Resolver for FilePathResolver {
           .map_err(|_| InvalidBaseUrl(ParseError::RelativeUrlWithoutBase))?;
 
         resolve_as_file(&filepath)
-          .or_else(|e| {
-            trace!("error loading as file: {:?}", e);
+          .or_else(|_| {
             let maybe_package = load_package_json_in_dir(&filepath).ok();
             resolve_as_directory(&filepath, &maybe_package)
           })
@@ -246,19 +245,14 @@ impl FilePathResolver {
               &maybe_package,
               &resolution,
             )
-            .or_else(|e| {
-              trace!("error loading npm package export: {}", e);
-              resolve_as_file(&node_modules_dir.join(specifier))
-            })
-            .or_else(|e| {
-              trace!("error loading as file: {}", e);
+            .or_else(|_| resolve_as_file(&node_modules_dir.join(specifier)))
+            .or_else(|_| {
               resolve_as_directory(
                 &node_modules_dir.join(specifier),
                 &maybe_package,
               )
             })
-            .or_else(|e| {
-              trace!("error loading as directory: {}", e);
+            .or_else(|_| {
               self.resolve_from_imports(
                 &specifier,
                 maybe_package
