@@ -2196,6 +2196,7 @@ dependencies = [
  "async-trait",
  "axum",
  "base64 0.20.0",
+ "bitflags 2.4.1",
  "bytes",
  "chrono",
  "deno_ast",

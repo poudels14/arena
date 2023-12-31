@@ -98,6 +98,7 @@ fn op_resolver_new(
 
 /// Returns the resolved path relative to the project root and not
 /// the referrer
+#[tracing::instrument(skip(state, rid), level = "trace")]
 #[op2]
 #[string]
 fn op_resolver_resolve(

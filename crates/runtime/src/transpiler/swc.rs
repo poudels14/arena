@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 use anyhow::{anyhow, Result};
 use deno_ast::{EmitOptions, MediaType, ParseParams, SourceTextInfo};
+use swc_ecma_ast::Program;
 use swc_ecma_visit::VisitWith;
 use url::Url;
 
@@ -39,7 +40,16 @@ impl SwcTranspiler {
         scope_analysis: false,
         maybe_syntax: None,
       },
-      |program| {
+      |mut program| {
+        // Remove shebang!
+        match &mut program {
+          Program::Module(module) => {
+            module.shebang = None;
+          }
+          Program::Script(script) => {
+            script.shebang = None;
+          }
+        }
         program.visit_children_with(&mut jsx_analyzer);
         program
       },

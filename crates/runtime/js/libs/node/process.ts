@@ -24,7 +24,12 @@ const process = {
     },
   },
   hrtime: {
-    bigint: () => BigInt(performance.now()),
+    bigint: () => {
+      const milli = performance.now();
+      const sec = Math.floor(milli / 1000);
+      const nano = Math.floor(milli * 1_000_000 - sec * 1_000_000_000);
+      return BigInt(sec) * 1_000_000_000n + BigInt(nano);
+    },
   },
   on,
   memoryUsage,

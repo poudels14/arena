@@ -1,20 +1,57 @@
-"use strict";
-((global) => {
-  class FileHandle {
-    #fd;
+class FileHandle {
+  #fd;
 
-    constructor(fd) {
-      this.#fd = fd;
-    }
+  constructor(fd) {
+    this.#fd = fd;
+  }
+}
+
+class Dirent {
+  #entry;
+  constructor(entry) {
+    this.#entry = entry;
+    this.name = entry.name;
+    this.isDirectory = () => {
+      return this.#entry.isDirectory;
+    };
+    this.isFile = () => {
+      return this.#entry.isFile;
+    };
+    this.isSymbolicLink = () => {
+      return this.#entry.isSymlink;
+    };
   }
 
+  isBlockDevice() {
+    return false;
+  }
+
+  isCharacterDevice() {
+    return false;
+  }
+
+  isFIFO() {
+    return false;
+  }
+
+  isSocket() {
+    return false;
+  }
+}
+
+("use strict");
+((global) => {
   const { core } = Arena;
   Object.assign(global.Arena, {
     fs: {
       cwdSync: (...args) => core.ops.op_fs_cwd_sync(...args),
+      accessSync(path, mode) {
+        // throws error if no access
+        // since op returns null, return undefined here
+        return core.ops.op_fs_access_sync(path, mode || 0) || undefined;
+      },
       statSync: (file) => {
         const stat = core.ops.op_fs_stat_sync(file);
-        const { isFile } = stat;
         return Object.assign(stat, {
           atime: new Date(stat.atimeMs),
           mtime: new Date(stat.mtimeMs),
@@ -24,13 +61,15 @@
             return stat.isSymlink;
           },
           isFile() {
-            return isFile;
+            return stat.isFile;
+          },
+          isDirectory() {
+            return stat.isDirectory;
           },
         });
       },
       lstatSync: (file) => {
         const stat = core.ops.op_fs_lstat_sync(file);
-        const { isFile } = stat;
         return Object.assign(stat, {
           atime: new Date(stat.atimeMs),
           mtime: new Date(stat.mtimeMs),
@@ -40,7 +79,10 @@
             return stat.isSymlink;
           },
           isFile() {
-            return isFile;
+            return stat.isFile;
+          },
+          isDirectory() {
+            return stat.isDirectory;
           },
         });
       },
@@ -52,7 +94,16 @@
       closeSync(handle) {
         core.ops.op_fs_close_sync(handle.fd);
       },
-      readdirSync: (...args) => core.ops.op_fs_readdir_sync(...args),
+      readdirSync: (path, options) => {
+        const dirs = core.ops.op_fs_readdir_sync(path);
+        if (options.encoding == "buffer") {
+          return dirs.map((dir) => Buffer.from(dir.name));
+        } else if (options.withFileTypes) {
+          return dirs.map((entry) => new Dirent(entry));
+        } else {
+          return dirs.map((dir) => dir.name);
+        }
+      },
       existsSync: (...args) => core.ops.op_fs_file_exists_sync(...args),
       mkdirSync(dir, options = {}) {
         return core.ops.op_fs_mkdir_sync(dir, options.recursive || false);

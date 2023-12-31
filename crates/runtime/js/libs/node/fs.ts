@@ -1,8 +1,17 @@
 import * as promises from "./fs_promises";
 
-const readFileSync = (...args: [any]) => Arena.fs.readFileSync(...args);
-const writeFileSync = (...args: [any]) => Arena.fs.writeFileSync(...args);
-const statSync = (...args: [any]) => Arena.fs.statSync(...args);
+const callFs =
+  (name) =>
+  (...args) =>
+    Arena.fs[name](...args);
+
+const readFileSync = callFs("readFileSync");
+const writeFileSync = callFs("writeFileSync");
+const statSync = callFs("statSync");
+const existsSync = callFs("existsSync");
+const accessSync = callFs("accessSync");
+const lstatSync = callFs("lstatSync");
+const readdirSync = callFs("readdirSync");
 
 // Note: the function signature should match with nodejs's  such that
 // util.promisify works
@@ -28,12 +37,13 @@ const readFile = nodeJsCompatFunction("readFileSync");
 const writeFile = nodeJsCompatFunction("writeFileSync");
 
 const fs = {
+  existsSync,
+  accessSync,
   readFileSync,
   writeFileSync,
-  existsSync(...args) {
-    return Arena.fs.existsSync(...args);
-  },
   statSync,
+  lstatSync,
+  readdirSync,
   promises,
   readdir,
   lstat,
@@ -50,6 +60,14 @@ Arena.__nodeInternal = {
   fs,
 };
 
-export { readFileSync, writeFileSync, statSync };
+export {
+  existsSync,
+  accessSync,
+  readFileSync,
+  writeFileSync,
+  statSync,
+  lstatSync,
+  readdirSync,
+};
 export default fs;
 export { promises };
