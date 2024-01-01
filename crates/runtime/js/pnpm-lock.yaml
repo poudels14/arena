@@ -43,6 +43,9 @@ dependencies:
   file-uri-to-path:
     specifier: ^2.0.0
     version: 2.0.0
+  file-url:
+    specifier: ^4.0.0
+    version: 4.0.0
   lodash-es:
     specifier: ^4.17.21
     version: 4.17.21
@@ -52,6 +55,9 @@ dependencies:
   mime:
     specifier: ^3.0.0
     version: 3.0.0
+  parseurl:
+    specifier: ^1.3.3
+    version: 1.3.3
   path:
     specifier: ^0.12.7
     version: 0.12.7
@@ -1038,6 +1044,11 @@ packages:
     engines: {node: '>= 6'}
     dev: false
 
+  /file-url@4.0.0:
+    resolution: {integrity: sha512-vRCdScQ6j3Ku6Kd7W1kZk9c++5SqD6Xz5Jotrjr/nkY714M14RFHy/AAVA2WQvpsqVAVgTbDrYyBpU205F0cLw==}
+    engines: {node: '>=12'}
+    dev: false
+
   /for-each@0.3.3:
     resolution: {integrity: sha512-jqYfLp7mo9vIyQf8ykW2v7A+2N4QjeCeI5+Dz9XraiO1ign81wjiH7Fb9vSOWvQfNtmSa4H2RoQTrrXivdUZmw==}
     dependencies:
@@ -1382,6 +1393,11 @@ packages:
     engines: {node: '>=8'}
     dependencies:
       p-finally: 1.0.0
+    dev: false
+
+  /parseurl@1.3.3:
+    resolution: {integrity: sha512-CiyeOxFT/JZyN5m0z9PfXw4SCBJ6Sygz1Dpl0wqjlhDEGGBP1GnsUVEL0p63hoG1fcj3fHynXi9NYO4nWOL+qQ==}
+    engines: {node: '>= 0.8'}
     dev: false
 
   /path-parse@1.0.7:

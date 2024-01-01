@@ -8,6 +8,7 @@ const resolver = new Resolver({
 
 const NODE_INTERNALS = [
   "fs",
+  "constants",
   "path",
   "crypto",
   "tty",
@@ -43,8 +44,12 @@ function createRequire(referrer) {
     let resolvedPath;
     let moduleCode;
 
-    let isNodeInternal = NODE_INTERNALS.indexOf(modulePath) >= 0;
+    // check if it's internal path
+    // strip "node:" prefix if there's any
+    let isNodeInternal =
+      NODE_INTERNALS.indexOf(modulePath.replace(/^node:/, "")) >= 0;
     if (isNodeInternal) {
+      modulePath = modulePath.replace(/^node:/, "");
       resolvedPath = "node/" + modulePath;
     } else {
       // If error resolving, return undefined

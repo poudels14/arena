@@ -1,6 +1,7 @@
 import { AbortSignal, AbortController } from "ext:deno_web/03_abort_signal.js";
 import { performance, setTimeOrigin } from "ext:deno_web/15_performance.js";
 import {
+  setTimeoutUnclamped,
   setTimeout,
   clearTimeout,
   setInterval,
@@ -51,12 +52,17 @@ function promiseRejectCallback(type, promise, reason) {
   event.setEventTargetData(globalThis);
   event.saveGlobalThisReference(globalThis);
 
+  function setImmediate(cb, ...args) {
+    return setTimeoutUnclamped(cb, 0, ...args);
+  }
+
   Object.assign(globalThis, {
     __bootstrap: {
       ...globalThis.__bootstrap,
       handleTimerMacrotask,
       Console,
     },
+    setImmediate,
     setTimeout,
     clearTimeout,
     setInterval,

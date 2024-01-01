@@ -32,6 +32,7 @@ pub struct ModuleResolver {
 }
 
 impl Resolver for ModuleResolver {
+  #[tracing::instrument(skip(self), level = "trace")]
   fn resolve(
     &self,
     specifier: &str,

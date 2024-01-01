@@ -9,13 +9,6 @@ const osType = () => ops.op_node_build_os() as OSType;
 const isWindows = () => osType() === "windows";
 const isLinux = () => osType() === "linux";
 const cpus = () => [];
+const homedir = () => process.cwd();
 
-const os = { platform, osType, type: osType, isLinux, isWindows, cpus };
-
-Arena.__nodeInternal = {
-  ...(Arena.__nodeInternal || {}),
-  os,
-};
-
-export default os;
-export { platform, osType, osType as type, isWindows, isLinux, cpus };
+export { platform, osType, osType as type, isWindows, isLinux, cpus, homedir };

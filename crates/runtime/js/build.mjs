@@ -55,6 +55,19 @@ const stdinBuild = async (options) => {
   );
 };
 
+const createNodejsModule = (name) => {
+  const path = `./libs/node/${name}.js`;
+  return `
+  import * as ${name} from '${path}';
+  Arena.__nodeInternal = {
+    ...(Arena.__nodeInternal || {}),
+    ${name},
+  };
+  export default ${name};
+  export * from '${path}';
+  `;
+};
+
 program
   .option("--minify")
   .option("--dev")
@@ -69,19 +82,28 @@ program
         ...options,
         minify: false,
         entryPoints: {
-          assert: "libs/node/assert.ts",
           events: "libs/node/events.ts",
-          fs: "libs/node/fs.ts",
-          "fs/promises": "libs/node/fs_promises.ts",
-          url: "libs/node/url.ts",
-          path: "libs/node/path.ts",
           perf_hooks: "libs/node/perf_hooks.ts",
           process: "libs/node/process.ts",
           tty: "libs/node/tty.ts",
-          util: "libs/node/util.ts",
           buffer: "libs/node/buffer.ts",
-          os: "./libs/node/os.ts",
-          stream: "./libs/node/stream.ts",
+        },
+        outdir: "dist/node",
+      }),
+      stdinBuild({
+        ...options,
+        minify: false,
+        entryPoints: {
+          "path.js": createNodejsModule("path"),
+          "assert.js": createNodejsModule("assert"),
+          "constants.js": createNodejsModule("constants"),
+          "fs.js": createNodejsModule("fs"),
+          "fs/promises.js": createNodejsModule("fs_promises"),
+          "url.js": createNodejsModule("url"),
+          "os.js": createNodejsModule("os"),
+          "stream.js": createNodejsModule("stream"),
+          "util.js": createNodejsModule("util"),
+          "stream.js": createNodejsModule("stream"),
         },
         outdir: "dist/node",
       }),

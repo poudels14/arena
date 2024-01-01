@@ -440,22 +440,14 @@ impl FilePathResolver {
   ) -> Result<String> {
     match package.exports.as_ref() {
       Some(exports) => {
-        if let Some(export) = exports.as_str() {
-          return Ok(export.to_string());
-        }
-        // Exports are selected based on this doc:
-        // https://webpack.js.org/guides/package-exports/
-        if let Some(subpath_export) = exports.get(specifier_subpath) {
-          return match resolution {
-            ResolutionType::Require => get_matching_export(
-              subpath_export,
-              &indexset! {"require".to_owned()},
-            ),
-            _ => get_matching_export(subpath_export, &self.config.conditions),
-          };
-        }
-
-        bail!("not implemented")
+        // If there's a export for subpath use it, else use top level export
+        let exports = exports.get(specifier_subpath).unwrap_or(exports);
+        return match resolution {
+          ResolutionType::Require => {
+            get_matching_export(exports, &indexset! {"require".to_owned()})
+          }
+          _ => get_matching_export(exports, &self.config.conditions),
+        };
       }
       None => bail!("exports field missing in package.json"),
     }
@@ -506,6 +498,8 @@ fn resolve_package_main(dir: &Path, package: &Package) -> Result<PathBuf> {
 }
 
 #[tracing::instrument(level = "trace")]
+/// Exports are selected based on this doc:
+/// https://webpack.js.org/guides/package-exports/
 fn get_matching_export(
   subpath_export: &Value,
   conditions: &IndexSet<String>,
@@ -514,31 +508,39 @@ fn get_matching_export(
     let path = subpath_export.as_str().unwrap().to_string();
     trace!(path, "using export");
     return Ok(path);
-  }
-  let export = subpath_export.as_object().unwrap();
-  for (condition, value) in export.iter() {
-    if conditions.contains(condition)
+  } else if let Some(exports) = subpath_export.as_array() {
+    // Turns out exports can be of shape: [{key:value}, string]; LOL
+    for export in exports {
+      if let Ok(result) = get_matching_export(export, conditions) {
+        return Ok(result);
+      }
+    }
+  } else if let Some(exports) = subpath_export.as_object() {
+    for (condition, value) in exports.iter() {
+      if conditions.contains(condition)
       || condition.eq("import")
       // Note(sp): if explicit conditions isn't passed, use default conditions
       // that uses node modules
       || (conditions.is_empty()
         && DEFAULT_EXPORT_CONDITIONS.contains(&condition.as_str()))
-    {
-      let span = tracing::span!(Level::DEBUG, "get_matching_export", condition);
-      let _enter = span.enter();
-      if let Ok(result) = get_matching_export(value, conditions) {
-        return Ok(result);
+      {
+        let span =
+          tracing::span!(Level::TRACE, "get_matching_export", condition);
+        let _enter = span.enter();
+        if let Ok(result) = get_matching_export(value, conditions) {
+          return Ok(result);
+        }
       }
     }
+    // Note(sagar): always try default export
+    return get_matching_export(
+      exports
+        .get("default")
+        .ok_or(anyhow!("no matching condition found"))?,
+      conditions,
+    );
   }
-
-  // Note(sagar): always try default export
-  return get_matching_export(
-    export
-      .get("default")
-      .ok_or(anyhow!("no matching condition found"))?,
-    conditions,
-  );
+  bail!("No matching export found");
 }
 
 #[tracing::instrument(ret, level = "trace")]

@@ -52,6 +52,7 @@ deno_core::extension!(
     op_fs_read_file_async,
     op_fs_read_file_string_async,
     op_fs_write_file_sync,
+    op_fs_write_stdout_str
   ],
   js = [dir "src/extensions/fs", "fs.js"]
 );
@@ -84,10 +85,20 @@ fn op_fs_access_sync(
   let flag = Flag::from_bits(flag).unwrap_or(Flag::F_OK);
   match flag {
     Flag::F_OK | Flag::R_OK => {
-      permissions::resolve_read_path(state, &Path::new(&path)).map(|_| ())
+      let path = permissions::resolve_read_path(state, &Path::new(&path))?;
+      if !path.exists() {
+        bail!("access denied");
+      } else {
+        Ok(())
+      }
     }
     Flag::W_OK => {
-      permissions::resolve_write_path(state, &Path::new(&path)).map(|_| ())
+      let path = permissions::resolve_write_path(state, &Path::new(&path))?;
+      if !path.exists() {
+        bail!("access denied");
+      } else {
+        Ok(())
+      }
     }
     // Can't execute any file
     Flag::X_OK | _ => {
@@ -132,9 +143,9 @@ fn to_stat_json(m: Metadata) -> Result<Value> {
     "size": m.size(),
     "blksize": m.blksize(),
     "blocks": m.blocks(),
-    "atimeMs": m.atime_nsec() / 1000,
-    "mtimeMs":  m.mtime_nsec() / 1000,
-    "ctimeMs": m.ctime_nsec() / 1000,
+    "atimeMs": m.atime() * 1000 + m.atime_nsec() / 1000,
+    "mtimeMs": m.mtime() * 1000 +  m.mtime_nsec() / 1000,
+    "ctimeMs":m.ctime() * 1000 +  m.ctime_nsec() / 1000,
     "birthtimeMs": m.created()?
       .duration_since(SystemTime::UNIX_EPOCH)?
       .as_millis(),
@@ -280,4 +291,14 @@ fn op_fs_write_file_sync(
     permissions::resolve_write_path(state, &Path::new(&path))?;
   let mut file = std::fs::File::create(resolved_path)?;
   file.write_all(data.as_ref()).map_err(|e| anyhow!("{}", e))
+}
+
+#[tracing::instrument(skip_all, ret, level = "trace")]
+#[op2(fast)]
+#[string]
+fn op_fs_write_stdout_str(#[string] data: &str) -> Result<()> {
+  let stdout = std::io::stdout();
+  let mut handle = stdout.lock();
+  handle.write(data.as_bytes())?;
+  Ok(())
 }

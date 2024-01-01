@@ -1,15 +1,14 @@
 import fileURLToPath from "file-uri-to-path";
-import { parse } from "url-parse";
+import fileUrl from "file-url";
+import parseurl from "parseurl";
 
-const url = {
-  fileURLToPath,
-  parse,
+const pathToFileURL = (path) => {
+  const url = fileUrl(path);
+  return new URL(url);
 };
 
-Arena.__nodeInternal = {
-  ...(Arena.__nodeInternal || {}),
-  url,
+const parse = (url) => {
+  return parseurl({ url });
 };
 
-export default url;
-export { fileURLToPath, parse };
+export { fileURLToPath, pathToFileURL, parse };

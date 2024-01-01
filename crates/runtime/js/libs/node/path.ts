@@ -1,11 +1,3 @@
-import { default as path } from "path";
-
-Arena.__nodeInternal = {
-  ...(Arena.__nodeInternal || {}),
-  path,
-};
-
-export default path;
 export {
   basename,
   extname,
@@ -13,6 +5,7 @@ export {
   relative,
   isAbsolute,
   join,
+  normalize,
   resolve,
   posix,
   win32,

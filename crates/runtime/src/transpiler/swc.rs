@@ -27,7 +27,6 @@ impl SwcTranspiler {
     module_path: &Path,
     media_type: &MediaType,
     code: &str,
-    convert_cjs_to_esm: bool,
   ) -> Result<String> {
     let mut jsx_analyzer = JsxAnalyzer::new();
     let module_filename = module_path.to_str().unwrap();
@@ -62,10 +61,6 @@ impl SwcTranspiler {
       transform_jsx: jsx_analyzer.is_react,
       ..Default::default()
     })?;
-
-    if !convert_cjs_to_esm {
-      return Ok(transpiled_result.text);
-    }
 
     let transpiled_code = transpiled_result.text;
     if parsed.is_script() {

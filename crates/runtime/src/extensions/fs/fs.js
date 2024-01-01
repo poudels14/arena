@@ -6,6 +6,39 @@ class FileHandle {
   }
 }
 
+class Stat {
+  #stat;
+  constructor(stat) {
+    this.#stat = stat;
+    Object.assign(this, stat);
+    this.atime = new Date(stat.atimeMs);
+    this.mtime = new Date(stat.mtimeMs);
+    this.ctime = new Date(stat.ctimeMs);
+    this.birthtime = new Date(stat.birthtimeMs);
+    this.isDirectory = () => {
+      return this.#stat.isDirectory;
+    };
+    this.isFile = () => {
+      return this.#stat.isFile;
+    };
+    this.isSymbolicLink = () => {
+      return this.#stat.isSymlink;
+    };
+    this.isBlockDevice = () => {
+      return false;
+    };
+    this.isCharacterDevice = () => {
+      return false;
+    };
+    this.isFIFO = () => {
+      return false;
+    };
+    this.isSocket = () => {
+      return false;
+    };
+  }
+}
+
 class Dirent {
   #entry;
   constructor(entry) {
@@ -20,22 +53,18 @@ class Dirent {
     this.isSymbolicLink = () => {
       return this.#entry.isSymlink;
     };
-  }
-
-  isBlockDevice() {
-    return false;
-  }
-
-  isCharacterDevice() {
-    return false;
-  }
-
-  isFIFO() {
-    return false;
-  }
-
-  isSocket() {
-    return false;
+    this.isBlockDevice = () => {
+      return false;
+    };
+    this.isCharacterDevice = () => {
+      return false;
+    };
+    this.isFIFO = () => {
+      return false;
+    };
+    this.isSocket = () => {
+      return false;
+    };
   }
 }
 
@@ -52,39 +81,11 @@ class Dirent {
       },
       statSync: (file) => {
         const stat = core.ops.op_fs_stat_sync(file);
-        return Object.assign(stat, {
-          atime: new Date(stat.atimeMs),
-          mtime: new Date(stat.mtimeMs),
-          ctime: new Date(stat.ctimeMs),
-          birthtime: new Date(stat.birthtimeMs),
-          isSymbolicLink() {
-            return stat.isSymlink;
-          },
-          isFile() {
-            return stat.isFile;
-          },
-          isDirectory() {
-            return stat.isDirectory;
-          },
-        });
+        return new Stat(stat);
       },
       lstatSync: (file) => {
         const stat = core.ops.op_fs_lstat_sync(file);
-        return Object.assign(stat, {
-          atime: new Date(stat.atimeMs),
-          mtime: new Date(stat.mtimeMs),
-          ctime: new Date(stat.ctimeMs),
-          birthtime: new Date(stat.birthtimeMs),
-          isSymbolicLink() {
-            return stat.isSymlink;
-          },
-          isFile() {
-            return stat.isFile;
-          },
-          isDirectory() {
-            return stat.isDirectory;
-          },
-        });
+        return new Stat(stat);
       },
       realpathSync: (...args) => core.ops.op_fs_realpath_sync(...args),
       openSync(path) {
@@ -108,16 +109,22 @@ class Dirent {
       mkdirSync(dir, options = {}) {
         return core.ops.op_fs_mkdir_sync(dir, options.recursive || false);
       },
-      readFileSync: (path, encoding) => {
-        const data = core.ops.op_fs_read_file_sync(path);
+      readFileSync: (path, options = {}) => {
+        const data = Buffer.from(core.ops.op_fs_read_file_sync(path));
+        const encoding =
+          typeof options == "string" ? options : options.encoding;
         if (encoding) {
           const decoder = new TextDecoder(encoding);
           return decoder.decode(data);
         }
         return data;
       },
-      async readFile(path, { encoding = "utf-8" }) {
-        const data = await core.opAsync("op_fs_read_file_async", path);
+      async readFile(path, options = {}) {
+        const data = Buffer.from(
+          await core.opAsync("op_fs_read_file_async", path)
+        );
+        const encoding =
+          typeof options == "string" ? options : options.encoding;
         if (encoding) {
           const decoder = new TextDecoder(encoding);
           return decoder.decode(data);

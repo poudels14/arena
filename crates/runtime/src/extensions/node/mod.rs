@@ -33,6 +33,7 @@ pub fn extension(module_filter: Option<Vec<&'static str>>) -> BuiltinExtension {
       ("events", js_dist!("/node/events.js")),
       ("fs", js_dist!("/node/fs.js")),
       ("fs/promises", js_dist!("/node/fs/promises.js")),
+      ("constants", js_dist!("/node/constants.js")),
       ("tty", js_dist!("/node/tty.js")),
       ("util", js_dist!("/node/util.js")),
       ("url", js_dist!("/node/url.js")),

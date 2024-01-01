@@ -1,1 +1,17 @@
-export * as default from "assert";
+export {
+  equal,
+  notEqual,
+  deepEqual,
+  notDeepEqual,
+  deepStrictEqual,
+  notDeepStrictEqual,
+  strictEqual,
+  notStrictEqual,
+  strict,
+  match,
+  doesNotMatch,
+  doesNotThrow,
+  doesNotReject,
+  throws,
+  rejects,
+} from "assert";

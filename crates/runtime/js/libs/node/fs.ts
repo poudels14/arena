@@ -36,7 +36,15 @@ const readdir = nodeJsCompatFunction("readdirSync");
 const readFile = nodeJsCompatFunction("readFileSync");
 const writeFile = nodeJsCompatFunction("writeFileSync");
 
-const fs = {
+Object.assign(realpath, {
+  native(...args) {
+    console.log("realpath.native args =", args);
+    const cb = args.pop();
+    cb(Arena.fs.realpath(...args));
+  },
+});
+
+export {
   existsSync,
   accessSync,
   readFileSync,
@@ -54,20 +62,3 @@ const fs = {
   readFile,
   writeFile,
 };
-
-Arena.__nodeInternal = {
-  ...(Arena.__nodeInternal || {}),
-  fs,
-};
-
-export {
-  existsSync,
-  accessSync,
-  readFileSync,
-  writeFileSync,
-  statSync,
-  lstatSync,
-  readdirSync,
-};
-export default fs;
-export { promises };

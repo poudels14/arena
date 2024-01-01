@@ -110,17 +110,9 @@ impl ModuleLoader for FileModuleLoader {
         Some(code) => code,
         None => {
           let mut code = std::fs::read_to_string(path.clone())?;
-          // To support cjs to esm, require('...') needs to be supported
-          // and for require('...'), transpiler module has to be enabled.
-          // So, if it's not enabled, don't transpile cjs to esm
-          let convert_cjs_to_esm = transpiler.is_some();
           if module_type == ModuleType::JavaScript {
-            code = default_js_transpiler.transpile(
-              &path,
-              &media_type,
-              &code,
-              convert_cjs_to_esm,
-            )?;
+            code =
+              default_js_transpiler.transpile(&path, &media_type, &code)?;
           }
           match transpiler.clone() {
             Some(transpiler) if needs_transpilation == true => {
