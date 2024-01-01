@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 use anyhow::{anyhow, Result};
 use deno_ast::{EmitOptions, MediaType, ParseParams, SourceTextInfo};
+use indexmap::IndexSet;
 use swc_ecma_ast::Program;
 use swc_ecma_visit::VisitWith;
 use url::Url;
@@ -65,8 +66,7 @@ impl SwcTranspiler {
     let transpiled_code = transpiled_result.text;
     if parsed.is_script() {
       let analysis = parsed.analyze_cjs();
-      let mut exports = analysis.exports;
-      analysis
+      let exports: IndexSet<String> = analysis
         .reexports
         .iter()
         .map(|export| {
@@ -75,15 +75,14 @@ impl SwcTranspiler {
         .collect::<Result<Vec<Vec<String>>>>()?
         .into_iter()
         .flatten()
-        .for_each(|export| {
-          exports.push(export);
-        });
+        .chain(analysis.exports)
+        .collect();
 
       let exports_remap = exports
         .iter()
         .enumerate()
         .map(|(index, export)| {
-          format!("{} : module_export_{}_{}", export, export, index)
+          format!("{} : m_export_{}_{}", export, export, index)
         })
         .collect::<Vec<String>>()
         .join(", ");
@@ -92,7 +91,7 @@ impl SwcTranspiler {
         .iter()
         .enumerate()
         .map(|(index, export)| {
-          format!("module_export_{}_{} as {}", export, index, export)
+          format!("m_export_{}_{} as {}", export, index, export)
         })
         .collect::<Vec<String>>()
         .join(", ");

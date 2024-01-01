@@ -220,7 +220,8 @@ impl FilePathResolver {
         for node_modules_dir in directories {
           trace!("using node_module in: {}", &node_modules_dir.display());
 
-          let specifier_path = node_modules_dir.join(&specifier);
+          let specifier_path =
+            node_modules_dir.join(&parsed_specifier.package_name);
           let maybe_package = load_package_json_in_dir(&specifier_path).ok();
           let resolved = self
             .resolve_node_package(
@@ -302,7 +303,7 @@ impl FilePathResolver {
     bail!("TODO")
   }
 
-  #[tracing::instrument(skip(self, maybe_package), level = "trace")]
+  #[tracing::instrument(skip(self, maybe_package), ret, level = "trace")]
   fn resolve_node_package(
     &self,
     package_dir: &PathBuf,
