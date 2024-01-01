@@ -34,7 +34,8 @@ const process = {
   }),
   stdout: {
     isTTY: false,
-    write(content, encoding) {
+    // default to utf8
+    write(content, encoding = "utf8") {
       if (encoding != "utf8") {
         throw new Error("Writing non utf8 content to stdout not supported");
       }
