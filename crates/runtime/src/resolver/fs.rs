@@ -230,9 +230,15 @@ impl FilePathResolver {
               &maybe_package,
               &resolution,
             )
-            .or_else(|_| resolve_as_file(&specifier_path))
             .or_else(|_| {
-              resolve_as_directory(&specifier_path, &maybe_package, &resolution)
+              resolve_as_file(&specifier_path.join(&parsed_specifier.sub_path))
+            })
+            .or_else(|_| {
+              resolve_as_directory(
+                &specifier_path.join(&parsed_specifier.sub_path),
+                &maybe_package,
+                &resolution,
+              )
             })
             .or_else(|_| {
               self.resolve_from_imports(
@@ -330,7 +336,7 @@ impl FilePathResolver {
 
     // TODO(sagar): if package_json.module is present, use that
     bail!(
-      "module not found for specifier: {}{}",
+      "failed to resolve node package for specifier: {}{}",
       &specifier.package_name,
       &specifier.sub_path[1..]
     );
@@ -572,7 +578,7 @@ pub fn resolve_index(path: &PathBuf) -> Result<PathBuf> {
 }
 
 /// if the directory contains package.json, package arg is not None
-#[tracing::instrument(skip(maybe_package), level = "trace")]
+#[tracing::instrument(skip(maybe_package), ret, level = "trace")]
 pub fn resolve_as_directory(
   path: &PathBuf,
   maybe_package: &Option<Package>,
