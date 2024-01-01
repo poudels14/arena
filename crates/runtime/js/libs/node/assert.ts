@@ -15,5 +15,5 @@ export {
   throws,
   rejects,
   fail,
-  ok as default
+  ok as default,
 } from "assert";

@@ -18,8 +18,10 @@ const NODE_INTERNALS = [
   "stream",
   "module",
   "assert",
-  "events"
+  "events",
 ];
+
+const ARENA_RUNTIME = ["@arena/runtime/resolver", "@arena/runtime/transpiler"];
 
 const requireCache = {};
 const wrapper = [
@@ -48,11 +50,17 @@ function createRequire(referrer) {
 
     // check if it's internal path
     // strip "node:" prefix if there's any
-    let isNodeInternal =
+    const isNodeInternal =
       NODE_INTERNALS.indexOf(modulePath.replace(/^node:/, "")) >= 0;
+    const isArenaRuntimeModule = ARENA_RUNTIME.indexOf(modulePath) >= 0;
+
+    let moduleRef;
     if (isNodeInternal) {
-      modulePath = modulePath.replace(/^node:/, "");
-      resolvedPath = "node/" + modulePath;
+      moduleRef = modulePath.replace(/^node:/, "");
+      resolvedPath = "node/" + moduleRef;
+    } else if (isArenaRuntimeModule) {
+      moduleRef = modulePath;
+      resolvedPath = modulePath.replace(/^@arena/, "/runtime/arena");
     } else {
       // If error resolving, return undefined
       try {
@@ -60,6 +68,7 @@ function createRequire(referrer) {
         const url = new URL("file://" + resolvedRequirePath);
         resolvedPath = url.pathname;
       } catch (e) {
+        process.env?.DEBUG && console.error(e);
         return undefined;
       }
     }
@@ -74,7 +83,9 @@ function createRequire(referrer) {
     requireCache[resolvedPath] = { exports: {} };
 
     if (isNodeInternal) {
-      moduleCode = `module.exports = Arena.__nodeInternal["${modulePath}"]`;
+      moduleCode = `module.exports = Arena.__nodeInternal["${moduleRef}"]`;
+    } else if (isArenaRuntimeModule) {
+      moduleCode = `module.exports = Arena.__arenaRuntime["${moduleRef}"]`;
     } else {
       moduleCode = core.ops.op_resolver_read_file(resolvedPath);
     }

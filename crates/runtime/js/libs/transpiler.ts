@@ -1,5 +1,6 @@
 const { ops, opAsync } = Arena.core;
 
+// Note: keep this in sync with @portal/server-dev Transpiler
 class Transpiler {
   #rid;
   root;
@@ -13,7 +14,7 @@ class Transpiler {
     this.root = root;
   }
 
-  async transpileFileAsync(filename) {
+  async transpileFile(filename) {
     return await opAsync(
       "op_transpiler_transpile_file_async",
       this.#rid,
@@ -21,7 +22,7 @@ class Transpiler {
     );
   }
 
-  transpileSync(code, filename) {
+  async transpileCode(code, filename) {
     return ops.op_transpiler_transpile_sync(
       this.#rid,
       filename || "<code>",
@@ -29,5 +30,10 @@ class Transpiler {
     );
   }
 }
+
+Arena.__arenaRuntime = {
+  ...(Arena.__arenaRuntime || {}),
+  "@arena/runtime/transpiler": { Transpiler },
+};
 
 export { Transpiler };

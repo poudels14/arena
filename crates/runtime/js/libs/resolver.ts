@@ -1,5 +1,6 @@
 const { ops } = Arena.core;
 
+// Note: keep this in sync with @portal/server-dev Resolver
 class Resolver {
   #rid;
   root;
@@ -10,7 +11,7 @@ class Resolver {
     this.root = root;
   }
 
-  resolve(specifier, referrer, resolutionType: "Require" | "Import") {
+  resolve(specifier, referrer, resolutionType?: "Require" | "Import") {
     return ops.op_resolver_resolve(
       this.#rid,
       specifier,
@@ -19,5 +20,10 @@ class Resolver {
     );
   }
 }
+
+Arena.__arenaRuntime = {
+  ...(Arena.__arenaRuntime || {}),
+  "@arena/runtime/resolver": { Resolver },
+};
 
 export { Resolver };

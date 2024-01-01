@@ -13,8 +13,15 @@ declare module "node:crypto";
 declare namespace Arena {
   var fs;
   var core;
-  // This is used to expose builtin node modules from "require"
+  // This is used to expose builtin node modules that can be loaded
+  // from "require(...)"
   var __nodeInternal;
+  // This is used to expose @arena/runtime modules that can be loaded
+  // from "require(...)"
+  var __arenaRuntime: {
+    "@arena/runtime/resolver": any;
+    "@arena/runtime/transpiler": any;
+  };
 
   export type ResolverConfig = {
     preserveSymlink?: boolean;

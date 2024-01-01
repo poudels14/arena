@@ -86,7 +86,6 @@ program
     await Promise.all([
       build({
         ...options,
-        minify: false,
         entryPoints: {
           perf_hooks: "libs/node/perf_hooks.ts",
           process: "libs/node/process.ts",
@@ -97,7 +96,6 @@ program
       }),
       stdinBuild({
         ...options,
-        minify: false,
         entryPoints: {
           "path.js": createNodejsModule("path"),
           "assert.js": createNodejsModule("assert"),
@@ -115,7 +113,6 @@ program
       }),
       build({
         ...options,
-        minify: false,
         entryPoints: {
           crypto: "libs/node/crypto/index.ts",
         },
@@ -124,7 +121,6 @@ program
       }),
 
       build({
-        minify: true,
         ...options,
         entryPoints: {
           "wasmer-wasi": "./libs/wasi/wasmer.ts",
