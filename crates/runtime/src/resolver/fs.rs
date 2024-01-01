@@ -65,7 +65,7 @@ impl Resolver for FilePathResolver {
     resolution: ResolutionType,
   ) -> Result<ModuleSpecifier, ModuleResolutionError> {
     let specifier = self.resolve_alias(specifier);
-    let url = match Url::parse(&specifier) {
+    let resolved_url = match Url::parse(&specifier) {
       // 1. Apply the URL parser to specifier.
       //    If the result is not failure, return he result.
       Ok(url) => url,
@@ -84,13 +84,7 @@ impl Resolver for FilePathResolver {
         } else {
           Some(base.to_string())
         };
-        let resolved =
-          self.resolve_node_module(&specifier, maybe_referrer, resolution);
-        tracing::trace!(
-          "resolved npm module: {:?}",
-          resolved.as_ref().map(|r| r.as_str())
-        );
-        return resolved;
+        self.resolve_node_module(&specifier, maybe_referrer, resolution)?
       }
 
       // 3. Return the result of applying the URL parser to specifier with base
@@ -122,7 +116,9 @@ impl Resolver for FilePathResolver {
       }
     };
 
-    Ok(url)
+    tracing::trace!("resolved: {:?}", resolved_url.as_ref());
+
+    Ok(resolved_url)
   }
 }
 

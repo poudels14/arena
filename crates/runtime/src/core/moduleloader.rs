@@ -8,7 +8,7 @@ use deno_core::{
 };
 use derive_new::new;
 use futures::{Future, FutureExt};
-use tracing::{debug, error, trace};
+use tracing::{error, trace};
 use url::Url;
 
 #[derive(new)]
@@ -31,7 +31,7 @@ impl ModuleLoader for DefaultModuleLoader {
     if self.builtin_modules.contains(&specifier)
       || specifier.starts_with("@arena/runtime/")
     {
-      debug!("Using builtin module: {specifier}");
+      trace!("Using builtin module: {specifier}");
       specifier = format!("builtin://{}", specifier);
     }
     match Url::parse(&specifier) {
