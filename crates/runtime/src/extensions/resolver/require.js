@@ -17,6 +17,8 @@ const NODE_INTERNALS = [
   "os",
   "stream",
   "module",
+  "assert",
+  "events"
 ];
 
 const requireCache = {};

@@ -14,4 +14,6 @@ export {
   doesNotReject,
   throws,
   rejects,
+  fail,
+  ok as default
 } from "assert";

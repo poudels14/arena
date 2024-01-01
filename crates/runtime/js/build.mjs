@@ -59,12 +59,18 @@ const createNodejsModule = (name) => {
   const path = `./libs/node/${name}.js`;
   return `
   import * as ${name} from '${path}';
+
+
+  let def = ${name};
+  if (${name}.default) {
+    def = Object.assign(${name}.default, ${name});
+  }
   Arena.__nodeInternal = {
     ...(Arena.__nodeInternal || {}),
-    ${name},
+    ${name}: def,
   };
-  export default ${name};
   export * from '${path}';
+  export default def;
   `;
 };
 
@@ -82,7 +88,6 @@ program
         ...options,
         minify: false,
         entryPoints: {
-          events: "libs/node/events.ts",
           perf_hooks: "libs/node/perf_hooks.ts",
           process: "libs/node/process.ts",
           tty: "libs/node/tty.ts",
@@ -99,6 +104,7 @@ program
           "constants.js": createNodejsModule("constants"),
           "fs.js": createNodejsModule("fs"),
           "fs/promises.js": createNodejsModule("fs_promises"),
+          "events.js": createNodejsModule("events"),
           "url.js": createNodejsModule("url"),
           "os.js": createNodejsModule("os"),
           "stream.js": createNodejsModule("stream"),

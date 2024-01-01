@@ -63,7 +63,17 @@ impl SwcTranspiler {
       ..Default::default()
     })?;
 
-    let transpiled_code = transpiled_result.text;
+    let module_dirname = module_path.parent().unwrap().to_str().unwrap();
+    let module_url = Url::from_file_path(module_path).unwrap();
+
+    // Add this to all JS files so that they can use require("...")
+    let header = vec![
+      inject_create_require(&module_url),
+      format!("var __filename = \"{module_filename}\";"),
+      format!("var __dirname = \"{module_dirname}\";"),
+    ]
+    .join("\n");
+
     if parsed.is_script() {
       let analysis = parsed.analyze_cjs();
       let exports: IndexSet<String> = analysis
@@ -102,18 +112,14 @@ impl SwcTranspiler {
       } else {
         format!("")
       };
-      let module_dirname = module_path.parent().unwrap().to_str().unwrap();
-      let module_url = Url::from_file_path(module_path).unwrap();
 
       return Ok(
         vec![
-          &inject_create_require(&module_url),
-          &format!("var __filename = \"{module_filename}\";"),
-          &format!("var __dirname = \"{module_dirname}\";"),
+          &header,
           "var __commonJS = (cb, mod) => () =>",
           "\t(mod || cb((mod = { exports: {} }).exports, mod), mod.exports);",
           "let require_module = __commonJS((exports, module) => {{",
-          &format!("{transpiled_code}"),
+          &transpiled_result.text,
           "}});",
           "const named_exports_69 = require_module();",
           &format!("const {{ {exports_remap} }} = named_exports_69;"),
@@ -133,7 +139,7 @@ impl SwcTranspiler {
       );
     }
 
-    Ok(transpiled_code)
+    Ok(vec![header, transpiled_result.text].join("\n"))
   }
 }
 

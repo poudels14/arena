@@ -15,4 +15,10 @@ import * as setup1 from "ext:runtime/0_setup.js";
 import * as arena from "ext:runtime/1_arena.js";
 import * as process from "ext:runtime/dummy-process.js";
 
+globalThis.global = new Proxy(globalThis, {
+  get(a, p) {
+    return globalThis[p];
+  },
+});
+
 globalThis.Arena.core = Deno.core;
