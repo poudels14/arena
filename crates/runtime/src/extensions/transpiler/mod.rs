@@ -65,7 +65,7 @@ struct TranspilerConfig {
   replace: IndexMap<String, String>,
 
   #[serde(default)]
-  resolve_import: bool,
+  resolve_imports: bool,
 
   #[serde(default)]
   resolver: Option<ResolverConfig>,
@@ -184,7 +184,7 @@ fn transpile_code(
       // TODO: does the module have to be transformed to ESM?
       program.fold_with(&mut Optional::new(
         plugins::resolver::init(transpiler.clone(), filename_str),
-        config.resolve_import,
+        config.resolve_imports,
       ))
     },
   )?;

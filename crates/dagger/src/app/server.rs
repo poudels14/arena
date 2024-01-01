@@ -56,11 +56,7 @@ pub(super) async fn start_js_server(
   ];
 
   if options.transpile {
-    builtin_modules.extend(vec![
-      BuiltinModule::Sqlite,
-      BuiltinModule::Babel,
-      BuiltinModule::FileRouter,
-    ])
+    builtin_modules.extend(vec![BuiltinModule::Sqlite, BuiltinModule::Babel])
   }
 
   let mut builtin_extensions: Vec<BuiltinExtension> =

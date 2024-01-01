@@ -3,7 +3,6 @@ mod r#macro;
 pub mod babel;
 pub mod bundler;
 pub mod env;
-pub mod filerouter;
 pub mod fs;
 pub mod node;
 pub mod postgres;
@@ -70,7 +69,6 @@ pub enum BuiltinModule {
   Babel,
   Rollup,
   Bundler,
-  FileRouter,
   Postgres,
   Sqlite,
   HttpServer(HttpServerConfig),
@@ -93,7 +91,6 @@ impl BuiltinExtensionProvider for BuiltinModule {
       Self::Babel => self::babel::extension(),
       Self::Rollup => self::rollup::extension(),
       Self::Bundler => self::bundler::extension(),
-      Self::FileRouter => self::filerouter::extension(),
       Self::Postgres => self::postgres::extension(),
       Self::Sqlite => self::sqlite::extension(),
       Self::HttpServer(config) => self::server::extension(config.clone()),
@@ -123,7 +120,6 @@ impl BuiltinExtensions {
       BuiltinModule::Babel,
       BuiltinModule::Rollup,
       BuiltinModule::Bundler,
-      BuiltinModule::FileRouter,
       BuiltinModule::HttpServer(HttpServerConfig::Tcp {
         address: "0.0.0.0".to_owned(),
         port: 0,

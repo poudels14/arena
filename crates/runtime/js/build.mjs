@@ -193,18 +193,6 @@ program
         },
         external: ["@arena/runtime/rollup"],
       }),
-      build({
-        minify: true,
-        ...options,
-        entryPoints: {
-          filerouter: "./libs/filerouter/index.ts",
-        },
-        external: [
-          "@arena/runtime/resolver",
-          "@arena/runtime/transpiler",
-          "@arena/runtime/babel",
-        ],
-      }),
     ]);
   });
 
