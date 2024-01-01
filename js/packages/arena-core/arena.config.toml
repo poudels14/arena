@@ -1,5 +1,0 @@
-# Note(sagar): this is only used when running test scripts
-# in this package during development
-
-[javascript.resolve]
-conditions = ["node", "development"]
