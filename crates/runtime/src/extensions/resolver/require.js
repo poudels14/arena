@@ -48,6 +48,11 @@ function createRequire(referrer) {
     let resolvedPath;
     let moduleCode;
 
+    const alias = core.ops.op_resolver_resolve_alias(modulePath);
+    if (alias) {
+      modulePath = alias;
+    }
+
     // check if it's internal path
     // strip "node:" prefix if there's any
     const isNodeInternal =

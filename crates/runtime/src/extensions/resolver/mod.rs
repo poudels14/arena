@@ -56,6 +56,7 @@ deno_core::extension!(
   resolver,
   ops = [
     op_resolver_new,
+    op_resolver_resolve_alias,
     op_resolver_resolve,
     op_resolver_read_file,
   ],
@@ -94,6 +95,17 @@ fn op_resolver_new(
       .map(|s| s.to_string())
       .ok_or(anyhow!("Failed to unwrap project root"))?,
   ))
+}
+
+/// This will only resolve the alias if there's any
+#[op2]
+#[string]
+fn op_resolver_resolve_alias(
+  state: &mut OpState,
+  #[string] specifier: &str,
+) -> Result<Option<String>> {
+  let config = state.borrow_mut::<ResolverConfig>().clone();
+  Ok(config.alias.get(specifier).cloned())
 }
 
 /// Returns the resolved path relative to the project root and not
