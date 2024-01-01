@@ -6,7 +6,7 @@ use cloud::CloudExtensionProvider;
 use runtime::buildtools::{
   transpiler::BabelTranspiler, FileModuleLoader, FilePathResolver,
 };
-use runtime::config::ArenaConfig;
+use runtime::config::{ArenaConfig, RuntimeConfig};
 use runtime::extensions::server::HttpServerConfig;
 use runtime::extensions::{
   BuiltinExtension, BuiltinExtensionProvider, BuiltinModule,
@@ -29,11 +29,21 @@ pub(super) async fn start_js_server(
   options: ServerOptions,
   main_module: &str,
 ) -> Result<()> {
+  let resolver_config = options
+    .config
+    .server
+    .javascript
+    .as_ref()
+    .and_then(|js| js.resolve.clone())
+    .unwrap_or_default();
+
   let mut builtin_modules = vec![
     BuiltinModule::Fs,
     BuiltinModule::Env,
     BuiltinModule::Node(None),
     BuiltinModule::Postgres,
+    BuiltinModule::Resolver(resolver_config.clone()),
+    BuiltinModule::Transpiler,
     BuiltinModule::HttpServer(HttpServerConfig::Tcp {
       address: options.address.clone(),
       port: options.port,
@@ -45,19 +55,10 @@ pub(super) async fn start_js_server(
     }),
   ];
 
-  let resolver_config = options
-    .config
-    .server
-    .javascript
-    .as_ref()
-    .and_then(|js| js.resolve.clone())
-    .unwrap_or_default();
   if options.transpile {
     builtin_modules.extend(vec![
       BuiltinModule::Sqlite,
-      BuiltinModule::Resolver(resolver_config.clone()),
       BuiltinModule::Babel,
-      BuiltinModule::Transpiler,
       BuiltinModule::FileRouter,
     ])
   }
@@ -70,6 +71,10 @@ pub(super) async fn start_js_server(
   );
 
   let mut runtime = IsolatedRuntime::new(RuntimeOptions {
+    config: RuntimeConfig {
+      project_root: options.root_dir.clone(),
+      ..Default::default()
+    },
     enable_console: true,
     enable_arena_global: true,
     builtin_extensions,

@@ -7,7 +7,7 @@ use cloud::CloudExtensionProvider;
 use runtime::buildtools::{
   transpiler::BabelTranspiler, FileModuleLoader, FilePathResolver,
 };
-use runtime::config::ArenaConfig;
+use runtime::config::{ArenaConfig, RuntimeConfig};
 use runtime::deno::core::resolve_url_or_path;
 use runtime::extensions::server::HttpServerConfig;
 use runtime::extensions::{
@@ -103,6 +103,10 @@ impl Command {
     }
 
     let mut runtime = IsolatedRuntime::new(RuntimeOptions {
+      config: RuntimeConfig {
+        project_root: project_root.clone(),
+        ..Default::default()
+      },
       enable_console: true,
       enable_arena_global: self.enable_cloud_ext,
       module_loader: Some(Rc::new(FileModuleLoader::new(
