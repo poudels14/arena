@@ -222,7 +222,11 @@ fn op_fs_file_exists_sync(
   state: &mut OpState,
   #[string] path: String,
 ) -> Result<bool> {
-  permissions::resolve_read_path(state, &Path::new(&path)).map(|f| f.exists())
+  // If the runtime doesn't have permission to read, return Ok(false)
+  // instead of throwing error
+  permissions::resolve_read_path(state, &Path::new(&path))
+    .map(|f| f.exists())
+    .or_else(|_| Ok(false))
 }
 
 #[tracing::instrument(skip(state), level = "trace")]
