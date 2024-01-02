@@ -132,6 +132,7 @@ fn op_fs_stat_sync(
 }
 
 fn to_stat_json(m: Metadata) -> Result<Value> {
+  let sec_to_nano = 1_000_000_000;
   Ok(json!({
     "dev": m.dev(),
     "ino": m.ino(),
@@ -143,9 +144,9 @@ fn to_stat_json(m: Metadata) -> Result<Value> {
     "size": m.size(),
     "blksize": m.blksize(),
     "blocks": m.blocks(),
-    "atimeMs": m.atime() * 1000 + m.atime_nsec() / 1000,
-    "mtimeMs": m.mtime() * 1000 +  m.mtime_nsec() / 1000,
-    "ctimeMs":m.ctime() * 1000 +  m.ctime_nsec() / 1000,
+    "atimeMs": (m.atime() * sec_to_nano + m.atime_nsec()) as f64 / 1000_000.0,
+    "mtimeMs": (m.mtime() * sec_to_nano +  m.mtime_nsec()) as f64 / 1000_000.0,
+    "ctimeMs": (m.ctime() * sec_to_nano +  m.ctime_nsec()) as f64 / 1000_000.0,
     "birthtimeMs": m.created()?
       .duration_since(SystemTime::UNIX_EPOCH)?
       .as_millis(),
