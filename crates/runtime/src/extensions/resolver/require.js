@@ -8,6 +8,7 @@ const resolver = new Resolver({
 
 const NODE_INTERNALS = [
   "fs",
+  "fs/promises",
   "constants",
   "path",
   "crypto",
@@ -101,6 +102,7 @@ function createRequire(referrer) {
       const wrappedModuldeCode = `${wrapper[0]}${moduleCode}${wrapper[1]}`;
       const [func, err] = core.evalContext(wrappedModuldeCode, resolvedUrl);
       if (err) {
+        process.env?.DEBUG && console.error(err);
         throw err.thrown;
       }
 
@@ -139,5 +141,15 @@ Arena.__nodeInternal = {
   ...(Arena.__nodeInternal || {}),
   module: {
     createRequire,
+    _nodeModulePaths(path) {
+      // TODO: this might break some package
+      return [];
+    },
+    _resolveFilename(mod, args) {
+      // Note: idk if this is right but it doesn't crash "cosmiconfig"
+      // package, so whatever
+      const resolved = resolver.resolve(mod, args.id, "Require");
+      return path.join(resolver.root, resolved);
+    },
   },
 };

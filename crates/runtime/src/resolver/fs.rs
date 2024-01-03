@@ -316,26 +316,17 @@ impl FilePathResolver {
     let package: &Package =
       maybe_package.as_ref().ok_or(anyhow!("not a npm package"))?;
 
-    if *resolution == ResolutionType::Require {
-      return resolve_package_main(&package_dir, &package);
-    } else {
-      let package_export = self.resolve_package_exports(
-        package_dir,
-        specifier,
-        &package,
-        resolution,
-      );
-      if package_export.is_ok() {
-        return package_export;
-      }
-    }
+    let package_export =
+      if *resolution == ResolutionType::Require && specifier.sub_path == "." {
+        resolve_package_main(&package_dir, &package)
+      } else {
+        Err(anyhow!("not cjs"))
+      };
 
+    package_export.or_else(|_| {
+      self.resolve_package_exports(package_dir, specifier, &package, resolution)
+    })
     // TODO(sagar): if package_json.module is present, use that
-    bail!(
-      "failed to resolve node package for specifier: {}{}",
-      &specifier.package_name,
-      &specifier.sub_path[1..]
-    );
   }
 
   /// Some packages have "imports" field in package.json that maps

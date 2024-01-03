@@ -10,5 +10,15 @@ const isWindows = () => osType() === "windows";
 const isLinux = () => osType() === "linux";
 const cpus = () => [];
 const homedir = () => process.cwd();
+const tmpdir = () => ops.op_fs_tmpdir_sync();
 
-export { platform, osType, osType as type, isWindows, isLinux, cpus, homedir };
+export {
+  platform,
+  osType,
+  osType as type,
+  isWindows,
+  isLinux,
+  cpus,
+  homedir,
+  tmpdir,
+};

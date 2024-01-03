@@ -1,6 +1,7 @@
 import { program } from "commander";
 import path from "path";
 import * as esbuild from "esbuild";
+import { camelCase } from "lodash-es";
 
 /**
  * @typedef {{
@@ -55,8 +56,9 @@ const stdinBuild = async (options) => {
   );
 };
 
-const createNodejsModule = (name) => {
-  const path = `./libs/node/${name}.js`;
+const createNodejsModule = (moduleName, entryPath) => {
+  const name = camelCase(moduleName);
+  const path = `./libs/node/${entryPath || moduleName}.js`;
   return `
   import * as ${name} from '${path}';
 
@@ -67,7 +69,7 @@ const createNodejsModule = (name) => {
   }
   Arena.__nodeInternal = {
     ...(Arena.__nodeInternal || {}),
-    ${name}: def,
+    "${moduleName}": def,
   };
   export * from '${path}';
   export default def;
@@ -100,8 +102,8 @@ program
           "path.js": createNodejsModule("path"),
           "assert.js": createNodejsModule("assert"),
           "constants.js": createNodejsModule("constants"),
-          "fs.js": createNodejsModule("fs"),
-          "fs/promises.js": createNodejsModule("fs_promises"),
+          "fs.js": createNodejsModule("fs", "fs/index"),
+          "fs/promises.js": createNodejsModule("fs/promises"),
           "events.js": createNodejsModule("events"),
           "url.js": createNodejsModule("url"),
           "os.js": createNodejsModule("os"),

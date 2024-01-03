@@ -39,6 +39,7 @@ deno_core::extension!(
   fs,
   ops = [
     op_fs_cwd_sync,
+    op_fs_tmpdir_sync,
     op_fs_access_sync,
     op_fs_lstat_sync,
     op_fs_stat_sync,
@@ -73,6 +74,17 @@ fn op_fs_cwd_sync(state: &mut OpState) -> Result<String> {
     .to_str()
     .map(|s| s.to_owned())
     .ok_or(anyhow!("Couldn't get current directory"))
+}
+
+// Set debug level log since this doens't have perm check
+#[tracing::instrument(ret, level = "debug")]
+#[op2]
+#[string]
+fn op_fs_tmpdir_sync() -> Result<String> {
+  std::env::temp_dir()
+    .to_str()
+    .map(|s| s.to_owned())
+    .ok_or(anyhow!("Couldn't get tmp directory"))
 }
 
 #[tracing::instrument(skip(state), ret, level = "trace")]

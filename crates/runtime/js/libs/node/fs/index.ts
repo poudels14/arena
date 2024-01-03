@@ -1,4 +1,4 @@
-import * as promises from "./fs_promises";
+import * as promises from "./promises";
 
 const callFs =
   (name) =>
@@ -12,6 +12,7 @@ const existsSync = callFs("existsSync");
 const accessSync = callFs("accessSync");
 const lstatSync = callFs("lstatSync");
 const readdirSync = callFs("readdirSync");
+const realpathSync = callFs("realpathSync");
 
 // Note: the function signature should match with nodejs's  such that
 // util.promisify works
@@ -52,6 +53,7 @@ export {
   statSync,
   lstatSync,
   readdirSync,
+  realpathSync,
   promises,
   readdir,
   lstat,
