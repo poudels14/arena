@@ -5,9 +5,6 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
-  '@arena/db':
-    specifier: workspace:^
-    version: link:../../packages/db
   '@arena/sdk':
     specifier: workspace:^
     version: link:../../packages/sdk

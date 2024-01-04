@@ -191,6 +191,12 @@ program
       build({
         ...options,
         entryPoints: {
+          postgres: "./libs/postgres/index.ts",
+        },
+      }),
+      build({
+        ...options,
+        entryPoints: {
           bundler: "./libs/bundler/index.ts",
         },
         external: ["@arena/runtime/rollup"],

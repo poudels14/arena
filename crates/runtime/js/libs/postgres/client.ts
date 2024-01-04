@@ -1,40 +1,47 @@
-/**
- *
- * Query options
- * @typedef {Object<string, any>} QueryOptions
- * @property {boolean} camelCase Whether to update column names to camel case
- */
+type QueryOptions = {
+  /**
+   * Whether to update column names to camel case
+   */
+  camelCase?: boolean;
+};
 
-/**
- * Connection config
- * @typedef {Object} ConnectionConfig
- * @property {string} [credential]
- * @property {QueryOptions} [options]
- */
+type ConnectionConfig = {
+  host: string;
+  port: string;
+  user: string;
+  password: string;
+  database: string;
+  ssl: string;
+};
 
-function Field(obj) {
-  const self = this;
-  Object.entries(obj).forEach(([key, value]) => {
-    self[key] = value;
-  });
+class Field {
+  constructor(obj) {
+    const self = this;
+    Object.entries(obj).forEach(([key, value]) => {
+      self[key] = value;
+    });
+  }
 }
 
 const { ops, opAsync } = Arena.core;
 class Client {
-  /**
-   * @type {ConnectionConfig} config
-   */
-  #config;
+  #config: { credential: string | ConnectionConfig };
   #rid;
 
-  constructor(config) {
-    const { host, port, user, password, database, ssl, ...rest } = config;
-    this.#config = {
-      // If config.credential is set instead of "host", "port", etc,
-      // ...rest should override this since this will be invalid
-      credential: { host, port, user, password, database, ssl },
-      ...rest,
-    };
+  constructor(config: string | (ConnectionConfig & QueryOptions)) {
+    if (typeof config == "string") {
+      this.#config = {
+        credential: config,
+      };
+    } else {
+      const { host, port, user, password, database, ssl, ...rest } = config;
+      this.#config = {
+        // If config.credential is set instead of "host", "port", etc,
+        // ...rest should override this since this will be invalid
+        credential: { host, port, user, password, database, ssl },
+        ...rest,
+      };
+    }
   }
 
   async connect() {
@@ -46,7 +53,7 @@ class Client {
     return this.#rid != undefined && ops.op_postgres_is_connected(this.#rid);
   }
 
-  async query(query, params, options) {
+  async query(query, params = undefined, options = undefined) {
     // reconnect if the connection was disconnected somehow
     if (!this.isConnected()) {
       await this.connect();
@@ -90,7 +97,7 @@ class Client {
         });
       },
       get fields() {
-        fields.map((field) => {
+        return fields.map((field) => {
           return new Field(field);
         });
       },
@@ -138,3 +145,4 @@ class Client {
 }
 
 export { Client };
+export type { ConnectionConfig };

@@ -1,27 +1,49 @@
-type ClientConfig = {
-  credential:
-    | string
-    | {
-        host: string;
-        port: number;
-        user: string;
-        password: string;
-        database: string;
-        ssl?: boolean;
-      };
+type ClientConfig =
+  | {
+      host: string;
+      port: number;
+      user: string;
+      password: string;
+      database: string;
+      ssl?: boolean;
+      // Query options
+
+      /**
+       * Whether to update column names to camel case
+       */
+      camelCase?: boolean;
+    }
+  | string;
+
+type QueryResponse<Row> = {
+  rowCount: number | null;
+  rows: Row[];
+  fields: { name: string; dataTypeID: number }[];
+  modifiedRows?: number;
+};
+
+type QueryClient = {
+  query<Row>(sql: string, parameters?: any[]): Promise<QueryResponse<Row>>;
+  query<Row>(query: {
+    sql: string;
+    params?: readonly any[];
+  }): Promise<QueryResponse<Row>>;
 };
 
 type Client = {
   connect(): Promise<void>;
   isConnected(): boolean;
-
-  query<T>(sql: string, parameters?: any[]): Promise<{ rows: T[] }>;
-  query<T>(query: {
-    sql: string;
-    params?: readonly any[];
-  }): Promise<{ rows: T[] }>;
-
   close(): void;
+} & QueryClient;
+
+type PoolOptions = {
+  max?: number;
+  min?: number;
 };
 
+type Pool = {
+  connect(): Promise<Client & { release: () => Promise<void> }>;
+} & QueryClient;
+
+export const Pool: new (config: ClientConfig & PoolOptions) => Pool;
 export const Client: new (config: ClientConfig) => Client;

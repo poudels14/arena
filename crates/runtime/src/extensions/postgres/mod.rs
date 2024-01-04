@@ -19,17 +19,14 @@ use tracing::error;
 use self::query::Param;
 use self::query::QueryOptions;
 use self::query::QueryResponse;
-use super::r#macro::include_source_code;
+use super::r#macro::js_dist;
 use super::BuiltinExtension;
 use crate::env::EnvironmentVariable;
 
 pub fn extension() -> BuiltinExtension {
   BuiltinExtension::new(
     Some(self::init()),
-    vec![(
-      "@arena/runtime/postgres",
-      include_source_code!("./postgres.js"),
-    )],
+    vec![("@arena/runtime/postgres", js_dist!("/postgres.js"))],
   )
 }
 

@@ -7,7 +7,6 @@
   "private": true,
   "license": "UNLICENSED",
   "dependencies": {
-    "@arena/db": "workspace:^",
     "@arena/sdk": "workspace:^"
   }
 }
