@@ -8,8 +8,9 @@ use arenasql::datafusion::{
 use arenasql::execution::tablescan::HeapIterator;
 use arenasql::execution::{
   convert_literals_to_columnar_values, CustomExecutionPlan,
-  ExecutionPlanResponse, Transaction,
+  ExecutionPlanResponse, Privilege, SessionContext, Transaction,
 };
+use arenasql::runtime::RuntimeEnv;
 use arenasql::schema::{
   DataFrame, DataType, OwnedSerializedCell, SerializedCell,
 };
@@ -20,6 +21,8 @@ use serde::{Deserialize, Serialize};
 use sqlparser::ast::Expr;
 
 use crate::schema::{ADMIN_USERNAME, APPS_USERNAME, SYSTEM_SCHEMA_NAME};
+use crate::server::storage::ClusterStorageFactory;
+use crate::server::ArenaSqlCluster;
 
 // Note: store user/password config as a single column since it will be
 // difficult to update this table once there are databases in prod
@@ -90,17 +93,15 @@ impl CustomExecutionPlan for SetCatalogUserCredentials {
     _partition: usize,
     _context: Arc<TaskContext>,
   ) -> Result<Pin<Box<dyn Stream<Item = Result<DataFrame>> + Send>>> {
-    let transaction_catalog =
-      self.transaction.session_config().catalog.as_ref();
-    if self.user.catalog != transaction_catalog {
-      return Err(Error::InvalidQuery(format!(
-        "Can't add user credential of catalog {:?} in catalog: {:?}",
-        self.user.catalog, transaction_catalog
-      )));
-    }
-    let plan = self.clone();
+    let session_context = create_admin_session_context_for_catalog(
+      &self.transaction,
+      &self.user.catalog,
+    )?;
+
+    let transaction = session_context.active_transaction();
+    let user = self.user.clone();
     let query = async move {
-      plan.transaction.execute_sql(CREATE_USERS_TABLE).await?;
+      transaction.execute_sql(CREATE_USERS_TABLE).await?;
 
       let mut dataframe = DataFrame::with_capacity(
         10,
@@ -111,7 +112,7 @@ impl CustomExecutionPlan for SetCatalogUserCredentials {
         ],
       );
 
-      let handle = plan.transaction.handle();
+      let handle = transaction.handle();
       let users_table = handle
         .get_table(SYSTEM_SCHEMA_NAME, "users")
         .ok_or_else(|| {
@@ -125,9 +126,7 @@ impl CustomExecutionPlan for SetCatalogUserCredentials {
         scan_catalog_users(&mut rows_iter, &handle.serializer())?;
 
       for (row_id, user) in existing_users {
-        if user.catalog == plan.user.catalog
-          && user.username == plan.user.username
-        {
+        if user.catalog == user.catalog && user.username == user.username {
           storage.delete_row(&users_table, &row_id)?;
         }
         dataframe.append_row(
@@ -145,7 +144,7 @@ impl CustomExecutionPlan for SetCatalogUserCredentials {
         &users_table,
         &row_id,
         &vec![OwnedSerializedCell::Blob(
-          handle.serializer().serialize(&plan.user)?.into(),
+          handle.serializer().serialize(&user)?.into(),
         )],
       )?;
 
@@ -190,16 +189,12 @@ impl CustomExecutionPlan for ListCatalogUserCredentials {
     _partition: usize,
     _context: Arc<TaskContext>,
   ) -> Result<ExecutionPlanResponse> {
-    let transaction_catalog =
-      self.transaction.session_config().catalog.as_ref();
-    if self.catalog != transaction_catalog {
-      return Err(Error::InvalidQuery(format!(
-        "Can't query user credential of catalog {:?} from catalog: {:?}",
-        self.catalog, transaction_catalog
-      )));
-    }
-
-    let plan = self.clone();
+    let session_context = create_admin_session_context_for_catalog(
+      &self.transaction,
+      &self.catalog,
+    )?;
+    let transaction = session_context.active_transaction();
+    let catalog = self.catalog.clone();
     let query = async move {
       let mut dataframe = DataFrame::with_capacity(
         10,
@@ -210,7 +205,7 @@ impl CustomExecutionPlan for ListCatalogUserCredentials {
         ],
       );
 
-      let handle = plan.transaction.handle();
+      let handle = transaction.handle();
       let users_table = handle
         .get_table(SYSTEM_SCHEMA_NAME, "users")
         .ok_or_else(|| {
@@ -225,7 +220,7 @@ impl CustomExecutionPlan for ListCatalogUserCredentials {
 
       existing_users
         .iter()
-        .filter(|c| c.1.catalog == plan.catalog)
+        .filter(|c| c.1.catalog == catalog)
         .for_each(|(row_id, user)| {
           dataframe.append_row(
             &row_id,
@@ -240,6 +235,22 @@ impl CustomExecutionPlan for ListCatalogUserCredentials {
     };
     Ok(Box::pin(futures::stream::once(query)))
   }
+}
+
+fn create_admin_session_context_for_catalog(
+  transaction: &Transaction,
+  catalog: &str,
+) -> Result<SessionContext> {
+  let state = transaction.session_state();
+  let cluster_storage_factory = state.borrow::<Arc<ClusterStorageFactory>>();
+  let runtime = state.borrow::<Arc<RuntimeEnv>>();
+  ArenaSqlCluster::create_session_context_using_cluster_storage(
+    cluster_storage_factory.clone(),
+    runtime.clone(),
+    catalog,
+    &ADMIN_USERNAME,
+    Privilege::SUPER_USER,
+  )
 }
 
 fn validate_username(username: &str) -> Result<()> {

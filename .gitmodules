@@ -7,3 +7,6 @@
 [submodule "js/portal"]
 	path = js/portal
 	url = git@github.com:poudels14/portal
+[submodule "js/portal-app"]
+	path = js/portal-app
+	url = git@github.com:poudels14/portal-app

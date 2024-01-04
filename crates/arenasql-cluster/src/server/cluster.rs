@@ -8,6 +8,7 @@ use arenasql::execution::{
 };
 use arenasql::pgwire::api::ClientInfo;
 use arenasql::runtime::RuntimeEnv;
+use arenasql::{Error as ArenaSqlError, Result as ArenaSqlResult};
 use jsonwebtoken::{Algorithm, DecodingKey, Validation};
 use uuid::Uuid;
 
@@ -17,7 +18,7 @@ use crate::auth::{
   AuthHeader, AuthenticatedSession, AuthenticatedSessionBuilder,
   AuthenticatedSessionStore,
 };
-use crate::error::{ArenaClusterError, ArenaClusterResult, Error};
+use crate::error::{ArenaClusterError, ArenaClusterResult};
 use crate::extension::admin_exetension;
 use crate::io::file::File;
 use crate::schema::{
@@ -93,7 +94,7 @@ impl ArenaSqlCluster {
       .map(|u| u.as_str() != APPS_USERNAME)
       .unwrap_or(true)
     {
-      return Err(Error::AuthenticationFailed);
+      return Err(ArenaClusterError::AuthenticationFailed);
     }
     match header {
       AuthHeader::Authenticated { session_id } => self
@@ -112,7 +113,7 @@ impl ArenaSqlCluster {
               let claims = verified_token
                 .claims
                 .as_object()
-                .ok_or(Error::AuthenticationFailed)?;
+                .ok_or(ArenaClusterError::AuthenticationFailed)?;
               let user = claims.get("user").and_then(|u| u.as_str());
               let database = claims.get("database").and_then(|d| d.as_str());
               let session_id =
@@ -133,7 +134,7 @@ impl ArenaSqlCluster {
             _ => {}
           }
         }
-        Err(Error::AuthenticationFailed)
+        Err(ArenaClusterError::AuthenticationFailed)
       }
       _ => unreachable!(),
     }
@@ -168,15 +169,30 @@ impl ArenaSqlCluster {
     user: &str,
     privilege: Privilege,
   ) -> ArenaClusterResult<SessionContext> {
-    let storage_factory = self
-      .storage
+    Ok(Self::create_session_context_using_cluster_storage(
+      self.storage.clone(),
+      self.runtime.clone(),
+      catalog,
+      user,
+      privilege,
+    )?)
+  }
+
+  pub(crate) fn create_session_context_using_cluster_storage(
+    cluster_storage_factory: Arc<ClusterStorageFactory>,
+    runtime: Arc<RuntimeEnv>,
+    catalog: &str,
+    user: &str,
+    privilege: Privilege,
+  ) -> ArenaSqlResult<SessionContext> {
+    let storage_factory = cluster_storage_factory
       .get_catalog(&catalog)?
-      .ok_or_else(|| ArenaClusterError::CatalogNotFound(catalog.to_owned()))?;
+      .ok_or_else(|| ArenaSqlError::DatabaseDoesntExist(catalog.to_owned()))?;
 
     let catalog_list_provider =
       Arc::new(ArenaClusterCatalogListProvider::with_options(
         CatalogListOptionsBuilder::default()
-          .cluster_dir(self.storage.options().root_dir().clone())
+          .cluster_dir(cluster_storage_factory.options().root_dir().clone())
           .build()
           .unwrap(),
       ));
@@ -195,10 +211,11 @@ impl ArenaSqlCluster {
       };
 
     let mut session_state = SessionState::default();
-    session_state.put(self.storage.clone());
+    session_state.put(cluster_storage_factory.clone());
+    session_state.put(runtime.clone());
     Ok(SessionContext::new(
       SessionConfig {
-        runtime: self.runtime.clone(),
+        runtime: runtime.clone(),
         df_runtime: Default::default(),
         catalog: catalog.into(),
         schemas: Arc::new(schemas),

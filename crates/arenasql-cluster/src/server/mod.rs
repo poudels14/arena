@@ -12,7 +12,7 @@ use tokio::sync::oneshot;
 
 pub(crate) mod cluster;
 mod execution;
-mod storage;
+pub(crate) mod storage;
 
 use crate::pgwire::auth::ArenaSqlClusterAuthenticator;
 pub use cluster::ArenaSqlCluster;

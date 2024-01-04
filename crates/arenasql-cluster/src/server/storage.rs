@@ -9,6 +9,7 @@ use arenasql::storage::rocks::{self, RocksStorage};
 use arenasql::storage::{
   KeyValueStoreProvider, MemoryKeyValueStoreProvider, Serializer,
 };
+use arenasql::Result;
 use dashmap::DashMap;
 use futures::future::join_all;
 use getset::{Getters, Setters};
@@ -62,7 +63,7 @@ impl ClusterStorageFactory {
   pub fn get_catalog(
     &self,
     db_name: &str,
-  ) -> ArenaClusterResult<Option<Arc<StorageFactory>>> {
+  ) -> Result<Option<Arc<StorageFactory>>> {
     let storage = self.storages.get(db_name);
     match storage {
       Some(storage) => Ok(Some(storage.value().clone())),
