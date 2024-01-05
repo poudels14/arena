@@ -7,6 +7,7 @@
   "private": true,
   "license": "UNLICENSED",
   "dependencies": {
+    "@portal/deploy": "workspace:^",
     "@portal/sdk": "workspace:^",
     "@portal/server-core": "workspace:^",
     "drizzle-orm": "^0.26.4",

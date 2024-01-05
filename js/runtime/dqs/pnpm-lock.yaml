@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
+  '@portal/deploy':
+    specifier: workspace:^
+    version: link:../../portal-app/deploy
   '@portal/sdk':
     specifier: workspace:^
     version: link:../../portal-app/sdk

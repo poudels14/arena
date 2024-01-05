@@ -3,8 +3,8 @@ import {
   DatabaseClient,
   DatabaseClients,
   DatabaseConfig,
-  runDatabaseMigration,
-} from "@portal/sdk/db";
+  migratu,
+} from "@portal/deploy/db";
 // @ts-expect-error
 import { databases } from "@dqs/template/app";
 
@@ -44,7 +44,7 @@ const setupDatabases = async (
   for (const [dbName, db] of Object.entries(
     databases as Record<string, DatabaseConfig>
   )) {
-    await runDatabaseMigration(auditClient, dbs[dbName], db);
+    await migrate(auditClient, dbs[dbName], db);
   }
 };
 

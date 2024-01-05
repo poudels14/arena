@@ -48,8 +48,6 @@ program
           "dqs/widget-server": "./dqs/widget/server.ts",
           "dqs/postgres": "./dqs/postgres/index.ts",
           "dqs/app-server": "./dqs/app/server.ts",
-          "dqs/plugin-workflow": "./dqs/plugin/workflow/index.ts",
-          "dqs/plugin/workflow/lib": "./dqs/plugin/workflow/lib.ts",
         },
         alias: {
           // TODO(sagar): "assert" and "utils" are being bundled in several files
