@@ -1,18 +1,9 @@
-import { createRouter, mergedRouter } from "@portal/server-core/router";
-import { p } from "./procedure";
+import { createRouter } from "@portal/server-core/router";
+import * as account from "./account";
 
-const system = createRouter({
-  routes: {
-    "/healthy": p.query(() => {
-      return "Ok";
-    }),
-  },
-});
-
-const router = mergedRouter({
+const router = createRouter({
   prefix: "/api",
   ignoreTrailingSlash: true,
-  routers: [system],
   async middleware({ ctx, next }) {
     try {
       return await next({ ctx });
@@ -20,6 +11,11 @@ const router = mergedRouter({
       console.error(e);
       throw e;
     }
+  },
+  routes: {
+    "/account/signup": account.signup,
+    "/account/magicLink": account.sendMagicLink,
+    "/account/login/email": account.login,
   },
   defaultHandler({ req }) {
     const url = new URL(req.url);
