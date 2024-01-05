@@ -33,6 +33,7 @@ pub enum Error {
     table: String,
     column: String,
   },
+  DatabaseDoesntExist(String),
   DatabaseAlreadyExists(String),
   // relation = table or index
   RelationAlreadyExists(String),
@@ -55,6 +56,10 @@ pub enum Error {
 const RE_TABLE_NOT_FOUND: Lazy<Regex> =
   Lazy::new(|| Regex::new(r"table '(?P<rel>[\w.]+)' not found").unwrap());
 
+const RE_CATALOG_ALREADY_EXISTS: Lazy<Regex> = Lazy::new(|| {
+  Regex::new(r"Catalog '(?P<catalog>[\w.]+)' already exists").unwrap()
+});
+
 impl Error {
   /// PostgresSQL code
   /// https://www.postgresql.org/docs/current/errcodes-appendix.html
@@ -68,6 +73,7 @@ impl Error {
       Self::UniqueConstaintViolated { .. } => "23505",
       // insufficient_privilege
       Self::InsufficientPrivilege => "42501",
+      Self::DatabaseDoesntExist(_) => "3D000",
       // undefined_table or index
       Self::RelationDoesntExist(_) => "42P01",
       // duplicate_table or duplicate index
@@ -124,6 +130,9 @@ impl Error {
           r#"null value in column "{}" of relation "{}" violates not-null constraint"#,
           column, table,
         )
+      }
+      Self::DatabaseDoesntExist(db) => {
+        format!(r#"database "{db}" doesn't exist"#)
       }
       Self::DatabaseAlreadyExists(db) => {
         format!(r#"database "{db}" already exists"#)
@@ -234,14 +243,15 @@ impl From<rocksdb::Error> for Error {
 impl From<DataFusionError> for Error {
   fn from(err: DataFusionError) -> Self {
     match err {
-      DataFusionError::Plan(ref msg) => {
+      DataFusionError::Plan(ref msg) | DataFusionError::Execution(ref msg) => {
         if let Some(capture) = RE_TABLE_NOT_FOUND.captures(msg) {
           return Self::RelationDoesntExist(capture["rel"].to_owned());
+        } else if let Some(capture) = RE_CATALOG_ALREADY_EXISTS.captures(msg) {
+          return Self::DatabaseAlreadyExists(capture["catalog"].to_owned());
         }
       }
       _ => {}
     }
-
     Self::DataFusionError(Arc::new(err))
   }
 }

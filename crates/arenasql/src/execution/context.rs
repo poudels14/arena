@@ -56,7 +56,11 @@ impl SessionContext {
     })
   }
 
-  pub fn active_transaction(&self) -> Transaction {
+  /// The caller is responsible for committing the transaction returned.
+  /// If not manually committed, the transaction will be rolled back.
+  /// Instead of using this the transaction directly, execute query using
+  /// `context.execute_sql(...)`
+  pub unsafe fn active_transaction(&self) -> Transaction {
     self.active_transaction.lock().clone()
   }
 
@@ -125,7 +129,7 @@ impl SessionContext {
       _ => match transaction.handle.is_chained() {
         true => Ok(response),
         false => {
-          let transaction = self.active_transaction();
+          let transaction = unsafe { self.active_transaction() };
           self.new_transaction()?;
           response.set_stream_completion_hook(StreamCompletionHook::new(
             Box::new(move || transaction.commit()),
@@ -136,9 +140,15 @@ impl SessionContext {
     }
   }
 
+  /// The caller is responsible for committing the transaction
+  /// If not manually committed, the transaction will be rolled back
+  pub unsafe fn create_new_transaction(&self) -> Result<Transaction> {
+    self.new_transaction()
+  }
+
   /// Replaces the active transaction of the context with the new
   /// transaction and returns the new transaction
-  pub fn new_transaction(&self) -> Result<Transaction> {
+  pub(crate) fn new_transaction(&self) -> Result<Transaction> {
     let new_transaction = Transaction::new(
       self.config.clone(),
       self.state.clone(),
@@ -153,7 +163,9 @@ impl SessionContext {
   /// Commits the current transaction and create a new current transaction
   /// for the session
   pub fn commit_active_transaction(&self) -> Result<()> {
-    self.active_transaction().commit()?;
+    unsafe {
+      self.active_transaction().commit()?;
+    }
     self.new_transaction()?;
     Ok(())
   }
@@ -161,7 +173,9 @@ impl SessionContext {
   /// Rollbacks the current transaction, return it
   /// and create a new current transaction for the session
   pub fn rollback_active_transaction(&self) -> Result<()> {
-    self.active_transaction().rollback()?;
+    unsafe {
+      self.active_transaction().rollback()?;
+    }
     self.new_transaction()?;
     Ok(())
   }

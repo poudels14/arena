@@ -30,7 +30,7 @@ async fn indexes_test_create_index_after_creating_table_in_same_transaction() {
 async fn indexes_test_create_index_after_creating_table_in_diff_transaction() {
   let session = create_session_context();
 
-  let txn = session.active_transaction();
+  let txn = unsafe { session.active_transaction() };
   let res = execute_query!(
     txn,
     r#"CREATE TABLE IF NOT EXISTS unique_column (
@@ -90,7 +90,7 @@ async fn indexes_test_index_with_same_name_in_same_txn_without_if_not_exist() {
 async fn indexes_test_create_unique_index_and_verify_index_backfill() {
   let session = create_session_context();
 
-  let txn = session.active_transaction();
+  let txn = unsafe { session.active_transaction() };
   let _ = execute_query!(
     txn,
     r#"CREATE TABLE IF NOT EXISTS test_table (

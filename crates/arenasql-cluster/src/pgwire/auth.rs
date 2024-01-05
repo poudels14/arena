@@ -191,7 +191,7 @@ async fn get_user_login_for_catalog(
   username: &str,
 ) -> arenasql::Result<Option<User>> {
   debug!("Checking user {:?} for catalog {:?}", username, catalog);
-  let transaction = session_context.new_transaction()?;
+  let transaction = unsafe { session_context.create_new_transaction()? };
   let rows = transaction
     .execute_sql(&format!(
       "EXECUTE arena_list_catalog_users('{}')",

@@ -43,7 +43,7 @@ async fn main() -> Result<()> {
   .unwrap();
 
   {
-    let txn = session_context.new_transaction().unwrap();
+    let txn = unsafe { session_context.create_new_transaction().unwrap() };
 
     let _res = txn
       .execute_sql(
