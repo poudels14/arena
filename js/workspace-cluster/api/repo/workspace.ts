@@ -80,13 +80,16 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
         );
       return rows as Workspace[];
     },
-    async createWorkspaceForUser(userId: string): Promise<Required<Workspace>> {
-      const workspaceId = uniqueId();
+    async createWorkspace(options: {
+      id?: string;
+      name?: string;
+      ownerId: string;
+    }): Promise<Required<Workspace>> {
       const workspaceRows = await db
         .insert(workspaces)
         .values({
-          id: workspaceId,
-          name: "Default workspace",
+          id: "w-" + options.id || uniqueId(),
+          name: options.name || "Default workspace",
           config: {},
           createdAt: new Date(),
         })
@@ -96,7 +99,7 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
 
       await db.insert(workspaceMembers).values({
         workspaceId: workspace.id,
-        userId,
+        userId: options.ownerId,
         access: "owner",
       });
 

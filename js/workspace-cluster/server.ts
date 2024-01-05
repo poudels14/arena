@@ -22,10 +22,7 @@ const fetch = async (request: any) => {
         env,
         dbpool,
         repo: createRepo(client),
-        user: {
-          // TODO: auth
-          id: "69",
-        },
+        user: null,
       },
     });
 

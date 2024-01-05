@@ -81,7 +81,6 @@ const login = p.query(
   async ({ ctx, searchParams, setCookie, errors, redirect }) => {
     const { magicToken } = searchParams;
     if (!magicToken) {
-      console.log("magicToken = ", magicToken);
       return errors.badRequest();
     }
 
@@ -96,8 +95,7 @@ const login = p.query(
 
       let user;
       if (!userId || !(user = await ctx.repo.users.fetchById(userId))) {
-        console.log(payload);
-        console.log("user error");
+        console.log("Magic token login error: payload =", payload);
         return errors.badRequest();
       }
 
@@ -107,7 +105,9 @@ const login = p.query(
 
       // if there's no workspace for the user, create one
       if (workspaces.length == 0) {
-        await ctx.repo.workspaces.createWorkspaceForUser(user.id);
+        await ctx.repo.workspaces.createWorkspace({
+          ownerId: user.id,
+        });
       }
 
       const signInToken = jwt.sign({
