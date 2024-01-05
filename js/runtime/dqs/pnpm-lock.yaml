@@ -5,12 +5,12 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
-  '@arena/core':
+  '@portal/sdk':
     specifier: workspace:^
-    version: link:../../packages/arena-core
-  '@arena/sdk':
+    version: link:../../portal-app/sdk
+  '@portal/server-core':
     specifier: workspace:^
-    version: link:../../packages/sdk
+    version: link:../../portal/server-core
   drizzle-orm:
     specifier: ^0.26.4
     version: 0.26.5

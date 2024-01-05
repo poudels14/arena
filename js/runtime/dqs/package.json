@@ -7,8 +7,8 @@
   "private": true,
   "license": "UNLICENSED",
   "dependencies": {
-    "@arena/core": "workspace:^",
-    "@arena/sdk": "workspace:^",
+    "@portal/sdk": "workspace:^",
+    "@portal/server-core": "workspace:^",
     "drizzle-orm": "^0.26.4",
     "zod": "^3.22.4"
   }

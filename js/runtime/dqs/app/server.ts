@@ -1,7 +1,7 @@
 import { serve, mergedRouter } from "@arena/runtime/server";
 // @ts-expect-error
 import * as appTemplate from "@dqs/template/app";
-import { DatabaseConfig } from "@arena/sdk/db";
+import { DatabaseConfig } from "@portal/sdk/db";
 import { router as adminRouter } from "./admin";
 // import { router as workflowRouter } from "./workflow";
 // @ts-expect-error

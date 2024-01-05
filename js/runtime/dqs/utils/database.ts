@@ -1,6 +1,6 @@
 import { VectorDatabase } from "../../cloud/vectordb";
 import { Flags, Client } from "@arena/runtime/sqlite";
-import { DatabaseConfig } from "@arena/sdk/db";
+import { DatabaseConfig } from "@portal/sdk/db";
 import path from "path";
 
 const { ops } = Arena.core;

@@ -1,10 +1,10 @@
-import { createRouter, procedure } from "@arena/core/router";
+import { createRouter, procedure } from "@portal/server-core/router";
 import {
   DatabaseClient,
   DatabaseClients,
   DatabaseConfig,
   runDatabaseMigration,
-} from "@arena/sdk/db";
+} from "@portal/sdk/db";
 // @ts-expect-error
 import { databases } from "@dqs/template/app";
 

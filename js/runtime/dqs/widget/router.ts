@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createRouter, procedure } from "@arena/core/router";
+import { createRouter, procedure } from "@portal/server-core/router";
 
 const execWidgetQueryBodySchema = z.object({
   // the trigger is QUERY if the data query exec was triggered by GET
