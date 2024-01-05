@@ -111,7 +111,7 @@ impl Transaction {
     &self.handle
   }
 
-  #[tracing::instrument(skip_all, level = "debug")]
+  #[tracing::instrument(skip_all, level = "TRACE")]
   #[inline]
   pub async fn execute_sql(&self, sql: &str) -> Result<ExecutionResponse> {
     let mut stmts = crate::ast::parse(sql)?;
@@ -124,7 +124,7 @@ impl Transaction {
     self.execute(stmts.pop().unwrap().into()).await
   }
 
-  #[tracing::instrument(skip_all, level = "debug")]
+  #[tracing::instrument(skip_all, level = "TRACE")]
   #[inline]
   pub async fn create_verified_logical_plan(
     &self,
@@ -184,7 +184,7 @@ impl Transaction {
     Ok(plan)
   }
 
-  #[tracing::instrument(skip_all, level = "debug")]
+  #[tracing::instrument(skip_all, level = "TRACE")]
   pub async fn execute(
     &self,
     stmt: Box<SQLStatement>,
@@ -196,7 +196,7 @@ impl Transaction {
       .await
   }
 
-  #[tracing::instrument(skip_all, level = "debug")]
+  #[tracing::instrument(skip_all, level = "TRACE")]
   #[inline]
   pub async fn execute_logical_plan(
     &self,
@@ -221,7 +221,7 @@ impl Transaction {
     };
 
     let mut statement = stmt;
-    let mut handle = self;
+    let mut txn = self;
     #[allow(unused)]
     let mut handle_ref = None;
     if *stmt_type == StatementType::Create {
@@ -231,31 +231,31 @@ impl Transaction {
       // and we need to access the query to support custom data types like VECTOR,
       // JSONB, etc
       // TODO: remove this when datafusion support custom data types
-      let mut txn_handle = self.handle.clone();
+      let mut txn_handle = txn.handle.clone();
       txn_handle.set_active_statement(Some(statement.clone().into()));
 
       // replace data type to anything that datafusion doesn't throw error for
       ast::cast_unsupported_data_types(&mut statement)?;
       handle_ref = Some(Self::new_with_handle(
         txn_handle,
-        self.session_config.clone(),
-        self.session_state.clone(),
-        self.df_session_config.as_ref().clone(),
+        txn.session_config.clone(),
+        txn.session_state.clone(),
+        txn.df_session_config.as_ref().clone(),
       ));
-      handle = handle_ref.as_ref().unwrap();
+      txn = handle_ref.as_mut().unwrap();
     }
 
-    let df = handle
+    let df = txn
       .datafusion_context
       .execute_logical_plan(plan.clone())
       .await?;
 
     let physical_plan = df.create_physical_plan().await?;
-    let result = handle.execute_stream(&stmt_type, physical_plan).await?;
+    let result = txn.execute_stream(&stmt_type, physical_plan).await?;
     Ok(result)
   }
 
-  #[tracing::instrument(skip_all, level = "debug")]
+  #[tracing::instrument(skip_all, level = "TRACE")]
   #[inline]
   async fn execute_stream(
     &self,
@@ -269,11 +269,13 @@ impl Transaction {
     ExecutionResponse::from_stream(stmt_type, response).await
   }
 
+  #[tracing::instrument(skip_all, level = "TRACE")]
   #[inline]
   pub fn commit(self) -> Result<()> {
     self.handle.commit()
   }
 
+  #[tracing::instrument(skip_all, level = "TRACE")]
   #[inline]
   pub fn rollback(self) -> Result<()> {
     self.handle.rollback()

@@ -178,6 +178,10 @@ impl ArenaSqlCluster {
     )?)
   }
 
+  #[tracing::instrument(
+    skip(cluster_storage_factory, runtime),
+    level = "TRACE"
+  )]
   pub(crate) fn create_session_context_using_cluster_storage(
     cluster_storage_factory: Arc<ClusterStorageFactory>,
     runtime: Arc<RuntimeEnv>,
@@ -210,6 +214,7 @@ impl ArenaSqlCluster {
         false => (vec![DEFAULT_SCHEMA_NAME.to_owned()], vec![]),
       };
 
+    tracing::trace!("Using catalog [{:?}] schemas: {:?}", catalog, schemas);
     let mut session_state = SessionState::default();
     session_state.put(cluster_storage_factory.clone());
     session_state.put(runtime.clone());

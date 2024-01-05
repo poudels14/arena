@@ -17,7 +17,7 @@ use arenasql::pgwire::messages::{PgWireBackendMessage, PgWireFrontendMessage};
 use async_trait::async_trait;
 use derive_new::new;
 use futures::Sink;
-use log::debug;
+use log::trace;
 use rand::Rng;
 
 use crate::error::Error;
@@ -190,7 +190,7 @@ async fn get_user_login_for_catalog(
   catalog: &str,
   username: &str,
 ) -> arenasql::Result<Option<User>> {
-  debug!("Checking user {:?} for catalog {:?}", username, catalog);
+  trace!("Checking user {:?} for catalog {:?}", username, catalog);
   let transaction = unsafe { session_context.create_new_transaction()? };
   let rows = transaction
     .execute_sql(&format!(

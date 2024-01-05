@@ -34,6 +34,7 @@ pub struct SchemaFactory {
 }
 
 impl SchemaFactory {
+  #[tracing::instrument(skip(self), level = "TRACE")]
   pub(crate) fn load_all_tables(&mut self) -> Result<()> {
     let kv = self.kv_store_provider.new_transaction()?;
     let storage_handler = StorageHandler {
@@ -52,10 +53,12 @@ impl SchemaFactory {
     Ok(())
   }
 
+  #[tracing::instrument(skip(self), level = "TRACE")]
   pub fn table_names(&self) -> Vec<String> {
     self.tables.values().map(|t| t.name.clone()).collect()
   }
 
+  #[tracing::instrument(skip(self), level = "TRACE")]
   pub fn get_table(&self, name: &str) -> Option<Arc<Table>> {
     self.tables.get(name).map(|kv| kv.clone())
   }

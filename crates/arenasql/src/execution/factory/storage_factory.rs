@@ -45,6 +45,7 @@ pub struct StorageFactory {
 }
 
 impl StorageFactory {
+  #[tracing::instrument(skip(self), level = "TRACE")]
   pub fn being_transaction(
     &self,
     schemas: Arc<Vec<String>>,

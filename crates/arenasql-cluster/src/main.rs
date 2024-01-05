@@ -53,6 +53,11 @@ enum Commands {
 fn main() {
   env_logger::Builder::new()
     .filter_level(LevelFilter::Info)
+    .filter_module("arenasql", LevelFilter::Trace)
+    .filter_module("arenasql_cluster", LevelFilter::Trace)
+    .filter_module("tokio_util", LevelFilter::Off)
+    .filter_module("datafusion", LevelFilter::Off)
+    .filter_module("datafusion_optimizer", LevelFilter::Off)
     .parse_default_env()
     .init();
 

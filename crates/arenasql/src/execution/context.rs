@@ -64,7 +64,7 @@ impl SessionContext {
     self.active_transaction.lock().clone()
   }
 
-  #[tracing::instrument(skip_all, level = "debug")]
+  #[tracing::instrument(skip_all, level = "TRACE")]
   #[inline]
   pub async fn execute_sql(&self, sql: &str) -> Result<Vec<ExecutionResponse>> {
     let stmts = crate::ast::parse(sql)?;

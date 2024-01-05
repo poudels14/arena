@@ -26,6 +26,7 @@ impl StorageHandler {
       .and_then(|id_bytes| serializer.deserialize::<TableId>(&id_bytes))
   }
 
+  #[tracing::instrument(skip(self), level = "TRACE")]
   pub fn get_table_schema(
     &self,
     catalog: &str,
@@ -45,6 +46,7 @@ impl StorageHandler {
     )
   }
 
+  #[tracing::instrument(skip(self), level = "TRACE")]
   pub fn get_all_table_schemas(
     &self,
     catalog: &str,
@@ -61,9 +63,14 @@ impl StorageHandler {
       tables.push(table);
       iter.next();
     }
+    tracing::trace!(
+      "Loaded tables: {:?}",
+      tables.iter().map(|t| &t.name).collect::<Vec<&String>>()
+    );
     Ok(tables)
   }
 
+  #[tracing::instrument(skip(self), level = "TRACE")]
   pub fn put_table_schema(
     &self,
     catalog: &str,
@@ -78,6 +85,7 @@ impl StorageHandler {
     )
   }
 
+  #[tracing::instrument(skip(self), level = "TRACE")]
   pub fn delete_table_schema(
     &self,
     catalog: &str,

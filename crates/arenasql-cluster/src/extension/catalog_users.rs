@@ -148,6 +148,7 @@ impl CustomExecutionPlan for SetCatalogUserCredentials {
         )],
       )?;
 
+      drop(storage);
       transaction.commit()?;
       Ok(dataframe)
     };
@@ -238,6 +239,7 @@ impl CustomExecutionPlan for ListCatalogUserCredentials {
   }
 }
 
+#[tracing::instrument(skip(transaction), level = "TRACE")]
 fn create_admin_session_context_for_catalog(
   transaction: &Transaction,
   catalog: &str,

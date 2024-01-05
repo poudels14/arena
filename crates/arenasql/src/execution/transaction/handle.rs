@@ -123,6 +123,7 @@ impl TransactionHandle {
   }
 
   /// Holds the write lock to the table until this transaction is dropped
+  #[tracing::instrument(skip(self), level = "TRACE")]
   pub fn hold_table_schema_lock(
     &self,
     table: Arc<Table>,
@@ -146,6 +147,7 @@ impl TransactionHandle {
       .hold_table_schema_lock(lock)
   }
 
+  #[tracing::instrument(skip(self), level = "TRACE")]
   pub fn get_table(&self, schema: &str, name: &str) -> Option<Arc<Table>> {
     // Note: need to check locked_tables first to check if the
     // table was updated by the current transaction but the change
@@ -164,6 +166,7 @@ impl TransactionHandle {
       })
   }
 
+  #[tracing::instrument(skip(self), level = "TRACE")]
   pub fn table_names(&self, schema: &str) -> Vec<String> {
     self
       .schema_factories
