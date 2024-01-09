@@ -39,7 +39,6 @@ const writeFile = nodeJsCompatFunction("writeFileSync");
 
 Object.assign(realpath, {
   native(...args) {
-    console.log("realpath.native args =", args);
     const cb = args.pop();
     cb(Arena.fs.realpath(...args));
   },

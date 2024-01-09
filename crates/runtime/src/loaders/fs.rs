@@ -111,8 +111,12 @@ impl ModuleLoader for FileModuleLoader {
         None => {
           let mut code = std::fs::read_to_string(path.clone())?;
           if module_type == ModuleType::JavaScript {
-            code =
-              default_js_transpiler.transpile(&path, &media_type, &code)?;
+            code = default_js_transpiler.transpile(
+              &path,
+              &media_type,
+              &code,
+              true,
+            )?;
           }
           match transpiler.clone() {
             Some(transpiler) if needs_transpilation == true => {

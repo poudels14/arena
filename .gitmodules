@@ -10,3 +10,6 @@
 [submodule "js/portal-app"]
 	path = js/portal-app
 	url = git@github.com:poudels14/portal-app
+[submodule "js/solid-router"]
+	path = js/solid-router
+	url = https://github.com/poudels14/solid-router

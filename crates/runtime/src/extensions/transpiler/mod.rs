@@ -25,7 +25,8 @@ use crate::config::RuntimeConfig;
 use crate::extensions::BuiltinExtension;
 use crate::permissions::resolve_read_path;
 use crate::resolver::FilePathResolver;
-use crate::transpiler::jsx_analyzer::JsxAnalyzer;
+use crate::resolver::Resolver;
+use crate::transpiler::{self, jsx_analyzer::JsxAnalyzer};
 
 pub fn extension() -> BuiltinExtension {
   BuiltinExtension::new(
@@ -77,7 +78,7 @@ struct TranspilerConfig {
 pub(crate) struct Transpiler {
   root: PathBuf,
   config: TranspilerConfig,
-  resolver: Rc<FilePathResolver>,
+  resolver: Rc<dyn Resolver>,
 }
 
 impl Resource for Transpiler {
@@ -189,21 +190,28 @@ fn transpile_code(
     },
   )?;
 
-  let parsed_code = parsed
-    .transpile(
-      // TODO(sagar): take all of these in options arg later
-      &EmitOptions {
-        emit_metadata: true,
-        transform_jsx: jsx_analyzer.is_react,
-        inline_source_map: transpiler
-          .config
-          .source_map
-          .as_ref()
-          .map(|m| m == "inline")
-          .unwrap_or(false),
-        ..Default::default()
-      },
-    )?
-    .text;
-  Ok(TranspileResult { code: parsed_code })
+  let transpiled = parsed.transpile(
+    // TODO(sagar): take all of these in options arg later
+    &EmitOptions {
+      emit_metadata: true,
+      transform_jsx: jsx_analyzer.is_react,
+      inline_source_map: transpiler
+        .config
+        .source_map
+        .as_ref()
+        .map(|m| m == "inline")
+        .unwrap_or(false),
+      ..Default::default()
+    },
+  )?;
+
+  Ok(TranspileResult {
+    code: transpiler::with_esm_exports(
+      &transpiler.resolver,
+      filename,
+      &parsed,
+      transpiled,
+      false,
+    )?,
+  })
 }

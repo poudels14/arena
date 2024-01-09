@@ -5,7 +5,7 @@ pub mod jsx_analyzer;
 use anyhow::Result;
 use async_trait::async_trait;
 pub use babel::BabelTranspiler;
-pub use swc::SwcTranspiler;
+pub use swc::{with_esm_exports, SwcTranspiler};
 
 use std::path::PathBuf;
 use std::sync::Arc;

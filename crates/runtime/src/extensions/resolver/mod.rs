@@ -123,7 +123,7 @@ fn op_resolver_resolve(
   let resolver = state.resource_table.get::<FilePathResolver>(rid)?;
   let runtime_config = state.borrow::<RuntimeConfig>();
   let resolved_path = resolve(
-    &resolver,
+    resolver.as_ref(),
     &runtime_config.project_root,
     &referrer,
     &specifier,
@@ -160,7 +160,7 @@ fn op_resolver_read_file(
 }
 
 pub(crate) fn resolve(
-  resolver: &FilePathResolver,
+  resolver: &dyn Resolver,
   root: &PathBuf,
   referrer: &str,
   specifier: &str,

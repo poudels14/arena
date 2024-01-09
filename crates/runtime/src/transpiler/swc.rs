@@ -2,7 +2,10 @@ use std::path::Path;
 use std::rc::Rc;
 
 use anyhow::{anyhow, Result};
-use deno_ast::{EmitOptions, MediaType, ParseParams, SourceTextInfo};
+use deno_ast::{
+  EmitOptions, MediaType, ParseParams, ParsedSource, SourceTextInfo,
+  TranspiledSource,
+};
 use indexmap::IndexSet;
 use swc_ecma_ast::Program;
 use swc_ecma_visit::VisitWith;
@@ -28,6 +31,7 @@ impl SwcTranspiler {
     module_path: &Path,
     media_type: &MediaType,
     code: &str,
+    inject_require: bool,
   ) -> Result<String> {
     let mut jsx_analyzer = JsxAnalyzer::new();
     let module_filename = module_path.to_str().unwrap();
@@ -63,84 +67,105 @@ impl SwcTranspiler {
       ..Default::default()
     })?;
 
-    let module_dirname = module_path.parent().unwrap().to_str().unwrap();
-    let module_url = Url::from_file_path(module_path).unwrap();
+    with_esm_exports(
+      &self.resolver,
+      module_path,
+      &parsed,
+      transpiled_result,
+      inject_require,
+    )
+  }
+}
 
-    // Add this to all JS files so that they can use require("...")
-    let header = vec![
+/// Converts transpiled code to string and adds ESM exports if
+/// it's a CJS file
+pub fn with_esm_exports(
+  resolver: &Rc<dyn Resolver>,
+  module_path: &Path,
+  parsed: &ParsedSource,
+  transpiled: TranspiledSource,
+  inject_require: bool,
+) -> Result<String> {
+  let module_filename = module_path.to_str().unwrap();
+  let module_dirname = module_path.parent().unwrap().to_str().unwrap();
+  let module_url = Url::from_file_path(module_path).unwrap();
+
+  // Add this to all JS files so that they can use require("...")
+  let header = if inject_require {
+    vec![
       inject_create_require(&module_url),
       format!("var __filename = \"{module_filename}\";"),
       format!("var __dirname = \"{module_dirname}\";"),
     ]
-    .join("\n");
+    .join("\n")
+  } else {
+    format!("")
+  };
+  if parsed.is_script() {
+    let analysis = parsed.analyze_cjs();
+    let exports: IndexSet<String> = analysis
+      .reexports
+      .iter()
+      .map(|export| get_cjs_reexports(&resolver, export.as_str(), &module_path))
+      .collect::<Result<Vec<Vec<String>>>>()?
+      .into_iter()
+      .flatten()
+      .chain(analysis.exports)
+      .collect();
 
-    if parsed.is_script() {
-      let analysis = parsed.analyze_cjs();
-      let exports: IndexSet<String> = analysis
-        .reexports
-        .iter()
-        .map(|export| {
-          get_cjs_reexports(&self.resolver, export.as_str(), &module_path)
-        })
-        .collect::<Result<Vec<Vec<String>>>>()?
-        .into_iter()
-        .flatten()
-        .chain(analysis.exports)
-        .collect();
+    let exports_remap = exports
+      .iter()
+      .enumerate()
+      .map(|(index, export)| {
+        format!("{} : m_export_{}_{}", export, export, index)
+      })
+      .collect::<Vec<String>>()
+      .join(", ");
 
-      let exports_remap = exports
-        .iter()
-        .enumerate()
-        .map(|(index, export)| {
-          format!("{} : m_export_{}_{}", export, export, index)
-        })
-        .collect::<Vec<String>>()
-        .join(", ");
+    let named_export = exports
+      .iter()
+      .enumerate()
+      .map(|(index, export)| {
+        format!("m_export_{}_{} as {}", export, index, export)
+      })
+      .collect::<Vec<String>>()
+      .join(", ");
 
-      let named_export = exports
-        .iter()
-        .enumerate()
-        .map(|(index, export)| {
-          format!("m_export_{}_{} as {}", export, index, export)
-        })
-        .collect::<Vec<String>>()
-        .join(", ");
+    // dont add default export if it's already there
+    let default_export = if !exports.iter().any(|e| e == "default") {
+      format!("export default named_exports_69;")
+    } else {
+      format!("")
+    };
 
-      // dont add default export if it's already there
-      let default_export = if !exports.iter().any(|e| e == "default") {
-        format!("export default named_exports_69;")
-      } else {
-        format!("")
-      };
-
-      return Ok(
-        vec![
-          &header,
-          "var __commonJS = (cb, mod) => () =>",
-          "\t(mod || cb((mod = { exports: {} }).exports, mod), mod.exports);",
-          "let require_module = __commonJS((exports, module) => {{",
-          &transpiled_result.text,
-          "}});",
-          "const named_exports_69 = require_module();",
-          &format!("const {{ {exports_remap} }} = named_exports_69;"),
-          &format!("export {{ {named_export} }};"),
-          &default_export,
-          &transpiled_result
-            .source_map
-            .map(|sm| {
-              format!(
-                "//# sourceMappingURL=data:application/json;base64,{}",
-                base64::encode(sm)
-              )
-            })
-            .unwrap_or_default(),
-        ]
-        .join("\n"),
-      );
-    }
-
-    Ok(vec![header, transpiled_result.text].join("\n"))
+    return Ok(
+      vec![
+        &header,
+        "var __commonJS = (cb, mod) => () =>",
+        "\t(mod || cb((mod = { exports: {} }).exports, mod), mod.exports);",
+        "let require_module = __commonJS((exports, module) => {{",
+        &transpiled.text,
+        "}});",
+        "const named_exports_69 = require_module();",
+        &format!("const {{ {exports_remap} }} = named_exports_69;"),
+        &format!("export {{ {named_export} }};"),
+        &default_export,
+        &transpiled
+          .source_map
+          .as_ref()
+          .map(|sm| {
+            format!(
+              "//# sourceMappingURL=data:application/json;base64,{}",
+              base64::encode(sm)
+            )
+          })
+          .unwrap_or_default(),
+      ]
+      .join("\n"),
+    );
   }
+
+  Ok(vec![header, transpiled.text].join("\n"))
 }
 
 fn get_cjs_reexports(
