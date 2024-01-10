@@ -1,6 +1,7 @@
 use std::fmt;
 use std::sync::Arc;
 
+use datafusion::common::SchemaError;
 use datafusion::error::DataFusionError;
 use once_cell::sync::Lazy;
 use pgwire::error::{ErrorInfo, PgWireError};
@@ -55,6 +56,8 @@ pub enum Error {
 
 const RE_TABLE_NOT_FOUND: Lazy<Regex> =
   Lazy::new(|| Regex::new(r"table '(?P<rel>[\w.]+)' not found").unwrap());
+const RE_TABLE_DOESNT_EXIST: Lazy<Regex> =
+  Lazy::new(|| Regex::new(r"Table '(?P<rel>[\w.]+)' doesn't exist").unwrap());
 const RE_TABLE_ALREADY_EXISTS: Lazy<Regex> = Lazy::new(|| {
   Regex::new(r"Table '(?P<table>[\w.]+)' already exists").unwrap()
 });
@@ -80,6 +83,8 @@ impl Error {
       Self::RelationDoesntExist(_) => "42P01",
       // duplicate_table or duplicate index
       Self::RelationAlreadyExists(_) => "42P07",
+      // undefined_column
+      Self::ColumnDoesntExist(_) => "42703",
       // internal_error
       Self::UnsupportedOperation(_)
       | Self::UnsupportedDataType(_)
@@ -90,7 +95,6 @@ impl Error {
       | Self::NullConstraintViolated { .. }
       | Self::DatabaseAlreadyExists(_)
       | Self::SchemaDoesntExist(_)
-      | Self::ColumnDoesntExist(_)
       | Self::IOError(_)
       | Self::SerdeError(_)
       | Self::InternalError(_)
@@ -215,6 +219,8 @@ impl Error {
       DataFusionError::Plan(ref msg) | DataFusionError::Execution(ref msg) => {
         if let Some(capture) = RE_TABLE_NOT_FOUND.captures(msg) {
           Some(Self::RelationDoesntExist(capture["rel"].to_owned()))
+        } else if let Some(capture) = RE_TABLE_DOESNT_EXIST.captures(msg) {
+          Some(Self::RelationDoesntExist(capture["rel"].to_owned()))
         } else if let Some(capture) = RE_CATALOG_ALREADY_EXISTS.captures(msg) {
           Some(Self::DatabaseAlreadyExists(capture["catalog"].to_owned()))
         } else if let Some(capture) = RE_TABLE_ALREADY_EXISTS.captures(msg) {
@@ -223,6 +229,10 @@ impl Error {
           None
         }
       }
+      DataFusionError::SchemaError(SchemaError::FieldNotFound {
+        field,
+        ..
+      }) => Some(Self::ColumnDoesntExist(field.name.clone())),
       _ => None,
     }
   }
