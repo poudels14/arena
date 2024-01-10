@@ -1,3 +1,4 @@
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 use datafusion::execution::context::SessionConfig as DfSessionConfig;
@@ -26,7 +27,7 @@ pub struct SessionContext {
   df_session_config: Arc<DfSessionConfig>,
 
   #[derivative(Debug = "ignore")]
-  active_transaction: Arc<Mutex<Transaction>>,
+  active_transaction: Arc<Mutex<Option<Transaction>>>,
 }
 
 impl SessionContext {
@@ -43,16 +44,11 @@ impl SessionContext {
 
     let config = Arc::new(config);
     let state = Arc::new(RwLock::new(state));
-    let active_transaction = Transaction::new(
-      config.clone(),
-      state.clone(),
-      df_session_config.clone(),
-    )?;
     Ok(Self {
       config,
       state,
       df_session_config: Arc::new(df_session_config),
-      active_transaction: Arc::new(Mutex::new(active_transaction)),
+      active_transaction: Arc::new(Mutex::new(None)),
     })
   }
 
@@ -60,11 +56,17 @@ impl SessionContext {
   /// If not manually committed, the transaction will be rolled back.
   /// Instead of using this the transaction directly, execute query using
   /// `context.execute_sql(...)`
-  pub unsafe fn active_transaction(&self) -> Transaction {
-    self.active_transaction.lock().clone()
+  pub unsafe fn get_or_create_active_transaction(&self) -> Transaction {
+    let txn = self.active_transaction.lock().clone();
+    match txn {
+      Some(txn) => txn,
+      None => self
+        .new_active_transaction()
+        .expect("Error creating new transaction"),
+    }
   }
 
-  #[tracing::instrument(skip_all, level = "TRACE")]
+  #[tracing::instrument(skip_all, err, level = "TRACE")]
   #[inline]
   pub async fn execute_sql(&self, sql: &str) -> Result<Vec<ExecutionResponse>> {
     let stmts = crate::ast::parse(sql)?;
@@ -76,6 +78,7 @@ impl SessionContext {
     Ok(results)
   }
 
+  #[tracing::instrument(skip_all, err, level = "TRACE")]
   pub async fn execute_statement(
     &self,
     stmt: Box<SQLStatement>,
@@ -83,9 +86,10 @@ impl SessionContext {
     params: Option<Vec<ScalarValue>>,
   ) -> Result<ExecutionResponse> {
     let stmt_type = StatementType::from(stmt.as_ref());
+    tracing::trace!("{:?}", stmt_type);
     if stmt_type.is_begin() {
-      let mut transaction = self.active_transaction.lock();
-      transaction.handle.set_is_chained(true);
+      let transaction = unsafe { self.get_or_create_active_transaction() };
+      transaction.handle.is_chained().swap(true, Ordering::AcqRel);
       return Ok(ExecutionResponse::empty());
     } else if stmt_type.is_commit() {
       self.commit_active_transaction()?;
@@ -95,7 +99,7 @@ impl SessionContext {
       return Ok(ExecutionResponse::empty());
     }
 
-    let transaction = self.active_transaction.lock().clone();
+    let transaction = unsafe { self.get_or_create_active_transaction() };
     let logical_plan = match logical_plan {
       Some(logical_plan) => logical_plan,
       None => {
@@ -126,11 +130,14 @@ impl SessionContext {
       StatementType::Query => Ok(response),
       // Commit the transaction for execute query if it's not a chained
       // transaction. i.e. if it wasn't explicitly started by `BEGIN` command
-      _ => match transaction.handle.is_chained() {
+      _ => match transaction.handle.is_chained().load(Ordering::Acquire) {
         true => Ok(response),
         false => {
-          let transaction = unsafe { self.active_transaction() };
-          self.new_transaction()?;
+          let transaction = self
+            .active_transaction
+            .lock()
+            .take()
+            .expect("Invalid active transaction");
           response.set_stream_completion_hook(StreamCompletionHook::new(
             Box::new(move || transaction.commit()),
           ))?;
@@ -142,13 +149,15 @@ impl SessionContext {
 
   /// The caller is responsible for committing the transaction
   /// If not manually committed, the transaction will be rolled back
-  pub unsafe fn create_new_transaction(&self) -> Result<Transaction> {
-    self.new_transaction()
+  #[tracing::instrument(skip_all, level = "TRACE")]
+  pub unsafe fn create_new_active_transaction(&self) -> Result<Transaction> {
+    self.new_active_transaction()
   }
 
   /// Replaces the active transaction of the context with the new
   /// transaction and returns the new transaction
-  pub(crate) fn new_transaction(&self) -> Result<Transaction> {
+  #[tracing::instrument(skip_all, level = "TRACE")]
+  pub(crate) fn new_active_transaction(&self) -> Result<Transaction> {
     let new_transaction = Transaction::new(
       self.config.clone(),
       self.state.clone(),
@@ -156,27 +165,29 @@ impl SessionContext {
     )?;
 
     let mut transaction = self.active_transaction.lock();
-    *transaction = new_transaction.clone();
+    *transaction = Some(new_transaction.clone());
     Ok(new_transaction)
   }
 
   /// Commits the current transaction and create a new current transaction
   /// for the session
+  #[tracing::instrument(skip_all, level = "TRACE")]
   pub fn commit_active_transaction(&self) -> Result<()> {
-    unsafe {
-      self.active_transaction().commit()?;
-    }
-    self.new_transaction()?;
+    let txn = self.active_transaction.lock().take().ok_or(
+      Error::InvalidTransactionState("No active transaction".to_owned()),
+    )?;
+    txn.commit()?;
     Ok(())
   }
 
   /// Rollbacks the current transaction, return it
   /// and create a new current transaction for the session
+  #[tracing::instrument(skip_all, level = "TRACE")]
   pub fn rollback_active_transaction(&self) -> Result<()> {
-    unsafe {
-      self.active_transaction().rollback()?;
-    }
-    self.new_transaction()?;
+    let txn = self.active_transaction.lock().take().ok_or(
+      Error::InvalidTransactionState("No active transaction".to_owned()),
+    )?;
+    txn.rollback()?;
     Ok(())
   }
 }

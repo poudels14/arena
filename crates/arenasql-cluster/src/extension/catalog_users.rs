@@ -100,7 +100,8 @@ impl CustomExecutionPlan for SetCatalogUserCredentials {
       &self.user.catalog,
     )?;
 
-    let transaction = unsafe { session_context.active_transaction() };
+    let transaction =
+      unsafe { session_context.get_or_create_active_transaction() };
     let user = self.user.clone();
     let query = async move {
       transaction.execute_sql(CREATE_USERS_TABLE).await?;
@@ -199,7 +200,8 @@ impl CustomExecutionPlan for ListCatalogUserCredentials {
       &self.transaction,
       &self.catalog,
     )?;
-    let transaction = unsafe { session_context.active_transaction() };
+    let transaction =
+      unsafe { session_context.get_or_create_active_transaction() };
     let catalog = self.catalog.clone();
     let query = async move {
       let mut dataframe = DataFrame::with_capacity(

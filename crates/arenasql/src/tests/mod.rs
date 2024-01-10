@@ -1,7 +1,10 @@
-use std::sync::Arc;
+use std::str::FromStr;
+use std::sync::{Arc, Once};
 
-use log::LevelFilter;
 use tempdir::TempDir;
+use tracing_subscriber::filter::Directive;
+use tracing_subscriber::prelude::*;
+use tracing_tree::HierarchicalLayer;
 
 use crate::execution::factory::StorageFactoryBuilder;
 use crate::execution::{
@@ -28,12 +31,25 @@ macro_rules! execute_query {
   };
 }
 
+static INIT_LOGGER: Once = Once::new();
+
 pub(super) fn create_session_context() -> SessionContext {
-  env_logger::Builder::new()
-    .filter_module("datafusion", LevelFilter::Off)
-    .filter_module("datafusion_optimizer", LevelFilter::Off)
-    .parse_default_env()
-    .init();
+  INIT_LOGGER.call_once(|| {
+    let subscriber = tracing_subscriber::registry()
+      .with(
+        tracing_subscriber::filter::EnvFilter::builder()
+          .from_env_lossy()
+          // Note(sagar): filter out noisy logs
+          .add_directive(Directive::from_str("swc_=OFF").unwrap())
+          .add_directive(Directive::from_str("tokio_=OFF").unwrap()),
+      )
+      .with(
+        HierarchicalLayer::default()
+          .with_indent_amount(2)
+          .with_thread_names(true),
+      );
+    tracing::subscriber::set_global_default(subscriber).unwrap();
+  });
 
   let runtime = RuntimeEnv::default();
 

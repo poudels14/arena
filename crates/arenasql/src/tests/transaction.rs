@@ -16,7 +16,7 @@ async fn transaction_autocommit_unchained_transaction() {
 
   // Use new transaction to query the table and if the table exists,
   // it means previous transaction was committed
-  let txn = session.new_transaction().unwrap();
+  let txn = session.new_active_transaction().unwrap();
   let res = txn.execute_sql("SELECT * FROM test_table;").await.unwrap();
   // Make sure SELECT is successful
   assert_eq!(res.num_rows().await.unwrap(), 0);
@@ -39,7 +39,7 @@ async fn transaction_autorollback_uncommitted_chained_transaction() {
 
   // Use new transaction to query the table and if the table exists,
   // it means previous transaction was committed
-  let txn = session.new_transaction().unwrap();
+  let txn = session.new_active_transaction().unwrap();
   let res = txn.execute_sql("SELECT * FROM test_table;").await;
 
   assert!(
@@ -95,7 +95,7 @@ async fn transaction_commit_statement_should_commit_chained_transaction() {
 
   // Use new transaction to query the table and if the table exists,
   // it means previous transaction was committed
-  let txn = session.new_transaction().unwrap();
+  let txn = session.new_active_transaction().unwrap();
   let res = txn.execute_sql("SELECT * FROM test_table;").await.unwrap();
   // Make sure SELECT is successful
   assert_eq!(res.num_rows().await.unwrap(), 0);

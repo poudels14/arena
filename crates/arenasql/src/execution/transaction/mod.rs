@@ -59,6 +59,7 @@ pub struct Transaction {
 }
 
 impl Transaction {
+  #[tracing::instrument(skip_all, level = "TRACE")]
   pub(crate) fn new(
     session_config: Arc<SessionConfig>,
     session_state: Arc<RwLock<SessionState>>,
@@ -68,6 +69,7 @@ impl Transaction {
       .storage_factory
       .create_new_transaction_handle(session_config.schemas.clone())?;
     Ok(Self::new_with_handle(
+      TRANSACTION_ID.fetch_add(1, Ordering::AcqRel),
       handle,
       session_config,
       session_state,
@@ -75,7 +77,12 @@ impl Transaction {
     ))
   }
 
+  #[tracing::instrument(
+    skip(handle, session_config, session_state, df_session_config),
+    level = "TRACE"
+  )]
   pub(crate) fn new_with_handle(
+    id: usize,
     handle: TransactionHandle,
     session_config: Arc<SessionConfig>,
     session_state: Arc<RwLock<SessionState>>,
@@ -100,7 +107,7 @@ impl Transaction {
     let sql_options = SQLOptions::new();
 
     Self {
-      id: TRANSACTION_ID.fetch_add(1, Ordering::AcqRel),
+      id,
       session_config,
       session_state,
       sql_options,
@@ -140,6 +147,11 @@ impl Transaction {
     }
     let state = self.datafusion_context.state();
     let stmt_type = StatementType::from(stmt.as_ref());
+    tracing::trace!(
+      "transaction_id = {:?}, stmt_type = {:?}",
+      self.id,
+      stmt_type
+    );
     // Modify stmt if needed
     // THIS IS A HACK needed because table scan needs to return rowid
     // for delete/update
@@ -193,6 +205,7 @@ impl Transaction {
     &self,
     stmt: Box<SQLStatement>,
   ) -> Result<ExecutionResponse> {
+    tracing::trace!("transaction_id = {:?}", self.id);
     let logical_plan = self.create_verified_logical_plan(stmt.clone()).await?;
     let stmt_type = StatementType::from(stmt.as_ref());
     self
@@ -200,7 +213,7 @@ impl Transaction {
       .await
   }
 
-  #[tracing::instrument(skip_all, level = "TRACE")]
+  #[tracing::instrument(skip(self, stmt, plan), level = "TRACE")]
   #[inline]
   pub async fn execute_logical_plan(
     &self,
@@ -208,6 +221,7 @@ impl Transaction {
     stmt: Box<SQLStatement>,
     plan: LogicalPlan,
   ) -> Result<ExecutionResponse> {
+    tracing::trace!("transaction_id = {:?}", self.id);
     if let LogicalPlan::Extension(extension) = plan {
       log::debug!("Using custom execution plan");
       return self
@@ -242,6 +256,7 @@ impl Transaction {
       // replace data type to anything that datafusion doesn't throw error for
       ast::cast_unsupported_data_types(&mut statement)?;
       handle_ref = Some(Self::new_with_handle(
+        self.id,
         txn_handle,
         txn.session_config.clone(),
         txn.session_state.clone(),
@@ -267,6 +282,7 @@ impl Transaction {
     stmt_type: &StatementType,
     physical_plan: Arc<dyn ExecutionPlan>,
   ) -> Result<ExecutionResponse> {
+    tracing::trace!("transaction_id = {:?}", self.id);
     let response = execute_stream(
       physical_plan.clone(),
       self.datafusion_context.task_ctx().into(),
@@ -277,12 +293,14 @@ impl Transaction {
   #[tracing::instrument(skip_all, level = "TRACE")]
   #[inline]
   pub fn commit(self) -> Result<()> {
+    tracing::trace!("transaction_id = {:?}", self.id);
     self.handle.commit()
   }
 
   #[tracing::instrument(skip_all, level = "TRACE")]
   #[inline]
   pub fn rollback(self) -> Result<()> {
+    tracing::trace!("transaction_id = {:?}", self.id);
     self.handle.rollback()
   }
 }

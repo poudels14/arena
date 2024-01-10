@@ -4,7 +4,7 @@ use crate::tests::create_session_context;
 #[tokio::test(flavor = "multi_thread")]
 async fn delete_test_delete_single_row() {
   let session = create_session_context();
-  let txn = session.new_transaction().unwrap();
+  let txn = session.new_active_transaction().unwrap();
 
   execute_query!(
     txn,
@@ -38,7 +38,7 @@ async fn delete_test_delete_single_row() {
 #[tokio::test(flavor = "multi_thread")]
 async fn delete_test_delete_using_two_columns_filter() {
   let session = create_session_context();
-  let txn = session.new_transaction().unwrap();
+  let txn = session.new_active_transaction().unwrap();
 
   execute_query!(
     txn,

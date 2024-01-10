@@ -79,7 +79,8 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
     // of times verified logical plan is created. Maybe just check for
     // catalog/schema/table/column relations during parse instead of creating
     // a verified plan
-    let transaction = unsafe { session.context().active_transaction() };
+    let transaction =
+      unsafe { session.context().get_or_create_active_transaction() };
     for stmt in statement.stmts.clone().into_iter() {
       transaction
         .create_verified_logical_plan(stmt.into())
@@ -95,7 +96,7 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
   }
 
   /// Prepares the logical plan for the query and bind the parameters to it
-  #[tracing::instrument(skip(self, client), level = "trace")]
+  #[tracing::instrument(skip_all, level = "trace")]
   async fn on_bind<C>(&self, client: &mut C, message: Bind) -> PgWireResult<()>
   where
     C: ClientInfo
@@ -116,13 +117,15 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
       .as_deref()
       .unwrap_or(pgwire::api::DEFAULT_NAME);
 
+    tracing::trace!(statement_name);
     if let Some(statement) = client.portal_store().get_statement(statement_name)
     {
       let query = statement.statement();
       // If the query planning was successful, add the plan to the portal
       // state. It could fail if the placeholder type can't be resolved just
       // from the query itself and needs the paramter values as well
-      let transaction = unsafe { session.context().active_transaction() };
+      let transaction =
+        unsafe { session.context().get_or_create_active_transaction() };
       let state = match transaction
         .create_verified_logical_plan(query.stmts[0].clone())
         .await
@@ -151,7 +154,11 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
     }
   }
 
-  #[tracing::instrument(skip_all, level = "DEBUG")]
+  #[tracing::instrument(
+    skip_all,
+    fields(query_type = "extended"),
+    level = "DEBUG"
+  )]
   async fn do_query<'p, 'h: 'p, C>(
     &'h self,
     client: &mut C,
@@ -217,7 +224,8 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
       Some(plan) => Some(plan),
       None => {
         let session = self.get_client_session(client)?;
-        let txn = unsafe { session.context().active_transaction() };
+        let txn =
+          unsafe { session.context().get_or_create_active_transaction() };
         Some(txn.create_verified_logical_plan(stmt).await?)
       }
     };
@@ -240,7 +248,11 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
 
 #[async_trait]
 impl SimpleQueryHandler for ArenaSqlCluster {
-  #[tracing::instrument(skip_all, level = "DEBUG")]
+  #[tracing::instrument(
+    skip_all,
+    fields(query_type = "simple"),
+    level = "DEBUG"
+  )]
   async fn do_query<'a, C>(
     &self,
     client: &mut C,

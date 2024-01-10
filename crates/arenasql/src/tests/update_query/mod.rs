@@ -4,7 +4,7 @@ use crate::tests::create_session_context;
 #[tokio::test(flavor = "multi_thread")]
 async fn update_test_update_single_column_and_single_row() {
   let session = create_session_context();
-  let txn = session.new_transaction().unwrap();
+  let txn = session.new_active_transaction().unwrap();
 
   execute_query!(
     txn,
@@ -43,7 +43,7 @@ async fn update_test_update_single_column_and_single_row() {
 #[tokio::test(flavor = "multi_thread")]
 async fn update_test_update_with_filter_selecting_multiple_rows() {
   let session = create_session_context();
-  let txn = session.new_transaction().unwrap();
+  let txn = session.new_active_transaction().unwrap();
 
   execute_query!(
     txn,
@@ -83,7 +83,7 @@ async fn update_test_update_with_filter_selecting_multiple_rows() {
 #[tokio::test(flavor = "multi_thread")]
 async fn update_test_update_multiple_columns_and_multiple_rows() {
   let session = create_session_context();
-  let txn = session.new_transaction().unwrap();
+  let txn = session.new_active_transaction().unwrap();
 
   execute_query!(
     txn,

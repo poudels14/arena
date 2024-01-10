@@ -23,6 +23,7 @@ pub struct ArenaQueryParser;
 impl QueryParser for ArenaQueryParser {
   type Statement = ArenaQuery;
 
+  #[tracing::instrument(skip_all, level = "DEBUG")]
   async fn parse_sql(
     &self,
     sql: &str,

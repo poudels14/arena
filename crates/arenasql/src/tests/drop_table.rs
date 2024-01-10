@@ -5,7 +5,7 @@ use crate::tests::create_session_context;
 #[tokio::test(flavor = "multi_thread")]
 async fn drop_table_test_all_data_deleted() {
   let session = create_session_context();
-  let txn = session.new_transaction().unwrap();
+  let txn = session.new_active_transaction().unwrap();
 
   execute_query!(
     txn,

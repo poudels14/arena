@@ -4,7 +4,7 @@ use crate::tests::create_session_context;
 #[tokio::test(flavor = "multi_thread")]
 async fn crate_table_with_json_column() {
   let session = create_session_context();
-  let txn = session.new_transaction().unwrap();
+  let txn = session.new_active_transaction().unwrap();
 
   let res = execute_query!(
     txn,

@@ -50,6 +50,7 @@ impl DfSchemaProvider for SchemaProvider {
   }
 
   // Note: for each insert, this table gets called twice
+  #[tracing::instrument(skip(self), level = "TRACE")]
   async fn table(&self, name: &str) -> Option<Arc<dyn DfTableProvider>> {
     let table = self.transaction.get_table(&self.schema, name)?;
     Some(
@@ -59,6 +60,7 @@ impl DfSchemaProvider for SchemaProvider {
   }
 
   #[allow(unused_variables)]
+  #[tracing::instrument(skip(self, table_provider), level = "TRACE")]
   fn register_table(
     &self,
     name: String,
@@ -113,6 +115,7 @@ impl DfSchemaProvider for SchemaProvider {
   }
 
   #[allow(unused_variables)]
+  #[tracing::instrument(skip(self), level = "TRACE")]
   fn deregister_table(
     &self,
     name: &str,

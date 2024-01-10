@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use std::ops::Deref;
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::Arc;
 
 use derivative::Derivative;
@@ -38,8 +38,8 @@ pub struct TransactionHandle {
   // TODO: remove this when datafusion support custom data types
   #[getset(get = "pub", set = "pub(crate)")]
   active_statement: Option<Arc<Statement>>,
-  #[getset(get = "pub", set = "pub(crate)")]
-  is_chained: bool,
+  #[getset(get = "pub")]
+  is_chained: Arc<AtomicBool>,
 }
 
 unsafe impl Send for TransactionHandle {}
@@ -71,7 +71,7 @@ impl TransactionHandle {
         lock: Arc::new(AtomicUsize::new(1)),
       },
       active_statement: None,
-      is_chained: false,
+      is_chained: Arc::new(AtomicBool::new(false)),
     }
   }
 
@@ -109,6 +109,7 @@ impl TransactionHandle {
   }
 
   #[inline]
+  #[tracing::instrument(skip(self), level = "TRACE")]
   fn release_lock(&self) -> Result<()> {
     self.lock.close()?;
     if self.locked_tables.lock().len() > 0 {
