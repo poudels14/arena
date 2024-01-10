@@ -16,6 +16,7 @@ pub struct SessionConfig {
   pub df_runtime: Arc<DfRuntimeEnv>,
   pub catalog: Arc<str>,
   pub schemas: Arc<Vec<String>>,
+  pub enable_information_schema: bool,
   pub privilege: Privilege,
   pub storage_factory: Arc<StorageFactory>,
   pub catalog_list_provider: Arc<dyn CatalogListProvider>,
@@ -32,6 +33,7 @@ impl Default for SessionConfig {
       runtime: Arc::new(RuntimeEnv::default()),
       catalog: default_catalog.clone(),
       schemas: schemas.clone(),
+      enable_information_schema: false,
       privilege: Privilege::default(),
       df_runtime: Arc::new(DfRuntimeEnv::default()),
       storage_factory: Arc::new(

@@ -205,8 +205,9 @@ impl ArenaSqlCluster {
           .unwrap(),
       ));
 
+    let is_admin_user = user == ADMIN_USERNAME;
     let (schemas, extensions): (Vec<String>, Vec<ExecutionPlanExtension>) =
-      match user == ADMIN_USERNAME {
+      match is_admin_user {
         true => (
           // Give access to SYSTEM_SCHEMA_NAME for ADMIN users
           vec![
@@ -230,6 +231,7 @@ impl ArenaSqlCluster {
         df_runtime: Default::default(),
         catalog: catalog.into(),
         schemas: Arc::new(schemas),
+        enable_information_schema: is_admin_user,
         storage_factory,
         catalog_list_provider,
         execution_plan_extensions: Arc::new(extensions),
