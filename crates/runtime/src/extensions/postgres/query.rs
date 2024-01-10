@@ -180,6 +180,7 @@ fn get_json_value(
     &Type::FLOAT4_ARRAY => {
       convert_to_json_value!(row, col_index, Vec<f32>, |v| { Value::from(v) })
     }
+    &Type::VOID => Ok(Value::Null),
     t => Err(anyhow!("UnsupportedDataTypeError: {}", t)),
   }
 }
