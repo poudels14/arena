@@ -25,6 +25,7 @@ macro_rules! bail_unsupported_query {
 }
 
 /// Returns a custom execution plan extension to create index
+#[tracing::instrument(skip_all, level = "trace")]
 pub fn extension(
   transaction: &Transaction,
   stmt: &SQLStatement,

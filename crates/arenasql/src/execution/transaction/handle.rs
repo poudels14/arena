@@ -26,9 +26,9 @@ pub struct TransactionHandle {
   kvstore: Arc<Box<dyn KeyValueStore>>,
   schema_factories: Arc<BTreeMap<String, Arc<SchemaFactory>>>,
   storage_factory_state: Arc<StorageFactoryState>,
-  // locked_tables: BTreeMap<String, Arc<Table>>,
   // List if tables locked by this transaction
   locked_tables: Arc<Mutex<Vec<Arc<Table>>>>,
+  acquired_locks: Arc<Mutex<Vec<TableSchemaWriteLock>>>,
   lock: TransactionLock,
   // NOTE: this is a hack to pass current query statement to the execution
   // plan so that execution plans can have access to sql data types instead
@@ -58,6 +58,7 @@ impl TransactionHandle {
     schema_factories: Arc<BTreeMap<String, Arc<SchemaFactory>>>,
     storage_factory_state: Arc<StorageFactoryState>,
     locked_tables: Arc<Mutex<Vec<Arc<Table>>>>,
+    acquired_locks: Arc<Mutex<Vec<TableSchemaWriteLock>>>,
   ) -> Self {
     Self {
       serializer,
@@ -65,10 +66,9 @@ impl TransactionHandle {
       schema_factories: schema_factories.clone(),
       storage_factory_state: storage_factory_state.clone(),
       locked_tables,
+      acquired_locks,
       lock: TransactionLock {
         lock: Arc::new(AtomicUsize::new(1)),
-        schema_factories,
-        storage_factory_state,
       },
       active_statement: None,
       is_chained: false,
@@ -96,15 +96,24 @@ impl TransactionHandle {
 
   #[inline]
   pub fn commit(&self) -> Result<()> {
-    self.lock.close()?;
+    self.release_lock()?;
     self.kvstore.commit()?;
     Ok(())
   }
 
   #[inline]
   pub fn rollback(&self) -> Result<()> {
-    self.lock.close()?;
+    self.release_lock()?;
     self.kvstore.rollback()?;
+    Ok(())
+  }
+
+  #[inline]
+  fn release_lock(&self) -> Result<()> {
+    self.lock.close()?;
+    if self.locked_tables.lock().len() > 0 {
+      self.storage_factory_state.reload_schema();
+    }
     Ok(())
   }
 
@@ -114,6 +123,17 @@ impl TransactionHandle {
     schema: &str,
     table_name: &str,
   ) -> Result<TableSchemaWriteLock> {
+    // If the transaction has an existing lock for the table, return it
+    // else, acquire it from lock factory
+    if let Some(lock) = self
+      .acquired_locks
+      .lock()
+      .iter()
+      .find(|t| t.lock.deref().deref() == table_name)
+    {
+      return Ok(lock.clone());
+    }
+
     self
       .schema_factories
       .get(schema)
@@ -123,7 +143,7 @@ impl TransactionHandle {
   }
 
   /// Holds the write lock to the table until this transaction is dropped
-  #[tracing::instrument(skip(self), level = "TRACE")]
+  #[tracing::instrument(skip(self, table), level = "TRACE")]
   pub fn hold_table_schema_lock(
     &self,
     table: Arc<Table>,
@@ -140,11 +160,7 @@ impl TransactionHandle {
     }
     locked_tables.push(table);
 
-    self
-      .schema_factories
-      .get(lock.schema.as_ref())
-      .unwrap()
-      .hold_table_schema_lock(lock)
+    Ok(())
   }
 
   #[tracing::instrument(skip(self), level = "TRACE")]

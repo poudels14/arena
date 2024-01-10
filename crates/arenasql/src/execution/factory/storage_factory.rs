@@ -95,6 +95,7 @@ impl StorageFactory {
       schema_factories.into(),
       self.state.clone(),
       Arc::new(Mutex::new(vec![])),
+      Arc::new(Mutex::new(vec![])),
     ))
   }
 

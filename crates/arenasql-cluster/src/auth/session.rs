@@ -31,7 +31,7 @@ impl AuthenticatedSessionStore {
     }
   }
 
-  #[tracing::instrument(skip(self), level = "trace")]
+  #[tracing::instrument(skip_all, level = "trace")]
   pub fn put(
     &self,
     session: AuthenticatedSession,

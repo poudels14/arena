@@ -1,18 +1,14 @@
-use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use strum_macros::FromRepr;
 
 use crate::error::Error;
-use crate::execution::factory::{SchemaFactory, StorageFactoryState};
 use crate::Result;
 
 #[derive(Clone)]
 pub struct TransactionLock {
   pub(super) lock: Arc<AtomicUsize>,
-  pub(super) schema_factories: Arc<BTreeMap<String, Arc<SchemaFactory>>>,
-  pub(super) storage_factory_state: Arc<StorageFactoryState>,
 }
 
 #[derive(Debug, FromRepr)]
@@ -147,15 +143,6 @@ impl TransactionLock {
       )
       .unwrap_or(LockState::Unknown as usize);
 
-    if self
-      .schema_factories
-      .values()
-      .map(|t| t.locked_tables.lock().len())
-      .sum::<usize>()
-      > 0
-    {
-      self.storage_factory_state.reload_schema();
-    }
     if state != LockState::Free as usize {
       return Err(Error::IOError("Failed to close transaction".to_owned()));
     }

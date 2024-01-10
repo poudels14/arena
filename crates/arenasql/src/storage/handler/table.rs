@@ -70,7 +70,7 @@ impl StorageHandler {
     Ok(tables)
   }
 
-  #[tracing::instrument(skip(self), level = "TRACE")]
+  #[tracing::instrument(skip(self, table), level = "TRACE")]
   pub fn put_table_schema(
     &self,
     catalog: &str,

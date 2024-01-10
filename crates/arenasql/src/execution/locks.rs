@@ -15,6 +15,7 @@ pub struct SchemaLocks {
 }
 
 impl SchemaLocks {
+  #[tracing::instrument(skip(self), level = "trace")]
   pub async fn acquire_table_schema_write_lock(
     &self,
     table_name: &str,
