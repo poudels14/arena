@@ -91,7 +91,7 @@ mod tests {
     .unwrap();
 
     assert_eq!(
-      "export default function({ env , props  }) {    return props.input.value;}",
+      "export default function({ env, props }) {    return props.input.value;}",
       query.get_server_module().unwrap()
     );
   }
