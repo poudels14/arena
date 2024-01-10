@@ -183,9 +183,8 @@ impl Transaction {
     // look into caching physical plans
     let plan = state
       .statement_to_plan(datafusion::sql::parser::Statement::Statement(stmt))
-      .await
-      .unwrap();
-    self.sql_options.verify_plan(&plan).unwrap();
+      .await?;
+    self.sql_options.verify_plan(&plan)?;
     Ok(plan)
   }
 
