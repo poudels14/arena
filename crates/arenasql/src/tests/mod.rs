@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use log::LevelFilter;
 use tempdir::TempDir;
 
 use crate::execution::factory::StorageFactoryBuilder;
@@ -28,6 +29,12 @@ macro_rules! execute_query {
 }
 
 pub(super) fn create_session_context() -> SessionContext {
+  env_logger::Builder::new()
+    .filter_module("datafusion", LevelFilter::Off)
+    .filter_module("datafusion_optimizer", LevelFilter::Off)
+    .parse_default_env()
+    .init();
+
   let runtime = RuntimeEnv::default();
 
   let db_path = TempDir::new("arenasql").unwrap();
