@@ -51,8 +51,8 @@ pub struct AdvisoryLock {
 
 impl Drop for AdvisoryLock {
   fn drop(&mut self) {
-    self.locks.remove(&self.id);
     self.active_locks.remove(&self.id);
+    self.locks.remove(&self.id);
   }
 }
 
@@ -99,7 +99,7 @@ impl AdvisoryLocks {
   }
 
   #[tracing::instrument(level = "trace")]
-  pub async fn release_lock(&self, id: i64) -> Result<()> {
+  pub fn release_lock(&self, id: i64) -> Result<()> {
     self.locks.remove(&id);
     self.active_locks.remove(&id);
     Ok(())

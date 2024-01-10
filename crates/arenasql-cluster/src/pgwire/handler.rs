@@ -227,6 +227,15 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
       .unwrap_or_else(|| Ok((None, vec![])))?;
     Ok(DescribeResponse::new(params, fields))
   }
+
+  async fn on_terminate<C>(&self, client: &mut C)
+  where
+    C: ClientInfo + Unpin + Send + Sync,
+  {
+    if let Ok(session) = self.get_client_session(client) {
+      self.session_store.remove_session(session.id());
+    }
+  }
 }
 
 #[async_trait]
@@ -268,16 +277,6 @@ impl SimpleQueryHandler for ArenaSqlCluster {
 fn get_params_and_field_types(
   plan: &LogicalPlan,
 ) -> PgWireResult<(Vec<Type>, Vec<FieldInfo>)> {
-  // Note: only return param and field types for certain plans
-  // Do it for others as needed
-  match plan {
-    LogicalPlan::Projection(_) => {}
-    LogicalPlan::TableScan(_) => {}
-    LogicalPlan::Dml(_) => {}
-    LogicalPlan::Extension(_) => {}
-    _ => return Ok((vec![], vec![])),
-  }
-
   // Expects placeholder to be in format "${index}"
   let params = plan
     .get_parameter_types()

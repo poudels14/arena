@@ -212,6 +212,7 @@ impl ArenaSqlCluster {
           vec![
             SYSTEM_SCHEMA_NAME.to_owned(),
             DEFAULT_SCHEMA_NAME.to_owned(),
+            "information_schema".to_owned(),
           ],
           vec![Arc::new(admin_exetension)],
         ),

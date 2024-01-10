@@ -44,7 +44,7 @@ pub fn extension(
   }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct AdvisoryLockAnalyzer {
   func: String,
   placeholder: Option<Expr>,
@@ -143,6 +143,7 @@ impl CustomExecutionPlan for AdvisoryLockExecution {
           let mut state = transaction.session_state().write();
           let lock = state.remove::<AdvisoryLock>();
           drop(lock);
+          locks.release_lock(lock_id)?;
         }
       }
 

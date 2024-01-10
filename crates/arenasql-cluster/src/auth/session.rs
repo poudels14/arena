@@ -31,6 +31,7 @@ impl AuthenticatedSessionStore {
     }
   }
 
+  #[tracing::instrument(skip(self), level = "trace")]
   pub fn put(
     &self,
     session: AuthenticatedSession,
@@ -52,6 +53,7 @@ impl AuthenticatedSessionStore {
     self.sessions.get(session_id).map(|kv| kv.value().clone())
   }
 
+  #[tracing::instrument(skip(self), level = "trace")]
   pub fn remove_session(
     &self,
     session_id: &str,

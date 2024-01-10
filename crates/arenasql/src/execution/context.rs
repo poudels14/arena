@@ -32,7 +32,7 @@ pub struct SessionContext {
 impl SessionContext {
   pub fn new(config: SessionConfig, state: SessionState) -> Result<Self> {
     let mut df_session_config = DfSessionConfig::new()
-      .with_information_schema(false)
+      .with_information_schema(true)
       .with_default_catalog_and_schema(
         config.catalog.as_ref(),
         DEFAULT_SCHEMA_NAME,

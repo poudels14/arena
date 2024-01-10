@@ -127,18 +127,17 @@ impl ExecutionResponse {
 
   /// Returns total number of modified rows
   /// Panics if called on non DML queries
-  pub fn get_modified_rows(&self) -> usize {
-    self
-      .record_batches
-      .as_ref()
-      .unwrap()
-      .iter()
-      .flat_map(|b| {
-        as_primitive_array::<UInt64Type>(b.column_by_name("count").unwrap())
-          .iter()
-          .map(|v| v.unwrap_or(0))
-      })
-      .sum::<u64>() as usize
+  pub fn get_modified_rows(&self) -> Option<usize> {
+    self.record_batches.as_ref().map(|batch| {
+      batch
+        .iter()
+        .flat_map(|b| {
+          as_primitive_array::<UInt64Type>(b.column_by_name("count").unwrap())
+            .iter()
+            .map(|v| v.unwrap_or(0))
+        })
+        .sum::<u64>() as usize
+    })
   }
 
   /// This returns the single value of the record batch

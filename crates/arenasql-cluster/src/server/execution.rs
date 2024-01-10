@@ -35,7 +35,7 @@ impl ArenaSqlCluster {
       }
       _ => Ok(Response::Execution(Tag::new_for_execution(
         stmt_type.to_string(),
-        Some(response.get_modified_rows()),
+        response.get_modified_rows(),
       ))),
     }
   }

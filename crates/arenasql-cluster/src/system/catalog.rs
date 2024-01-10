@@ -26,11 +26,12 @@ impl ArenaClusterCatalogListProvider {
 impl CatalogListProvider for ArenaClusterCatalogListProvider {
   fn get_catalog_list(
     &self,
-    _catalog: Arc<str>,
+    catalog: Arc<str>,
     schemas: Arc<Vec<String>>,
     transaction: TransactionHandle,
   ) -> Arc<dyn DatafusionCatalogList> {
     Arc::new(DirectoryCatalogList {
+      default_catalog: catalog,
       options: self.options.clone(),
       schemas,
       transaction,
@@ -39,6 +40,7 @@ impl CatalogListProvider for ArenaClusterCatalogListProvider {
 }
 
 pub struct DirectoryCatalogList {
+  default_catalog: Arc<str>,
   options: CatalogListOptions,
   schemas: Arc<Vec<String>>,
   transaction: TransactionHandle,
@@ -79,7 +81,7 @@ impl DatafusionCatalogList for DirectoryCatalogList {
   }
 
   fn catalog_names(&self) -> Vec<String> {
-    panic!("Listing catalog names not supported");
+    vec![self.default_catalog.to_string()]
   }
 
   fn catalog(&self, name: &str) -> Option<Arc<dyn DatafusionCatalogProvider>> {
