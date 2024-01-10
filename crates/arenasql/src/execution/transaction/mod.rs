@@ -66,7 +66,7 @@ impl Transaction {
   ) -> Result<Self> {
     let handle = session_config
       .storage_factory
-      .being_transaction(session_config.schemas.clone())?;
+      .create_new_transaction_handle(session_config.schemas.clone())?;
     Ok(Self::new_with_handle(
       handle,
       session_config,
