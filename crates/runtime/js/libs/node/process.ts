@@ -70,6 +70,9 @@ const process = {
   emitWarning(...args) {
     console.log("[WARNING]", ...args);
   },
+  exit(code) {
+    Arena.core.ops.op_node_process_exit();
+  },
 };
 
 export default process;

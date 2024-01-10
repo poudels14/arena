@@ -89,9 +89,12 @@ fn main() -> Result<()> {
 
   match res {
     Err(e) => {
-      // colorize the error
-      eprintln!("Error: {}", format!("{:?}", e.to_string()).red().bold());
-      bail!(e)
+      if !e.to_string().contains("execution terminated") {
+        // colorize the error
+        eprintln!("Error: {}", format!("{:?}", e.to_string()).red().bold());
+        bail!(e)
+      }
+      Ok(())
     }
     _ => Ok(()),
   }

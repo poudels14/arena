@@ -1,7 +1,7 @@
 mod crypto;
 mod digest;
 
-use deno_core::{op2, Extension, Op, OpState};
+use deno_core::{op2, v8, Extension, Op, OpState};
 
 use super::r#macro::js_dist;
 use super::{BuiltinExtension, SourceCode};
@@ -58,6 +58,7 @@ pub fn init_ops() -> Extension {
     ops: vec![
       op_node_build_os::DECL,
       op_node_process_args::DECL,
+      op_node_process_exit::DECL,
       crypto::op_node_create_hash::DECL,
       crypto::op_node_hash_update::DECL,
       crypto::op_node_hash_update_str::DECL,
@@ -82,4 +83,9 @@ fn op_node_build_os() -> String {
 fn op_node_process_args(state: &mut OpState) -> Vec<String> {
   let config = state.borrow_mut::<RuntimeConfig>();
   config.process_args.clone()
+}
+
+#[op2(nofast)]
+fn op_node_process_exit(isolate: *mut v8::Isolate) {
+  unsafe { isolate.as_ref() }.unwrap().terminate_execution();
 }
