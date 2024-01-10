@@ -327,7 +327,15 @@ fn convert_bytes_to_scalar_value(
             .try_into()
             .map_err(|_| invalid_param_err(index))
             .map(|v| i32::from_be_bytes(v)),
-          _ => unimplemented!(),
+          // TODO: idk if individual[1,1,1,1] is binary but :shrug:
+          Format::Individual(v) if v == &vec![1_i16, 1, 1, 1] => by
+            .as_bytes()
+            .try_into()
+            .map_err(|_| invalid_param_err(index))
+            .map(|v| i32::from_be_bytes(v)),
+          format => {
+            unimplemented!("converting format [{:?}] not supported", format)
+          }
         })
         .transpose()?,
     ),
