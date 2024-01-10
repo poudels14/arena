@@ -8,15 +8,13 @@ mod schema;
 mod server;
 mod system;
 
+use std::str::FromStr;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use clap::Parser;
 use init::InitCluster;
-use log::LevelFilter;
-use server::ClusterOptions;
-
 use signal_hook::consts::TERM_SIGNALS;
 use signal_hook::iterator::exfiltrator::SignalOnly;
 use signal_hook::iterator::SignalsInfo;
@@ -24,6 +22,11 @@ use signal_hook::iterator::SignalsInfo;
 use tikv_jemallocator::Jemalloc;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
+use tracing_subscriber::filter::Directive;
+use tracing_subscriber::prelude::*;
+use tracing_tree::HierarchicalLayer;
+
+use server::ClusterOptions;
 
 #[cfg(not(target_env = "msvc"))]
 #[global_allocator]
@@ -51,13 +54,19 @@ enum Commands {
 }
 
 fn main() {
-  env_logger::Builder::new()
-    .filter_level(LevelFilter::Info)
-    .filter_module("tokio_util", LevelFilter::Off)
-    .filter_module("datafusion", LevelFilter::Off)
-    .filter_module("datafusion_optimizer", LevelFilter::Off)
-    .parse_default_env()
-    .init();
+  let subscriber = tracing_subscriber::registry()
+    .with(
+      tracing_subscriber::filter::EnvFilter::from_default_env()
+        // Note(sagar): filter out noisy logs
+        .add_directive(Directive::from_str("swc_=OFF").unwrap())
+        .add_directive(Directive::from_str("tokio_=OFF").unwrap()),
+    )
+    .with(
+      HierarchicalLayer::default()
+        .with_indent_amount(2)
+        .with_thread_names(true),
+    );
+  tracing::subscriber::set_global_default(subscriber).unwrap();
 
   let args = Args::parse();
   let num_thread = args.threads.unwrap_or(num_cpus::get());

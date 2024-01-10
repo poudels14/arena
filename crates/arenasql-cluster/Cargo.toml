@@ -26,6 +26,8 @@ pathdiff.workspace = true
 nom.workspace = true
 base64.workspace = true
 jsonwebtoken.workspace = true
+tracing-subscriber.workspace = true
+tracing-tree.workspace = true
 tracing = { version = "0.1.37", features = ["release_max_level_debug"] }
 sqlparser = { version = "0.39.0", features = ["serde"] }
 parking_lot = "0.12.1"

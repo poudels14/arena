@@ -122,7 +122,7 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
       // If the query planning was successful, add the plan to the portal
       // state. It could fail if the placeholder type can't be resolved just
       // from the query itself and needs the paramter values as well
-      let transaction = unsafe { session.context().create_new_transaction()? };
+      let transaction = unsafe { session.context().active_transaction() };
       let state = match transaction
         .create_verified_logical_plan(query.stmts[0].clone())
         .await

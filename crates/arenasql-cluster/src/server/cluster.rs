@@ -182,7 +182,7 @@ impl ArenaSqlCluster {
   }
 
   #[tracing::instrument(
-    skip(cluster_storage_factory, runtime),
+    skip(cluster_storage_factory, runtime, advisory_locks),
     level = "TRACE"
   )]
   pub(crate) fn create_session_context_using_cluster_storage(
