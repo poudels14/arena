@@ -61,7 +61,9 @@ impl Privilege {
       // Database
       SQLStatement::CreateDatabase { .. } => Self::CREATE_DATABASE,
       // Table
-      SQLStatement::CreateTable { .. } => Self::CREATE_TABLE,
+      SQLStatement::CreateTable { .. } | SQLStatement::CreateIndex { .. } => {
+        Self::CREATE_TABLE
+      }
       SQLStatement::AlterTable { .. } | SQLStatement::AlterIndex { .. } => {
         Self::ALTER_TABLE
       }
