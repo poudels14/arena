@@ -12,6 +12,7 @@ const NODE_INTERNALS = [
   "constants",
   "path",
   "crypto",
+  "process",
   "tty",
   "url",
   "util",

@@ -46,6 +46,12 @@ const process = {
   stderr: {
     isTTY: false,
     fd: 2,
+    write(content, encoding = "utf8") {
+      if (encoding != "utf8") {
+        throw new Error("Writing non utf8 content to stderr not supported");
+      }
+      Arena.core.ops.op_fs_write_stderr_str(content);
+    },
   },
   hrtime: Object.assign(hrtime, {
     bigint: () => {

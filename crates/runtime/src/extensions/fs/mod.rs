@@ -53,7 +53,8 @@ deno_core::extension!(
     op_fs_read_file_async,
     op_fs_read_file_string_async,
     op_fs_write_file_sync,
-    op_fs_write_stdout_str
+    op_fs_write_stdout_str,
+    op_fs_write_stderr_str
   ],
   js = [dir "src/extensions/fs", "fs.js"]
 );
@@ -316,6 +317,16 @@ fn op_fs_write_file_sync(
 fn op_fs_write_stdout_str(#[string] data: &str) -> Result<()> {
   let stdout = std::io::stdout();
   let mut handle = stdout.lock();
+  handle.write(data.as_bytes())?;
+  Ok(())
+}
+
+#[tracing::instrument(skip_all, ret, level = "trace")]
+#[op2(fast)]
+#[string]
+fn op_fs_write_stderr_str(#[string] data: &str) -> Result<()> {
+  let stderr = std::io::stderr();
+  let mut handle = stderr.lock();
   handle.write(data.as_bytes())?;
   Ok(())
 }

@@ -90,7 +90,6 @@ program
         ...options,
         entryPoints: {
           perf_hooks: "libs/node/perf_hooks.ts",
-          process: "libs/node/process.ts",
           tty: "libs/node/tty.ts",
           buffer: "libs/node/buffer.ts",
         },
@@ -105,6 +104,7 @@ program
           "fs.js": createNodejsModule("fs", "fs/index"),
           "fs/promises.js": createNodejsModule("fs/promises"),
           "events.js": createNodejsModule("events"),
+          "process.js": createNodejsModule("process"),
           "url.js": createNodejsModule("url"),
           "os.js": createNodejsModule("os"),
           "stream.js": createNodejsModule("stream"),
