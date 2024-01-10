@@ -274,6 +274,7 @@ fn get_params_and_field_types(
     LogicalPlan::Projection(_) => {}
     LogicalPlan::TableScan(_) => {}
     LogicalPlan::Dml(_) => {}
+    LogicalPlan::Extension(_) => {}
     _ => return Ok((vec![], vec![])),
   }
 

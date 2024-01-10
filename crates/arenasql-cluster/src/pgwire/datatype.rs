@@ -41,6 +41,7 @@ pub fn derive_pg_type(
       DatafusionDataType::Decimal256(_, _) => Type::JSONB,
       DatafusionDataType::Timestamp(_, _) => Type::TIMESTAMP,
       DatafusionDataType::List(_) => Type::JSONB,
+      DatafusionDataType::Null => Type::VOID,
       dt => unimplemented!("Type conversion not implemented for: {}", dt),
     },
   }

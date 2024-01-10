@@ -3,11 +3,11 @@ use std::sync::Arc;
 
 use arenasql::datafusion::{
   ColumnarValue, DatafusionDataType as DfDataType, DatafusionField as Field,
-  ScalarValue, Schema, SchemaRef, TaskContext,
+  LogicalPlan, ScalarValue, Schema, SchemaRef, TaskContext,
 };
 use arenasql::execution::tablescan::HeapIterator;
 use arenasql::execution::{
-  convert_literals_to_columnar_values, CustomExecutionPlan,
+  convert_literals_to_columnar_values, AdvisoryLocks, CustomExecutionPlan,
   ExecutionPlanResponse, Privilege, SessionContext, Transaction,
 };
 use arenasql::runtime::RuntimeEnv;
@@ -92,6 +92,8 @@ impl CustomExecutionPlan for SetCatalogUserCredentials {
     &self,
     _partition: usize,
     _context: Arc<TaskContext>,
+    _exprs: Vec<arenasql::datafusion::Expr>,
+    _inputs: Vec<LogicalPlan>,
   ) -> Result<Pin<Box<dyn Stream<Item = Result<DataFrame>> + Send>>> {
     let session_context = create_admin_session_context_for_catalog(
       &self.transaction,
@@ -190,6 +192,8 @@ impl CustomExecutionPlan for ListCatalogUserCredentials {
     &self,
     _partition: usize,
     _context: Arc<TaskContext>,
+    _exprs: Vec<arenasql::datafusion::Expr>,
+    _inputs: Vec<LogicalPlan>,
   ) -> Result<ExecutionPlanResponse> {
     let session_context = create_admin_session_context_for_catalog(
       &self.transaction,
@@ -244,12 +248,16 @@ fn create_admin_session_context_for_catalog(
   transaction: &Transaction,
   catalog: &str,
 ) -> Result<SessionContext> {
-  let state = transaction.session_state();
-  let cluster_storage_factory = state.borrow::<Arc<ClusterStorageFactory>>();
-  let runtime = state.borrow::<Arc<RuntimeEnv>>();
+  let state = transaction.session_state().read();
+  let cluster_storage_factory =
+    state.borrow::<Arc<ClusterStorageFactory>>().clone();
+  let advisory_locks = state.borrow::<Arc<AdvisoryLocks>>().clone();
+  let runtime = state.borrow::<Arc<RuntimeEnv>>().clone();
+  drop(state);
   ArenaSqlCluster::create_session_context_using_cluster_storage(
     cluster_storage_factory.clone(),
     runtime.clone(),
+    advisory_locks.clone(),
     catalog,
     &ADMIN_USERNAME,
     Privilege::SUPER_USER,

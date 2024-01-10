@@ -1,7 +1,6 @@
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Formatter;
-use std::hash::Hash;
 use std::pin::Pin;
 use std::sync::Arc;
 
@@ -40,7 +39,14 @@ pub trait CustomExecutionPlan: Send + Sync {
     &self,
     _partition: usize,
     _context: Arc<TaskContext>,
+    _exprs: Vec<Expr>,
+    _inputs: Vec<LogicalPlan>,
   ) -> crate::Result<ExecutionPlanResponse>;
+
+  /// Returns all expressions in the logical plan node for this plan
+  fn list_expressions(&self) -> Vec<Expr> {
+    vec![]
+  }
 }
 
 pub type ExecutionPlanResponse =
@@ -51,6 +57,8 @@ pub type ExecutionPlanResponse =
 pub struct CustomExecutionPlanAdapter {
   #[derivative(Debug = "ignore")]
   inner: Arc<dyn CustomExecutionPlan>,
+  exprs: Vec<Expr>,
+  inputs: Vec<LogicalPlan>,
 }
 
 impl DisplayAs for CustomExecutionPlanAdapter {
@@ -109,7 +117,12 @@ impl ExecutionPlan for CustomExecutionPlanAdapter {
     context: Arc<TaskContext>,
   ) -> Result<SendableRecordBatchStream> {
     let schema = self.schema();
-    let df_stream = self.inner.execute(partition, context)?;
+    let df_stream = self.inner.execute(
+      partition,
+      context,
+      self.exprs.clone(),
+      self.inputs.clone(),
+    )?;
     Ok(Box::pin(RecordBatchStreamAdapter::new(
       self.schema(),
       df_stream
@@ -118,15 +131,21 @@ impl ExecutionPlan for CustomExecutionPlanAdapter {
   }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone, new)]
-pub struct CustomLogicalPlan {
+#[derive(Derivative)]
+#[derivative(PartialEq, Eq, Hash, Debug, Clone)]
+pub struct CustomPlanAdapter {
+  #[derivative(PartialEq = "ignore", Hash = "ignore", Debug = "ignore")]
+  pub(crate) inner: Arc<dyn CustomExecutionPlan>,
   schema: DFSchemaRef,
+  exprs: Vec<Expr>,
+  inputs: Vec<LogicalPlan>,
 }
 
-impl CustomLogicalPlan {
-  pub fn create(schema: SchemaRef) -> Self {
+impl CustomPlanAdapter {
+  pub fn create(plan: Arc<dyn CustomExecutionPlan>) -> Self {
     let schema = DFSchema::new_with_metadata(
-      schema
+      plan
+        .schema()
         .fields
         .iter()
         .map(|f| {
@@ -142,13 +161,36 @@ impl CustomLogicalPlan {
     .unwrap()
     .into();
 
-    Self { schema }
+    Self {
+      inner: plan,
+      schema,
+      exprs: vec![],
+      inputs: vec![],
+    }
+  }
+
+  pub fn get_execution_plan(&self) -> CustomExecutionPlanAdapter {
+    CustomExecutionPlanAdapter {
+      inner: self.inner.clone(),
+      exprs: self.exprs.clone(),
+      inputs: self.inputs.clone(),
+    }
   }
 }
 
-impl UserDefinedLogicalNodeCore for CustomLogicalPlan {
+impl DisplayAs for CustomPlanAdapter {
+  fn fmt_as(
+    &self,
+    _t: DisplayFormatType,
+    f: &mut Formatter,
+  ) -> std::fmt::Result {
+    write!(f, "{:?}", self)
+  }
+}
+
+impl UserDefinedLogicalNodeCore for CustomPlanAdapter {
   fn name(&self) -> &str {
-    "CustomLogicalPlan"
+    "CustomPlanAdapter"
   }
 
   fn schema(&self) -> &DFSchemaRef {
@@ -159,15 +201,18 @@ impl UserDefinedLogicalNodeCore for CustomLogicalPlan {
     vec![]
   }
 
-  fn fmt_for_explain(&self, _f: &mut Formatter) -> std::fmt::Result {
-    unimplemented!()
+  fn fmt_for_explain(&self, f: &mut Formatter) -> std::fmt::Result {
+    f.write_str("CustomPlanAdapter")
   }
 
-  fn from_template(&self, _exprs: &[Expr], _inputs: &[LogicalPlan]) -> Self {
-    self.clone()
+  fn from_template(&self, exprs: &[Expr], inputs: &[LogicalPlan]) -> Self {
+    let mut clone = self.clone();
+    clone.exprs = exprs.to_vec();
+    clone.inputs = inputs.to_vec();
+    clone
   }
 
   fn expressions(&self) -> Vec<Expr> {
-    vec![]
+    self.inner.list_expressions()
   }
 }

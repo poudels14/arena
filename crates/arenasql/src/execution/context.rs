@@ -5,7 +5,7 @@ use datafusion::logical_expr::LogicalPlan;
 use datafusion::scalar::ScalarValue;
 use derivative::Derivative;
 use getset::Getters;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use sqlparser::ast::Statement as SQLStatement;
 
 use super::state::SessionState;
@@ -22,7 +22,7 @@ pub static DEFAULT_SCHEMA_NAME: &'static str = "public";
 pub struct SessionContext {
   #[derivative(Debug = "ignore")]
   pub config: Arc<SessionConfig>,
-  pub state: Arc<SessionState>,
+  pub state: Arc<RwLock<SessionState>>,
   df_session_config: Arc<DfSessionConfig>,
 
   #[derivative(Debug = "ignore")]
@@ -42,7 +42,7 @@ impl SessionContext {
       "PostgreSQL".to_owned();
 
     let config = Arc::new(config);
-    let state = Arc::new(state);
+    let state = Arc::new(RwLock::new(state));
     let active_transaction = Transaction::new(
       config.clone(),
       state.clone(),

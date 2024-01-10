@@ -17,17 +17,16 @@ use datafusion::logical_expr::{
 use datafusion::physical_plan::{execute_stream, ExecutionPlan};
 use getset::Getters;
 use once_cell::sync::Lazy;
+use parking_lot::RwLock;
 use sqlparser::ast::Statement as SQLStatement;
 
-use super::execution_plan::CustomLogicalPlan;
+use super::execution_plan::CustomPlanAdapter;
 use super::planner::ArenaQueryPlanner;
 use super::response::ExecutionResponse;
-use super::{
-  custom_functions, CustomExecutionPlanAdapter, ExecutionPlanExtension,
-};
+use super::{custom_functions, ExecutionPlanExtension};
 use super::{SessionConfig, SessionState};
 use crate::ast::statement::StatementType;
-use crate::df::plans::{create_index, insert_rows};
+use crate::df::plans::{self, create_index, insert_rows};
 use crate::{ast, Error, Result};
 
 pub use handle::TransactionHandle;
@@ -37,7 +36,12 @@ static TRANSACTION_ID: Lazy<Arc<AtomicUsize>> =
   Lazy::new(|| Arc::new(AtomicUsize::new(1)));
 
 pub const DEFAULT_EXTENSIONS: Lazy<Arc<Vec<ExecutionPlanExtension>>> =
-  Lazy::new(|| Arc::new(vec![Arc::new(create_index::extension)]));
+  Lazy::new(|| {
+    Arc::new(vec![
+      Arc::new(create_index::extension),
+      Arc::new(plans::advisory_lock::extension),
+    ])
+  });
 
 #[derive(Getters, Clone)]
 pub struct Transaction {
@@ -46,7 +50,7 @@ pub struct Transaction {
   #[getset(get = "pub")]
   session_config: Arc<SessionConfig>,
   #[getset(get = "pub")]
-  session_state: Arc<SessionState>,
+  session_state: Arc<RwLock<SessionState>>,
   sql_options: SQLOptions,
   df_session_config: Arc<DfSessionConfig>,
   #[getset(get = "pub")]
@@ -57,7 +61,7 @@ pub struct Transaction {
 impl Transaction {
   pub(crate) fn new(
     session_config: Arc<SessionConfig>,
-    session_state: Arc<SessionState>,
+    session_state: Arc<RwLock<SessionState>>,
     df_session_config: DfSessionConfig,
   ) -> Result<Self> {
     let handle = session_config
@@ -74,7 +78,7 @@ impl Transaction {
   pub(crate) fn new_with_handle(
     handle: TransactionHandle,
     session_config: Arc<SessionConfig>,
-    session_state: Arc<SessionState>,
+    session_state: Arc<RwLock<SessionState>>,
     df_session_config: DfSessionConfig,
   ) -> Self {
     let catalog_list = session_config.catalog_list_provider.get_catalog_list(
@@ -161,7 +165,7 @@ impl Transaction {
       .transpose()?;
     if let Some(plan) = custom_plan {
       return Ok(LogicalPlan::Extension(Extension {
-        node: Arc::new(CustomLogicalPlan::create(plan.schema())),
+        node: Arc::new(CustomPlanAdapter::create(plan)),
       }));
     }
 
@@ -179,8 +183,9 @@ impl Transaction {
     // look into caching physical plans
     let plan = state
       .statement_to_plan(datafusion::sql::parser::Statement::Statement(stmt))
-      .await?;
-    self.sql_options.verify_plan(&plan)?;
+      .await
+      .unwrap();
+    self.sql_options.verify_plan(&plan).unwrap();
     Ok(plan)
   }
 
@@ -204,18 +209,19 @@ impl Transaction {
     stmt: Box<SQLStatement>,
     plan: LogicalPlan,
   ) -> Result<ExecutionResponse> {
-    if let LogicalPlan::Extension(_) = plan {
+    if let LogicalPlan::Extension(extension) = plan {
       log::debug!("Using custom execution plan");
-      let custom_plan = DEFAULT_EXTENSIONS
-        .iter()
-        .chain(self.session_config.execution_plan_extensions.iter())
-        .find_map(|ext| ext(&self, &stmt).transpose())
-        .transpose()?;
-
       return self
         .execute_stream(
           &stmt_type,
-          Arc::new(CustomExecutionPlanAdapter::new(custom_plan.unwrap())),
+          Arc::new(
+            extension
+              .node
+              .as_any()
+              .downcast_ref::<CustomPlanAdapter>()
+              .unwrap()
+              .get_execution_plan(),
+          ),
         )
         .await;
     };

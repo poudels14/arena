@@ -12,12 +12,30 @@ pub struct SessionState {
 }
 
 impl SessionState {
-  pub fn put<T>(&mut self, t: T)
+  pub fn put<T>(&mut self, t: T) -> Option<Box<T>>
   where
     T: 'static + Send + Sync,
   {
     let type_id = TypeId::of::<T>();
-    self.data.insert(type_id, Box::new(t));
+    let prev = self.data.insert(type_id, Box::new(t));
+    if let Some(prev) = prev {
+      return Some(prev.downcast::<T>().unwrap());
+    } else {
+      None
+    }
+  }
+
+  pub fn remove<T>(&mut self) -> Option<Box<T>>
+  where
+    T: 'static + Send + Sync,
+  {
+    let type_id = TypeId::of::<T>();
+    let value = self.data.remove(&type_id);
+    if let Some(prev) = value {
+      return Some(prev.downcast::<T>().unwrap());
+    } else {
+      None
+    }
   }
 
   pub fn has<T>(&self) -> bool

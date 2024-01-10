@@ -1,7 +1,10 @@
 use std::io::Write;
 use std::sync::Arc;
 
-use arenasql::arrow::{as_binary_array, as_primitive_array, as_string_array};
+use arenasql::arrow::{
+  as_binary_array, as_null_array, as_primitive_array, as_string_array,
+  TimeUnit, TimestampNanosecondType,
+};
 use arenasql::bytes::BufMut;
 use arenasql::datafusion::DatafusionDataType;
 use arenasql::pgwire::api::results::DataRowEncoder;
@@ -73,6 +76,28 @@ pub fn encode_column_array(
         .collect(),
       _ => encode_all_fields!(arrow::BinaryArray, array, encoders),
     },
+    DatafusionDataType::Timestamp(TimeUnit::Nanosecond, offset)
+      if offset.is_none() || *offset == Some("+00:00".into()) =>
+    {
+      as_primitive_array::<TimestampNanosecondType>(array)
+        .iter()
+        .zip(encoders)
+        .map(|(value, encoder)| {
+          encoder.encode_field(&value.and_then(|v| {
+            match arenasql::chrono::DateTime::from_timestamp(
+              v / 1_000_000_000,
+              (v % 1_000_000_000) as u32,
+            ) {
+              Some(parsed) => Some(parsed),
+              None => {
+                eprintln!("Error parsing timestamp [{}]", v);
+                None
+              }
+            }
+          }))
+        })
+        .collect()
+    }
     // Multiple data types are stored as Utf8 because of datafusion's poor
     // custom data type support. so, do proper conversion here
     DatafusionDataType::Utf8 => match *pg_type {
@@ -118,6 +143,10 @@ pub fn encode_column_array(
         )
       }
     },
+    DatafusionDataType::Null => (0..as_null_array(&array).len())
+      .zip(encoders)
+      .map(|(_, encoder)| encoder.encode_field(&None::<i64>))
+      .collect(),
     dt => Err(PgWireError::ApiError(Box::new(
       ArenaClusterError::UnsupportedDataType(dt.to_string()),
     ))),

@@ -64,7 +64,7 @@ impl DatafusionCatalogList for DirectoryCatalogList {
       Some(catalog) => Some(catalog),
       None => {
         let catalog_dir = self.get_catalog_dir(&name);
-        std::fs::create_dir(&catalog_dir)
+        std::fs::create_dir_all(&catalog_dir)
           .with_context(|| {
             format!(
               "Failed to create new catalog's directory: {:?}",

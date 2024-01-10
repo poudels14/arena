@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use arenasql::execution::{
-  ExecutionPlanExtension, Privilege, SessionConfig, SessionContext,
-  SessionState, DEFAULT_SCHEMA_NAME,
+  AdvisoryLocks, ExecutionPlanExtension, Privilege, SessionConfig,
+  SessionContext, SessionState, DEFAULT_SCHEMA_NAME,
 };
 use arenasql::pgwire::api::ClientInfo;
 use arenasql::runtime::RuntimeEnv;
@@ -35,6 +35,7 @@ pub struct ArenaSqlCluster {
   pub(crate) session_store: Arc<AuthenticatedSessionStore>,
   pub(crate) storage: Arc<ClusterStorageFactory>,
   pub(crate) jwt_secret: Option<String>,
+  pub(crate) advisory_locks: Arc<AdvisoryLocks>,
 }
 
 impl ArenaSqlCluster {
@@ -68,6 +69,7 @@ impl ArenaSqlCluster {
       session_store: Arc::new(AuthenticatedSessionStore::new()),
       storage: Arc::new(ClusterStorageFactory::new(storage_options)),
       jwt_secret: options.jwt_secret.clone(),
+      advisory_locks: Arc::new(AdvisoryLocks::new()),
     })
   }
 
@@ -172,6 +174,7 @@ impl ArenaSqlCluster {
     Ok(Self::create_session_context_using_cluster_storage(
       self.storage.clone(),
       self.runtime.clone(),
+      self.advisory_locks.clone(),
       catalog,
       user,
       privilege,
@@ -185,6 +188,7 @@ impl ArenaSqlCluster {
   pub(crate) fn create_session_context_using_cluster_storage(
     cluster_storage_factory: Arc<ClusterStorageFactory>,
     runtime: Arc<RuntimeEnv>,
+    advisory_locks: Arc<AdvisoryLocks>,
     catalog: &str,
     user: &str,
     privilege: Privilege,
@@ -218,6 +222,7 @@ impl ArenaSqlCluster {
     let mut session_state = SessionState::default();
     session_state.put(cluster_storage_factory.clone());
     session_state.put(runtime.clone());
+    session_state.put(advisory_locks.clone());
     Ok(SessionContext::new(
       SessionConfig {
         runtime: runtime.clone(),
@@ -228,6 +233,7 @@ impl ArenaSqlCluster {
         catalog_list_provider,
         execution_plan_extensions: Arc::new(extensions),
         privilege,
+        advisory_locks,
         ..Default::default()
       },
       session_state,

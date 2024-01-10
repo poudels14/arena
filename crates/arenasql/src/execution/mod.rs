@@ -20,10 +20,9 @@ pub mod factory;
 pub use config::SessionConfig;
 pub use context::{SessionContext, DEFAULT_SCHEMA_NAME};
 pub use execution_plan::{
-  CustomExecutionPlan, CustomExecutionPlanAdapter, ExecutionPlanExtension,
-  ExecutionPlanResponse,
+  CustomExecutionPlan, ExecutionPlanExtension, ExecutionPlanResponse,
 };
-pub use locks::TableSchemaWriteLock;
+pub use locks::{AdvisoryLock, AdvisoryLocks, TableSchemaWriteLock};
 pub use plans::{convert_literals_to_columnar_values, ScalarUdfExecutionPlan};
 pub use privilege::Privilege;
 pub use state::SessionState;

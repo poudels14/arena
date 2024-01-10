@@ -3,6 +3,7 @@ use std::sync::Arc;
 use datafusion::execution::runtime_env::RuntimeEnv as DfRuntimeEnv;
 
 use super::factory::{StorageFactory, StorageFactoryBuilder};
+use super::locks::AdvisoryLocks;
 use super::Privilege;
 use crate::df::providers::catalog::CatalogListProvider;
 use crate::df::providers::NoopCatalogListProvider;
@@ -19,6 +20,8 @@ pub struct SessionConfig {
   pub storage_factory: Arc<StorageFactory>,
   pub catalog_list_provider: Arc<dyn CatalogListProvider>,
   pub execution_plan_extensions: Arc<Vec<ExecutionPlanExtension>>,
+  /// Global advisor locks
+  pub advisory_locks: Arc<AdvisoryLocks>,
 }
 
 impl Default for SessionConfig {
@@ -41,6 +44,7 @@ impl Default for SessionConfig {
       ),
       catalog_list_provider: Arc::new(NoopCatalogListProvider {}),
       execution_plan_extensions: Arc::new(vec![]),
+      advisory_locks: Arc::new(AdvisoryLocks::new()),
     }
   }
 }

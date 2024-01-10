@@ -47,6 +47,7 @@ pub mod datafusion {
   };
   pub use datafusion::error::{DataFusionError, Result};
   pub use datafusion::execution::{context::SessionState, TaskContext};
+  pub use datafusion::logical_expr::expr::Expr;
   pub use datafusion::logical_expr::{
     create_udf, AggregateUDF, LogicalPlan, ScalarUDF, Volatility, WindowUDF,
   };
@@ -65,7 +66,7 @@ pub use postgres_types;
 
 pub mod arrow {
   pub use datafusion::arrow::array::{
-    as_boolean_array, as_generic_list_array, as_primitive_array,
+    as_boolean_array, as_generic_list_array, as_null_array, as_primitive_array,
     as_string_array, Array, ArrayAccessor, ArrayIter, ArrayRef, BinaryArray,
     BinaryBuilder, BooleanArray, BooleanBuilder, Float32Array, Float32Builder,
     Float64Array, Float64Builder, Int16Array, Int32Array, Int32Builder,
@@ -73,7 +74,8 @@ pub mod arrow {
     StringBuilder, UInt16Array, UInt32Array, UInt64Array,
   };
   pub use datafusion::arrow::datatypes::{
-    Float32Type, Float64Type, Int32Type, UInt32Type, UInt64Type,
+    Float32Type, Float64Type, Int32Type, TimeUnit, TimestampNanosecondType,
+    UInt32Type, UInt64Type,
   };
   pub use datafusion::common::cast::as_binary_array;
 }

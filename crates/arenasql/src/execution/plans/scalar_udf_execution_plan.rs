@@ -3,14 +3,14 @@ use std::sync::Arc;
 
 use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 use datafusion::execution::TaskContext;
-use datafusion::logical_expr::{ScalarUDF, TypeSignature};
+use datafusion::logical_expr::{LogicalPlan, ScalarUDF, TypeSignature};
 use datafusion::physical_plan::ColumnarValue;
 use futures::Stream;
 use sqlparser::ast::Expr;
 
-use super::super::CustomExecutionPlan;
 use super::convert_literals_to_columnar_values;
 use crate::error::Error;
+use crate::execution::execution_plan::CustomExecutionPlan;
 use crate::schema::DataFrame;
 use crate::Result;
 
@@ -45,6 +45,8 @@ impl CustomExecutionPlan for ScalarUdfExecutionPlan {
     &self,
     _partition: usize,
     _context: Arc<TaskContext>,
+    _exprs: Vec<datafusion::prelude::Expr>,
+    _inputs: Vec<LogicalPlan>,
   ) -> Result<Pin<Box<dyn Stream<Item = Result<DataFrame>> + Send>>> {
     let ScalarUDF {
       name: func_name,

@@ -4,6 +4,7 @@ use std::sync::Arc;
 use datafusion::arrow::array::UInt64Array;
 use datafusion::arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use datafusion::execution::TaskContext;
+use datafusion::logical_expr::{Expr, LogicalPlan};
 use datafusion::physical_plan::{DisplayAs, DisplayFormatType};
 use derivative::Derivative;
 use derive_builder::Builder;
@@ -11,10 +12,8 @@ use futures::StreamExt;
 use sqlparser::ast::Statement as SQLStatement;
 
 use crate::df::providers::{get_schema_provider, get_table_ref};
-use crate::execution::Transaction;
-use crate::execution::{
-  CustomExecutionPlan, ExecutionPlanResponse, TransactionHandle,
-};
+use crate::execution::{CustomExecutionPlan, Transaction};
+use crate::execution::{ExecutionPlanResponse, TransactionHandle};
 use crate::schema::{DataFrame, IndexType, OwnedRow, Table, TableIndex};
 use crate::storage::{KeyValueGroup, StorageHandler};
 use crate::{bail, table_rows_prefix_key, Error, Result};
@@ -151,6 +150,8 @@ impl CustomExecutionPlan for CreateIndexExecutionPlan {
     &self,
     _partition: usize,
     _context: Arc<TaskContext>,
+    _exprs: Vec<Expr>,
+    _inputs: Vec<LogicalPlan>,
   ) -> crate::Result<ExecutionPlanResponse> {
     let create_index = self.create_index.clone();
     let transaction = self.transaction.clone();

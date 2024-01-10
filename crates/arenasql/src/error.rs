@@ -55,7 +55,9 @@ pub enum Error {
 
 const RE_TABLE_NOT_FOUND: Lazy<Regex> =
   Lazy::new(|| Regex::new(r"table '(?P<rel>[\w.]+)' not found").unwrap());
-
+const RE_TABLE_ALREADY_EXISTS: Lazy<Regex> = Lazy::new(|| {
+  Regex::new(r"Table '(?P<table>[\w.]+)' already exists").unwrap()
+});
 const RE_CATALOG_ALREADY_EXISTS: Lazy<Regex> = Lazy::new(|| {
   Regex::new(r"Catalog '(?P<catalog>[\w.]+)' already exists").unwrap()
 });
@@ -150,7 +152,7 @@ impl Error {
         format!(r#"column "{col}" does not exist"#)
       }
       Self::DatabaseClosed => format!(r#"database already closed"#),
-      Self::DataFusionError(msg) => match msg.as_ref() {
+      Self::DataFusionError(df_err) => match df_err.as_ref() {
         DataFusionError::External(err) => {
           if let Some(arena_err) = err.downcast_ref::<Error>() {
             arena_err.message()
@@ -173,7 +175,10 @@ impl Error {
             format!("Internal error")
           }
         },
-        DataFusionError::Plan(msg) => {
+        DataFusionError::Plan(msg) | DataFusionError::Execution(msg) => {
+          if let Some(err) = Self::from_df_error(df_err.as_ref()) {
+            return err.message();
+          }
           if msg.contains("not yet supported") || msg.contains("not supported")
           {
             eprintln!(
@@ -197,22 +202,28 @@ impl Error {
             format!("Unknown error")
           }
         }
-        DataFusionError::Execution(msg) => {
-          let lowercase_msg = msg.to_lowercase();
-          if lowercase_msg.contains("table")
-            && lowercase_msg.contains("doesn't exist")
-          {
-            lowercase_msg
-          } else {
-            eprintln!("Execution error at {}:{}: {:?}", file!(), line!(), msg);
-            format!("Internal error")
-          }
-        }
         err => {
           eprintln!("Unknown error at {}:{}: {:?}", file!(), line!(), err);
           format!("Internal error")
         }
       },
+    }
+  }
+
+  fn from_df_error(err: &DataFusionError) -> Option<Self> {
+    match err {
+      DataFusionError::Plan(ref msg) | DataFusionError::Execution(ref msg) => {
+        if let Some(capture) = RE_TABLE_NOT_FOUND.captures(msg) {
+          Some(Self::RelationDoesntExist(capture["rel"].to_owned()))
+        } else if let Some(capture) = RE_CATALOG_ALREADY_EXISTS.captures(msg) {
+          Some(Self::DatabaseAlreadyExists(capture["catalog"].to_owned()))
+        } else if let Some(capture) = RE_TABLE_ALREADY_EXISTS.captures(msg) {
+          Some(Self::RelationAlreadyExists(capture["table"].to_owned()))
+        } else {
+          None
+        }
+      }
+      _ => None,
     }
   }
 }
@@ -242,17 +253,8 @@ impl From<rocksdb::Error> for Error {
 
 impl From<DataFusionError> for Error {
   fn from(err: DataFusionError) -> Self {
-    match err {
-      DataFusionError::Plan(ref msg) | DataFusionError::Execution(ref msg) => {
-        if let Some(capture) = RE_TABLE_NOT_FOUND.captures(msg) {
-          return Self::RelationDoesntExist(capture["rel"].to_owned());
-        } else if let Some(capture) = RE_CATALOG_ALREADY_EXISTS.captures(msg) {
-          return Self::DatabaseAlreadyExists(capture["catalog"].to_owned());
-        }
-      }
-      _ => {}
-    }
-    Self::DataFusionError(Arc::new(err))
+    Error::from_df_error(&err)
+      .unwrap_or_else(|| Self::DataFusionError(Arc::new(err)))
   }
 }
 
