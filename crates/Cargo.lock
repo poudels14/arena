@@ -262,6 +262,8 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
+ "tracing-subscriber",
+ "tracing-tree",
  "urlencoding",
  "uuid 0.8.2",
 ]
