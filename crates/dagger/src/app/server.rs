@@ -87,7 +87,7 @@ pub(super) async fn start_js_server(
       Some(Rc::new(BabelTranspiler::new(resolver_config).await)),
     ))),
     permissions: PermissionsContainer {
-      fs: Some(FileSystemPermissions::allow_all(options.root_dir)),
+      fs: Some(FileSystemPermissions::allow_all("/".into())),
       net: Some(NetPermissions::allow_all()),
       timer: Some(TimerPermissions::allow_hrtime()),
     },

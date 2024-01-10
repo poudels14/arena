@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use clap::Parser;
 use cloud::CloudExtensionProvider;
 use runtime::buildtools::transpiler::ModuleTranspiler;
@@ -8,12 +8,12 @@ use runtime::buildtools::{
   transpiler::BabelTranspiler, FileModuleLoader, FilePathResolver,
 };
 use runtime::config::{ArenaConfig, RuntimeConfig};
-use runtime::deno::core::resolve_url_or_path;
 use runtime::extensions::{BuiltinExtensionProvider, BuiltinModule};
 use runtime::permissions::{
   FileSystemPermissions, NetPermissions, PermissionsContainer, TimerPermissions,
 };
 use runtime::{IsolatedRuntime, RuntimeOptions};
+use url::Url;
 
 #[derive(Parser, Debug)]
 pub struct Command {
@@ -33,8 +33,8 @@ pub struct Command {
   #[arg(long)]
   egress_addr: Option<String>,
 
-  /// File to execute
-  file: String,
+  /// File or npm module to execute
+  module: String,
 
   args: Vec<String>,
 }
@@ -79,6 +79,17 @@ impl Command {
         None
       };
 
+    let mut main_module_path = std::env::current_dir()?.join(&self.module);
+    if !main_module_path.exists() {
+      let script = project_root.join("node_modules/.bin").join(&self.module);
+      if script.exists() {
+        main_module_path = script;
+      }
+    }
+    if !main_module_path.exists() {
+      bail!("missing script {:?}", self.module);
+    }
+
     let egress_addr = self
       .egress_addr
       .as_ref()
@@ -88,7 +99,10 @@ impl Command {
       config: RuntimeConfig {
         egress_addr,
         process_args: vec![
-          vec!["node".to_owned(), self.file.to_owned()],
+          vec![
+            "node".to_owned(),
+            main_module_path.to_str().unwrap().to_owned(),
+          ],
           self.args.clone(),
         ]
         .concat(),
@@ -120,9 +134,11 @@ impl Command {
       ..Default::default()
     })?;
 
-    let main_module =
-      resolve_url_or_path(&self.file, &std::env::current_dir()?)?;
-    runtime.execute_main_module(&main_module).await?;
+    runtime
+      .execute_main_module(
+        &Url::from_file_path(main_module_path.canonicalize().unwrap()).unwrap(),
+      )
+      .await?;
     runtime.run_event_loop().await
   }
 }
