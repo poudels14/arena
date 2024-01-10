@@ -95,7 +95,7 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
   }
 
   /// Prepares the logical plan for the query and bind the parameters to it
-  #[tracing::instrument(skip(self, client), level = "DEBUG")]
+  #[tracing::instrument(skip(self, client), level = "trace")]
   async fn on_bind<C>(&self, client: &mut C, message: Bind) -> PgWireResult<()>
   where
     C: ClientInfo
