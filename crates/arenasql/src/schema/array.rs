@@ -18,7 +18,7 @@ pub enum ColumnArrayBuilder {
   Float32(Float32Builder),
   Float64(Float64Builder),
   String(StringBuilder),
-  Json(BinaryBuilder),
+  Json(StringBuilder),
   Binary(BinaryBuilder),
   Vector(ListBuilder<Float32Builder>),
   // Need to store timestamp as string because DF can't cast
@@ -57,7 +57,7 @@ impl ColumnArrayBuilder {
         StringBuilder::with_capacity(capacity, capacity * 1000),
       ),
       DataType::Jsonb => ColumnArrayBuilder::Json(
-        BinaryBuilder::with_capacity(capacity, capacity * 1000),
+        StringBuilder::with_capacity(capacity, capacity * 1000),
       ),
       DataType::Varchar { len } => {
         ColumnArrayBuilder::String(StringBuilder::with_capacity(
@@ -93,9 +93,7 @@ impl ColumnArrayBuilder {
       Self::Float32(ref mut builder) => builder.append_option(value.as_f32()),
       Self::Float64(ref mut builder) => builder.append_option(value.as_f64()),
       Self::String(ref mut builder) => builder.append_option(value.as_str()),
-      Self::Json(ref mut builder) => {
-        builder.append_option(value.as_json_bytes())
-      }
+      Self::Json(ref mut builder) => builder.append_option(value.as_str()),
       Self::Binary(ref mut builder) => builder.append_option(value.as_bytes()),
       Self::Vector(ref mut builder) => {
         let vector = value.as_vector().unwrap();

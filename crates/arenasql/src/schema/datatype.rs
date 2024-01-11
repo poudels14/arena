@@ -175,7 +175,7 @@ impl DataType {
         }
         DfDataType::Utf8
       }
-      Self::Jsonb => DfDataType::Binary,
+      Self::Jsonb => DfDataType::Utf8,
       Self::Vector { len } => {
         metadata.insert("LENGTH".to_owned(), len.to_string());
         DfDataType::List(Arc::new(Field::new(

@@ -17,8 +17,8 @@ use arenasql::pgwire::messages::{PgWireBackendMessage, PgWireFrontendMessage};
 use async_trait::async_trait;
 use derive_new::new;
 use futures::Sink;
-use tracing::trace;
 use rand::Rng;
+use tracing::trace;
 
 use crate::error::Error;
 use crate::schema::{User, ADMIN_USERNAME, APPS_USERNAME, SYSTEM_CATALOG_NAME};

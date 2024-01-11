@@ -377,6 +377,9 @@ fn convert_bytes_to_scalar_value(
     Type::TEXT | Type::VARCHAR => ScalarValue::Utf8(
       bytes.and_then(|b| std::str::from_utf8(&b).map(|s| s.to_owned()).ok()),
     ),
+    Type::JSONB => ScalarValue::Utf8(
+      bytes.and_then(|b| std::str::from_utf8(&b).map(|s| s.to_owned()).ok()),
+    ),
     _ => {
       unimplemented!("Converting bytes to ScalarValue for type {:?}", r#type)
     }

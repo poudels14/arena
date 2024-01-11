@@ -116,6 +116,13 @@ pub fn encode_column_array(
           }))
         })
         .collect(),
+      Type::JSONB => as_string_array(array)
+        .iter()
+        .zip(encoders)
+        .map(|(value, encoder)| {
+          encoder.encode_field(&value.map(|v| SerializedJson(&v.as_bytes())))
+        })
+        .collect(),
       _ => encode_all_fields!(arrow::StringArray, array, encoders),
     },
     DatafusionDataType::List(field) => match pg_type.clone() {

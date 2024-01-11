@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use bytes::BufMut;
-use bytes::BytesMut;
 use chrono::{NaiveDateTime, SecondsFormat};
 use datafusion::arrow::array::{
   as_boolean_array, as_generic_list_array, as_primitive_array, as_string_array,
@@ -11,7 +9,6 @@ use datafusion::arrow::datatypes::{
   Float32Type, Float64Type, Int16Type, Int32Type, Int64Type, UInt32Type,
   UInt64Type,
 };
-use datafusion::common::cast::as_binary_array;
 use datafusion::error::Result;
 use datafusion::scalar::ScalarValue;
 use serde::{Deserialize, Serialize};
@@ -36,7 +33,9 @@ pub enum SerializedCell<'a> {
   Float32(f32) = 8,
   Float64(f64) = 9,
   String(&'a str) = 10,
-  Json(&'a [u8]) = 11,
+  // String JSON as string is good enough; tried storing as bytes but
+  // was too much struggle making it work with datafusion
+  Json(&'a str) = 11,
   // TODO: convert f32 to u16 when storing in order to store bfloat16
   // Vec<f32> can't be deserialized to &'a [f32] because converting [u8]
   // to f32 requires allocation
@@ -62,7 +61,7 @@ pub enum OwnedSerializedCell {
   Float32(f32) = 8,
   Float64(f64) = 9,
   String(Arc<str>) = 10,
-  Json(Arc<Vec<u8>>) = 11,
+  Json(Arc<str>) = 11,
   Vector(Arc<Vec<f32>>) = 12,
   Timestamp(i64) = 13,
   Blob(Arc<Vec<u8>>) = 14,
@@ -146,19 +145,22 @@ impl OwnedSerializedCell {
         .iter()
         .map(|v| v.map(|v| Self::String(v.into())).unwrap_or_default())
         .collect(),
-      DataType::Jsonb => as_binary_array(array)
-        .expect("Unable to downcast to Jsonb binary array")
-        .iter()
-        .map(|v| {
-          v.map(|v| {
-            let mut bytes = BytesMut::with_capacity(v.len()+100).writer();
-            let parsed_json: Value = serde_json::from_slice(v).unwrap();
-            serde_json::ser::to_writer(&mut bytes, &parsed_json).unwrap();
-            Self::Json(bytes.into_inner().to_vec().into())
+      DataType::Jsonb => {
+        return as_string_array(array)
+          .iter()
+          .map(|v| {
+            v.map(|v| {
+              // Convert to Value and back to make sure it's a valid JSON
+              let parsed_json: Value = serde_json::from_str(v)
+                .map_err(|_| Error::InvalidDataType("Invalid JSON".to_owned()))?;
+              Ok(Self::Json(
+                serde_json::to_string(&parsed_json).unwrap().into(),
+              ))
+            })
+            .unwrap_or(Ok(OwnedSerializedCell::Null))
           })
-          .unwrap_or_default()
-        })
-        .collect(),
+          .collect();
+      },
       DataType::Vector { len } => {
         let res: Result<Vec<Self>> =
           as_generic_list_array::<i32>(array)
@@ -321,19 +323,11 @@ impl<'a> SerializedCell<'a> {
   }
 
   #[inline]
-  pub fn as_json_bytes(&self) -> Option<&'a [u8]> {
-    match self {
-      Self::Null => None,
-      Self::Json(bytes) => Some(bytes),
-      _ => self.error_converting_to("json bytes"),
-    }
-  }
-
-  #[inline]
   pub fn as_str(&self) -> Option<&'a str> {
     match self {
       Self::Null => None,
       Self::String(s) => Some(s),
+      Self::Json(s) => Some(s),
       _ => self.error_converting_to("string"),
     }
   }

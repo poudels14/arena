@@ -13,8 +13,8 @@ use arenasql::Result;
 use dashmap::DashMap;
 use futures::future::join_all;
 use getset::{Getters, Setters};
-use tracing::info;
 use tokio::task::JoinHandle;
+use tracing::info;
 
 use crate::error::ArenaClusterResult;
 use crate::schema::SYSTEM_CATALOG_NAME;

@@ -45,23 +45,30 @@ impl ArenaSqlCluster {
     field_format: FieldFormat,
   ) -> PgWireResult<Response<'a>> {
     let response_stream = response.get_stream();
-    let fields: Vec<FieldInfo> = response_stream
-      .schema()
+    let response_schema = response_stream.schema();
+    let fields: Vec<FieldInfo> = response_schema
       .fields
       .iter()
       .map(|field| datatype::to_field_info(field.as_ref(), field_format))
       .collect();
-    let schema = Arc::new(fields);
+    let fields_schema = Arc::new(fields);
 
-    let rows_schema = schema.clone();
+    let fields_schema_clone = fields_schema.clone();
     let row_stream = response_stream.flat_map(move |batch| {
       futures::stream::iter(match batch {
-        Ok(batch) => rowconverter::convert_to_rows(&schema, &batch),
+        Ok(batch) => rowconverter::convert_to_rows(
+          &response_schema,
+          &fields_schema_clone,
+          &batch,
+        ),
         Err(e) => {
           vec![Err(arenasql::Error::DataFusionError(e.into()).into())]
         }
       })
     });
-    Ok(Response::Query(QueryResponse::new(rows_schema, row_stream)))
+    Ok(Response::Query(QueryResponse::new(
+      fields_schema,
+      row_stream,
+    )))
   }
 }
