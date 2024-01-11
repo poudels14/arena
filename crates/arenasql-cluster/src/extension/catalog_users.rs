@@ -14,11 +14,11 @@ use arenasql::runtime::RuntimeEnv;
 use arenasql::schema::{
   DataFrame, DataType, OwnedSerializedCell, SerializedCell,
 };
+use arenasql::sqlparser::ast::Expr;
 use arenasql::storage::Serializer;
 use arenasql::{Error, Result};
 use futures::Stream;
 use serde::{Deserialize, Serialize};
-use sqlparser::ast::Expr;
 
 use crate::schema::{ADMIN_USERNAME, APPS_USERNAME, SYSTEM_SCHEMA_NAME};
 use crate::server::storage::ClusterStorageFactory;

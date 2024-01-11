@@ -5,9 +5,9 @@ use arenasql::datafusion::ScalarUDF;
 use arenasql::execution::{
   CustomExecutionPlan, ScalarUdfExecutionPlan, Transaction,
 };
+use arenasql::sqlparser::ast::Statement;
 use arenasql::Result;
 use once_cell::sync::Lazy;
-use sqlparser::ast::Statement;
 
 use self::catalog_users::SetCatalogUserCredentials;
 use crate::extension::catalog_users::ListCatalogUserCredentials;

@@ -15,6 +15,8 @@ pub mod vectors;
 pub type Result<T> = std::result::Result<T, error::Error>;
 pub type Error = error::Error;
 
+pub use sqlparser;
+
 pub use df::providers::{
   CatalogListProvider, CatalogProvider, SchemaProviderBuilder,
   SingleCatalogListProvider,

@@ -28,13 +28,12 @@ base64.workspace = true
 jsonwebtoken.workspace = true
 tracing-subscriber.workspace = true
 tracing-tree.workspace = true
+env_logger.workspace = true
 tracing = { version = "0.1.37", features = ["release_max_level_debug"] }
-sqlparser = { version = "0.39.0", features = ["serde"] }
 parking_lot = "0.12.1"
 derive_builder = "0.12.0"
 arenasql = { path = "../arenasql" }
 log = { version = "0.4", features = ["release_max_level_debug"] }
-env_logger = "0.10.1"
 num_cpus = "1.16.0"
 urlencoding = "2.1.3"
 

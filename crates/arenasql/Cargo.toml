@@ -34,7 +34,7 @@ bincode.workspace = true
 bitflags.workspace = true
 libsql = { version = "0.1.11", features = ["core"] }
 libsql-sys = "0.2.14"
-datafusion = { version = "33.0.0", features = [] }
+datafusion = { package = "datafusion", path = "../../datafusion/datafusion/core" }
 sqlparser = { version = "0.39.0", features = ["serde", "visitor"] }
 rocksdb = { version = "0.21.0", default-features = false, features = [
   "lz4",

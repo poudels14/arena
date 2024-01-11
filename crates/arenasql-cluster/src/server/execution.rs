@@ -7,8 +7,8 @@ use arenasql::pgwire::api::results::{
 };
 use arenasql::pgwire::error::PgWireResult;
 use arenasql::response::ExecutionResponse;
+use arenasql::sqlparser::ast::Statement;
 use futures::StreamExt;
-use sqlparser::ast::Statement;
 
 use super::ArenaSqlCluster;
 use crate::auth::AuthenticatedSession;
