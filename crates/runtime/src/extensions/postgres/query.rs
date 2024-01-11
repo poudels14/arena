@@ -55,7 +55,10 @@ pub struct Field {
   name: String,
 
   /// Camel cased name if applicable
-  #[serde(rename(serialize = "_casedName"))]
+  #[serde(
+    rename(serialize = "_casedName"),
+    skip_serializing_if = "Option::is_none"
+  )]
   _cased_name: Option<String>,
 
   #[serde(rename(serialize = "dataTypeID"))]
@@ -169,12 +172,14 @@ fn get_json_value(
         row,
         col_index,
         chrono::DateTime<chrono::Utc>,
-        |v| { Value::from(v.to_rfc3339()) }
+        |value| {
+          Value::from(value.format("%Y-%m-%d %H:%M:%S.%f").to_string())
+        }
       )
     }
     &Type::TIMESTAMP => {
       convert_to_json_value!(row, col_index, NaiveDateTime, |value| {
-        Value::from(value.and_utc().to_rfc3339())
+        Value::from(value.format("%Y-%m-%d %H:%M:%S.%f").to_string())
       })
     }
     &Type::FLOAT4_ARRAY => {

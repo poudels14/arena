@@ -53,7 +53,7 @@ class Client {
     return this.#rid != undefined && ops.op_postgres_is_connected(this.#rid);
   }
 
-  async query(query, params = undefined, options = undefined) {
+  async query(query, params = undefined, options?: { camelCase?: boolean }) {
     // reconnect if the connection was disconnected somehow
     if (!this.isConnected()) {
       await this.connect();
@@ -135,12 +135,15 @@ class Client {
   // should work out of the box
   unsafe(query, params) {
     const client = this;
-    return {
+    const fut = client.query(query, params, {
+      camelCase: false,
+    });
+    return Object.assign(fut, {
       async values() {
-        const res = await client.query(query, params);
+        const res = await fut;
         return res._raw.values;
       },
-    };
+    });
   }
 }
 
