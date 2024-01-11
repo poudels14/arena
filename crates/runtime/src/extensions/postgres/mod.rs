@@ -37,6 +37,7 @@ fn init() -> Extension {
       op_postgres_create_connection::DECL,
       op_postgres_is_connected::DECL,
       op_postgres_execute_query::DECL,
+      op_postgres_close::DECL,
     ]
     .into(),
     enabled: true,
