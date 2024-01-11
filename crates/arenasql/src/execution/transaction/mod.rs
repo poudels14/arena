@@ -150,7 +150,7 @@ impl Transaction {
     tracing::trace!(
       "transaction_id = {:?}, stmt_type = {:?}",
       self.id,
-      stmt_type
+      stmt_type.to_string()
     );
     // Modify stmt if needed
     // THIS IS A HACK needed because table scan needs to return rowid

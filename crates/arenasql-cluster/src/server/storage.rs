@@ -77,6 +77,11 @@ impl ClusterStorageFactory {
               .cache_size_mb
               .map(|size| rocks::Cache::new_lru_cache(size * 1024 * 1024));
             let db_dir = self.options.root_dir.join("catalogs").join(db_name);
+            tracing::trace!(
+              "Using database dir [{:?}] for catalog = {:?}",
+              db_dir.to_str(),
+              db_name
+            );
             let rocks_storage = match db_dir.exists() {
               false => {
                 if let Some(checkpoint_dir) = &self.options.checkpoint_dir {
