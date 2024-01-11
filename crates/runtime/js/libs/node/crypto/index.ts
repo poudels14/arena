@@ -5,5 +5,12 @@ Arena.__nodeInternal = {
   crypto,
 };
 
+const webcrypto = {
+  getRandomValues(array) {
+    randomFillSync(array);
+    return array;
+  },
+};
+
 export default crypto;
-export { createHash, randomFillSync };
+export { createHash, randomFillSync, webcrypto };
