@@ -1,8 +1,6 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { json, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
 import { PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import { pick } from "lodash-es";
-import { uniqueId } from "@portal/sdk/utils/uniqueId";
 import { WorkspaceAccessType } from "@portal/sdk/acl";
 
 const workspaces = pgTable("workspaces", {
@@ -25,8 +23,8 @@ type Workspace = {
   id: string;
   name: string;
   config: {
-    runtime: any;
-    databaseHost: string;
+    // runtime: any;
+    // databaseHost: string;
   };
   access: WorkspaceAccessType;
 };
@@ -57,14 +55,19 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
 
       return (rows[0] as Workspace) || null;
     },
-    async listWorkspaces(filter: {
-      userId: string;
-    }): Promise<Required<Workspace>[]> {
+    async listWorkspaces(
+      filter: {
+        userId?: string;
+      },
+      pagination: { limit?: number; offset?: number } = {}
+    ): Promise<Required<Workspace>[]> {
       const rows = await db
         .select({
           id: workspaces.id,
           name: workspaces.name,
+          config: workspaces.config,
           access: workspaceMembers.access,
+          createdAt: workspaces.createdAt,
         })
         .from(workspaces)
         .leftJoin(
@@ -72,39 +75,39 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
           eq(workspaceMembers.workspaceId, workspaces.id)
         )
         .where(
-          and(
-            eq(workspaceMembers.userId, filter.userId),
-            isNull(workspaceMembers.archivedAt),
-            isNull(workspaces.archivedAt)
-          )
-        );
+          filter.userId
+            ? and(
+                eq(workspaceMembers.userId, filter.userId),
+                isNull(workspaceMembers.archivedAt),
+                isNull(workspaces.archivedAt)
+              )
+            : and(isNull(workspaces.archivedAt))
+        )
+        .limit(pagination.limit || 500)
+        .offset(pagination.offset || 0);
       return rows as Workspace[];
     },
     async createWorkspace(options: {
-      id?: string;
+      id: string;
       name?: string;
       ownerId: string;
     }): Promise<Required<Workspace>> {
-      const workspaceRows = await db
-        .insert(workspaces)
-        .values({
-          id: "w-" + options.id || uniqueId(),
-          name: options.name || "Default workspace",
-          config: {},
-          createdAt: new Date(),
-        })
-        .returning();
+      const workspace = {
+        id: options.id,
+        name: options.name || "Default workspace",
+        config: {},
+        createdAt: new Date(),
+      };
 
-      const workspace = workspaceRows[0];
-
+      await db.insert(workspaces).values(workspace).execute();
       await db.insert(workspaceMembers).values({
-        workspaceId: workspace.id,
+        workspaceId: options.id,
         userId: options.ownerId,
         access: "owner",
       });
 
       return {
-        ...(pick(workspace, "id", "name", "config") as Workspace),
+        ...workspace,
         access: "owner",
       };
     },

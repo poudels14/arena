@@ -14,19 +14,18 @@ const dbpool = new Pool({
 
 const fetch = async (request: any) => {
   try {
-    const client = await dbpool.connect();
+    const repo = await createRepo({ pool: dbpool });
     const result = await router.route(request, {
       env: process.env,
       context: {
         host: env.HOST,
         env,
         dbpool,
-        repo: createRepo(client),
+        repo,
         user: null,
       },
     });
-
-    await client.release();
+    await repo.release();
     return result;
   } catch (e) {
     console.error(e);
