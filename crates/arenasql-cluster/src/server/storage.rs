@@ -13,7 +13,7 @@ use arenasql::Result;
 use dashmap::DashMap;
 use futures::future::join_all;
 use getset::{Getters, Setters};
-use log::info;
+use tracing::info;
 use tokio::task::JoinHandle;
 
 use crate::error::ArenaClusterResult;

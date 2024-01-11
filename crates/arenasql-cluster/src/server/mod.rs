@@ -6,7 +6,6 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use arenasql::pgwire::api::{MakeHandler, StatelessMakeHandler};
 use arenasql::pgwire::tokio::process_socket;
-use log::info;
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 
@@ -75,7 +74,7 @@ impl ClusterOptions {
     let listener =
       TcpListener::bind(addr).await.context("TCP binding error")?;
 
-    info!(
+    tracing::info!(
       "Listening to {}:{} [process id = {}]",
       host,
       port,

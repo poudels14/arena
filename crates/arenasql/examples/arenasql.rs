@@ -11,8 +11,6 @@ use arenasql::{Result, SingleCatalogListProvider};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-  env_logger::init();
-
   let runtime = RuntimeEnv::default();
   let storage = Arc::new(rocks::RocksStorage::new_with_cache(
     Path::new("_db_path").to_path_buf(),

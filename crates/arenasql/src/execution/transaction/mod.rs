@@ -223,7 +223,7 @@ impl Transaction {
   ) -> Result<ExecutionResponse> {
     tracing::trace!("transaction_id = {:?}", self.id);
     if let LogicalPlan::Extension(extension) = plan {
-      log::debug!("Using custom execution plan");
+      tracing::debug!("Using custom execution plan");
       return self
         .execute_stream(
           &stmt_type,
