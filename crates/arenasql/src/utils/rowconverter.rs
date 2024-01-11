@@ -2,7 +2,9 @@ use datafusion::arrow::record_batch::RecordBatch;
 use datafusion::error::Result;
 
 use crate::error::null_constraint_violation;
-use crate::schema::{Column, DataType, OwnedRow, OwnedSerializedCell, Table};
+use crate::schema::{
+  Column, DataType, OwnedRow, OwnedSerializedCell, Table, CTID_COLUMN,
+};
 
 // TODO: maybe just return raw bytes instead of SerializedCell?
 pub fn convert_to_rows<'a>(
@@ -16,8 +18,9 @@ pub fn convert_to_rows<'a>(
   if include_virutal_columns {
     columns.push(Column::new(
       columns.len() as u8,
-      "ctid".to_owned(),
+      CTID_COLUMN.to_owned(),
       DataType::UInt64,
+      false,
       false,
       None,
     ));

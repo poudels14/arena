@@ -5,6 +5,7 @@ use datafusion::arrow::datatypes::SchemaRef;
 use datafusion::arrow::record_batch::{RecordBatch, RecordBatchOptions};
 use datafusion::error::Result;
 
+use super::column::CTID_COLUMN;
 use super::{ColumnArrayBuilder, DataType, RowId, SerializedCell};
 
 pub struct DataFrame {
@@ -48,7 +49,7 @@ impl DataFrame {
     let column_builders: Vec<ColumnArrayBuilder> = columns
       .iter()
       .filter_map(|col| {
-        if col.0 == "ctid" {
+        if col.0 == CTID_COLUMN {
           include_row_id = true;
           None
         } else {

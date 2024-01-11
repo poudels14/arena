@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::{DataType, OwnedSerializedCell, Table};
 use crate::Result;
 
+pub static CTID_COLUMN: &'static str = "ctid";
 pub type ColumnId = u8;
 
 #[derive(Debug, Clone, Serialize, new, Deserialize, PartialEq)]
@@ -13,6 +14,7 @@ pub struct Column {
   pub name: String,
   pub data_type: DataType,
   pub nullable: bool,
+  pub unique: bool,
   pub default_value: Option<OwnedSerializedCell>,
 }
 
@@ -23,6 +25,7 @@ impl Column {
       name: field.name().to_owned(),
       data_type: DataType::from_field(field)?,
       nullable: field.is_nullable(),
+      unique: false,
       default_value: None,
     })
   }

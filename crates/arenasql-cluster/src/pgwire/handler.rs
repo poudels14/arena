@@ -19,6 +19,7 @@ use arenasql::pgwire::messages::extendedquery::{
   Bind, BindComplete, Parse, ParseComplete,
 };
 use arenasql::pgwire::messages::PgWireBackendMessage;
+use arenasql::schema::CTID_COLUMN;
 use arenasql::{pgwire, Error};
 use async_trait::async_trait;
 use futures::{Sink, SinkExt};
@@ -221,18 +222,18 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
 
     let stmt = stmt.statement().stmts[0].clone();
     let plan = match maybe_plan {
-      Some(plan) => Some(plan),
+      Some(plan) => plan,
       None => {
         let session = self.get_client_session(client)?;
         let txn =
           unsafe { session.context().get_or_create_active_transaction() };
-        Some(txn.create_verified_logical_plan(stmt).await?)
+        txn.create_verified_logical_plan(stmt).await?
       }
     };
 
-    let (params, fields) = plan
-      .map(|plan| get_params_and_field_types(&plan).map(|(p, f)| (Some(p), f)))
-      .unwrap_or_else(|| Ok((None, vec![])))?;
+    let (params, fields) = get_params_and_field_types(&plan)
+      .map(|(p, f)| (Some(p), f))
+      .unwrap();
     Ok(DescribeResponse::new(params, fields))
   }
 
@@ -314,7 +315,16 @@ fn get_params_and_field_types(
     .schema()
     .fields()
     .iter()
-    .map(|f| datatype::to_field_info(f.field().as_ref(), FieldFormat::Text))
+    .filter_map(|f| {
+      if f.name() == CTID_COLUMN {
+        None
+      } else {
+        Some(datatype::to_field_info(
+          f.field().as_ref(),
+          FieldFormat::Text,
+        ))
+      }
+    })
     .collect();
 
   Ok((params, field))

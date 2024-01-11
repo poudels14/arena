@@ -11,6 +11,7 @@ use inflector::Inflector;
 use serde::{Deserialize, Serialize};
 use sqlparser::ast::{ColumnOption, Statement};
 
+use super::column::CTID_COLUMN;
 use super::{
   Column, ColumnId, Constraint, DataType, IndexType, TableIndex, TableIndexId,
 };
@@ -35,17 +36,33 @@ impl Table {
     stmt: &Statement,
   ) -> Result<Self> {
     let columns = get_columns_from_query_stmt(stmt, provider.schema())?;
-    Ok(Table {
-      id,
-      name: name.to_owned(),
-      columns,
-      constraints: provider.constraints().map(|constraints| {
+    let mut constraints: Vec<Constraint> = provider
+      .constraints()
+      .map(|constraints| {
         constraints
           .as_ref()
           .into_iter()
           .map(|c| Constraint::from(c))
           .collect()
-      }),
+      })
+      .unwrap_or_default();
+
+    // Add column constraint to table constraint
+    columns.iter().for_each(|col| {
+      if col.unique {
+        constraints.push(Constraint::Unique(vec![col.id as usize]));
+      }
+    });
+    let constraints = if constraints.is_empty() {
+      None
+    } else {
+      Some(constraints)
+    };
+    Ok(Table {
+      id,
+      name: name.to_owned(),
+      columns,
+      constraints,
       indexes: vec![],
     })
   }
@@ -55,7 +72,7 @@ impl Table {
       .columns
       .iter()
       .map(|col| col.to_field(&self))
-      .chain(vec![DfField::new("ctid", DfDataType::UInt64, false)
+      .chain(vec![DfField::new(CTID_COLUMN, DfDataType::UInt64, false)
         .with_metadata(HashMap::from([(
           "TYPE".to_owned(),
           DataType::UInt64.to_string(),
@@ -138,11 +155,17 @@ fn get_columns_from_query_stmt(
             _ => false,
           });
 
+          let unique = col.options.iter().any(|opt| match opt.option {
+            ColumnOption::Unique { .. } => true,
+            _ => false,
+          });
+
           Ok(Column {
             id: index as ColumnId,
             name: col.name.value.clone(),
             data_type: DataType::from_column_def(&col, field)?,
             nullable: !not_nullable,
+            unique,
             // TODO
             default_value: None,
           })
