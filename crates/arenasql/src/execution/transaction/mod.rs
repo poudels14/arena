@@ -176,6 +176,7 @@ impl Transaction {
       .find_map(|ext| ext(&self, &stmt).transpose())
       .transpose()?;
     if let Some(plan) = custom_plan {
+      tracing::trace!("using custom plan",);
       return Ok(LogicalPlan::Extension(Extension {
         node: Arc::new(CustomPlanAdapter::create(plan)),
       }));
@@ -193,6 +194,7 @@ impl Transaction {
 
     // TODO: creating physical plan from SQL is expensive
     // look into caching physical plans
+    tracing::trace!("creating logical plan from statement",);
     let plan = state
       .statement_to_plan(datafusion::sql::parser::Statement::Statement(stmt))
       .await?;

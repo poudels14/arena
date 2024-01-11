@@ -19,6 +19,11 @@ use crate::execution::{
 use crate::schema::DataFrame;
 use crate::Result;
 
+#[tracing::instrument(
+  skip_all,
+  fields(name = "advisory_lock"),
+  level = "trace"
+)]
 pub fn extension(
   transaction: &Transaction,
   stmt: &SQLStatement,

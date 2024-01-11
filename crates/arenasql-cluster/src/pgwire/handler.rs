@@ -38,6 +38,7 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
   type Statement = ArenaQuery;
   type QueryParser = ArenaQueryParser;
 
+  #[tracing::instrument(skip_all, level = "trace")]
   async fn on_parse<C>(
     &self,
     client: &mut C,
@@ -237,6 +238,7 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
     Ok(DescribeResponse::new(params, fields))
   }
 
+  #[tracing::instrument(skip_all, level = "trace")]
   async fn on_terminate<C>(&self, client: &mut C)
   where
     C: ClientInfo + Unpin + Send + Sync,
