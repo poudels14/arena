@@ -29,8 +29,13 @@ const addCluster = protectedProcedure
     return { id };
   });
 
-const listClusters = protectedProcedure.query(async ({ ctx }) => {
-  const clusters = await ctx.repo.dbClusters.list();
+const listClusters = protectedProcedure.query(async ({ ctx, searchParams }) => {
+  const clusters = await ctx.repo.dbClusters.list({
+    ids:
+      typeof searchParams.id == "string"
+        ? [searchParams.id]
+        : (searchParams.id as any as string[]),
+  });
   return clusters.map((cluster) => {
     return pick(cluster, "id", "host", "port", "capacity", "usage");
   });

@@ -46,12 +46,21 @@ const createRepo = (client: Client) => {
         .where(and(isNull(apps.archivedAt), eq(apps.id, id)));
       return (rows[0] || null) as App | null;
     },
-    async listApps(filter: { workspaceId: string }): Promise<Required<App>[]> {
+    async listApps(filters: {
+      workspaceId: string;
+      slug?: string;
+    }): Promise<Required<App>[]> {
       const rows = await db
         .select()
         .from(apps)
         .where(
-          and(eq(apps.workspaceId, filter.workspaceId), isNull(apps.archivedAt))
+          and(
+            eq(apps.workspaceId, filters.workspaceId),
+            filters.slug
+              ? eq(apps.slug, filters.slug)
+              : isNull(apps.archivedAt),
+            isNull(apps.archivedAt)
+          )
         );
       return rows as App[];
     },

@@ -27,13 +27,9 @@ const add = protectedProcedure
     }
 
     const repo = await ctx.repo.transaction();
-    const appId = body.id || uniqueId(19);
-
-    const database = await addDatabase(repo, {
-      id: workspace.id,
-      workspaceId: workspace.id,
-      appId,
-      user: "app",
+    const appId = slugify(body.id || uniqueId(19), {
+      separator: "_",
+      decamelize: false,
     });
 
     const newApp = await repo.apps.insert({
@@ -47,6 +43,13 @@ const add = protectedProcedure
       template: body.template,
       createdBy: ctx.user!.id,
       config: {},
+    });
+
+    const database = await addDatabase(repo, {
+      id: appId,
+      workspaceId: workspace.id,
+      appId,
+      user: "app",
     });
 
     await repo.commit();
@@ -70,11 +73,30 @@ const list = protectedProcedure.query(async ({ ctx, searchParams, errors }) => {
   if (!searchParams.workspaceId) {
     return errors.badRequest("Missing query param: `workspaceId`");
   }
+  const workspace = await ctx.repo.workspaces.getWorkspaceById(
+    searchParams.workspaceId
+  );
+  if (!workspace) {
+    return errors.badRequest("Invalid workspace id");
+  }
+
   const apps = await ctx.repo.apps.listApps({
     workspaceId: searchParams.workspaceId,
+    slug: searchParams.slug,
+  });
+
+  const databases = await ctx.repo.databases.list({
+    workspaceId: workspace.id,
   });
   return apps.map((app) => {
-    return pick(app, "id", "name", "slug", "description", "config", "template");
+    return {
+      ...pick(app, "id", "name", "slug", "description", "config", "template"),
+      database: pick(
+        databases.find((db) => db.appId == app.id),
+        "credentials",
+        "clusterId"
+      ),
+    };
   });
 });
 

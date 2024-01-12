@@ -11,7 +11,7 @@ const addDatabase = async (
     user: string;
   }
 ) => {
-  const clusters = await repo.dbClusters.list();
+  const clusters = await repo.dbClusters.list({});
   const cluster = clusters.find((cluster) => {
     return cluster.capacity - cluster.usage > 0;
   });

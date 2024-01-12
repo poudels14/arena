@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { integer, json, pgTable, varchar } from "drizzle-orm/pg-core";
 import { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
@@ -38,7 +38,9 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
 
       return (rows[0] as DatabaseCluster) || null;
     },
-    async list(): Promise<Required<DatabaseCluster>[]> {
+    async list(filters: {
+      ids?: string[];
+    }): Promise<Required<DatabaseCluster>[]> {
       const rows = await db
         .select({
           id: databaseClusters.id,
@@ -48,7 +50,12 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
           usage: databaseClusters.usage,
           credentials: databaseClusters.credentials,
         })
-        .from(databaseClusters);
+        .from(databaseClusters)
+        .where(
+          filters.ids
+            ? inArray(databaseClusters.id, filters.ids)
+            : isNotNull(databaseClusters.id)
+        );
       return rows as DatabaseCluster[];
     },
     async add(options: {
