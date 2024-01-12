@@ -235,6 +235,10 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
     let (params, fields) = get_params_and_field_types(&plan)
       .map(|(p, f)| (Some(p), f))
       .unwrap();
+
+    // logging params and fields here is fine since trace logs are stripped
+    tracing::trace!("params = {:?}", params);
+    tracing::trace!("fields = {:?}", fields);
     Ok(DescribeResponse::new(params, fields))
   }
 
