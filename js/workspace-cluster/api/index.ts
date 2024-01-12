@@ -1,6 +1,7 @@
 import { createRouter, mergedRouter } from "@portal/server-core/router";
 import * as account from "./account";
 import * as workspaces from "./workspaces";
+import * as apps from "./apps";
 import * as databases from "./databases";
 import { authenticate } from "./procedure";
 
@@ -17,6 +18,9 @@ const registryRoutes = createRouter({
     "/registry/databases/clusters/list": databases.listClusters,
     "/registry/databases/clusters/delete": databases.deleteCluster,
     "/registry/databases/list": databases.list,
+    "/registry/apps/add": apps.add,
+    "/registry/apps/list": apps.list,
+    "/registry/apps/archive": apps.archive,
   },
 });
 
