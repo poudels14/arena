@@ -99,6 +99,17 @@ const migrations: PostgresDatabaseConfig = {
         await db.query(`DROP TABLE apps;`);
       },
     },
+    {
+      async up(db) {
+        await db.query(`CREATE UNIQUE INDEX apps_workspace_id_slug ON apps (
+          workspace_id,
+          slug
+        );`);
+      },
+      async down(db) {
+        await db.query(`DROP INDEX apps_workspace_id_slug;`);
+      },
+    },
   ],
 };
 
