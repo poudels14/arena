@@ -18,9 +18,9 @@ class ArenaRequest extends Request {
 
     if (innerResponse?.body?.streamOrStatic instanceof ReadableStream) {
       const body = innerResponse?.body?.streamOrStatic;
-      const isTextStream = innerResponse.headerList.find(
+      const isEventStream = innerResponse.headerList.find(
         ([name, type]) =>
-          name.toLowerCase() == "content-type" && type == "text/stream"
+          name.toLowerCase() == "content-type" && type == "text/event-stream"
       );
 
       const [writerId] = await opAsync(
@@ -29,7 +29,7 @@ class ArenaRequest extends Request {
         innerResponse.status,
         innerResponse.headerList || [],
         null,
-        isTextStream ? "Events" : "Bytes"
+        isEventStream ? "Events" : "Bytes"
       );
 
       // TODO(sagar): handle async/await subscription better
@@ -37,7 +37,7 @@ class ArenaRequest extends Request {
       let reader = body.getReader();
       while ((next = await reader.read()) && !next.done) {
         let len = 0;
-        if (isTextStream) {
+        if (isEventStream) {
           len = await opAsync(
             "op_http_write_text_to_stream",
             writerId!,

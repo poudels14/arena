@@ -75,14 +75,14 @@ impl ParsedHttpResponse {
         )?,
       ),
       None if self.stream.is_some() => {
-        let is_text_stream = self
+        let is_event_stream = self
           .get_header(CONTENT_TYPE)
           .map(|h| h == mime::TEXT_EVENT_STREAM.as_ref().as_bytes())
           .unwrap_or(true);
         let stream = self.stream.unwrap();
-        if is_text_stream {
+        if is_event_stream {
           return Ok(
-            Sse::new(stream.get_text_stream())
+            Sse::new(stream.get_event_stream())
               .keep_alive(
                 KeepAlive::new()
                   .interval(Duration::from_secs(30))
@@ -143,7 +143,7 @@ pub fn channel(
 pub enum StreamResponseReader {
   // Used when streaming data
   Bytes(#[derivative(Debug = "ignore")] ReceiverStream<Result<Bytes>>),
-  // Used for text/stream response type
+  // Used for text/event-stream response type
   Events(#[derivative(Debug = "ignore")] ReceiverStream<Result<Event>>),
 }
 
@@ -152,15 +152,15 @@ impl StreamResponseReader {
     match self {
       Self::Bytes(stream) => stream,
       Self::Events(_) => {
-        unreachable!("Can't get normal stream from text stream")
+        unreachable!("Can't get normal stream from event stream")
       }
     }
   }
 
-  pub fn get_text_stream(self) -> ReceiverStream<Result<Event>> {
+  pub fn get_event_stream(self) -> ReceiverStream<Result<Event>> {
     match self {
       Self::Bytes(_) => {
-        unreachable!("Can't get text stream from normal stream")
+        unreachable!("Can't get event stream from normal stream")
       }
       Self::Events(stream) => stream,
     }
