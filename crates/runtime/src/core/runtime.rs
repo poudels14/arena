@@ -263,6 +263,8 @@ impl IsolatedRuntime {
       "runtime/init/finalize",
       r#"
         // Remove bootstrapping data from the global scope
+        globalThis.__setupRuntime();
+        delete globalThis.__setupRuntime;
         delete globalThis.__bootstrap;
         delete globalThis.bootstrap;
       "#

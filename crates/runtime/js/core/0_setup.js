@@ -1,5 +1,8 @@
+import * as webidl from "ext:deno_webidl/00_webidl.js";
 import { AbortSignal, AbortController } from "ext:deno_web/03_abort_signal.js";
 import { performance, setTimeOrigin } from "ext:deno_web/15_performance.js";
+import * as _ from "ext:deno_fetch/27_eventsource.js";
+import * as globalInterfaces from "ext:deno_web/04_global_interfaces.js";
 import {
   setTimeoutUnclamped,
   setTimeout,
@@ -23,35 +26,19 @@ import { ReadableStream } from "ext:deno_web/06_streams.js";
 import { fetch } from "ext:deno_fetch/26_fetch.js";
 import { Console } from "ext:deno_console/01_console.js";
 
-const primordials = globalThis.__bootstrap.primordials;
-const { DateNow } = primordials;
-
-// credit: deno
-function promiseRejectCallback(type, promise, reason) {
-  console.log("PROMISE REJECTED! type:", type, "reason:", reason);
-  const rejectionEvent = new event.PromiseRejectionEvent("unhandledrejection", {
-    cancelable: true,
-    promise,
-    reason,
-  });
-
-  // Note that the handler may throw, causing a recursive "error" event
-  globalThis.dispatchEvent(rejectionEvent);
-  // TODO: there is more to this
+function nonEnumerable(value) {
+  return {
+    value,
+    writable: true,
+    enumerable: false,
+    configurable: true,
+  };
 }
 
 // Note(sagar): this is initialized during snapshotting
 // assign to globalThis so that other modules can access
 // these objects with `globalThis.{}`
 ((globalThis) => {
-  const { core } = Deno;
-  setTimeOrigin(DateNow());
-
-  core.setUnhandledPromiseRejectionHandler(promiseRejectCallback);
-
-  event.setEventTargetData(globalThis);
-  event.saveGlobalThisReference(globalThis);
-
   function setImmediate(cb, ...args) {
     return setTimeoutUnclamped(cb, 0, ...args);
   }
@@ -78,5 +65,42 @@ function promiseRejectCallback(type, promise, reason) {
     fetch,
     encodeToBase64,
     encodeToBase64Url,
+
+    Event: event.Event,
+    EventTarget: event.EventTarget,
+    Window: globalInterfaces.Window,
+  });
+
+  Object.defineProperties(globalThis, {
+    [webidl.brand]: nonEnumerable(webidl.brand),
   });
 })(globalThis);
+
+// credit: deno
+function processUnhandledPromiseRejection(type, promise, reason) {
+  console.log("PROMISE REJECTED! type:", type, "reason:", reason);
+  const rejectionEvent = new event.PromiseRejectionEvent("unhandledrejection", {
+    cancelable: true,
+    promise,
+    reason,
+  });
+
+  // Note that the handler may throw, causing a recursive "error" event
+  globalThis.dispatchEvent(rejectionEvent);
+  // TODO: there is more to this
+}
+
+globalThis.__setupRuntime = () => {
+  const primordials = globalThis.__bootstrap.primordials;
+  const { DateNow } = primordials;
+
+  const { core } = Deno;
+  setTimeOrigin(DateNow());
+
+  event.setEventTargetData(globalThis);
+  event.saveGlobalThisReference(globalThis);
+
+  Object.setPrototypeOf(globalThis, Window.prototype);
+
+  core.setUnhandledPromiseRejectionHandler(processUnhandledPromiseRejection);
+};
