@@ -8,6 +8,13 @@ type ServeConfig = {
 };
 
 const serve = async (config: ServeConfig) => {
+  // Catch global errors to avoid crasing the server
+  globalThis.addEventListener("error", (e) => {
+    console.error(e);
+    e.preventDefault();
+    e.stopPropagation();
+  });
+
   const server = await Server.init();
   const streams = from(server);
   streams.pipe(mergeMap((stream) => from(stream!))).subscribe(async (req) => {
