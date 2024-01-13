@@ -27,7 +27,11 @@ static DEFAULT_CREATE_REQUIRE: &'static str = r#"
   global.__internalCreateRequire =
     global.__internalCreateRequire ||
     ((path) => {
-      throw new Error("Resolver extension must be enabled to use require(...)");
+      return {
+        require() {
+          throw new Error("Resolver extension must be enabled to use require(...)");
+        }
+      }
     });
 })(globalThis);"#;
 
