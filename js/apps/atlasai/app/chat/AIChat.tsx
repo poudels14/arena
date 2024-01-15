@@ -13,8 +13,7 @@ import { Markdown } from "@portal/solid-ui/markdown";
 import { Marked } from "marked";
 import cleanSet from "clean-set";
 import hljs from "highlight.js/lib/core";
-// TODO
-// import "highlight.js/styles/atom-one-dark";
+import "highlight.js/styles/atom-one-dark";
 import jsGrammar from "highlight.js/lib/languages/javascript";
 import cssGrammar from "highlight.js/lib/languages/css";
 import xmlGrammar from "highlight.js/lib/languages/xml";
@@ -327,7 +326,7 @@ const ChatMessage = (props: {
                     props.lang && hljs.listLanguages().includes(props.lang);
                   return (
                     <code
-                      class="block my-2 px-4 py-4 rounded bg-gray-800 text-white overflow-auto"
+                      class="block my-2 px-4 py-4 rounded bg-gray-800 text-white whitespace-pre overflow-auto"
                       innerHTML={
                         highlighted
                           ? hljs.highlight(props.text, {

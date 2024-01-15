@@ -1,5 +1,5 @@
 import { Show, createMemo } from "solid-js";
-// import "highlight.js/styles/atom-one-dark";
+import "highlight.js/styles/atom-one-dark";
 import { SlidingDrawer } from "@portal/solid-ui/SlidingDrawer";
 import { createQuery } from "@portal/solid-query";
 
