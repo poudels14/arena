@@ -13,7 +13,8 @@ use sqlparser::ast::{ColumnOption, Statement};
 
 use super::column::CTID_COLUMN;
 use super::{
-  Column, ColumnId, Constraint, DataType, IndexType, TableIndex, TableIndexId,
+  Column, ColumnId, ColumnProperty, Constraint, DataType, IndexType,
+  TableIndex, TableIndexId,
 };
 use crate::Result;
 
@@ -49,7 +50,7 @@ impl Table {
 
     // Add column constraint to table constraint
     columns.iter().for_each(|col| {
-      if col.unique {
+      if col.unique() {
         constraints.push(Constraint::Unique(vec![col.id as usize]));
       }
     });
@@ -150,22 +151,31 @@ fn get_columns_from_query_stmt(
         .zip(schema.fields.iter())
         .enumerate()
         .map(|(index, (col, field))| {
-          let not_nullable = col.options.iter().any(|opt| match opt.option {
-            ColumnOption::NotNull => true,
-            _ => false,
-          });
+          let mut properties = ColumnProperty::DEFAULT;
 
-          let unique = col.options.iter().any(|opt| match opt.option {
-            ColumnOption::Unique { .. } => true,
-            _ => false,
-          });
+          if col
+            .options
+            .iter()
+            .any(|opt| opt.option == ColumnOption::NotNull)
+          {
+            properties.insert(ColumnProperty::NOT_NULL);
+          }
+
+          if col.options.iter().any(|opt| {
+            if let ColumnOption::Unique { .. } = opt.option {
+              true
+            } else {
+              false
+            }
+          }) {
+            properties.insert(ColumnProperty::UNIQUE);
+          }
 
           Ok(Column {
             id: index as ColumnId,
             name: col.name.value.clone(),
             data_type: DataType::from_column_def(&col, field)?,
-            nullable: !not_nullable,
-            unique,
+            properties,
             // TODO
             default_value: None,
           })

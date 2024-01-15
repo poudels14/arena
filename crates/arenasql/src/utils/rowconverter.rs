@@ -20,8 +20,7 @@ pub fn convert_to_rows<'a>(
       columns.len() as u8,
       CTID_COLUMN.to_owned(),
       DataType::UInt64,
-      false,
-      false,
+      Default::default(),
       None,
     ));
   }
@@ -41,7 +40,7 @@ pub fn convert_to_rows<'a>(
       match values {
         Some(arr) => arr,
         None => {
-          if !col.nullable {
+          if !col.nullable() {
             return Err(null_constraint_violation(&table.name, &col.name));
           } else {
             Ok(

@@ -10,7 +10,7 @@ mod table;
 
 pub use array::ColumnArrayBuilder;
 pub use cell::{OwnedSerializedCell, SerializedCell};
-pub use column::{Column, ColumnId, CTID_COLUMN};
+pub use column::{Column, ColumnId, ColumnProperty, CTID_COLUMN};
 pub use constraint::Constraint;
 pub use dataframe::DataFrame;
 pub use datatype::DataType;

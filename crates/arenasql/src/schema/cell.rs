@@ -104,7 +104,7 @@ impl OwnedSerializedCell {
     column: &Column,
     array: &'b ArrayRef,
   ) -> Result<Vec<OwnedSerializedCell>> {
-    if !column.nullable && array.null_count() > 0 {
+    if !column.nullable() && array.null_count() > 0 {
       return Err(null_constraint_violation(table_name, &column.name));
     }
 
