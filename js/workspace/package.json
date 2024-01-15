@@ -1,0 +1,57 @@
+{
+  "name": "@portal/workspace",
+  "version": "0.1.0",
+  "description": "",
+  "scripts": {},
+  "keywords": [],
+  "author": "Sagar Poudel",
+  "private": true,
+  "arena": {
+    "javascript": {
+      "resolve": {
+        "alias": {
+          "~/app": "./app",
+          "~/api": "./api",
+          "@portal/server/plugins/resolver": "@arena/runtime/resolver",
+          "@portal/server/plugins/transpiler": "@arena/runtime/transpiler"
+        },
+        "dedupe": [
+          "solid-js",
+          "@solidjs/router",
+          "@solidjs/meta",
+          "@arena/core",
+          "@portal/solid-store",
+          "@solidjs/router",
+          "@portal/solid-router",
+          "postcss",
+          "tailwindcss"
+        ],
+        "conditions": [
+          "solid",
+          "server",
+          "deno",
+          "node"
+        ]
+      }
+    }
+  },
+  "dependencies": {
+    "@portal-apps/assistant": "workspace:^",
+    "@portal/cli": "workspace:^",
+    "@portal/server-core": "workspace:^",
+    "@portal/solid-query": "workspace:^",
+    "@portal/solid-router": "workspace:^",
+    "@portal/solid-store": "workspace:^",
+    "@portal/solid-ui": "workspace:^",
+    "@portal/solidjs": "workspace:^",
+    "@solidjs/meta": "^0.29.3",
+    "@solidjs/router": "0.10.6",
+    "drizzle-orm": "^0.26.4",
+    "solid-icons": "^1.1.0",
+    "solid-js": "^1.8.7"
+  },
+  "devDependencies": {
+    "@portal/server-dev": "workspace:^",
+    "@types/node": "^20.10.6"
+  }
+}
