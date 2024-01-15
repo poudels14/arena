@@ -23,6 +23,7 @@ mod select_query;
 mod statement;
 mod transaction;
 mod update_query;
+mod vectors;
 
 #[macro_export]
 macro_rules! execute_query {
