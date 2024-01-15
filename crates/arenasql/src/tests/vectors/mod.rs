@@ -49,3 +49,18 @@ async fn vector_test_l2_distance() {
   let id = as_string_array(batch.column(0)).value(0);
   assert_eq!(id, "id1");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn vector_test_create_table_with_odd_length_vector_column() {
+  let session = create_session_context();
+
+  let res = session
+    .execute_sql(
+      r#"CREATE TABLE IF NOT EXISTS vectors (
+      id VARCHAR(50),
+      embeddings VECTOR(3)
+    )"#,
+    )
+    .await;
+  assert!(res.is_err());
+}

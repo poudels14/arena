@@ -55,8 +55,10 @@ impl SimilarityScorer for UltravioletDotSimilarity {
   fn similarity_score(&self, vector: &[f32], query: &[f32]) -> Score {
     if query.len() % 8 == 0 {
       self.similarity_score_x8(vector, query)
-    } else {
+    } else if query.len() % 4 == 0 {
       self.similarity_score_x4(vector, query)
+    } else {
+      panic!("Vectors must be multiple of 4")
     }
   }
 }
