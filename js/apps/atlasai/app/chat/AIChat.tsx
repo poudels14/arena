@@ -187,7 +187,7 @@ const AIChat = () => {
           <Show when={Boolean(state.activeThreadId())}>
             <div
               ref={chatMessagesRef}
-              class="chat-messages pb-24 py-2 space-y-5 text-sm text-accent-12/80"
+              class="chat-messages pb-24 py-2 text-sm text-accent-12/80"
             >
               <For each={sortedMessageIds()}>
                 {(messageId, index) => {
@@ -238,17 +238,17 @@ const AIChat = () => {
         </div>
       </div>
       <div class="chatbox-container absolute bottom-2 w-full flex justify-center pointer-events-none">
-        <div class="flex-1 px-8 min-w-[200px] max-w-[560px] rounded-lg pointer-events-auto backdrop-blur-xl">
-          <div class="flex p-2 flex-row text-accent-11">
-            <Show when={Boolean(state.activeThreadId())}>
+        <div class="flex-1 px min-w-[200px] max-w-[650px] rounded-lg pointer-events-auto backdrop-blur-xl bg-gray-400/10">
+          <Show when={Boolean(state.activeThreadId())}>
+            <div class="flex p-2 flex-row text-accent-11">
               <div class="new-chat flex pr-2 text-xs font-normal text-brand-12/80 border border-brand-12/50 rounded align-middle cursor-pointer select-none bg-white shadow-2xl">
                 <HiOutlinePlus size="20px" class="py-1" />
                 <div class="leading-5" onClick={() => navigate(`/`)}>
                   New thread
                 </div>
               </div>
-            </Show>
-          </div>
+            </div>
+          </Show>
           <Chatbox
             threadId={state.activeThreadId()!}
             blockedBy={threadRoute()?.data.blockedBy!()}
@@ -298,11 +298,11 @@ const ChatMessage = (props: {
 
   const role = () => props.message.role();
   return (
-    <div class="flex flex-row w-full space-x-3">
+    <div class="flex flex-row w-full space-x-5">
       <div
-        class="mt-2 w-8 h-8 text-[0.6rem] font-medium leading-8 rounded-lg border select-none text-center text-gray-600"
+        class="mt-4 w-8 h-8 text-[0.6rem] font-medium leading-8 rounded-xl border select-none text-center text-gray-600"
         classList={{
-          "bg-blue-50": role() == "user",
+          "bg-[hsl(60_28%_95%)]": role() == "user",
           "bg-brand-3": role() == "ai",
         }}
       >
@@ -310,10 +310,10 @@ const ChatMessage = (props: {
       </div>
       <div class="flex-1 space-y-2" data-message-id={props.message.id()}>
         <div
-          class="message px-4 py-1 rounded-sm"
+          class="message px-4 py-1 rounded-lg leading-6"
           classList={{
-            "bg-blue-50": role() == "user",
-            "bg-[hsl(60_28%_95%)]": role() == "ai",
+            "bg-[hsl(60_28%_95%)]": role() == "user",
+            "text-gray-800": role() == "ai",
             "border border-red-700": props.message.streaming(),
           }}
           style={"letter-spacing: 0.1px; word-spacing: 1px"}

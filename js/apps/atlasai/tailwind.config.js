@@ -4,9 +4,7 @@ const solidUi = require("@portal/solid-ui/tailwind");
 module.exports = {
   theme: {
     extend: {
-      colors: {
-        "brand-12": "red" 
-      },
+      colors: {},
     },
   },
   plugins: [solidUi],
