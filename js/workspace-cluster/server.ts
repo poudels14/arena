@@ -13,8 +13,8 @@ const dbpool = new Pool({
 });
 
 const fetch = async (request: any) => {
+  const repo = await createRepo({ pool: dbpool });
   try {
-    const repo = await createRepo({ pool: dbpool });
     const result = await router.route(request, {
       env: process.env,
       context: {
@@ -25,11 +25,12 @@ const fetch = async (request: any) => {
         user: null,
       },
     });
-    await repo.release();
     return result;
   } catch (e) {
     console.error(e);
     return new Response("Internal Server Error", { status: 500 });
+  } finally {
+    await repo.release();
   }
 };
 

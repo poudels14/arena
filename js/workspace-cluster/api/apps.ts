@@ -93,6 +93,7 @@ const list = protectedProcedure.query(async ({ ctx, searchParams, errors }) => {
       ...pick(app, "id", "name", "slug", "description", "config", "template"),
       database: pick(
         databases.find((db) => db.appId == app.id),
+        "id",
         "credentials",
         "clusterId"
       ),
