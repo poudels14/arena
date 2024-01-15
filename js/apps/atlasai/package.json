@@ -1,0 +1,58 @@
+{
+  "name": "@portal-apps/assistant",
+  "version": "0.1.0",
+  "description": "AI assistant",
+  "scripts": {},
+  "keywords": [],
+  "author": "Sagar Poudel",
+  "arena": {
+    "javascript": {
+      "resolve": {
+        "alias": {
+          "~/api": "./api"
+        },
+        "dedupe": [
+          "solid-js",
+          "@solidjs/router",
+          "@solidjs/meta",
+          "@portal/solid-store",
+          "@portal/solid-router",
+          "@portal/sdk"
+        ],
+        "conditions": [
+          "solid",
+          "server",
+          "deno",
+          "node"
+        ]
+      }
+    }
+  },
+  "dependencies": {
+    "@arena/cloud": "workspace:^",
+    "@arena/runtime": "workspace:^",
+    "@portal/cli": "workspace:^",
+    "@portal/deploy": "workspace:^",
+    "@portal/sdk": "workspace:^",
+    "@portal/server-core": "workspace:^",
+    "@portal/solid-query": "workspace:^",
+    "@portal/solid-router": "workspace:^",
+    "@portal/solid-store": "workspace:^",
+    "@portal/solid-ui": "workspace:^",
+    "@solidjs/router": "^0.10.5",
+    "@t3-oss/env-core": "^0.7.1",
+    "clean-set": "^1.1.2",
+    "drizzle-orm": "^0.26.4",
+    "highlight.js": "^11.8.0",
+    "ky": "^0.33.3",
+    "lodash-es": "^4.17.21",
+    "marked": "^11.1.0",
+    "redaxios": "^0.5.1",
+    "solid-icons": "^1.1.0",
+    "solid-js": "^1.8.8",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/lodash-es": "^4.17.7"
+  }
+}
