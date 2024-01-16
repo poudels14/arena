@@ -4,7 +4,7 @@ use runtime::extensions::{BuiltinExtension, BuiltinExtensionProvider};
 use crate::jwt::{op_cloud_jwt_sign, op_cloud_jwt_verify};
 use crate::pubsub::publisher::Publisher;
 use crate::transpile::op_cloud_transpile_js_data_query;
-use crate::{html, llm, pdf, pubsub, vectordb};
+use crate::{html, llm, pdf, pubsub};
 
 #[macro_export]
 macro_rules! cloud_module {
@@ -85,20 +85,6 @@ pub(crate) fn init(options: Config) -> Extension {
       pdf::html::op_cloud_pdf_to_html::DECL,
       // html
       html::op_cloud_html_extract_text::DECL,
-      // vector db
-      vectordb::op_cloud_vectordb_open::DECL,
-      vectordb::op_cloud_vectordb_execute_query::DECL,
-      vectordb::op_cloud_vectordb_create_collection::DECL,
-      vectordb::op_cloud_vectordb_list_collections::DECL,
-      vectordb::op_cloud_vectordb_get_collection::DECL,
-      vectordb::op_cloud_vectordb_add_document::DECL,
-      vectordb::op_cloud_vectordb_list_documents::DECL,
-      vectordb::op_cloud_vectordb_get_document::DECL,
-      vectordb::op_cloud_vectordb_get_document_blobs::DECL,
-      vectordb::op_cloud_vectordb_set_document_embeddings::DECL,
-      vectordb::op_cloud_vectordb_delete_document::DECL,
-      vectordb::op_cloud_vectordb_search_collection::DECL,
-      vectordb::op_cloud_vectordb_compact_and_flush::DECL,
     ]
     .into(),
     op_state_fn: Some(Box::new(|state| {

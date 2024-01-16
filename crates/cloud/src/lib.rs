@@ -5,7 +5,6 @@ mod transpile;
 
 pub mod html;
 pub mod pdf;
-pub mod vectordb;
 
 pub mod acl;
 pub mod identity;
