@@ -1,6 +1,9 @@
 import { ProcedureRequest } from "@portal/server-core/router";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
-import { OpenAIChat, chatCompletion } from "./OpenAI";
+import {
+  createOpenAIProvider,
+  createRequestChain,
+} from "@portal/sdk/llm/chain";
 import { omit } from "lodash-es";
 import { Context } from "../procedure";
 import { DocumentEmbeddingsGenerator } from "../../llm/EmbeddingsGenerator";
@@ -57,42 +60,58 @@ const generateAIResponse = async (
     JSON.stringify({ queryId: message.id })
   ).toString("base64");
 
-  const {
-    request: llmQueryRequest,
-    response: llmQueryResponse,
-    stream: aiResponseStream,
-  } = await chatCompletion({
-    model: thread.metadata.ai.model,
-    userId: openAiUserId,
-    stream: true,
-    messages: [
-      {
-        role: "system",
-        content: generateSystemPrompt({
-          // TODO(sagar): aggregate all chunks of the same document
-          // into one section in the prompt
-          documents: [
-            {
-              content: "Current date/time is: " + new Date().toISOString(),
-            },
-            // ...documentEmbeddings,
-          ],
-          has_functions: aiFunctions.length > 0,
-        }),
-      },
-      {
+  const chatRequest = createRequestChain()
+    .use(function setup({ request }) {
+      request.stream = true;
+    })
+    .use(function systemPromptGenerator({ request }) {
+      request.messages = [
+        {
+          role: "system",
+          content: generateSystemPrompt({
+            // TODO(sagar): aggregate all chunks of the same document
+            // into one section in the prompt
+            documents: [
+              {
+                content: "Current date/time is: " + new Date().toISOString(),
+              },
+              // ...documentEmbeddings,
+            ],
+            has_functions: aiFunctions.length > 0,
+          }),
+        },
+      ];
+    })
+    .use(function setAvailableFunctions({ request }) {
+      request.functions = aiFunctions.length > 0 ? aiFunctions : undefined;
+    })
+    .use(function setUserMessage({ request }) {
+      request.messages.push({
         role: "user",
         content: message.message.content!,
-      },
-    ],
-    functions: aiFunctions.length > 0 ? aiFunctions : undefined,
+      });
+    })
+    .use(
+      createOpenAIProvider({
+        model: thread.metadata.ai.model,
+      })
+    );
+
+  const {
+    result: {
+      request: llmQueryRequest,
+      response: llmQueryResponse,
+      stream: aiResponseStream,
+    },
+  } = await chatRequest.invoke({
+    user: openAiUserId,
   });
 
   if (llmQueryResponse.status !== 200) {
     return errors.internalServerError("Error connection to the AI model");
   }
 
-  let aiResponse: OpenAIChat.StreamResponseDelta = {};
+  let aiResponse: any = {};
   const stream = new ReadableStream({
     async start(controller) {
       if (isNewThread) {
@@ -258,21 +277,28 @@ const generateThreadTitle = async (req: {
   userId: string;
   messages: any[];
 }) => {
-  const { response } = await chatCompletion({
-    model: req.model,
-    userId: req.userId,
-    stream: false,
-    messages: [
-      {
-        role: "system",
-        content:
-          "Generate a title of the following query in just a few words for the following text. don't use quotes. make it as short as possible",
-      },
-      ...req.messages.filter((m) => m.content),
-    ],
-  });
+  const request = createRequestChain()
+    .use(function enableStreaming({ request }) {
+      request.stream = false;
+      request.messages = [
+        {
+          role: "system",
+          content:
+            "Generate a title of the following query in just a few words for the following text. don't use quotes. make it as short as possible",
+        },
+        ...req.messages.filter((m) => m.content),
+      ];
+    })
+    .use(
+      createOpenAIProvider({
+        model: req.model,
+      })
+    );
 
-  return response.data.choices[0].message.content.replaceAll(/(^")|("$)/g, "");
+  const { result } = await request.invoke({
+    user: req.userId,
+  });
+  return result.data.choices[0].message.content.replaceAll(/(^")|("$)/g, "");
 };
 
 export { generateAIResponse as generateAiResponse };
