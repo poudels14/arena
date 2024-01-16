@@ -77,7 +77,9 @@ const sendMessage = p
     z.object({
       id: z.string().optional(),
       thread: z.any(),
-      message: z.string(),
+      message: z.object({
+        content: z.string(),
+      }),
     })
   )
   .mutate(async ({ ctx, params, req, body, errors }) => {
@@ -108,9 +110,7 @@ const sendMessage = p
 
     const newMessage: ChatMessage = {
       id: body.id,
-      message: {
-        content: body.message,
-      },
+      message: body.message,
       threadId: thread.id,
       role: "user",
       userId: ctx.user?.id || null,

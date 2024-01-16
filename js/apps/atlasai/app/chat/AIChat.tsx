@@ -104,7 +104,7 @@ const AIChat = () => {
 
   const sendNewMessage = createMutationQuery<{
     threadId: string;
-    message: string;
+    message: { content: string };
     isNewThread: boolean;
   }>((input) => {
     const messageId = uniqueId(19);
@@ -125,7 +125,7 @@ const AIChat = () => {
 
   createEffect(() => {
     if (sendNewMessage.status != 200) return;
-    const input = sendNewMessage.input!;
+    const input = sendNewMessage.input()!;
     navigate(`/t/${input.threadId}`);
 
     sendNewMessage.stream((data) => {
@@ -183,49 +183,57 @@ const AIChat = () => {
         class="flex justify-center h-full overflow-y-auto"
       >
         <div class="flex-1 max-w-[650px]">
-          <Show when={Boolean(state.activeThreadId())}>
-            <div
-              ref={chatMessagesRef}
-              class="chat-messages pb-24 py-2 text-sm text-accent-12/80"
-            >
-              <For each={sortedMessageIds()}>
-                {(messageId, index) => {
-                  // Note(sagar): use state directly to only update message
-                  // content element when streaming
-                  const message = chatThread.messages[messageId]!;
-                  if (index() == sortedMessageIds().length - 1) {
-                    createEffect(() => {
-                      void message.message();
-                      // Note(sagar): scroll to the bottom. Need to do it after
-                      // the last message is rendered
-                      const containerHeight = parseFloat(
-                        getComputedStyle(chatMessagesRef).height
-                      );
-                      chatMessagesContainerRef.scrollTo(
-                        0,
-                        containerHeight + 100_000
-                      );
-                    });
-                  }
+          <div
+            ref={chatMessagesRef}
+            class="chat-messages pb-24 py-2 text-sm text-accent-12/80"
+          >
+            <For each={sortedMessageIds()}>
+              {(messageId, index) => {
+                // Note(sagar): use state directly to only update message
+                // content element when streaming
+                const message = chatThread.messages[messageId]!;
+                if (index() == sortedMessageIds().length - 1) {
+                  createEffect(() => {
+                    void message.message();
+                    // Note(sagar): scroll to the bottom. Need to do it after
+                    // the last message is rendered
+                    const containerHeight = parseFloat(
+                      getComputedStyle(chatMessagesRef).height
+                    );
+                    chatMessagesContainerRef.scrollTo(
+                      0,
+                      containerHeight + 100_000
+                    );
+                  });
+                }
 
-                  return (
-                    <Switch>
-                      <Match when={message.metadata.workflow!()}>
-                        <PluginWorkflow id={message.metadata.workflow!.id()!} />
-                      </Match>
-                      <Match when={message.message.content!()}>
-                        <ChatMessage
-                          state={state}
-                          message={message}
-                          showDocument={setDrawerDocument}
-                        />
-                      </Match>
-                    </Switch>
-                  );
-                }}
-              </For>
-            </div>
-          </Show>
+                return (
+                  <Switch>
+                    <Match when={message.metadata.workflow!()}>
+                      <PluginWorkflow id={message.metadata.workflow!.id()!} />
+                    </Match>
+                    <Match when={message.message.content!()}>
+                      <ChatMessage
+                        state={state}
+                        message={message}
+                        showDocument={setDrawerDocument}
+                      />
+                    </Match>
+                  </Switch>
+                );
+              }}
+            </For>
+            <Show when={sendNewMessage.isPending && !sendNewMessage.isIdle}>
+              <div>
+                <ChatMessage
+                  state={state}
+                  // @ts-expect-error
+                  message={sendNewMessage.input}
+                  showDocument={setDrawerDocument}
+                />
+              </div>
+            </Show>
+          </div>
           <Show when={sortedMessageIds().length == 0}>
             <EmptyThread />
           </Show>
@@ -295,7 +303,7 @@ const ChatMessage = (props: {
     return uniqueDocs;
   });
 
-  const role = () => props.message.role();
+  const role = () => props.message.role() || "user";
   return (
     <div class="flex flex-row w-full space-x-5">
       <div
@@ -384,7 +392,7 @@ const Chatbox = (props: {
   threadId: string | undefined;
   blockedBy: Chat.Thread["blockedBy"];
   sendNewMessage: MutationQuery<
-    { threadId: string; message: string; isNewThread: boolean },
+    { threadId: string; message: { content: string }; isNewThread: boolean },
     any
   >;
 }) => {
@@ -427,7 +435,9 @@ const Chatbox = (props: {
   const submitForm = () => {
     props.sendNewMessage.mutate({
       threadId: props.threadId || uniqueId(19),
-      message: getMessage(),
+      message: {
+        content: getMessage(),
+      },
       isNewThread: !Boolean(props.threadId),
     });
     setMessage("");
