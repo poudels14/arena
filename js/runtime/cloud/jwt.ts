@@ -18,11 +18,11 @@ type Header = {
 
 type JWT = {
   sign: (options: { header: Header; payload: any; secret: string }) => string;
-  verify: (
+  verify<T = any>(
     token: string,
     header: Header["alg"],
     secret: string
-  ) => { header: Header; payload: any };
+  ): { header: Header; payload: T };
 };
 
 const sign = Arena.core.ops.op_cloud_jwt_sign as JWT["sign"];

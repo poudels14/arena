@@ -27,6 +27,7 @@ tokio.workspace = true
 hyper.workspace = true
 fastwebsockets.workspace = true
 uuid.workspace = true
+clap.workspace = true
 pdfium-render = { version = "0.8.8", features = ["thread_safe"] }
 html-escape = "0.2.13"
 html5ever = "0.26.0"
@@ -35,3 +36,7 @@ common = { path = "../common", features = ["data_query"] }
 deno_core = "=0.238.0"
 runtime = { path = "../runtime" }
 vectordb = { path = "../vectordb", package = "vectordb" }
+candle-core = "0.3.2"
+candle-nn = "0.3.2"
+candle-transformers = "0.3.2"
+hf-hub = "0.3.2"

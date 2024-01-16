@@ -78,6 +78,9 @@ pub(crate) fn init(options: Config) -> Extension {
       // llm
       llm::tokenizer::op_cloud_llm_hf_new_pretrained_tokenizer::DECL,
       llm::tokenizer::op_cloud_llm_hf_encode::DECL,
+      llm::embeddings::op_cloud_llm_embeddings_load_model::DECL,
+      llm::embeddings::op_cloud_llm_embeddings_generate::DECL,
+      llm::embeddings::op_cloud_llm_embeddings_tokenize::DECL,
       // pdf
       pdf::html::op_cloud_pdf_to_html::DECL,
       // html
