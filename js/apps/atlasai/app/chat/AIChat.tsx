@@ -180,7 +180,7 @@ const AIChat = () => {
     <div class="chat relative flex-1 h-full min-w-[300px]">
       <div
         ref={chatMessagesContainerRef}
-        class="flex justify-center h-full overflow-y-auto"
+        class="flex justify-center h-full overflow-y-auto scroll:w-1 thumb:rounded thumb:bg-gray-400"
       >
         <div class="flex-1 max-w-[650px]">
           <div
