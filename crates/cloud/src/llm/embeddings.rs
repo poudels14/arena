@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Instant;
 
-use anyhow::{Error, Result, anyhow};
+use anyhow::{anyhow, Error, Result};
 use candle_core::{Device, Tensor};
 use candle_nn::VarBuilder;
 use candle_transformers::models::bert::{BertModel, Config, HiddenAct, DTYPE};
@@ -194,6 +194,19 @@ pub async fn op_cloud_llm_embeddings_tokenize(
     "ids": encoding.get_ids(),
     "offsetMapping": encoding.get_offsets()
   }))
+}
+
+#[op2]
+#[serde]
+pub fn op_cloud_llm_embeddings_close_model(
+  state: Rc<RefCell<OpState>>,
+  #[smi] resource_id: ResourceId,
+) -> Result<()> {
+  state
+    .borrow_mut()
+    .resource_table
+    .take::<EmbeddingsModel>(resource_id)?;
+  Ok(())
 }
 
 pub fn normalize_l2(v: &Tensor) -> Result<Tensor> {

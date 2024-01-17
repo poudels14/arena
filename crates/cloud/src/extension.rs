@@ -81,6 +81,7 @@ pub(crate) fn init(options: Config) -> Extension {
       llm::embeddings::op_cloud_llm_embeddings_load_model::DECL,
       llm::embeddings::op_cloud_llm_embeddings_generate::DECL,
       llm::embeddings::op_cloud_llm_embeddings_tokenize::DECL,
+      llm::embeddings::op_cloud_llm_embeddings_close_model::DECL,
       // pdf
       pdf::html::op_cloud_pdf_to_html::DECL,
       // html

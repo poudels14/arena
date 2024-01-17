@@ -20,7 +20,7 @@ type GenerateEmbeddingsOptions = {
 
 class EmbeddingsModel {
   #id: number;
-  private constructor(options: EmbeddingsModelOptions) {
+  constructor(options: EmbeddingsModelOptions) {
     this.#id = ops.op_cloud_llm_embeddings_load_model(options);
   }
 
@@ -40,7 +40,16 @@ class EmbeddingsModel {
   ): Promise<{ ids: number[]; offsetMapping: number[][] }> {
     const decoder = new TextDecoder();
     const text = decoder.decode(data);
-    return await opAsync("op_cloud_llm_embeddings_tokenize", this.#id, text, options);
+    return await opAsync(
+      "op_cloud_llm_embeddings_tokenize",
+      this.#id,
+      text,
+      options
+    );
+  }
+
+  close() {
+    ops.op_cloud_llm_embeddings_close_model(this.#id);
   }
 }
 
