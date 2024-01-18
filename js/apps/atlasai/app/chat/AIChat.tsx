@@ -219,13 +219,13 @@ const AIChat = () => {
         ref={chatMessagesContainerRef}
         class="flex justify-center h-full overflow-y-auto scroll:w-1 thumb:rounded thumb:bg-gray-400"
       >
-        <div class="flex-1 max-w-[650px]">
+        <div class="px-4 flex-1 min-w-[350px] max-w-[650px]">
           <Show when={!state.activeThreadId()}>
             <EmptyThread />
           </Show>
           <div
             ref={chatMessagesRef}
-            class="chat-messages pb-24 py-2 text-sm text-accent-12/80 space-y-1"
+            class="chat-messages pt-2 pb-28 text-sm text-accent-12/80 space-y-1"
           >
             <For each={sortedMessageIds()}>
               {(messageId, index) => {
