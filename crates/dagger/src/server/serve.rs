@@ -86,7 +86,6 @@ impl Command {
         BuiltinModule::Resolver(resolver_config.clone()),
         BuiltinModule::Transpiler,
         BuiltinModule::Babel,
-        BuiltinModule::Rollup,
       ]);
     }
 

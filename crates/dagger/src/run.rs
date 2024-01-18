@@ -63,7 +63,7 @@ impl Command {
     ];
 
     if self.enable_build_tools {
-      builtin_modules.extend(vec![BuiltinModule::Babel, BuiltinModule::Rollup])
+      builtin_modules.extend(vec![BuiltinModule::Babel])
     }
 
     if self.enable_cloud_ext {

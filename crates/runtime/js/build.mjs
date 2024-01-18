@@ -143,34 +143,6 @@ program
         external: ["@arena/runtime/resolver"],
       }),
       build({
-        minify: true,
-        ...options,
-        entryPoints: {
-          rollup: "./libs/rollup/index.ts",
-        },
-        alias: {
-          // Note(sagar): Even though arena runtime doesn't have 'os' module,
-          // need to alias this here so that build is successful. I think the
-          // bundle doesn't need os module because watch and any other code that
-          // uses 'os' module isn't being included in the bundle
-
-          os: "./libs/alias/os.ts",
-          fs: "./libs/alias/fs.ts",
-          resolve: "./libs/alias/resolve.ts",
-          module: "./libs/alias/module.ts",
-          "postcss-load-config": "./libs/alias/postcss-load-config.ts",
-          "@babel/core": "@arena/runtime/babel",
-        },
-        external: [
-          "tty",
-          "crypto",
-          "stream",
-          "@arena/runtime/babel",
-          "@arena/runtime/resolver",
-          "@arena/runtime/transpiler",
-        ],
-      }),
-      build({
         ...options,
         entryPoints: {
           resolver: "./libs/resolver.ts",
@@ -193,13 +165,6 @@ program
         entryPoints: {
           postgres: "./libs/postgres/index.ts",
         },
-      }),
-      build({
-        ...options,
-        entryPoints: {
-          bundler: "./libs/bundler/index.ts",
-        },
-        external: ["@arena/runtime/rollup"],
       }),
     ]);
   });
