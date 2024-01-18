@@ -2,6 +2,7 @@ import { Pool, Client } from "@arena/runtime/postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { createRepo as createChatThreadsRepo } from "./chatThreads";
 import { createRepo as createChatMessagesRepo } from "./chatMessages";
+import { createRepo as createTaskExecutionsRepo } from "./tasks";
 
 type Repo = {
   transaction(): Promise<
@@ -13,6 +14,7 @@ type Repo = {
   release(): Promise<void>;
   chatThreads: ReturnType<typeof createChatThreadsRepo>;
   chatMessages: ReturnType<typeof createChatMessagesRepo>;
+  taskExecutions: ReturnType<typeof createTaskExecutionsRepo>;
 };
 
 const createRepo = async (options: { pool?: Pool; client?: Client }) => {
@@ -48,6 +50,7 @@ const createRepo = async (options: { pool?: Pool; client?: Client }) => {
     },
     chatThreads: createChatThreadsRepo(pg),
     chatMessages: createChatMessagesRepo(pg),
+    taskExecutions: createTaskExecutionsRepo(pg),
   };
 };
 

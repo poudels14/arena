@@ -17,6 +17,8 @@ const router = createRouter({
     "/chat/threads/:threadId/delete": chat.deleteThread,
     "/chat/threads/:threadId/messages/:id": chat.deleteMessage,
     "/chat/threads/:threadId/send": chat.sendMessage,
+    "/chat/threads/:threadId/tasks": chat.listActiveTasks,
+    "/chat/tasks": chat.listActiveTasks,
     // "/documents": documents.listDocuments,
     // "/documents/:documentId": documents.getDocument,
     // "/documents/:documentId/edit": documents.updateDocument,

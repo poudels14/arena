@@ -41,7 +41,29 @@ const migrations: PostgresDatabaseConfig = {
           created_at   TIMESTAMP
         );`);
       },
-      async down(db) {},
+      async down(db) {
+        await db.query(`DROP TABLE chat_messages`);
+      },
+    },
+    {
+      async up(db) {
+        await db.query(`CREATE TABLE task_executions (
+          id            VARCHAR(100) NOT NULL,
+          -- id/name of the task
+          task_id       VARCHAR(250) NOT NULL,
+          thread_id     VARCHAR(100) NOT NULL,
+          -- id of the message that triggered the task
+          message_id    VARCHAR(100) NOT NULL,
+          -- "STARTED" | "TERMINATED" | "COMPLETED" | "ERROR"
+          status        VARCHAR(50) NOT NULL,
+          metadata      JSONB NOT NULL,
+          state         JSONB NOT NULL,
+          started_at    TIMESTAMP NOT NULL
+        );`);
+      },
+      async down(db) {
+        await db.query(`DROP TABLE task_executions`);
+      },
     },
   ],
 };

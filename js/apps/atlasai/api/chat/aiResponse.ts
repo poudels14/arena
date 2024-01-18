@@ -14,10 +14,20 @@ import { generateSystemPrompt } from "./prompt";
 import { ChatMessage } from "../repo/chatMessages";
 import { ChatThread } from "./types";
 import { llmDeltaToResponseBuilder } from "../../llm/utils";
+import { createExtensionHandler } from "../../extensions/handler";
 
 async function generateLLMResponseStream(
   { ctx, errors }: Pick<ProcedureRequest<Context, any>, "ctx" | "errors">,
-  { thread, message }: { thread: ChatThread; message: ChatMessage }
+  {
+    thread,
+    message,
+    messages,
+  }: {
+    thread: ChatThread;
+    message: ChatMessage;
+    // old messages in the thread
+    messages: ChatMessage[];
+  }
 ): Promise<Subject<any>> {
   const responseStream = new ReplaySubject<any>();
 
@@ -31,6 +41,7 @@ async function generateLLMResponseStream(
     JSON.stringify({ queryId: message.id })
   ).toString("base64");
 
+  const extensionHandler = createExtensionHandler();
   const chatRequest = createRequestChain()
     .use(function setup({ request }) {
       request.stream = true;
@@ -53,11 +64,20 @@ async function generateLLMResponseStream(
       ];
     })
     .use(function setUserMessage({ request }) {
+      request.addMessages(
+        ...messages.map((m) => {
+          return {
+            content: m.message.content || "",
+            role: m.role == "ai" ? "assistant" : m.role,
+          };
+        })
+      );
       request.messages.push({
         role: "user",
         content: message.message.content!,
       });
     })
+    .use(await extensionHandler.createRequestMiddleware())
     .use(
       createOpenAIProvider({
         model: thread.metadata.ai.model,
@@ -104,10 +124,41 @@ async function generateLLMResponseStream(
         const builder = llmDeltaToResponseBuilder();
         if (stream) {
           (async function streamRunner() {
-            for await (const { json } of stream) {
+            const followupRegex = new RegExp(
+              /"_followup_question_":"(.*?)((?<!\\)(?=")|$)/
+            );
+            for await (const data of stream) {
+              const { json } = data;
               if (json) {
                 const delta = dlv(json, "choices.0.delta");
                 builder.push(delta);
+
+                const responseState = builder.build();
+                const toolCallArgument = dlv(
+                  responseState,
+                  "tool_calls.0.function.arguments"
+                );
+
+                if (toolCallArgument) {
+                  const matches = followupRegex.exec(toolCallArgument);
+                  if (matches && matches[1]) {
+                    responseStream.next({
+                      ops: [
+                        {
+                          op: "replace",
+                          path: [
+                            "messages",
+                            aiResponseId,
+                            "message",
+                            "content",
+                          ],
+                          value: matches[1],
+                        },
+                      ],
+                    });
+                  }
+                }
+
                 streamSubject?.next(json);
                 if (delta.content) {
                   responseStream.next({
@@ -124,11 +175,23 @@ async function generateLLMResponseStream(
             }
             streamSubject?.complete();
           })();
+        } else {
+          throw new Error("not implemented");
         }
 
         streamSubject?.subscribe({
           async complete() {
-            let aiResponse = builder.build();
+            const aiResponse: any = await extensionHandler.parseResponse({
+              data: {
+                choices: [
+                  {
+                    message: builder.build(),
+                  },
+                ],
+              },
+              stream: undefined,
+            });
+
             await ctx.repo.chatMessages.insert({
               id: aiResponseId,
               threadId: thread.id,
@@ -139,6 +202,54 @@ async function generateLLMResponseStream(
               createdAt: aiResponseTime,
               metadata: {},
             });
+
+            if (
+              aiResponse.content == null &&
+              aiResponse.tool_calls?.length > 0
+            ) {
+              if (aiResponse.tool_calls.length > 1) {
+                console.error(
+                  new Error("More than 1 tool calls not supported yet")
+                );
+              } else {
+                const func = aiResponse.tool_calls[0];
+                extensionHandler
+                  .startTask({
+                    repo: ctx.repo.taskExecutions,
+                    task: {
+                      id: func.id,
+                      threadId: thread.id,
+                      messageId: aiResponseId,
+                      name: func.function.name,
+                      arguments: func.function.arguments,
+                    },
+                  })
+                  .then(() => {
+                    responseStream.next({
+                      ops: [
+                        {
+                          op: "replace",
+                          path: ["messages", aiResponseId, "message"],
+                          value: aiResponse,
+                        },
+                      ],
+                    });
+                  });
+              }
+            } else {
+              // If a tool is called, only send the message with tool call
+              // info after the task is executed. If a tool isn't called,
+              // send the message immediately
+              responseStream.next({
+                ops: [
+                  {
+                    op: "replace",
+                    path: ["messages", aiResponseId, "message"],
+                    value: aiResponse,
+                  },
+                ],
+              });
+            }
 
             if (!thread.title) {
               const title = await generateThreadTitle({
@@ -171,7 +282,10 @@ async function generateLLMResponseStream(
           },
         });
       }
-    );
+    )
+    .catch((e) => {
+      console.error(e);
+    });
   return responseStream;
 }
 

@@ -44,9 +44,15 @@ export namespace Chat {
     id: string;
     threadId: string | null;
     message: {
-      // role: string;
-      function_call?: string;
       content?: string;
+      tool_calls: {
+        id: string;
+        type: string;
+        function: {
+          name: string;
+          arguments: any;
+        };
+      }[];
     };
     role: string;
     createdAt: string;
@@ -61,5 +67,16 @@ export namespace Chat {
      * Set to true if this message is currently being streamed
      */
     streaming: boolean | undefined;
+  };
+
+  export type TaskExecution = {
+    id: string;
+    taskId: string;
+    threadId: string;
+    messageId: string;
+    status: "STARTED" | string;
+    metadata: any;
+    state: any;
+    startedAt: string;
   };
 }

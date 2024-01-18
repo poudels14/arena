@@ -8,10 +8,13 @@ import {
   createSignal,
   useContext,
   For,
+  lazy,
 } from "solid-js";
 import { Markdown } from "@portal/solid-ui/markdown";
 import { Marked } from "marked";
 import cleanSet from "clean-set";
+import dlv from "dlv";
+import deepEqual from "fast-deep-equal/es6";
 import hljs from "highlight.js/lib/core";
 import "highlight.js/styles/atom-one-dark";
 import jsGrammar from "highlight.js/lib/languages/javascript";
@@ -33,6 +36,9 @@ import {
   createQuery,
 } from "@portal/solid-query";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
+import { WigetContainer } from "./Widget";
+
+const Timer = lazy(() => import("../../extensions/clock/Timer"));
 
 hljs.registerLanguage("javascript", jsGrammar);
 hljs.registerLanguage("css", cssGrammar);
@@ -63,6 +69,7 @@ const AIChat = () => {
   let chatMessagesContainerRef: any;
   let chatMessagesRef: any;
 
+  const threadsRoute = createQuery<any[]>("/chat/threads", {});
   const threadRoute = createMemo(() => {
     const activeThreadId = state.activeThreadId();
     setChatThread("messages", {});
@@ -81,7 +88,37 @@ const AIChat = () => {
     return route;
   });
 
-  const threadsRoute = createQuery<any[]>("/chat/threads", {});
+  const threadTaskCallIds = createMemo(
+    () => {
+      const messages = Object.values(chatThread.messages());
+      const taskIds = messages
+        .map((message) => dlv(message, ["message", "tool_calls", 0, "id"]))
+        .filter((id) => Boolean(id));
+      return taskIds;
+    },
+    [],
+    {
+      equals(prev, next) {
+        return deepEqual(prev, next);
+      },
+    }
+  );
+
+  const threadTaskExecutionsById = createMemo(() => {
+    const activeThreadId = state.activeThreadId();
+    // reload tasks if the ids change
+    void threadTaskCallIds();
+    const route = createQuery<Chat.TaskExecution[]>(
+      `/chat/threads/${activeThreadId}/tasks`,
+      {},
+      {
+        lazy: true,
+      }
+    );
+
+    route.refresh();
+    return route.data;
+  });
 
   createComputed(() => {
     const route = threadRoute();
@@ -183,9 +220,12 @@ const AIChat = () => {
         class="flex justify-center h-full overflow-y-auto scroll:w-1 thumb:rounded thumb:bg-gray-400"
       >
         <div class="flex-1 max-w-[650px]">
+          <Show when={!state.activeThreadId()}>
+            <EmptyThread />
+          </Show>
           <div
             ref={chatMessagesRef}
-            class="chat-messages pb-24 py-2 text-sm text-accent-12/80"
+            class="chat-messages pb-24 py-2 text-sm text-accent-12/80 space-y-1"
           >
             <For each={sortedMessageIds()}>
               {(messageId, index) => {
@@ -212,10 +252,15 @@ const AIChat = () => {
                     <Match when={message.metadata.workflow!()}>
                       <PluginWorkflow id={message.metadata.workflow!.id()!} />
                     </Match>
-                    <Match when={message.message.content!()}>
+                    <Match when={message.message()}>
                       <ChatMessage
                         state={state}
                         message={message}
+                        task={
+                          threadTaskExecutionsById()[
+                            message.message.tool_calls[0].id() as any as number
+                          ]
+                        }
                         showDocument={setDrawerDocument}
                       />
                     </Match>
@@ -234,9 +279,6 @@ const AIChat = () => {
               </div>
             </Show>
           </div>
-          <Show when={sortedMessageIds().length == 0}>
-            <EmptyThread />
-          </Show>
           <Show when={error()}>
             <div class="py-4 text-center bg-red-50 text-red-700">
               {error()?.message}
@@ -276,6 +318,7 @@ const AIChat = () => {
 const ChatMessage = (props: {
   state: ChatState;
   message: Store<Chat.Message>;
+  task?: Store<Chat.TaskExecution | undefined>;
   showDocument(doc: any): void;
 }) => {
   const tokens = createMemo(() => {
@@ -349,6 +392,10 @@ const ChatMessage = (props: {
             />
           </Show>
         </div>
+        <Show when={props.task && props.task()}>
+          {/* @ts-expect-error */}
+          <TaskExecution task={props.task!} />
+        </Show>
         <Show when={uniqueDocuments().length > 0}>
           <div class="matched-documents px-2 space-y-2">
             <div class="font-medium">Documents</div>
@@ -385,6 +432,19 @@ const ChatMessage = (props: {
         </Show>
       </div>
     </div>
+  );
+};
+
+const TaskExecution = (props: { task: Store<Chat.TaskExecution> }) => {
+  return (
+    <Switch>
+      <Match when={props.task.taskId() == "start_timer"}>
+        <WigetContainer Widget={Timer} state={props.task.state()} />
+      </Match>
+      <Match when={true}>
+        <div>Unsupported task</div>
+      </Match>
+    </Switch>
   );
 };
 

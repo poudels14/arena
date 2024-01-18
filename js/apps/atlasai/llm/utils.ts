@@ -10,12 +10,12 @@ type StreamResponseDelta = {
 };
 
 const llmDeltaToResponseBuilder = () => {
-  let role: string | null = null;
+  let role: string;
   let streamContent = "";
   let streamToolCalls: any[] = [];
   return {
     push(delta: StreamResponseDelta) {
-      if (delta.role) {
+      if (delta?.role) {
         role = delta.role;
       }
       const content = dlv(delta, "content");
@@ -42,9 +42,9 @@ const llmDeltaToResponseBuilder = () => {
     },
     build() {
       return {
-        role,
+        role: role || "assistant",
         content: streamContent.length > 0 ? streamContent : null,
-        toolCalls: streamToolCalls.length > 0 ? streamToolCalls : null,
+        tool_calls: streamToolCalls.length > 0 ? streamToolCalls : null,
       };
     },
   };

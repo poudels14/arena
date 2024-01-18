@@ -1,4 +1,4 @@
-import { merge, pick, uniqBy } from "lodash-es";
+import { groupBy, keyBy, merge, pick, uniqBy } from "lodash-es";
 import z from "zod";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
 import { p } from "../procedure";
@@ -91,7 +91,15 @@ const sendMessage = p
     // to built agent like multi-step llm querries
     body.id = body.id || uniqueId();
     body.thread = merge(
-      { id: params.threadId, metadata: { ai: { model: "gpt-3.5-turbo" } } },
+      {
+        id: params.threadId,
+        metadata: {
+          ai: {
+            // model: "gpt-3.5-turbo"
+            model: "gpt-4-1106-preview",
+          },
+        },
+      },
       body.thread
     );
 
@@ -118,13 +126,18 @@ const sendMessage = p
       metadata: {},
       parentId: null,
     };
-    await ctx.repo.chatMessages.insert(newMessage);
 
+    const oldMessages = await ctx.repo.chatMessages.list({
+      threadId: thread.id,
+    });
+
+    await ctx.repo.chatMessages.insert(newMessage);
     const stream = await generateLLMResponseStream(
       { ctx, errors },
       {
         thread,
         message: newMessage,
+        messages: oldMessages,
       }
     );
 
@@ -172,6 +185,13 @@ const deleteMessage = p.delete(async ({ ctx, params }) => {
   return { success: true };
 });
 
+const listActiveTasks = p.query(async ({ ctx, params }) => {
+  const { threadId } = params;
+  const taskExecutions = await ctx.repo.taskExecutions.list({ threadId });
+
+  return keyBy(taskExecutions, (task) => task.id);
+});
+
 export {
   listThreads,
   getThread,
@@ -179,4 +199,5 @@ export {
   listMessages,
   sendMessage,
   deleteMessage,
+  listActiveTasks,
 };
