@@ -1,57 +1,28 @@
+import { Subject, ReplaySubject } from "rxjs";
 import { ProcedureRequest } from "@portal/server-core/router";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
 import {
   createOpenAIProvider,
   createRequestChain,
 } from "@portal/sdk/llm/chain";
-import { omit } from "lodash-es";
+import { jsonStreamToAsyncIterator } from "@portal/sdk/utils/stream";
+import dlv from "dlv";
+import { pick } from "lodash-es";
 import { Context } from "../procedure";
 import { DocumentEmbeddingsGenerator } from "../../llm/EmbeddingsGenerator";
 import { generateSystemPrompt } from "./prompt";
-import { mergeDelta } from "./llm";
 import { ChatMessage } from "../repo/chatMessages";
 import { ChatThread } from "./types";
+import { llmDeltaToResponseBuilder } from "../../llm/utils";
 
-const generateAIResponse = async (
+async function generateLLMResponseStream(
   { ctx, errors }: Pick<ProcedureRequest<Context, any>, "ctx" | "errors">,
-  {
-    thread,
-    isNewThread,
-    message,
-  }: { thread: ChatThread; isNewThread: boolean; message: ChatMessage }
-) => {
-  const generator = new DocumentEmbeddingsGenerator();
-  // const embeddings = await generator.getTextEmbeddings([message.content]);
-  // const { embeddings: documentEmbeddings } = await vectordb.searchCollection(
-  //   "uploads",
-  //   embeddings[0],
-  //   4,
-  //   {
-  //     includeChunkContent: true,
-  //     contentEncoding: "utf-8",
-  //     minScore: 0.7,
-  //   }
-  // );
+  { thread, message }: { thread: ChatThread; message: ChatMessage }
+): Promise<Subject<any>> {
+  const responseStream = new ReplaySubject<any>();
 
-  // const { documents: pluginFunctions, embeddings: pluginEmbeddings } =
-  //   await vectordb.searchCollection("plugin_functions", embeddings[0], 5, {
-  //     includeChunkContent: true,
-  //     contentEncoding: "utf-8",
-  //     minScore: 0.75,
-  //   });
-
-  // const aiFunctions = pluginEmbeddings.map((r) => {
-  //   const fn = JSON.parse(r.content);
-  //   return {
-  //     id: r.documentId,
-  //     name: snakeCase(r.documentId),
-  //     description: fn.description,
-  //     parameters: fn.parameters,
-  //   };
-  // });
-  const documentEmbeddings: any[] = [];
+  // const generator = new DocumentEmbeddingsGenerator();
   const aiFunctions: any[] = [];
-  const pluginFunctions: any[] = [];
 
   const aiResponseTime = new Date();
   const aiResponseId = uniqueId();
@@ -75,15 +46,11 @@ const generateAIResponse = async (
               {
                 content: "Current date/time is: " + new Date().toISOString(),
               },
-              // ...documentEmbeddings,
             ],
             has_functions: aiFunctions.length > 0,
           }),
         },
       ];
-    })
-    .use(function setAvailableFunctions({ request }) {
-      request.functions = aiFunctions.length > 0 ? aiFunctions : undefined;
     })
     .use(function setUserMessage({ request }) {
       request.messages.push({
@@ -97,50 +64,20 @@ const generateAIResponse = async (
       })
     );
 
-  const {
-    result: {
-      request: llmQueryRequest,
-      response: llmQueryResponse,
-      stream: aiResponseStream,
-    },
-  } = await chatRequest.invoke({
-    user: openAiUserId,
-  });
+  chatRequest
+    .invoke({
+      user: openAiUserId,
+    })
+    .then(
+      async ({
+        result: { request: llmQueryRequest, response: llmQueryResponse },
+      }) => {
+        // TODO: add error message to the db
+        // if (llmQueryResponse.status !== 200) {
+        //   return errors.internalServerError("Error connection to the AI model");
+        // }
 
-  if (llmQueryResponse.status !== 200) {
-    return errors.internalServerError("Error connection to the AI model");
-  }
-
-  let aiResponse: any = {};
-  const stream = new ReadableStream({
-    async start(controller) {
-      if (isNewThread) {
-        controller.enqueue(
-          JSON.stringify({
-            ops: [
-              {
-                op: "replace",
-                path: ["threads", thread.id],
-                value: thread,
-              },
-            ],
-          })
-        );
-      }
-      controller.enqueue(
-        JSON.stringify({
-          ops: [
-            {
-              op: "replace",
-              path: ["messages", message.id],
-              value: message,
-            },
-          ],
-        })
-      );
-
-      controller.enqueue(
-        JSON.stringify({
+        responseStream.next({
           ops: [
             {
               op: "replace",
@@ -150,127 +87,93 @@ const generateAIResponse = async (
                 threadId: thread.id,
                 parentId: message.id,
                 role: "ai",
-                message: aiResponse,
+                message: {},
                 userId: null,
                 createdAt: aiResponseTime,
                 metadata: {},
               },
             },
           ],
-        })
-      );
-
-      try {
-        let matchedFunctionCall: (typeof aiFunctions)[0] | undefined;
-        for await (const data of aiResponseStream!) {
-          if (data.json) {
-            const { delta } = data.json.choices[0];
-            aiResponse = mergeDelta(aiResponse, delta);
-            if (delta.function_call?.name) {
-              matchedFunctionCall = aiFunctions.find(
-                (f) => f.name == delta.function_call?.name
-              );
-            }
-            if (delta.content) {
-              controller.enqueue(
-                JSON.stringify({
-                  ops: [
-                    {
-                      op: "add",
-                      path: ["messages", aiResponseId, "message", "content"],
-                      value: delta.content,
-                    },
-                  ],
-                })
-              );
-            }
-          }
-        }
-
-        const metadata: any = {
-          documents: documentEmbeddings.map((r) =>
-            omit(r, "content", "context")
-          ),
-        };
-
-        controller.enqueue(
-          JSON.stringify({
-            ops: [
-              {
-                op: "replace",
-                path: ["messages", aiResponseId, "message", "metadata"],
-                value: metadata,
-              },
-            ],
-          })
-        );
-
-        // const matchedFunction = pluginFunctions.find(
-        //   (f) => f.id == matchedFunctionCall?.id
-        // );
-        // if (matchedFunction) {
-        //   if (matchedFunction.metadata?.type == "workflow") {
-        //     // Split at last index of '/'
-        //     const matchedFunctionId = matchedFunction.id!;
-        //     const slashIndex = matchedFunctionId.lastIndexOf("/");
-        //     const pluginId = matchedFunctionId.substring(0, slashIndex);
-        //     const workflowSlug = matchedFunctionId.substring(slashIndex + 1);
-        //   }
-        // }
-        await ctx.repo.chatMessages.insert({
-          id: aiResponseId,
-          threadId: thread.id,
-          parentId: message.id,
-          role: "ai",
-          message: aiResponse,
-          userId: null,
-          createdAt: aiResponseTime,
-          metadata: {},
         });
 
-        if (!thread.title) {
-          const title = await generateThreadTitle({
-            model: thread.metadata.ai.model,
-            userId: openAiUserId,
-            messages: [
-              {
-                role: "user",
-                content: message.message.content!,
-              },
-              aiResponse,
-            ],
-          });
-          if (title) {
-            await ctx.repo.chatThreads.update({
-              id: thread.id,
-              title,
-            });
-            controller.enqueue(
-              JSON.stringify({
-                ops: [
-                  {
-                    op: "replace",
-                    path: ["threads", thread.id, "title"],
-                    value: title,
-                  },
-                ],
-              })
-            );
-          }
-        }
-      } catch (e) {
-        controller.error(e);
-      } finally {
-        controller.close();
-      }
-    },
-  });
+        const stream = llmQueryRequest.stream
+          ? jsonStreamToAsyncIterator(llmQueryResponse.body)
+          : undefined;
 
-  return new Response(stream, {
-    status: 200,
-    headers: [["content-type", "text/event-stream"]],
-  });
-};
+        const streamSubject = stream ? new ReplaySubject<any>() : undefined;
+        const builder = llmDeltaToResponseBuilder();
+        if (stream) {
+          (async function streamRunner() {
+            for await (const { json } of stream) {
+              if (json) {
+                const delta = dlv(json, "choices.0.delta");
+                builder.push(delta);
+                streamSubject?.next(json);
+                if (delta.content) {
+                  responseStream.next({
+                    ops: [
+                      {
+                        op: "add",
+                        path: ["messages", aiResponseId, "message", "content"],
+                        value: delta.content,
+                      },
+                    ],
+                  });
+                }
+              }
+            }
+            streamSubject?.complete();
+          })();
+        }
+
+        streamSubject?.subscribe({
+          async complete() {
+            let aiResponse = builder.build();
+            await ctx.repo.chatMessages.insert({
+              id: aiResponseId,
+              threadId: thread.id,
+              parentId: message.id,
+              role: "ai",
+              message: aiResponse,
+              userId: null,
+              createdAt: aiResponseTime,
+              metadata: {},
+            });
+
+            if (!thread.title) {
+              const title = await generateThreadTitle({
+                model: thread.metadata.ai.model,
+                userId: openAiUserId,
+                messages: [
+                  {
+                    role: "user",
+                    content: message.message.content!,
+                  },
+                  pick(aiResponse, "role", "content"),
+                ],
+              });
+              if (title) {
+                await ctx.repo.chatThreads.update({
+                  id: thread.id,
+                  title,
+                });
+                responseStream.next({
+                  ops: [
+                    {
+                      op: "replace",
+                      path: ["threads", thread.id, "title"],
+                      value: title,
+                    },
+                  ],
+                });
+              }
+            }
+          },
+        });
+      }
+    );
+  return responseStream;
+}
 
 const generateThreadTitle = async (req: {
   model: string;
@@ -298,7 +201,10 @@ const generateThreadTitle = async (req: {
   const { result } = await request.invoke({
     user: req.userId,
   });
-  return result.data.choices[0].message.content.replaceAll(/(^")|("$)/g, "");
+  return result.response.data.choices[0].message.content.replaceAll(
+    /(^")|("$)/g,
+    ""
+  );
 };
 
-export { generateAIResponse as generateAiResponse };
+export { generateLLMResponseStream };

@@ -3,7 +3,7 @@ import z from "zod";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
 import { p } from "../procedure";
 import { ChatThread } from "./types";
-import { generateAiResponse } from "./aiResponse";
+import { generateLLMResponseStream } from "./aiResponse";
 import { ChatMessage } from "../repo/chatMessages";
 
 const listThreads = p.query(async ({ ctx }) => {
@@ -119,14 +119,49 @@ const sendMessage = p
       parentId: null,
     };
     await ctx.repo.chatMessages.insert(newMessage);
-    return await generateAiResponse(
+
+    const stream = await generateLLMResponseStream(
       { ctx, errors },
       {
         thread,
-        isNewThread: Boolean(!existingThread),
         message: newMessage,
       }
     );
+
+    const responseStream = new ReadableStream({
+      async start(controller) {
+        if (Boolean(!existingThread)) {
+          controller.enqueue(
+            JSON.stringify({
+              ops: [
+                {
+                  op: "replace",
+                  path: ["threads", thread.id],
+                  value: thread,
+                },
+                {
+                  op: "replace",
+                  path: ["messages", newMessage.id],
+                  value: newMessage,
+                },
+              ],
+            })
+          );
+        }
+        stream.subscribe({
+          next(json) {
+            try {
+              controller.enqueue(JSON.stringify(json));
+            } catch (e) {}
+          },
+        });
+      },
+    });
+
+    return new Response(responseStream, {
+      status: 200,
+      headers: [["content-type", "text/event-stream"]],
+    });
   });
 
 const deleteMessage = p.delete(async ({ ctx, params }) => {
