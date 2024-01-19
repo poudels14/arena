@@ -95,7 +95,7 @@ class Dirent {
       closeSync(handle) {
         core.ops.op_fs_close_sync(handle.fd);
       },
-      readdirSync: (path, options) => {
+      readdirSync: (path, options = {}) => {
         const dirs = core.ops.op_fs_readdir_sync(path);
         if (options.encoding == "buffer") {
           return dirs.map((dir) => Buffer.from(dir.name));

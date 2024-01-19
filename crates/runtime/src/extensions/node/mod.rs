@@ -76,7 +76,7 @@ pub fn init_ops() -> Extension {
 #[op2]
 #[string]
 fn op_node_build_arch() -> String {
-  env!("TARGET").split('-').nth(1).unwrap().to_string()
+  env!("TARGET").split('-').nth(0).unwrap().to_string()
 }
 
 #[op2]
