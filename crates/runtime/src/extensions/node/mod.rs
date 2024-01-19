@@ -18,6 +18,7 @@ pub fn extension(module_filter: Option<Vec<&'static str>>) -> BuiltinExtension {
     ("path", js_dist!("/node/path.js")),
     ("process", js_dist!("/node/process.js")),
     ("buffer", js_dist!("/node/buffer.js")),
+    ("crypto", js_dist!("/node/crypto.js")),
     // Above are required modules
     (
       "node/setup",
@@ -29,7 +30,6 @@ pub fn extension(module_filter: Option<Vec<&'static str>>) -> BuiltinExtension {
     vec![
       ("assert", js_dist!("/node/assert.js")),
       ("perf_hooks", js_dist!("/node/perf_hooks.js")),
-      ("crypto", js_dist!("/node/crypto.js")),
       ("events", js_dist!("/node/events.js")),
       ("fs", js_dist!("/node/fs.js")),
       ("fs/promises", js_dist!("/node/fs/promises.js")),

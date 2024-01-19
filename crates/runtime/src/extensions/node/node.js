@@ -1,6 +1,7 @@
 import process from "builtin://process";
 import path from "builtin://path";
 import { Buffer } from "builtin://buffer";
+import { webcrypto } from "builtin://crypto";
 
 ((global) => {
   const env = global.process?.env || {};
@@ -10,5 +11,6 @@ import { Buffer } from "builtin://buffer";
     process,
     path,
     Buffer,
+    crypto: webcrypto,
   });
 })(globalThis);

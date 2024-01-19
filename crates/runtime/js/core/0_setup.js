@@ -78,7 +78,6 @@ function nonEnumerable(value) {
 
 // credit: deno
 function processUnhandledPromiseRejection(type, promise, reason) {
-  console.log("PROMISE REJECTED! type:", type, "reason:", reason);
   const rejectionEvent = new event.PromiseRejectionEvent("unhandledrejection", {
     cancelable: true,
     promise,

@@ -1,3 +1,4 @@
+import { Buffer } from "buffer";
 import { default as crypto, createHash, randomFillSync } from "./crypto";
 
 Arena.__nodeInternal = {
@@ -7,7 +8,7 @@ Arena.__nodeInternal = {
 
 const webcrypto = {
   getRandomValues(array) {
-    randomFillSync(array);
+    randomFillSync(Buffer.from(array));
     return array;
   },
 };
