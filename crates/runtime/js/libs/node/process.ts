@@ -1,3 +1,5 @@
+import { arch } from "./os";
+
 function noop() {}
 
 const { core } = Arena;
@@ -18,6 +20,12 @@ const hrtime = () => {
 };
 
 const process = {
+  get arch() {
+    return arch();
+  },
+  get platform() {
+    return core.ops.op_node_build_os();
+  },
   cwd,
   env,
   get argv() {

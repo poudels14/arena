@@ -56,6 +56,7 @@ pub fn init_ops() -> Extension {
   Extension {
     name: "arena/runtime/node",
     ops: vec![
+      op_node_build_arch::DECL,
       op_node_build_os::DECL,
       op_node_process_args::DECL,
       op_node_process_exit::DECL,
@@ -70,6 +71,12 @@ pub fn init_ops() -> Extension {
     enabled: true,
     ..Default::default()
   }
+}
+
+#[op2]
+#[string]
+fn op_node_build_arch() -> String {
+  env!("TARGET").split('-').nth(1).unwrap().to_string()
 }
 
 #[op2]
