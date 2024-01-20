@@ -26,7 +26,7 @@ use super::response::ExecutionResponse;
 use super::{custom_functions, ExecutionPlanExtension};
 use super::{SessionConfig, SessionState};
 use crate::ast::statement::StatementType;
-use crate::df::plans::{self, create_index, insert_rows};
+use crate::df::plans::{self, create_index, insert_rows, set_parameter};
 use crate::{ast, Error, Result};
 
 pub use handle::TransactionHandle;
@@ -40,6 +40,7 @@ pub const DEFAULT_EXTENSIONS: Lazy<Arc<Vec<ExecutionPlanExtension>>> =
     Arc::new(vec![
       Arc::new(create_index::extension),
       Arc::new(plans::advisory_lock::extension),
+      Arc::new(set_parameter::extension),
     ])
   });
 
@@ -135,7 +136,7 @@ impl Transaction {
     self.execute(stmts.pop().unwrap().into()).await
   }
 
-  #[tracing::instrument(skip_all, level = "TRACE")]
+  #[tracing::instrument(skip_all, err, level = "TRACE")]
   #[inline]
   pub async fn create_verified_logical_plan(
     &self,

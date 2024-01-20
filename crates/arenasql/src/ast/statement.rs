@@ -5,6 +5,7 @@ pub enum StatementType {
   Begin,
   Commit,
   Rollback,
+  Set,
   Query,
   Insert,
   Create,
@@ -31,6 +32,9 @@ impl From<&SQLStatement> for StatementType {
       SQLStatement::AlterIndex { .. } => Self::Alter,
       SQLStatement::Execute { .. } => Self::Execute,
       SQLStatement::Drop { .. } => Self::Drop,
+      SQLStatement::SetTimeZone { .. } | SQLStatement::SetVariable { .. } => {
+        Self::Set
+      }
       stmt => unimplemented!("Statement type not supported: {}", stmt),
     }
   }
@@ -43,6 +47,7 @@ impl StatementType {
       Self::Begin => "BEGIN",
       Self::Commit => "COMMIT",
       Self::Rollback => "ROLLBACK",
+      Self::Set => "SET",
       Self::Query => "SELECT",
       Self::Insert => "INSERT",
       Self::Create => "CREATE",

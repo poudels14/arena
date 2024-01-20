@@ -43,6 +43,8 @@ bitflags! {
       | Self::INSERT_ROWS.bits()
       | Self::UPDATE_ROWS.bits()
       | Self::DELETE_ROWS.bits();
+
+    const SET_SESSION_PARAMS = 1 << 6;
     // No privilege - for default
     const NONE = 0;
   }
@@ -82,6 +84,8 @@ impl Privilege {
         ObjectType::Table | ObjectType::Index => Self::DROP_TABLE,
         _ => Self::SUPER_USER,
       },
+      SQLStatement::SetTimeZone { .. } => Self::SET_SESSION_PARAMS,
+      SQLStatement::SetVariable { .. } => Self::SET_SESSION_PARAMS,
       // For rest of the statements, require super user privilege
       _ => Self::SUPER_USER,
     }

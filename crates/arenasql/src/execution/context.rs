@@ -149,7 +149,7 @@ impl SessionContext {
 
   /// The caller is responsible for committing the transaction
   /// If not manually committed, the transaction will be rolled back
-  #[tracing::instrument(skip_all, level = "TRACE")]
+  #[tracing::instrument(skip_all, err, level = "TRACE")]
   pub unsafe fn create_new_active_transaction(&self) -> Result<Transaction> {
     self.new_active_transaction()
   }

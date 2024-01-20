@@ -48,6 +48,7 @@ impl RocksStorage {
     Self::new_with_cache(db_dir, cache)
   }
 
+  #[tracing::instrument(skip(cache), level = "trace")]
   pub fn new_with_cache(
     db_dir: PathBuf,
     cache: Option<Cache>,
