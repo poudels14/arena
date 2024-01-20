@@ -73,6 +73,7 @@ pub struct ArenaAuthHandler {
 
 #[async_trait]
 impl StartupHandler for ArenaAuthHandler {
+  #[tracing::instrument(skip_all, level = "trace")]
   async fn on_startup<C>(
     &self,
     client: &mut C,
@@ -112,7 +113,7 @@ impl StartupHandler for ArenaAuthHandler {
       Privilege::SUPER_USER
     } else if database != SYSTEM_CATALOG_NAME {
       // If non-system catalog was authorized, provide table privileges
-      Privilege::TABLE_PRIVILEGES
+      Privilege::TABLE_PRIVILEGES | Privilege::SET_SESSION_PARAMS
     } else {
       Privilege::NONE
     };
@@ -141,7 +142,7 @@ impl AuthSource for ArenaAuthSource {
     // and another level auth will be done for Arena session
     let username = login
       .user()
-      .map_or_else(|| "admin".to_owned(), |d| d.clone());
+      .map_or_else(|| "admin".to_owned(), |d| d.to_owned());
     let catalog = login
       .database()
       .map(|s| s.to_owned())
@@ -213,7 +214,8 @@ async fn get_user_login_for_catalog(
           .map(|((_, user), password)| User {
             name: user.to_owned(),
             password: password.to_owned(),
-            privilege: Privilege::TABLE_PRIVILEGES,
+            privilege: Privilege::TABLE_PRIVILEGES
+              | Privilege::SET_SESSION_PARAMS,
           })
       })
       .find(|u| u.name == username),

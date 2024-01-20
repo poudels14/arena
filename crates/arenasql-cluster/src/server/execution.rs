@@ -33,10 +33,14 @@ impl ArenaSqlCluster {
       StatementType::Query | StatementType::Execute => {
         Self::to_row_stream(response, field_format)
       }
-      _ => Ok(Response::Execution(Tag::new_for_execution(
-        stmt_type.to_string(),
-        response.get_modified_rows(),
-      ))),
+      _ => {
+        let tag = Tag::new(stmt_type.to_string());
+        let tag = match response.get_modified_rows() {
+          Some(rows) => tag.with_rows(rows),
+          _ => tag,
+        };
+        Ok(Response::Execution(tag))
+      }
     }
   }
 

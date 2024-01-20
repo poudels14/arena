@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
+use arenasql::ast::statement::StatementType;
 use arenasql::bytes::Bytes;
 use arenasql::datafusion::{LogicalPlan, ScalarValue};
 use arenasql::pgwire::api::portal::{Format, Portal};
@@ -20,6 +21,7 @@ use arenasql::pgwire::messages::extendedquery::{
 };
 use arenasql::pgwire::messages::PgWireBackendMessage;
 use arenasql::schema::CTID_COLUMN;
+use arenasql::sqlparser::ast::Statement;
 use arenasql::{pgwire, Error};
 use async_trait::async_trait;
 use futures::{Sink, SinkExt};
@@ -57,7 +59,7 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
   {
     let parser = Arc::new(ArenaQueryParser {});
     let stmt = StoredStatement::parse(&message, parser).await?;
-    let statement = stmt.statement();
+    let statement = stmt.statement.clone();
 
     // From Postgres doc:
     // The query string contained in a Parse message cannot include more than
@@ -115,14 +117,14 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
     let session = self.get_client_session(client)?;
 
     let statement_name = message
-      .statement_name()
+      .statement_name
       .as_deref()
       .unwrap_or(pgwire::api::DEFAULT_NAME);
 
     tracing::trace!(statement_name);
     if let Some(statement) = client.portal_store().get_statement(statement_name)
     {
-      let query = statement.statement();
+      let query = statement.statement.clone();
       // If the query planning was successful, add the plan to the portal
       // state. It could fail if the placeholder type can't be resolved just
       // from the query itself and needs the paramter values as well
@@ -133,7 +135,8 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
         .await
       {
         Ok(plan) => {
-          let (params, fields) = get_params_and_field_types(&plan)?;
+          let (params, fields) =
+            get_params_and_field_types(&query.stmts[0], &plan)?;
           Some(
             ArenaPortalState::default()
               .set_query_plan(Some(plan))
@@ -158,6 +161,7 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
 
   #[tracing::instrument(
     skip_all,
+    err,
     fields(query_type = "extended"),
     level = "DEBUG"
   )]
@@ -171,28 +175,29 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
     C: ClientInfo + Send,
   {
     let session = self.get_client_session(client)?;
-    let stmts = &portal.statement().statement().stmts;
+    let stmts = &portal.statement.statement.stmts;
     let stmt = stmts[0].clone();
-    let plan = portal.state().as_ref().and_then(|s| s.query_plan().clone());
+    let plan = portal.state.as_ref().and_then(|s| s.query_plan().clone());
 
     let params_values = portal
-      .state()
+      .state
       .as_ref()
-      .map(|portal_state| {
-        portal_state
-          .params()
-          .iter()
-          .zip(portal.parameters())
-          .enumerate()
-          .map(|(index, (r#type, param))| {
-            convert_bytes_to_scalar_value(
-              index,
-              param.as_ref(),
-              r#type,
-              portal.parameter_format(),
-            )
-          })
-          .collect::<PgWireResult<Vec<ScalarValue>>>()
+      .and_then(|portal_state| {
+        portal_state.params().as_ref().map(|params| {
+          params
+            .iter()
+            .zip(&portal.parameters)
+            .enumerate()
+            .map(|(index, (r#type, param))| {
+              convert_bytes_to_scalar_value(
+                index,
+                param.as_ref(),
+                r#type,
+                &portal.parameter_format,
+              )
+            })
+            .collect::<PgWireResult<Vec<ScalarValue>>>()
+        })
       })
       .transpose()?;
     Self::execute_plan(&session, stmt, plan, params_values, FieldFormat::Binary)
@@ -215,26 +220,25 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
   {
     let (maybe_plan, stmt) = match target {
       StatementOrPortal::Portal(portal) => (
-        portal.state().as_ref().and_then(|s| s.query_plan().clone()),
-        portal.statement().as_ref(),
+        portal.state.as_ref().and_then(|s| s.query_plan().clone()),
+        portal.statement.as_ref(),
       ),
       StatementOrPortal::Statement(stmt) => (None, stmt),
     };
 
-    let stmt = stmt.statement().stmts[0].clone();
     let plan = match maybe_plan {
       Some(plan) => plan,
       None => {
         let session = self.get_client_session(client)?;
         let txn =
           unsafe { session.context().get_or_create_active_transaction() };
+        let stmt = stmt.statement.stmts[0].clone();
         txn.create_verified_logical_plan(stmt).await?
       }
     };
 
-    let (params, fields) = get_params_and_field_types(&plan)
-      .map(|(p, f)| (Some(p), f))
-      .unwrap();
+    let (params, fields) =
+      get_params_and_field_types(&stmt.statement.stmts[0], &plan)?;
 
     // logging params and fields here is fine since trace logs are stripped
     tracing::trace!("params = {:?}", params);
@@ -294,10 +298,11 @@ impl SimpleQueryHandler for ArenaSqlCluster {
 }
 
 fn get_params_and_field_types(
+  stmt: &Statement,
   plan: &LogicalPlan,
-) -> PgWireResult<(Vec<Type>, Vec<FieldInfo>)> {
+) -> PgWireResult<(Option<Vec<Type>>, Vec<FieldInfo>)> {
   // Expects placeholder to be in format "${index}"
-  let params = plan
+  let params: Vec<Type> = plan
     .get_parameter_types()
     .unwrap()
     .iter()
@@ -316,6 +321,14 @@ fn get_params_and_field_types(
     .sorted_by(|a, b| Ord::cmp(&a.0, &b.0))
     .map(|(_, t)| t)
     .collect();
+
+  let stmt_type = StatementType::from(stmt);
+  // Note: Set params to None so that NoData response is sent when query
+  // is of type Set
+  let params = match stmt_type {
+    StatementType::Set => None,
+    _ => Some(params),
+  };
 
   let field = plan
     .schema()

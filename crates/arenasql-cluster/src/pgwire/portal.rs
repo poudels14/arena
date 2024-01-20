@@ -8,7 +8,7 @@ use getset::{Getters, Setters};
 pub struct ArenaPortalState {
   query_plan: Option<LogicalPlan>,
   /// List of parameter types for the query
-  params: Vec<Type>,
+  params: Option<Vec<Type>>,
   /// List of fields/columns in that the query plan returns
   fields: Vec<FieldInfo>,
 }

@@ -43,7 +43,9 @@ impl ExecutionResponse {
     stream: RecordBatchStream,
   ) -> ArenaResult<Self> {
     let (record_batches, stream) = match stmt_type {
-      StatementType::Query | StatementType::Execute => (None, Some(stream)),
+      StatementType::Query | StatementType::Execute | StatementType::Set => {
+        (None, Some(stream))
+      }
       _ => {
         let batches = stream
           .collect::<Vec<Result<RecordBatch, DataFusionError>>>()
@@ -132,9 +134,13 @@ impl ExecutionResponse {
       batch
         .iter()
         .flat_map(|b| {
-          as_primitive_array::<UInt64Type>(b.column_by_name("count").unwrap())
-            .iter()
-            .map(|v| v.unwrap_or(0))
+          b.column_by_name("count")
+            .map(|count| {
+              as_primitive_array::<UInt64Type>(count)
+                .iter()
+                .map(|v| v.unwrap_or(0))
+            })
+            .unwrap()
         })
         .sum::<u64>() as usize
     })

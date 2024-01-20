@@ -1,8 +1,7 @@
 use std::pin::Pin;
 use std::sync::Arc;
 
-use datafusion::arrow::array::UInt64Array;
-use datafusion::arrow::datatypes::{DataType, Field, Schema, SchemaRef};
+use datafusion::arrow::datatypes::{Field, Schema, SchemaRef};
 use datafusion::execution::TaskContext;
 use datafusion::logical_expr::{Expr, LogicalPlan};
 use futures::{FutureExt, Stream};
@@ -34,11 +33,7 @@ pub struct SetParameterExecution {}
 
 impl CustomExecutionPlan for SetParameterExecution {
   fn schema(&self) -> SchemaRef {
-    Arc::new(Schema::new(vec![Field::new(
-      "count",
-      DataType::UInt64,
-      false,
-    )]))
+    SchemaRef::new(Schema::new(Vec::<Field>::new()))
   }
 
   fn execute(
@@ -48,12 +43,7 @@ impl CustomExecutionPlan for SetParameterExecution {
     _exprs: Vec<Expr>,
     _inputs: Vec<LogicalPlan>,
   ) -> Result<Pin<Box<dyn Stream<Item = Result<DataFrame>> + Send>>> {
-    let fut = async move {
-      Ok(DataFrame::from_arrays(vec![Arc::new(UInt64Array::from(
-        vec![0 as u64],
-      ))]))
-    }
-    .boxed();
+    let fut = async move { Ok(DataFrame::empty()) }.boxed();
     Ok(Box::pin(futures::stream::once(fut)))
   }
 }

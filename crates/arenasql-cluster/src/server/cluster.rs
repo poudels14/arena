@@ -77,9 +77,10 @@ impl ArenaSqlCluster {
     &self,
     client: &C,
   ) -> ArenaClusterResult<Arc<AuthenticatedSession>> {
-    self
-      .session_store
-      .get_session(client.metadata().get("session_id").unwrap())
+    client
+      .metadata()
+      .get("session_id")
+      .and_then(|session_id| self.session_store.get_session(session_id))
       .ok_or_else(|| ArenaClusterError::InvalidConnection)
   }
 
@@ -127,7 +128,7 @@ impl ArenaSqlCluster {
                     db.to_owned(),
                     user.to_owned(),
                     Some(session_id.to_owned()),
-                    Privilege::TABLE_PRIVILEGES,
+                    Privilege::TABLE_PRIVILEGES | Privilege::SET_SESSION_PARAMS,
                   );
                 }
                 _ => {}
