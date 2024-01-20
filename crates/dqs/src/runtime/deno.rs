@@ -92,7 +92,6 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
   let mut builtin_extensions = vec![
     BuiltinModule::Node(Some(vec!["crypto"])),
     BuiltinModule::Postgres,
-    BuiltinModule::Sqlite,
     BuiltinModule::HttpServer(config.server_config.clone()),
     BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider { publisher })),
     BuiltinModule::Custom(Rc::new(arena::extension)),

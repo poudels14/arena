@@ -69,7 +69,6 @@ fn generate_prod_snapshot(path: &Path) {
   let builtin_extensions = vec![
     BuiltinModule::Node(Some(vec!["crypto"])),
     BuiltinModule::Postgres,
-    BuiltinModule::Sqlite,
     // Note(sagar): load this here so that ESM modules are snapshotted
     // Even if TCP server is used here, we can use stream server during
     // runtime if needed
@@ -88,10 +87,6 @@ fn generate_prod_snapshot(path: &Path) {
             include_from_project_root!(
               "../../js/runtime/dist/dqs/widget-server.js"
             ),
-          ),
-          (
-            "@arena/dqs/utils",
-            include_from_project_root!("../../js/runtime/dist/dqs/utils.js"),
           ),
           (
             "@arena/dqs/postgres",

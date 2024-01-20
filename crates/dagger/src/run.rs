@@ -56,7 +56,6 @@ impl Command {
       BuiltinModule::Node(None),
       BuiltinModule::Env,
       BuiltinModule::Postgres,
-      BuiltinModule::Sqlite,
       // enable resolver/transpiler by default since this is dev env
       BuiltinModule::Resolver(resolver_config.clone()),
       BuiltinModule::Transpiler,

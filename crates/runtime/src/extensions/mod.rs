@@ -9,7 +9,6 @@ pub mod postgres;
 pub mod resolver;
 pub mod rollup;
 pub mod server;
-pub mod sqlite;
 pub mod transpiler;
 
 use anyhow::Result;
@@ -68,7 +67,6 @@ pub enum BuiltinModule {
   Transpiler,
   Babel,
   Postgres,
-  Sqlite,
   HttpServer(HttpServerConfig),
   /// args: (specifier, code)
   CustomRuntimeModule(&'static str, SourceCode),
@@ -88,7 +86,6 @@ impl BuiltinExtensionProvider for BuiltinModule {
       Self::Transpiler => self::transpiler::extension(),
       Self::Babel => self::babel::extension(),
       Self::Postgres => self::postgres::extension(),
-      Self::Sqlite => self::sqlite::extension(),
       Self::HttpServer(config) => self::server::extension(config.clone()),
       Self::CustomRuntimeModule(specifier, code) => BuiltinExtension {
         modules: vec![(specifier, code.clone())],
@@ -110,7 +107,6 @@ impl BuiltinExtensions {
       BuiltinModule::Fs,
       BuiltinModule::Node(None),
       BuiltinModule::Postgres,
-      BuiltinModule::Sqlite,
       BuiltinModule::Resolver(Default::default()),
       BuiltinModule::Transpiler,
       BuiltinModule::Babel,

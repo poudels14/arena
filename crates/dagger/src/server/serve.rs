@@ -56,7 +56,6 @@ impl Command {
       BuiltinModule::Fs,
       BuiltinModule::Node(None),
       BuiltinModule::Postgres,
-      BuiltinModule::Sqlite,
       BuiltinModule::HttpServer(HttpServerConfig::Tcp {
         address: self.host.clone(),
         port: self.port,

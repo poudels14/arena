@@ -44,17 +44,18 @@ impl MainModule {
             .into(),
         ),
       )),
-      Self::PluginWorkflowRun { workflow: _ } => Ok((
-        Url::parse("builtin:///main")?,
-        Some(
-          include_str!("../../../../js/runtime/dist/dqs/plugin-workflow.js")
-            .to_owned()
-            .into(),
-        ),
-      )),
+      // Self::PluginWorkflowRun { workflow: _ } => Ok((
+      //   Url::parse("builtin:///main")?,
+      //   Some(
+      //     include_str!("../../../../js/runtime/dist/dqs/plugin-workflow.js")
+      //       .to_owned()
+      //       .into(),
+      //   ),
+      // )),
       Self::Inline { code } => {
         Ok((Url::parse("builtin:///main")?, Some(code.clone().into())))
       }
+      _ => unimplemented!(),
     }
   }
 }
