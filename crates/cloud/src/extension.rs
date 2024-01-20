@@ -81,6 +81,7 @@ pub(crate) fn init(options: Config) -> Extension {
       s3::op_cloud_s3_create_bucket::DECL,
       s3::op_cloud_s3_list_bucket::DECL,
       s3::op_cloud_s3_put_object::DECL,
+      s3::op_cloud_s3_head_object::DECL,
       s3::op_cloud_s3_get_object::DECL,
       // llm
       llm::tokenizer::op_cloud_llm_hf_new_pretrained_tokenizer::DECL,

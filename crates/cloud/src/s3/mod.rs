@@ -60,6 +60,25 @@ pub(crate) struct GetObjectResponse {
   content: ToJsBuffer,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct HeadObjectResponse {
+  pub accept_ranges: Option<String>,
+  pub content_disposition: Option<String>,
+  pub content_encoding: Option<String>,
+  pub content_length: Option<i64>,
+  pub content_type: Option<String>,
+  pub e_tag: Option<String>,
+  pub expiration: Option<String>,
+  pub expires: Option<String>,
+  pub last_modified: Option<String>,
+  pub metadata: HashMap<String, String>,
+  pub parts_count: Option<i64>,
+  pub restore: Option<String>,
+  pub storage_class: Option<String>,
+  pub version_id: Option<String>,
+}
+
 #[op2]
 #[serde]
 pub(crate) fn op_cloud_s3_create_client(
@@ -170,6 +189,46 @@ pub async fn op_cloud_s3_put_object(
     bail!("Error: {}", response.as_str().unwrap())
   }
   Ok(())
+}
+
+#[op2(async)]
+#[serde]
+pub async fn op_cloud_s3_head_object(
+  state: Rc<RefCell<OpState>>,
+  #[smi] id: ResourceId,
+  #[string] bucket_name: String,
+  #[string] path: String,
+) -> Result<HeadObjectResponse> {
+  let client = state.borrow().resource_table.get::<S3Client>(id)?.clone();
+  let region = client.region.clone();
+  let credentials = client.credentials.clone();
+
+  let bucket = Bucket::new(&bucket_name, region, credentials)?;
+  let bucket = match client.with_path_style {
+    true => bucket.with_path_style(),
+    false => bucket,
+  };
+
+  let (response, status) = bucket.head_object(path).await?;
+  if status != 200 {
+    bail!("Error: status code = {}", status);
+  }
+  Ok(HeadObjectResponse {
+    accept_ranges: response.accept_ranges,
+    content_disposition: response.content_disposition,
+    content_encoding: response.content_encoding,
+    content_length: response.content_length,
+    content_type: response.content_type,
+    e_tag: response.e_tag,
+    expiration: response.expiration,
+    expires: response.expires,
+    last_modified: response.last_modified,
+    metadata: response.metadata.unwrap_or_default(),
+    parts_count: response.parts_count,
+    restore: response.restore,
+    storage_class: response.storage_class,
+    version_id: response.version_id,
+  })
 }
 
 #[op2(async)]

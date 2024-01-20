@@ -35,6 +35,23 @@ type PubObjectRequest = {
   content: Buffer;
 };
 
+type HeadObjectResponse = {
+  accept_ranges: string | undefined;
+  content_disposition: string | undefined;
+  content_encoding: string | undefined;
+  content_length: number | undefined;
+  content_type: string | undefined;
+  e_tag: string | undefined;
+  expiration: string | undefined;
+  expires: string | undefined;
+  last_modified: string | undefined;
+  metadata: Record<string, string>;
+  parts_count: number | undefined;
+  restore: string | undefined;
+  storage_class: string | undefined;
+  version_id: string | undefined;
+};
+
 type GetObjectResponse = {
   headers: Record<string, string>;
   content: Uint8Array;
@@ -71,6 +88,15 @@ class Client {
     });
   }
 
+  async headObject(bucket: string, path: string): Promise<HeadObjectResponse> {
+    return await core.opAsync(
+      "op_cloud_s3_head_object",
+      this.#id,
+      bucket,
+      path
+    );
+  }
+
   async getObject(bucket: string, path: string): Promise<GetObjectResponse> {
     return await core.opAsync("op_cloud_s3_get_object", this.#id, bucket, path);
   }
@@ -82,5 +108,6 @@ export type {
   ListBucketOptions,
   ListBucketResponse,
   PubObjectRequest,
+  HeadObjectResponse,
   GetObjectResponse,
 };
