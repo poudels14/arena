@@ -76,6 +76,7 @@ program
           // TODO(sagar): "assert" is being bundled in several files, fix it
           vectordb: "./cloud/vectordb/index.ts",
           jwt: "./cloud/jwt.ts",
+          s3: "./cloud/s3.ts",
           pubsub: "./cloud/pubsub/index.ts",
           query: "./cloud/query/index.ts",
           llm: "./cloud/llm/index.ts",

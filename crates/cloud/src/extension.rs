@@ -4,7 +4,7 @@ use runtime::extensions::{BuiltinExtension, BuiltinExtensionProvider};
 use crate::jwt::{op_cloud_jwt_sign, op_cloud_jwt_verify};
 use crate::pubsub::publisher::Publisher;
 use crate::transpile::op_cloud_transpile_js_data_query;
-use crate::{html, llm, pdf, pubsub};
+use crate::{html, llm, pdf, pubsub, s3};
 
 #[macro_export]
 macro_rules! cloud_module {
@@ -53,6 +53,7 @@ pub fn extension(options: Config) -> BuiltinExtension {
     vec![
       // TODO(sagar): load these during snapshotting
       cloud_module!("jwt"),
+      cloud_module!("s3"),
       cloud_module!("pubsub"),
       cloud_module!("query"),
       cloud_module!("llm"),
@@ -75,6 +76,12 @@ pub(crate) fn init(options: Config) -> Extension {
       // jwt
       op_cloud_jwt_sign::DECL,
       op_cloud_jwt_verify::DECL,
+      // s3
+      s3::op_cloud_s3_create_client::DECL,
+      s3::op_cloud_s3_create_bucket::DECL,
+      s3::op_cloud_s3_list_bucket::DECL,
+      s3::op_cloud_s3_put_object::DECL,
+      s3::op_cloud_s3_get_object::DECL,
       // llm
       llm::tokenizer::op_cloud_llm_hf_new_pretrained_tokenizer::DECL,
       llm::tokenizer::op_cloud_llm_hf_encode::DECL,
