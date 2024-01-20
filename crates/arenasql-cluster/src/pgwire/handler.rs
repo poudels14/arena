@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use arenasql::ast::statement::StatementType;
 use arenasql::bytes::Bytes;
 use arenasql::datafusion::{LogicalPlan, ScalarValue};
 use arenasql::pgwire::api::portal::{Format, Portal};
@@ -21,7 +20,6 @@ use arenasql::pgwire::messages::extendedquery::{
 };
 use arenasql::pgwire::messages::PgWireBackendMessage;
 use arenasql::schema::CTID_COLUMN;
-use arenasql::sqlparser::ast::Statement;
 use arenasql::{pgwire, Error};
 use async_trait::async_trait;
 use futures::{Sink, SinkExt};
@@ -135,12 +133,11 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
         .await
       {
         Ok(plan) => {
-          let (params, fields) =
-            get_params_and_field_types(&query.stmts[0], &plan)?;
+          let (params, fields) = get_params_and_field_types(&plan)?;
           Some(
             ArenaPortalState::default()
               .set_query_plan(Some(plan))
-              .set_params(params)
+              .set_params(Some(params))
               .set_fields(fields)
               .to_owned(),
           )
@@ -237,13 +234,12 @@ impl ExtendedQueryHandler for ArenaSqlCluster {
       }
     };
 
-    let (params, fields) =
-      get_params_and_field_types(&stmt.statement.stmts[0], &plan)?;
+    let (params, fields) = get_params_and_field_types(&plan)?;
 
     // logging params and fields here is fine since trace logs are stripped
     tracing::trace!("params = {:?}", params);
     tracing::trace!("fields = {:?}", fields);
-    Ok(DescribeResponse::new(params, fields))
+    Ok(DescribeResponse::new(Some(params), fields))
   }
 
   #[tracing::instrument(skip_all, level = "trace")]
@@ -298,9 +294,8 @@ impl SimpleQueryHandler for ArenaSqlCluster {
 }
 
 fn get_params_and_field_types(
-  stmt: &Statement,
   plan: &LogicalPlan,
-) -> PgWireResult<(Option<Vec<Type>>, Vec<FieldInfo>)> {
+) -> PgWireResult<(Vec<Type>, Vec<FieldInfo>)> {
   // Expects placeholder to be in format "${index}"
   let params: Vec<Type> = plan
     .get_parameter_types()
@@ -322,14 +317,8 @@ fn get_params_and_field_types(
     .map(|(_, t)| t)
     .collect();
 
-  let stmt_type = StatementType::from(stmt);
   // Note: Set params to None so that NoData response is sent when query
   // is of type Set
-  let params = match stmt_type {
-    StatementType::Set => None,
-    _ => Some(params),
-  };
-
   let field = plan
     .schema()
     .fields()
