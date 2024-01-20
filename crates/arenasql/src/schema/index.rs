@@ -9,30 +9,42 @@ pub type TableIndexId = u8;
 pub struct TableIndex {
   pub id: TableIndexId,
   pub name: String,
-  pub index_type: IndexType,
+  pub provider: IndexProvider,
 }
 
 impl TableIndex {
+  #[inline]
   pub fn columns(&self) -> &Vec<usize> {
-    self.index_type.columns()
+    self.provider.columns()
   }
 
+  #[inline]
   pub fn is_unique(&self) -> bool {
-    self.index_type.is_unique()
+    self.provider.is_unique()
   }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum IndexType {
-  Unique(Vec<usize>),
-  NonUnique(Vec<usize>),
+pub enum IndexProvider {
+  ColumnIndex {
+    columns: Vec<usize>,
+    unique: bool,
+  },
+  HNSWIndex {
+    // Must have only one column but need to store as vec to return
+    // &Vec<usize> from `Self::columns` method
+    columns: Vec<usize>,
+  },
 }
 
-impl IndexType {
+impl IndexProvider {
   pub fn from_constraint(constraint: &Constraint) -> Self {
     match constraint {
       Constraint::Unique(columns) | Constraint::PrimaryKey(columns) => {
-        Self::Unique(columns.to_vec())
+        Self::ColumnIndex {
+          columns: columns.to_vec(),
+          unique: true,
+        }
       }
     }
   }
@@ -40,15 +52,16 @@ impl IndexType {
   #[inline]
   pub fn is_unique(&self) -> bool {
     match self {
-      Self::Unique(..) => true,
-      _ => false,
+      Self::ColumnIndex { unique, .. } => *unique,
+      Self::HNSWIndex { .. } => false,
     }
   }
 
   #[inline]
   pub fn columns(&self) -> &Vec<usize> {
     match self {
-      Self::Unique(columns) | Self::NonUnique(columns) => columns,
+      Self::ColumnIndex { columns, .. } => columns,
+      Self::HNSWIndex { columns } => columns,
     }
   }
 }

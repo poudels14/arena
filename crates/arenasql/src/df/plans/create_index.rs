@@ -14,7 +14,7 @@ use sqlparser::ast::Statement as SQLStatement;
 use crate::df::providers::{get_schema_provider, get_table_ref};
 use crate::execution::{CustomExecutionPlan, Transaction};
 use crate::execution::{ExecutionPlanResponse, TransactionHandle};
-use crate::schema::{DataFrame, IndexType, OwnedRow, Table, TableIndex};
+use crate::schema::{DataFrame, IndexProvider, OwnedRow, Table, TableIndex};
 use crate::storage::{KeyValueGroup, StorageHandler};
 use crate::{bail, table_rows_prefix_key, Error, Result};
 
@@ -184,10 +184,7 @@ impl CustomExecutionPlan for CreateIndexExecutionPlan {
         }
       }
 
-      let index_type = match unique {
-        true => IndexType::Unique(columns),
-        false => IndexType::NonUnique(columns),
-      };
+      let index_provider = IndexProvider::ColumnIndex { columns, unique };
 
       let table_lock = transaction
         .acquire_table_schema_write_lock(schema.as_ref(), &table.name)
@@ -195,7 +192,7 @@ impl CustomExecutionPlan for CreateIndexExecutionPlan {
 
       let storage_handler = transaction.lock(true)?;
       let index_id = storage_handler.get_next_table_index_id()?;
-      let new_index = table.add_index(index_id, index_type, index_name)?;
+      let new_index = table.add_index(index_id, index_name, index_provider)?;
 
       storage_handler.put_table_schema(&catalog, &schema, &table)?;
 

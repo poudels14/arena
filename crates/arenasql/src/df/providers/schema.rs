@@ -12,7 +12,7 @@ use tokio::runtime::Handle;
 
 use super::table::TableProvider;
 use crate::execution::TransactionHandle;
-use crate::schema::{IndexType, Table, TableIndex};
+use crate::schema::{IndexProvider, Table, TableIndex};
 use crate::storage::KeyValueGroup;
 use crate::{index_rows_prefix_key, table_rows_prefix_key};
 
@@ -86,8 +86,8 @@ impl DfSchemaProvider for SchemaProvider {
             let index_id = storage_handler.get_next_table_index_id()?;
             table.add_index(
               index_id,
-              IndexType::from_constraint(constraint),
               None,
+              IndexProvider::from_constraint(constraint),
             )
           })
           .collect::<crate::Result<Vec<TableIndex>>>()

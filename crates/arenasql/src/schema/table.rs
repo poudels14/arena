@@ -12,9 +12,10 @@ use serde::{Deserialize, Serialize};
 use sqlparser::ast::{ColumnOption, Statement};
 
 use super::column::CTID_COLUMN;
+use super::index::IndexProvider;
 use super::{
-  Column, ColumnId, ColumnProperty, Constraint, DataType, IndexType,
-  TableIndex, TableIndexId,
+  Column, ColumnId, ColumnProperty, Constraint, DataType, TableIndex,
+  TableIndexId,
 };
 use crate::Result;
 
@@ -93,11 +94,11 @@ impl Table {
   pub fn add_index(
     &mut self,
     index_id: TableIndexId,
-    index_type: IndexType,
     index_name: Option<String>,
+    provider: IndexProvider,
   ) -> Result<TableIndex> {
     let index_name = index_name.unwrap_or_else(|| {
-      let mut index_name = index_type
+      let mut index_name = provider
         .columns()
         .iter()
         .fold(self.name.clone(), |agg, col| {
@@ -119,7 +120,7 @@ impl Table {
     let index = TableIndex {
       id: index_id,
       name: index_name,
-      index_type,
+      provider,
     };
     self.indexes.push(index.clone());
     Ok(index)
