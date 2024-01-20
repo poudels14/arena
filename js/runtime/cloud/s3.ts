@@ -30,7 +30,6 @@ type ListBucketResponse = {
 };
 
 type PubObjectRequest = {
-  path: string;
   // @ts-expect-error
   content: Buffer;
 };
@@ -80,12 +79,18 @@ class Client {
     );
   }
 
-  async putObject(bucket: string, request: PubObjectRequest) {
-    return await core.opAsync("op_cloud_s3_put_object", this.#id, bucket, {
-      ...request,
-      // @ts-expect-error
-      content: Buffer.from(request.content),
-    });
+  async putObject(bucket: string, path: string, request: PubObjectRequest) {
+    return await core.opAsync(
+      "op_cloud_s3_put_object",
+      this.#id,
+      bucket,
+      path,
+      {
+        ...request,
+        // @ts-expect-error
+        content: Buffer.from(request.content),
+      }
+    );
   }
 
   async headObject(bucket: string, path: string): Promise<HeadObjectResponse> {

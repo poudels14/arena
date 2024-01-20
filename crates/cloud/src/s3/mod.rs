@@ -49,7 +49,6 @@ pub(crate) struct ListBucketReponse {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct PubObjectRequest {
-  path: String,
   content: JsBuffer,
 }
 
@@ -170,6 +169,7 @@ pub async fn op_cloud_s3_put_object(
   state: Rc<RefCell<OpState>>,
   #[smi] id: ResourceId,
   #[string] bucket_name: String,
+  #[string] path: String,
   #[serde] request: PubObjectRequest,
 ) -> Result<()> {
   let client = state.borrow().resource_table.get::<S3Client>(id)?.clone();
@@ -182,9 +182,7 @@ pub async fn op_cloud_s3_put_object(
     false => bucket,
   };
 
-  let response = bucket
-    .put_object(request.path, request.content.deref())
-    .await?;
+  let response = bucket.put_object(path, request.content.deref()).await?;
   if response.status_code() != 200 {
     bail!("Error: {}", response.as_str().unwrap())
   }
