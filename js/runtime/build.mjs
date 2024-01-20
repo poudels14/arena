@@ -44,7 +44,6 @@ program
         ...options,
         minify: false,
         entryPoints: {
-          "dqs/utils": "./dqs/utils/index.ts",
           "dqs/widget-server": "./dqs/widget/server.ts",
           "dqs/postgres": "./dqs/postgres/index.ts",
           "dqs/app-server": "./dqs/app/server.ts",

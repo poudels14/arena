@@ -83,7 +83,6 @@ impl DqsServer {
 
       let state = ArenaRuntimeState {
         workspace_id: options.workspace_id.clone(),
-        root: options.root,
         env_variables,
         module: options.module.clone(),
         registry: options.registry.clone(),

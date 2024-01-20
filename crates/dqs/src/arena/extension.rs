@@ -1,4 +1,3 @@
-use anyhow::Context;
 use anyhow::Result;
 use deno_core::{
   op2, Extension, ExtensionFileSource, ExtensionFileSourceCode, Op, OpState,
@@ -16,7 +15,7 @@ pub fn extension() -> BuiltinExtension {
   BuiltinExtension {
     extension: Some(Extension {
       name: "arena/dqs/runtime",
-      ops: vec![op_arena_get_base_dir::DECL, op_arena_load_env::DECL].into(),
+      ops: vec![op_arena_load_env::DECL].into(),
       js_files: vec![ExtensionFileSource {
         specifier: "setup",
         code: ExtensionFileSourceCode::IncludedInBinary(include_str!(
@@ -29,23 +28,6 @@ pub fn extension() -> BuiltinExtension {
     }),
     ..Default::default()
   }
-}
-
-#[op2]
-#[string]
-pub fn op_arena_get_base_dir(state: &mut OpState) -> Result<String> {
-  let state = state.borrow::<ArenaRuntimeState>();
-  state
-    .root
-    .as_ref()
-    .context("Filesystem access not allowed")?
-    .canonicalize()
-    .context("Failed to get root dir")
-    .and_then(|p| {
-      p.to_str()
-        .map(|p| p.to_owned())
-        .context("Error getting path string")
-    })
 }
 
 #[op2]

@@ -75,7 +75,6 @@ fn main() -> Result<()> {
       exchange: Some(exchange.clone()),
       state: ArenaRuntimeState {
         workspace_id: "test_workspace".to_string(),
-        root: None,
         registry: Registry {
           host: "".to_string(),
           api_key: "".to_string(),

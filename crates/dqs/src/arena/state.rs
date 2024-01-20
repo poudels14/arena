@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
 
 use anyhow::Result;
 use diesel::prelude::*;
@@ -16,7 +15,6 @@ use crate::loaders::registry::Registry;
 #[derive(Debug, Clone)]
 pub struct ArenaRuntimeState {
   pub workspace_id: String,
-  pub root: Option<PathBuf>,
   pub registry: Registry,
   pub module: MainModule,
   pub env_variables: EnvironmentVariableStore,
