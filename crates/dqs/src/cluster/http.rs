@@ -87,6 +87,9 @@ impl DqsCluster {
       // TODO: listen to pub/sub in different port
       // Subscribe to all pub/sub events for all apps/workflows in the given
       // workspace that are running on this dqs server
+      // TODO(sagar): change the path to allow only subscribing to a single
+      // app in general. But, when a notification type message is published,
+      // send that to all subscribers of all apps of that workspace.
       .route(
         "/w/subscribe/:workspaceId/*path",
         routing::get(subscribe_to_events),
@@ -361,7 +364,7 @@ pub async fn pipe_plugin_workflow_request(
       system_originated.unwrap_or(false)
         && wf_run
           .parent_app_id
-          .map(|parent_id| parent_id == id)
+          .map(|parent_app_id| parent_app_id == id)
           .unwrap_or(false)
     }
     _ => false,
@@ -487,7 +490,7 @@ async fn authenticate_user(
     .await
     .map_err(|e| {
       tracing::error!("Error getting workspace id: {}", e);
-      errors::Error::AnyhowError(e.into())
+      errors::Error::AnyhowError(e.to_string())
     })?
     .ok_or(errors::Error::NotFound)?;
 
@@ -533,17 +536,18 @@ fn parse_cookies(req: &Request<Body>) -> HashMap<String, String> {
 }
 
 fn parse_identity_from_header(req: &Request<Body>) -> Result<Identity> {
-  let cookies = parse_cookies(req);
-  let token = cookies
-    .get("user")
-    .map(|v| v.as_str())
-    .or_else(|| {
-      req
-        .headers()
-        .get("x-arena-authorization")
-        .and_then(|c| c.to_str().ok())
-    })
-    .ok_or(anyhow!("Unauthenticated requested"))?;
+  let cookies = { parse_cookies(req) };
+  let token = cookies.get("user").map(|v| v.as_str()).or_else(|| {
+    req
+      .headers()
+      .get("x-arena-authorization")
+      .and_then(|c| c.to_str().ok())
+  });
+
+  if token.is_none() {
+    return Ok(Identity::Unknown);
+  }
+  let token = token.unwrap();
 
   let secret = env::var("JWT_SIGNINIG_SECRET")?;
   jsonwebtoken::decode::<Value>(
@@ -559,7 +563,7 @@ fn parse_identity_from_header(req: &Request<Body>) -> Result<Identity> {
       .ok_or(anyhow!("Invalid JWT token"))?;
 
     // when deserializing enum, can't have unspecified fields
-    claims.retain(|k, _| k == "user" || k == "app" || k == "workflow");
+    claims.retain(|k, _| k == "user" || k == "app" || k == "workflowRun");
 
     serde_json::from_value(r.claims)
       .context("Failed to parse identity from cookie")

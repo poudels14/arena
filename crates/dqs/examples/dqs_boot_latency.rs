@@ -1,12 +1,13 @@
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
 use std::time::Instant;
 
 use anyhow::Result;
-use common::deno::extensions::server::HttpServerConfig;
 use dqs::arena::{ArenaRuntimeState, MainModule};
-use dqs::loaders::Registry;
+use dqs::loaders::{FileTemplateLoader, Registry};
 use dqs::runtime::deno;
+use runtime::extensions::server::HttpServerConfig;
 use tokio::sync::mpsc;
 
 fn main() -> Result<()> {
@@ -43,6 +44,9 @@ fn main() -> Result<()> {
         module: main_module.clone(),
         env_variables: Default::default(),
       },
+      template_loader: Arc::new(FileTemplateLoader {
+        module: MainModule::WidgetQuery,
+      }),
     })
     .await?;
 
@@ -53,8 +57,8 @@ fn main() -> Result<()> {
       .await?;
 
     let rx = runtime.mod_evaluate(mod_id);
-    runtime.run_event_loop(false).await?;
-    rx.await??;
+    runtime.run_event_loop(Default::default()).await?;
+    rx.await?;
 
     Ok::<(), anyhow::Error>(())
   })?;
