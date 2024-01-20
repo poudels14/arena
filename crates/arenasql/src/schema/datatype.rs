@@ -90,7 +90,12 @@ impl DataType {
                   "Size param missing from Vector(size) data type"
                 ))
               })?;
-
+            if len % 4 != 0 {
+              // Since SIMD is used, make sure vector is multiple of 4
+              return Err(Error::InvalidDataType(format!(
+                "VECTOR must be a multiple of 4"
+              )));
+            }
             Ok(DataType::Vector { len })
           }
           _ => {
@@ -110,7 +115,10 @@ impl DataType {
         let dt = Self::from_str(ty).unwrap();
         return Ok(match dt {
           Self::Varchar { .. } => Self::Varchar { len },
-          Self::Vector { .. } => Self::Vector { len: len.unwrap() },
+          Self::Vector { .. } => {
+            let len = len.unwrap();
+            Self::Vector { len }
+          }
           dt => dt,
         });
       }
