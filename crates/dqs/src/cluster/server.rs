@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -7,24 +7,23 @@ use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::SystemTime;
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Result};
 use cloud::pubsub::exchange::Exchange;
 use common::beam;
-use deno_core::normalize_path;
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
 use runtime::env::EnvironmentVariableStore;
 use runtime::extensions::server::response::ParsedHttpResponse;
 use runtime::extensions::server::{HttpRequest, HttpServerConfig};
-use runtime::permissions::{FileSystemPermissions, PermissionsContainer};
+use runtime::permissions::PermissionsContainer;
 use serde_json::Value;
 use tokio::sync::{mpsc, oneshot, watch, Mutex};
 
 use crate::arena::{ArenaRuntimeState, MainModule};
 use crate::config::workspace::WorkspaceConfig;
 use crate::db;
-use crate::db::deployment::{dqs_deployments, Deployment};
+use crate::db::deployment::{app_deployments, Deployment};
 use crate::db::workspace::workspaces;
 use crate::loaders::registry::Registry;
 use crate::loaders::RegistryTemplateLoader;
@@ -77,7 +76,8 @@ impl DqsServer {
           &options.workspace_id,
           app,
           &mut options.db_pool.get()?,
-        )?,
+        )
+        .unwrap_or_default(),
         _ => EnvironmentVariableStore::new(HashMap::new()),
       };
 
@@ -162,7 +162,7 @@ impl DqsServer {
   ) -> Result<Option<Deployment>> {
     let connection = &mut self.options.db_pool.get()?;
     let deployment = db::deployment::table
-      .filter(dqs_deployments::id.eq(id.to_string()))
+      .filter(app_deployments::id.eq(id.to_string()))
       .first::<Deployment>(connection)
       .optional()
       .map_err(|e| anyhow!("Failed to load DQS deployment from db: {}", e))?;
@@ -185,17 +185,21 @@ impl DqsServer {
     };
 
     let connection = &mut self.options.db_pool.get()?;
-    diesel::insert_into(dqs_deployments::dsl::dqs_deployments)
+
+    // Since arenasql doesn't support ON CONFLICT, delete existing deployment
+    // first
+    diesel::delete(app_deployments::dsl::app_deployments)
+      .filter(app_deployments::id.eq(deployment.id.to_string()))
+      .execute(connection)?;
+    diesel::insert_into(app_deployments::dsl::app_deployments)
       .values(&deployment)
-      .on_conflict(dqs_deployments::id)
-      .do_update()
-      .set(&deployment)
       .execute(connection)
       .map_err(|e| anyhow!("Failed to update DQS deployment: {}", e))?;
 
     Ok(())
   }
 
+  #[tracing::instrument(skip_all, err, level = "debug")]
   fn load_permissions(
     options: &DqsServerOptions,
   ) -> Result<PermissionsContainer> {
@@ -203,11 +207,6 @@ impl DqsServer {
     if app.is_none() {
       return Ok(PermissionsContainer::default());
     }
-
-    let app_root_path = &options
-      .root
-      .clone()
-      .context("App doesn't have access to file system")?;
 
     let connection =
       &mut options.db_pool.get().map_err(|e| anyhow!("{}", e))?;
@@ -221,29 +220,7 @@ impl DqsServer {
     let workspace_config: WorkspaceConfig =
       serde_json::from_value(workspace.config).map_err(|e| anyhow!("{}", e))?;
 
-    std::fs::create_dir_all(app_root_path)
-      .context("Failed to create root directory for app")?;
-
-    let allowed_read_paths = HashSet::from_iter(vec![app_root_path
-      .to_str()
-      .ok_or(anyhow!("Invalid app root path"))?
-      .to_owned()]);
-
-    let allowed_write_paths =
-      vec![normalize_path(app_root_path.join("./db/")).to_str()]
-        .iter()
-        .filter(|p| p.is_some())
-        .map(|p| p.map(|p| p.to_owned()))
-        .collect::<Option<HashSet<String>>>()
-        .unwrap_or_default();
-
     Ok(PermissionsContainer {
-      fs: Some(FileSystemPermissions {
-        root: app_root_path.clone(),
-        allowed_read_paths,
-        allowed_write_paths,
-        ..Default::default()
-      }),
       net: workspace_config.runtime.net_permissions,
       ..Default::default()
     })

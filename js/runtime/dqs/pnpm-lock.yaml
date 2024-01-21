@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
+  '@arena/runtime':
+    specifier: workspace:^
+    version: link:../core
   '@portal/deploy':
     specifier: workspace:^
     version: link:../../portal-app/deploy

@@ -21,6 +21,7 @@ pub struct ArenaRuntimeState {
 }
 
 impl ArenaRuntimeState {
+  #[tracing::instrument(skip_all, err, level = "debug")]
   pub fn load_app_env_variables(
     workspace_id: &str,
     app: &App,

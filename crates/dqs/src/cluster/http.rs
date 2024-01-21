@@ -19,7 +19,6 @@ use cloud::pubsub::EventSink;
 use cloud::pubsub::Subscriber;
 use colored::Colorize;
 use common::axum::logger;
-use deno_core::normalize_path;
 use diesel::prelude::*;
 use http::StatusCode;
 use http::{Method, Request};
@@ -114,7 +113,12 @@ impl DqsCluster {
     )
       .into();
 
-    println!("{}", "Starting DQS cluster...".yellow().bold());
+    println!(
+      "{}",
+      format!("Starting DQS cluster on port {}...", self.options.port)
+        .yellow()
+        .bold()
+    );
     self.mark_node_as_online()?;
     axum::Server::bind(&addr)
       .serve(app.into_make_service())
@@ -203,6 +207,7 @@ pub async fn handle_app_routes(
   pipe_app_request(cluster, app_id, path, search_params, req).await
 }
 
+#[tracing::instrument(skip_all, err, level = "debug")]
 pub async fn pipe_app_request(
   cluster: DqsCluster,
   app_id: String,
@@ -213,13 +218,11 @@ pub async fn pipe_app_request(
   let (_, app) =
     authenticate_user(&cluster, &app_id, Some(path.clone()), &req).await?;
 
-  let app_root_path =
-    normalize_path(cluster.data_dir.join(format!("./apps/{}", app_id)));
   let dqs_server = cluster
     .get_or_spawn_dqs_server(DqsServerOptions {
       id: format!("app/{}", app_id),
       workspace_id: app.workspace_id.clone(),
-      root: Some(app_root_path),
+      root: None,
       module: MainModule::App { app },
       db_pool: cluster.db_pool.clone(),
       dqs_egress_addr: cluster.options.dqs_egress_addr,
@@ -261,6 +264,7 @@ pub async fn pipe_app_request(
   res.into_response().await
 }
 
+#[tracing::instrument(skip_all, err, level = "debug")]
 pub async fn pipe_widget_query_request(
   cluster: &DqsCluster,
   trigger: &str, // "QUERY" | "MUTATION"
@@ -513,7 +517,8 @@ async fn authenticate_user(
   .map_err(|_| errors::Error::NotFound)?;
 
   if !has_access {
-    return Err(errors::Error::NotFound);
+    // TODO
+    // return Err(errors::Error::NotFound);
   }
   Ok((identity, app))
 }

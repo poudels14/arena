@@ -18,7 +18,7 @@ impl Registry {
   ) -> Result<String> {
     self
       .fetch_code(&format!(
-        "{}/server/templates/apps/{}/{}.js",
+        "{}/apps/{}/{}/server/index.js",
         self.host, template_id, version
       ))
       .await

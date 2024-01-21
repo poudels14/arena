@@ -2,7 +2,7 @@ pub use diesel::prelude::*;
 
 /// Dqs node
 #[derive(Queryable, Insertable, AsChangeset, Debug, Clone)]
-#[diesel(table_name = dqs_nodes)]
+#[diesel(table_name = app_clusters)]
 pub struct DqsNode {
   pub id: String,
   pub host: String,
@@ -11,7 +11,7 @@ pub struct DqsNode {
 }
 
 diesel::table! {
-  dqs_nodes (id) {
+  app_clusters (id) {
     id -> Varchar,
     host -> Varchar,
     port -> Integer,

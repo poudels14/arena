@@ -17,8 +17,8 @@ pub(crate) mod server;
 use self::cache::Cache;
 use self::server::{DqsServer, DqsServerOptions, DqsServerStatus};
 use crate::db;
-use crate::db::deployment::dqs_deployments;
-use crate::db::nodes::dqs_nodes;
+use crate::db::deployment::app_deployments;
+use crate::db::nodes::app_clusters;
 use crate::loaders::registry::Registry;
 use crate::runtime::server::ServerEvents;
 
@@ -222,6 +222,7 @@ impl DqsCluster {
     }
   }
 
+  #[tracing::instrument(skip_all, level = "debug")]
   pub fn mark_node_as_online(&self) -> Result<()> {
     let connection = &mut self.db_pool.get()?;
     let node = db::nodes::DqsNode {
@@ -231,26 +232,29 @@ impl DqsCluster {
       status: "ONLINE".to_owned(),
     };
 
-    diesel::insert_into(dqs_nodes::dsl::dqs_nodes)
+    // Since arenasql doesn't support ON CONFLICT, delete existing app_clusters
+    // first
+    diesel::delete(app_clusters::dsl::app_clusters)
+      .filter(app_clusters::id.eq(node.id.to_string()))
+      .execute(connection)?;
+    diesel::insert_into(app_clusters::dsl::app_clusters)
       .values(&node)
-      .on_conflict(dqs_nodes::id)
-      .do_update()
-      .set(&node)
       .execute(connection)
       .map_err(|e| anyhow!("Failed to mark node as online: {}", e))?;
     Ok(())
   }
 
+  #[tracing::instrument(skip_all, level = "debug")]
   pub fn mark_node_as_terminating(&self) -> Result<()> {
     let connection = &mut self.db_pool.get()?;
-    diesel::update(dqs_nodes::dsl::dqs_nodes)
-      .set(dqs_nodes::status.eq("TERMINATING".to_string()))
-      .filter(dqs_nodes::id.eq(self.node_id.clone()))
+    diesel::update(app_clusters::dsl::app_clusters)
+      .set(app_clusters::status.eq("TERMINATING".to_string()))
+      .filter(app_clusters::id.eq(self.node_id.clone()))
       .execute(connection)
       .map_err(|e| anyhow!("Failed to mark node as offline: {}", e))?;
 
-    diesel::delete(dqs_deployments::dsl::dqs_deployments)
-      .filter(dqs_deployments::node_id.eq(self.node_id.clone()))
+    diesel::delete(app_deployments::dsl::app_deployments)
+      .filter(app_deployments::node_id.eq(self.node_id.clone()))
       .execute(connection)
       .map_err(|e| {
         anyhow!(
@@ -264,8 +268,8 @@ impl DqsCluster {
 
   pub fn mark_node_as_terminated(&self) -> Result<()> {
     let connection = &mut self.db_pool.get()?;
-    diesel::delete(dqs_nodes::dsl::dqs_nodes)
-      .filter(dqs_nodes::id.eq(self.node_id.to_string()))
+    diesel::delete(app_clusters::dsl::app_clusters)
+      .filter(app_clusters::id.eq(self.node_id.to_string()))
       .execute(connection)
       .map_err(|e| anyhow!("Failed to mark node as terminated: {}", e))?;
     Ok(())

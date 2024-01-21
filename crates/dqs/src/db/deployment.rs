@@ -1,11 +1,11 @@
-pub use diesel::prelude::*;
 #[allow(unused)]
-pub use dqs_deployments::table;
+pub use app_deployments::table;
+pub use diesel::prelude::*;
 use std::time::SystemTime;
 
 /// Dqs server deployment
 #[derive(Queryable, Insertable, AsChangeset, Debug, Clone)]
-#[diesel(table_name = dqs_deployments)]
+#[diesel(table_name = app_deployments)]
 pub struct Deployment {
   pub id: String,
   pub node_id: String,
@@ -18,7 +18,7 @@ pub struct Deployment {
 }
 
 diesel::table! {
-  dqs_deployments (id) {
+  app_deployments (id) {
     id -> Varchar,
     node_id -> Varchar,
     workspace_id -> Varchar,

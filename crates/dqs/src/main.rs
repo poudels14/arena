@@ -104,7 +104,7 @@ fn main() -> Result<()> {
     tokio::sync::oneshot::channel::<()>();
   let handle: tokio::task::JoinHandle<Result<(), anyhow::Error>> =
     rt.spawn(async move {
-      dqs_cluster.start_server(shutdown_signal_rx).await?;
+      dqs_cluster.start_server(shutdown_signal_rx).await.unwrap();
       Ok(())
     });
 
@@ -116,7 +116,7 @@ fn main() -> Result<()> {
   let mut signals = SignalsInfo::<SignalOnly>::new(TERM_SIGNALS)?;
 
   for _ in &mut signals {
-    shutdown_signal_tx.send(()).unwrap();
+    let _ = shutdown_signal_tx.send(());
     break;
   }
 

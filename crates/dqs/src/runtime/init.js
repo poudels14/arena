@@ -1,5 +1,9 @@
 Deno.core.setMacrotaskCallback(globalThis.__bootstrap.handleTimerMacrotask);
 
+globalThis.__setupRuntime();
+
+delete globalThis["__setupRuntime"];
+
 // TODO(sagar): remove this and figure out a way to write to log file instead
 globalThis.console = new globalThis.__bootstrap.Console(Deno.core.print);
 
@@ -15,8 +19,6 @@ Function.prototype.toString = function () {
 
 // Delete reference to global Arena that has lots of runtime features
 // and only provide access to select few features/configs
-let newArena = {};
-
 delete globalThis["Deno"];
-delete globalThis["Arena"];
-globalThis.Arena = newArena;
+// delete globalThis["Arena"];
+// TODO: delete global Arena
