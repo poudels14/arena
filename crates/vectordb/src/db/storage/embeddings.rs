@@ -29,6 +29,22 @@ pub fn get_db_options() -> Options {
 
 #[derive(Debug, Archive, Serialize, Deserialize)]
 pub struct StoredEmbeddings {
+  /// a list of i16 integers to use as a key prefix for the embeddings
+  /// This allows us to return a list of embeddings and it's corresponding
+  /// document slice with same prefix as the matched embedding.
+  /// For example, if there are two paragraphs under a heading <h1>, then
+  /// it might be better to return the text of the heading when one of
+  /// the paragraphs is matched with the query. In order to do this, the
+  /// heading should have a prefix of `[0,-1,...]` and the embeddings will
+  /// have prefix of `[0,0,-1,...]` and `[0,1,-1,...]` where -1 is used as
+  /// prefix terminator. So, if an embedding with prefix `[0,1,4,-1]` prefix
+  /// is matched, we return chunks with prefix
+  ///   - `[0,-1,{start},{end}]`
+  ///   - `[0,1,-1,{start},{end}]`
+  ///   - `[0,1,4,-1,{start},{end}]`
+  /// All these chunks are "ancestors" of the matched embedding.
+  ///
+  // pub prefix: Vec<i16>,
   /// start index of the chunk
   pub start: u32,
   /// end index of the chunk

@@ -7,10 +7,10 @@ edition = "2021"
 name = "vector"
 path = "src/server/main.rs"
 
-[lib]
-name = "vectordb"
-path = "src/lib.rs"
-crate-type = ["lib", "cdylib"]
+# [lib]
+# name = "vectordb"
+# path = "src/lib.rs"
+# crate-type = ["lib", "cdylib"]
 
 [[bench]]
 name = "dot_product"
