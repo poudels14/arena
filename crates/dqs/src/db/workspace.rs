@@ -16,7 +16,7 @@ diesel::table! {
   workspaces (id) {
     id -> Varchar,
     name -> Varchar,
-    config ->Jsonb,
+    config -> Jsonb,
     archived_at -> Nullable<Timestamp>,
   }
 }

@@ -67,7 +67,12 @@ impl DqsServer {
   ) -> Result<(DqsServer, watch::Receiver<ServerEvents>)> {
     let (http_requests_tx, http_requests_rx) = mpsc::channel(200);
     let (events_tx, mut receiver) = watch::channel(ServerEvents::Init);
-    let permissions = Self::load_permissions(&options)?;
+    let workspace_config = Self::load_workspace_config(&options)?;
+    let permissions = PermissionsContainer {
+      net: workspace_config.runtime.net_permissions,
+      ..Default::default()
+    };
+
     let thread = thread::Builder::new().name(format!("dqs-[{}]", options.id));
     let options_clone = options.clone();
     let thread_handle = thread.spawn(move || {
@@ -96,7 +101,10 @@ impl DqsServer {
             http_requests_rx,
           ))),
           egress_address: options.dqs_egress_addr,
-          heap_limits: None,
+          heap_limits: workspace_config
+            .runtime
+            .heap_limit_mb
+            .map(|limit| (10 * 1024 * 1024, limit * 1024 * 1204)),
           permissions,
           exchange,
           state,
@@ -200,12 +208,12 @@ impl DqsServer {
   }
 
   #[tracing::instrument(skip_all, err, level = "debug")]
-  fn load_permissions(
+  fn load_workspace_config(
     options: &DqsServerOptions,
-  ) -> Result<PermissionsContainer> {
+  ) -> Result<WorkspaceConfig> {
     let app = options.module.as_app();
     if app.is_none() {
-      return Ok(PermissionsContainer::default());
+      return Ok(WorkspaceConfig::default());
     }
 
     let connection =
@@ -217,12 +225,7 @@ impl DqsServer {
       .first::<db::workspace::Workspace>(connection)
       .map_err(|e| anyhow!("Failed to load workspace from db: {}", e))?;
 
-    let workspace_config: WorkspaceConfig =
-      serde_json::from_value(workspace.config).map_err(|e| anyhow!("{}", e))?;
-
-    Ok(PermissionsContainer {
-      net: workspace_config.runtime.net_permissions,
-      ..Default::default()
-    })
+    serde_json::from_value::<WorkspaceConfig>(workspace.config)
+      .map_err(|e| anyhow!("{}", e))
   }
 }

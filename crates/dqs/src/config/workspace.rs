@@ -11,5 +11,7 @@ pub struct WorkspaceConfig {
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeConfig {
+  // heap limit in MB
+  pub heap_limit_mb: Option<usize>,
   pub net_permissions: Option<NetPermissions>,
 }
