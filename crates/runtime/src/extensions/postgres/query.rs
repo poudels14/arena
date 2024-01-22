@@ -65,7 +65,7 @@ pub struct Field {
   data_type_id: u32,
 }
 
-#[tracing::instrument(skip(client, params), level = "debug")]
+#[tracing::instrument(skip(client, params), level = "trace")]
 pub async fn execute_query(
   client: &Client,
   query: &str,
