@@ -8,7 +8,7 @@ Arena.__nodeInternal = {
 
 const webcrypto = {
   getRandomValues(array) {
-    randomFillSync(Buffer.from(array));
+    Arena.core.ops.op_node_generate_secret(array);
     return array;
   },
 };

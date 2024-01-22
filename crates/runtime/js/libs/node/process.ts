@@ -1,9 +1,9 @@
 import { arch } from "./os";
 
-function noop() {}
+const { core, fs } = Arena;
 
-const { core } = Arena;
-const cwd = () => Arena.fs.cwdSync();
+function noop() {}
+const cwd = () => fs.cwdSync();
 const env = {
   TERM: "xterm-256color",
 };
@@ -47,7 +47,7 @@ const process = {
       if (encoding != "utf8") {
         throw new Error("Writing non utf8 content to stdout not supported");
       }
-      Arena.core.ops.op_fs_write_stdout_str(content);
+      core.ops.op_fs_write_stdout_str(content);
     },
     fd: 1,
   },
@@ -58,7 +58,7 @@ const process = {
       if (encoding != "utf8") {
         throw new Error("Writing non utf8 content to stderr not supported");
       }
-      Arena.core.ops.op_fs_write_stderr_str(content);
+      core.ops.op_fs_write_stderr_str(content);
     },
   },
   hrtime: Object.assign(hrtime, {
@@ -79,7 +79,7 @@ const process = {
     console.log("[WARNING]", ...args);
   },
   exit(code) {
-    Arena.core.ops.op_node_process_exit();
+    core.ops.op_node_process_exit();
   },
 };
 
