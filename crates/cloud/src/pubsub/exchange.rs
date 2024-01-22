@@ -23,10 +23,13 @@ use super::{EventSink, OutgoingEvent, Subscriber};
 pub struct Exchange {
   pub workspace_id: String,
 
+  #[derivative(Debug = "ignore")]
   port: mpsc::Sender<OutgoingEvent>,
+  #[derivative(Debug = "ignore")]
   stream: Arc<Mutex<mpsc::Receiver<OutgoingEvent>>>,
-
+  #[derivative(Debug = "ignore")]
   subscribers: Arc<RwLock<BTreeMap<String, Subscriber>>>,
+  #[derivative(Debug = "ignore")]
   publishers: Arc<RwLock<BTreeMap<String, PublisherHandle>>>,
 }
 

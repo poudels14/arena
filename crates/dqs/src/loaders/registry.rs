@@ -1,10 +1,14 @@
 use anyhow::{bail, Result};
+use derivative::Derivative;
 use http::StatusCode;
 use std::time::Duration;
 
-#[derive(Clone, Debug)]
+#[derive(Derivative)]
+#[derivative(Debug, Clone)]
 pub struct Registry {
   pub host: String,
+
+  #[derivative(Debug = "ignore")]
   pub api_key: String,
 }
 

@@ -35,7 +35,6 @@ tokenizers = { version = "0.13.3" }
 common = { path = "../common", features = ["data_query"] }
 deno_core = "=0.238.0"
 runtime = { path = "../runtime" }
-vectordb = { path = "../vectordb", package = "vectordb" }
 candle-core = "0.3.2"
 candle-nn = "0.3.2"
 candle-transformers = "0.3.2"

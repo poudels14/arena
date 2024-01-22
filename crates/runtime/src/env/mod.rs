@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use deno_core::{OpState, Resource};
+use derivative::Derivative;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -36,11 +37,13 @@ impl EnvironmentVariable {
   }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Derivative)]
+#[derivative(Debug, Clone)]
 pub struct EnvVar {
   /// same as db row id
   pub id: String,
   pub key: String,
+  #[derivative(Debug = "ignore")]
   pub value: Value,
   pub is_secret: bool,
 }

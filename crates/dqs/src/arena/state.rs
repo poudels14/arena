@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
+use derivative::Derivative;
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, PooledConnection};
 use diesel::PgConnection;
@@ -16,7 +17,8 @@ use crate::db::database::{
 use crate::db::resource::{self, environment_variables};
 use crate::loaders::registry::Registry;
 
-#[derive(Debug, Clone)]
+#[derive(Derivative)]
+#[derivative(Debug, Clone)]
 pub struct ArenaRuntimeState {
   pub workspace_id: String,
   pub registry: Registry,

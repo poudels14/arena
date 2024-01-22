@@ -5,8 +5,9 @@ use cloud::identity::Identity;
 use cloud::pubsub::exchange::Exchange;
 use cloud::pubsub::{EventSink, OutgoingEvent, Subscriber};
 use cloud::CloudExtensionProvider;
-use common::deno::extensions::{BuiltinExtensions, BuiltinModule};
-use jsruntime::{IsolatedRuntime, RuntimeOptions};
+use runtime::extensions::BuiltinExtensionProvider;
+use runtime::extensions::BuiltinModule;
+use runtime::{IsolatedRuntime, RuntimeOptions};
 use tokio::sync::mpsc;
 use url::Url;
 
@@ -47,18 +48,16 @@ async fn main() -> Result<()> {
 
   let mut r = IsolatedRuntime::new(RuntimeOptions {
     enable_console: true,
-    project_root: Some(std::env::current_dir().unwrap()),
-    config: Some(Default::default()),
-    builtin_extensions: BuiltinExtensions::with_modules(
-      builtin_modules.clone(),
-    ),
+    config: Default::default(),
+    builtin_extensions: builtin_modules
+      .iter()
+      .map(|m| m.get_extension())
+      .collect(),
     enable_arena_global: true,
     ..Default::default()
   })?;
 
-  let mut runtime = r.runtime.borrow_mut();
-  BuiltinExtensions::with_modules(builtin_modules)
-    .load_snapshot_modules(&mut runtime)?;
+  let runtime = r.runtime.borrow_mut();
   drop(runtime);
 
   r.execute_main_module_code(
@@ -72,6 +71,7 @@ async fn main() -> Result<()> {
       });
     }
     "#,
+    true,
   )
   .await?;
 
