@@ -63,14 +63,14 @@ impl DqsCluster {
         "/w/workflow/:workflowId/*path",
         routing::on(MethodFilter::all(), pipe_plugin_workflow_request),
       )
-      .route(
-        "/w/apps/:appId/widgets/:widgetId/api/:field",
-        routing::get(handle_widget_get_query),
-      )
-      .route(
-        "/w/apps/:appId/widgets/:widgetId/api/:field",
-        routing::post(handle_widgets_mutate_query),
-      )
+      // .route(
+      //   "/w/apps/:appId/widgets/:widgetId/api/:field",
+      //   routing::get(handle_widget_get_query),
+      // )
+      // .route(
+      //   "/w/apps/:appId/widgets/:widgetId/api/:field",
+      //   routing::post(handle_widgets_mutate_query),
+      // )
       .route(
         "/w/apps/:appId/",
         routing::on(MethodFilter::all(), handle_app_routes_index),
@@ -153,6 +153,7 @@ pub struct DataQuerySearchParams {
   pub updated_at: Option<String>,
 }
 
+#[allow(dead_code)]
 pub async fn handle_widget_get_query(
   Path((app_id, widget_id, field)): Path<(String, String, String)>,
   Query(search_params): Query<DataQuerySearchParams>,
@@ -171,6 +172,7 @@ pub async fn handle_widget_get_query(
   .await
 }
 
+#[allow(dead_code)]
 pub async fn handle_widgets_mutate_query(
   Path((app_id, widget_id, field)): Path<(String, String, String)>,
   Query(search_params): Query<DataQuerySearchParams>,
@@ -228,7 +230,8 @@ pub async fn pipe_app_request(
       dqs_egress_addr: cluster.options.dqs_egress_addr,
       registry: cluster.options.registry.clone(),
     })
-    .await?;
+    .await
+    .map_err(|_| errors::Error::ServiceUnavailable)?;
 
   let url = {
     let mut url = Url::parse(&format!("http://0.0.0.0/")).unwrap();
@@ -258,7 +261,7 @@ pub async fn pipe_app_request(
     .http_channel
     .send((request, tx))
     .await
-    .map_err(|_| errors::Error::ResponseBuilder)?;
+    .map_err(|_| errors::Error::ServiceUnavailable)?;
 
   let res = rx.await.map_err(|_| errors::Error::ResponseBuilder)?;
   res.into_response().await
@@ -320,12 +323,14 @@ pub async fn pipe_widget_query_request(
       dqs_egress_addr: cluster.options.dqs_egress_addr,
       registry: cluster.options.registry.clone(),
     })
-    .await?;
+    .await
+    .map_err(|_| errors::Error::ServiceUnavailable)?;
+
   dqs_server
     .http_channel
     .send((request, tx))
     .await
-    .map_err(|_| errors::Error::ResponseBuilder)?;
+    .map_err(|_| errors::Error::ServiceUnavailable)?;
 
   let res = rx.await.map_err(|_| errors::Error::ResponseBuilder)?;
   res.into_response().await

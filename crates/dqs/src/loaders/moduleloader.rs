@@ -235,5 +235,6 @@ fn is_allowed_builtin_module(specifier: &str) -> bool {
     || specifier == "crypto"
     // allow runtime/server since app templates need it
     || specifier == "@arena/runtime/server"
+    || specifier == "@arena/runtime/postgres"
     || specifier.starts_with("@arena/cloud/")
 }

@@ -43,7 +43,9 @@ fn main() -> Result<()> {
     .with(
       tracing_subscriber::filter::EnvFilter::from_default_env()
         // Note(sagar): filter out swc_* logs because they are noisy
-        .add_directive(Directive::from_str("swc_=OFF").unwrap()),
+        .add_directive(Directive::from_str("swc_=OFF").unwrap())
+        .add_directive(Directive::from_str("tokio=OFF").unwrap())
+        .add_directive(Directive::from_str("hyper=OFF").unwrap()),
     )
     .with(
       HierarchicalLayer::default()

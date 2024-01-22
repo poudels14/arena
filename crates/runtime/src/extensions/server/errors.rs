@@ -17,6 +17,7 @@ pub enum Error {
   InvalidHeaderValueError,
   ResponseBuilder,
   NotFound,
+  ServiceUnavailable,
   BadRequest(Option<&'static str>),
 }
 
@@ -73,6 +74,9 @@ impl response::IntoResponse for Error {
       Self::BadRequest(msg) => {
         (StatusCode::BAD_REQUEST, msg.unwrap_or("400 Bad Request"))
           .into_response()
+      }
+      Self::ServiceUnavailable => {
+        (StatusCode::SERVICE_UNAVAILABLE, "Service Unavailable").into_response()
       }
       _ => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error")
         .into_response(),
