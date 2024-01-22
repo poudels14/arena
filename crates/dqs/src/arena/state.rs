@@ -49,7 +49,11 @@ impl ArenaRuntimeState {
 
     let env_vars = query
       .filter(environment_variables::archived_at.is_null())
-      .load::<resource::EnvVar>(connection)?;
+      .load::<resource::EnvVar>(connection)
+      .map_err(|e| {
+        tracing::error!("{:?}", e);
+      })
+      .unwrap_or_default();
 
     let app_databases = databases::table
       .filter(
@@ -57,7 +61,11 @@ impl ArenaRuntimeState {
           .eq(workspace_id.to_string())
           .and(databases::app_id.eq(app.id.clone())),
       )
-      .load::<Database>(connection)?;
+      .load::<Database>(connection)
+      .map_err(|e| {
+        tracing::error!("{:?}", e);
+      })
+      .unwrap_or_default();
 
     let app_database = app_databases.get(0);
     let database_cluster = match app_database {
@@ -67,7 +75,11 @@ impl ArenaRuntimeState {
             database_clusters::id
               .eq(db.cluster_id.as_ref().unwrap().to_string()),
           )
-          .load::<DatabaseCluster>(connection)?;
+          .load::<DatabaseCluster>(connection)
+          .map_err(|e| {
+            tracing::error!("{:?}", e);
+          })
+          .unwrap_or_default();
         clusters.get(0).cloned()
       }
       _ => None,
