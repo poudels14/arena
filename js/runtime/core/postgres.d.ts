@@ -33,6 +33,7 @@ type QueryClient = {
 type Client = {
   connect(): Promise<void>;
   isConnected(): boolean;
+  transaction<T>(closure: () => T | Promise<T>): Promise<void>;
   close(): void;
 } & QueryClient;
 
