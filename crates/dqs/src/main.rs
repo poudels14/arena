@@ -75,7 +75,6 @@ fn main() -> Result<()> {
     .map(|addr| addr.parse())
     .transpose()?;
 
-  let _ = required_env!("DQS_HOST");
   let registry_host = required_env!("REGISTRY_HOST");
   let registry_api_key = required_env!("REGISTRY_API_KEY");
   let _ = required_env!("DATABASE_URL");
