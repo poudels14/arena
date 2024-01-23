@@ -78,7 +78,7 @@ fn main() -> Result<()> {
   let registry_host = required_env!("REGISTRY_HOST");
   let registry_api_key = required_env!("REGISTRY_API_KEY");
   let _ = required_env!("DATABASE_URL");
-  let _ = required_env!("JWT_SIGNINIG_SECRET");
+  let _ = required_env!("JWT_SIGNING_SECRET");
 
   let data_dir = Path::new(&args.data_dir).to_path_buf().canonicalize()?;
   if !data_dir.is_dir() {

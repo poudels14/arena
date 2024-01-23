@@ -559,7 +559,7 @@ fn parse_identity_from_header(req: &Request<Body>) -> Result<Identity> {
   }
   let token = token.unwrap();
 
-  let secret = env::var("JWT_SIGNINIG_SECRET")?;
+  let secret = env::var("JWT_SIGNING_SECRET")?;
   jsonwebtoken::decode::<Value>(
     &token,
     &DecodingKey::from_secret(secret.as_ref()),

@@ -9,9 +9,9 @@ const env = createEnv({
     DATABASE_PORT: z.string().transform((val) => parseInt(val)),
     DATABASE_NAME: z.string(),
     DATABASE_USER: z.string(),
-    DATABASE_PASSWORD: z.string(),
+    DATABASE_PASSWORD: z.string().optional(),
 
-    JWT_SIGNINIG_SECRET: z.string(),
+    JWT_SIGNING_SECRET: z.string(),
     // for exmple: signin@emails.tryarena.io
     LOGIN_EMAIL_SENDER: z.string().email(),
     RESEND_API_KEY: z.string(),

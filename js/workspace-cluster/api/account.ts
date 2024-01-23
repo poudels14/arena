@@ -42,7 +42,7 @@ const sendMagicLink = p
         },
         exp: new Date().getTime() + ms("4 weeks"),
       },
-      secret: ctx.env.JWT_SIGNINIG_SECRET,
+      secret: ctx.env.JWT_SIGNING_SECRET,
     });
 
     if (ctx.env.MODE == "development") {
@@ -88,7 +88,7 @@ const login = p.query(
       const { payload } = jwt.verify(
         magicToken,
         "HS256",
-        ctx.env.JWT_SIGNINIG_SECRET
+        ctx.env.JWT_SIGNING_SECRET
       );
 
       const { id: userId } = payload.user || {};
@@ -120,7 +120,7 @@ const login = p.query(
           },
           exp: (new Date().getTime() + ms("2 weeks")) / 1000,
         },
-        secret: ctx.env.JWT_SIGNINIG_SECRET,
+        secret: ctx.env.JWT_SIGNING_SECRET,
       });
       setCookie("user", signInToken, {
         path: "/",
