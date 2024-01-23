@@ -21,11 +21,18 @@ const add = protectedProcedure
     if (!workspaceId.startsWith("w_")) {
       workspaceId = "w_" + workspaceId;
     }
-    const workspace = await repo.workspaces.createWorkspace({
-      ownerId: ctx.user!.id,
-      id: workspaceId,
-      name: body.name,
-    });
+
+    let workspace;
+    try {
+      workspace = await repo.workspaces.createWorkspace({
+        ownerId: ctx.user!.id,
+        id: workspaceId,
+        name: body.name,
+      });
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
 
     const database = await addDatabase(repo, {
       id: workspaceId,

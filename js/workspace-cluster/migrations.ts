@@ -110,6 +110,71 @@ const migrations: PostgresDatabaseConfig = {
         await db.query(`DROP INDEX apps_workspace_id_slug;`);
       },
     },
+    {
+      async up(db) {
+        await db.query(`CREATE TABLE app_clusters (
+          id VARCHAR(50) UNIQUE,
+          host VARCHAR(1000),
+          port INTEGER,
+          status VARCHAR(25),
+          started_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );`);
+      },
+      async down(db) {
+        await db.query(`DROP TABLE app_clusters;`);
+      },
+    },
+    {
+      async up(db) {
+        await db.query(`
+        -- use this to keep track of deployed apps instead
+        -- of using sth like etcd, or consul
+        CREATE TABLE app_deployments (
+          id VARCHAR(50) UNIQUE NOT NULL,
+          -- id of the cluster node that this server is deployed in
+          node_id VARCHAR(50) NOT NULL,
+          workspace_id VARCHAR(50) NOT NULL,
+          app_id VARCHAR(50),
+          app_template_id VARCHAR(50),
+          started_at TIMESTAMP NOT NULL DEFAULT NOW(),
+          last_heartbeat_at TIMESTAMP DEFAULT NULL,
+          -- if this is set, the dqs server should be rebooted
+          -- this is done to update things like env variables, etc
+          reboot_triggered_at TIMESTAMP DEFAULT NULL
+        );`);
+      },
+      async down(db) {
+        await db.query(`DROP TABLE app_deployments;`);
+      },
+    },
+    {
+      async up(db) {
+        await db.query(`CREATE TABLE environment_variables (
+          id VARCHAR(50) UNIQUE,
+          workspace_id VARCHAR(50) DEFAULT NULL,
+          name VARCHAR(255) NOT NULL,
+          description TEXT DEFAULT NULL,
+          -- Only set if this env variable is provided by the app template author
+          -- This variable is accessible only from the app template running in
+          -- Arena cloud.
+          -- If the app template allows env variable to be configurable when
+          -- "installing" the app by an user, the app_id and "app_template_id"
+          -- will both be set and that will override the env variable with same "key"
+          -- having same "app_template_id".
+          app_template_id VARCHAR(50) DEFAULT NULL,
+          app_id VARCHAR(50) DEFAULT NULL,
+          key VARCHAR(100) NOT NULL,
+          value TEXT NOT NULL,
+          created_by VARCHAR(50) DEFAULT NULL,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW(),
+          archived_at TIMESTAMP DEFAULT NULL
+        );`);
+      },
+      async down(db) {
+        await db.query(`DROP TABLE environment_variables;`);
+      },
+    },
   ],
 };
 

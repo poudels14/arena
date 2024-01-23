@@ -1,6 +1,7 @@
 import { procedure } from "@portal/server-core/router";
 import { Pool } from "@arena/runtime/postgres";
 import * as jwt from "@arena/cloud/jwt";
+import { Client } from "@arena/cloud/s3";
 import { Repo } from "./repo";
 import { Env } from "./env";
 
@@ -19,6 +20,7 @@ type Context = {
   user: { id: string; email?: string; hasAccount: boolean } | null;
   dbpool: Pool;
   repo: Repo;
+  s3Client: Client;
   env: Env;
 };
 
@@ -38,14 +40,12 @@ const authenticate = p.use(async ({ ctx, next, cookies, errors }) => {
     const { payload } = jwt.verify<{ user: { id: string; email: string } }>(
       cookies.user,
       "HS256",
-      ctx.env.JWT_SIGNINIG_SECRET
+      ctx.env.JWT_SIGNING_SECRET
     );
-
     const user = await ctx.repo.users.fetchById(payload.user.id);
     if (!user) {
       return errors.forbidden();
     }
-
     return await next({
       ctx: {
         ...ctx,

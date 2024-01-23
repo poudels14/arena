@@ -1,30 +1,33 @@
 import { createRouter, mergedRouter } from "@portal/server-core/router";
+import { authenticate } from "./procedure";
 import * as account from "./account";
 import * as workspaces from "./workspaces";
 import * as apps from "./apps";
 import * as databases from "./databases";
-import { authenticate } from "./procedure";
+import * as registry from "./registry";
 
 /**
- * These registry routes are internal routes that are accessible
+ * These internal routes are accessible
  * only from the workspace app
  */
-const registryRoutes = createRouter({
+const internalRoutes = createRouter({
+  prefix: "/api",
   middleware: authenticate.toMiddleware(),
   routes: {
-    "/registry/workspaces/add": workspaces.add,
-    "/registry/workspaces/list": workspaces.list,
-    "/registry/databases/clusters/add": databases.addCluster,
-    "/registry/databases/clusters/list": databases.listClusters,
-    "/registry/databases/clusters/delete": databases.deleteCluster,
-    "/registry/databases/list": databases.list,
-    "/registry/apps/add": apps.add,
-    "/registry/apps/list": apps.list,
-    "/registry/apps/archive": apps.archive,
+    "/internal/workspaces/add": workspaces.add,
+    "/internal/workspaces/list": workspaces.list,
+    "/internal/databases/clusters/add": databases.addCluster,
+    "/internal/databases/clusters/list": databases.listClusters,
+    "/internal/databases/clusters/delete": databases.deleteCluster,
+    "/internal/databases/list": databases.list,
+    "/internal/apps/add": apps.add,
+    "/internal/apps/list": apps.list,
+    "/internal/apps/archive": apps.archive,
   },
 });
 
 const accountRoutes = createRouter({
+  prefix: "/api",
   routes: {
     "/account/signup": account.signup,
     "/account/magicLink": account.sendMagicLink,
@@ -32,10 +35,16 @@ const accountRoutes = createRouter({
   },
 });
 
+const registryRoutes = createRouter({
+  routes: {
+    "/registry/upload": registry.put,
+    "/registry/*": registry.get,
+  },
+});
+
 const router = mergedRouter({
   ignoreTrailingSlash: true,
-  prefix: "/api",
-  routers: [accountRoutes, registryRoutes],
+  routers: [registryRoutes, accountRoutes, internalRoutes],
   async middleware({ ctx, next }) {
     // This middleware just logs the error
     try {
@@ -46,12 +55,9 @@ const router = mergedRouter({
     }
   },
   defaultHandler({ req }) {
-    const url = new URL(req.url);
-    if (url.pathname.startsWith("/api/")) {
-      return new Response("404 Not found", {
-        status: 404,
-      });
-    }
+    return new Response("404 Not found", {
+      status: 404,
+    });
   },
 });
 
