@@ -4,7 +4,6 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use anyhow::Result;
-use colored::Colorize;
 use common::{dotenv, required_env};
 use loaders::registry::Registry;
 use signal_hook::consts::TERM_SIGNALS;

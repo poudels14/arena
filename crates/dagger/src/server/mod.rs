@@ -1,5 +1,7 @@
-mod serve;
 use anyhow::Result;
+
+mod s3loader;
+mod serve;
 
 #[derive(clap::Subcommand, Debug)]
 pub enum Command {

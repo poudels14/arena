@@ -1633,6 +1633,7 @@ name = "dagger"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "aws-region",
  "chrono",
  "clap",
  "cloud",
@@ -1642,6 +1643,7 @@ dependencies = [
  "indexmap 1.9.3",
  "log",
  "runtime",
+ "rust-s3",
  "serde",
  "serde_json",
  "tokio",

@@ -96,7 +96,6 @@ pub(crate) async fn op_cloud_s3_create_bucket(
   #[serde] request: CreateBucketRequest,
 ) -> Result<serde_json::Value> {
   let client = state.borrow().resource_table.get::<S3Client>(id)?;
-  println!("client = {:#?}", client);
   let config = match request.public.unwrap_or(false) {
     true => BucketConfiguration::public(),
     false => BucketConfiguration::private(),

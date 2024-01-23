@@ -3,9 +3,7 @@ use std::rc::Rc;
 
 use anyhow::Result;
 use cloud::CloudExtensionProvider;
-use runtime::buildtools::{
-  transpiler::BabelTranspiler, FileModuleLoader, FilePathResolver,
-};
+use runtime::buildtools::{transpiler::BabelTranspiler, FileModuleLoader};
 use runtime::config::{ArenaConfig, RuntimeConfig};
 use runtime::extensions::server::HttpServerConfig;
 use runtime::extensions::{
@@ -14,6 +12,7 @@ use runtime::extensions::{
 use runtime::permissions::{
   FileSystemPermissions, NetPermissions, PermissionsContainer, TimerPermissions,
 };
+use runtime::resolver::FilePathResolver;
 use runtime::{IsolatedRuntime, RuntimeOptions};
 use url::Url;
 

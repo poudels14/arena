@@ -4,9 +4,8 @@ use std::rc::Rc;
 use anyhow::{bail, Result};
 use clap::Parser;
 use cloud::CloudExtensionProvider;
-use runtime::buildtools::{
-  transpiler::BabelTranspiler, FileModuleLoader, FilePathResolver,
-};
+use common::required_env;
+use runtime::buildtools::{transpiler::BabelTranspiler, FileModuleLoader};
 use runtime::config::{ArenaConfig, RuntimeConfig};
 use runtime::deno::core::resolve_url_or_path;
 use runtime::extensions::server::HttpServerConfig;
@@ -16,14 +15,15 @@ use runtime::extensions::{
 use runtime::permissions::{
   FileSystemPermissions, NetPermissions, PermissionsContainer,
 };
+use runtime::resolver::FilePathResolver;
 use runtime::{IsolatedRuntime, RuntimeOptions};
+use s3::creds::Credentials;
 use url::Url;
+
+use super::s3loader::{S3ModuleLoaderOptions, S3ModulerLoader};
 
 #[derive(Parser, Debug)]
 pub struct Command {
-  /// A server entry file with request handler as default export
-  pub entry: String,
-
   /// Server host; default
   #[arg(long, default_value_t = String::from("0.0.0.0"))]
   pub host: String,
@@ -40,6 +40,17 @@ pub struct Command {
   #[arg(long)]
   enable_cloud_ext: bool,
 
+  /// Load main module from the given S3 bucket
+  /// The following env variables must be set
+  ///   - S3_ENDPOINT
+  ///   - S3_ACCESS_KEY
+  ///   - S3_SECRET_KEY
+  #[arg(long)]
+  s3bucket: Option<String>,
+
+  /// A server entry file with request handler as default export
+  pub entry: String,
+
   /// Directory to serve static files from
   #[arg(long)]
   pub static_dir: Option<String>,
@@ -48,8 +59,9 @@ pub struct Command {
 impl Command {
   #[tracing::instrument(skip_all)]
   pub async fn execute(&self) -> Result<()> {
-    let project_root = ArenaConfig::find_project_root()?;
-    let arena_config = ArenaConfig::load(&project_root)?;
+    let project_root = ArenaConfig::find_project_root()
+      .unwrap_or_else(|_| std::env::current_dir().unwrap());
+    let arena_config = ArenaConfig::load(&project_root).unwrap_or_default();
 
     let mut builtin_modules = vec![
       BuiltinModule::Env,
@@ -107,17 +119,42 @@ impl Command {
       },
       enable_console: true,
       enable_arena_global: self.enable_cloud_ext,
-      module_loader: Some(Rc::new(FileModuleLoader::new(
-        Rc::new(FilePathResolver::new(
-          project_root.clone(),
-          arena_config
-            .server
-            .javascript
-            .and_then(|j| j.resolve)
-            .unwrap_or_default(),
-        )),
-        Some(Rc::new(BabelTranspiler::new(resolver_config).await)),
-      ))),
+      module_loader: if let Some(bucket) = &self.s3bucket {
+        let endpoint = required_env!("S3_ENDPOINT");
+        let access_key = required_env!("S3_ACCESS_KEY");
+        let access_secret = required_env!("S3_ACCESS_SECRET");
+        Some(Rc::new(S3ModulerLoader::new(
+          self.entry.clone(),
+          S3ModuleLoaderOptions {
+            with_path_style: true,
+            bucket: bucket.to_owned(),
+            endpoint,
+            credentials: Credentials {
+              access_key: Some(access_key),
+              secret_key: Some(access_secret),
+              security_token: None,
+              session_token: None,
+              expiration: None,
+            },
+          },
+        )))
+      } else {
+        Some(Rc::new(FileModuleLoader::new(
+          Rc::new(FilePathResolver::new(
+            project_root.clone(),
+            arena_config
+              .server
+              .javascript
+              .and_then(|j| j.resolve)
+              .unwrap_or_default(),
+          )),
+          if self.transpile {
+            Some(Rc::new(BabelTranspiler::new(resolver_config).await))
+          } else {
+            None
+          },
+        )))
+      },
       builtin_extensions,
       permissions: PermissionsContainer {
         fs: Some(FileSystemPermissions::allow_all(project_root.clone())),
@@ -127,7 +164,13 @@ impl Command {
       ..Default::default()
     })?;
 
-    let entry_file = resolve_url_or_path(&self.entry, &project_root)?;
+    // resolve entry file path if the entry file isn't being loaded from s3
+    let entry_file = if self.s3bucket.is_none() {
+      resolve_url_or_path(&self.entry, &project_root)?.to_string()
+    } else {
+      self.entry.clone()
+    };
+
     runtime
       .execute_main_module_code(
         &Url::parse("file:///main").unwrap(),

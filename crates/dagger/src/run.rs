@@ -4,14 +4,13 @@ use anyhow::{bail, Result};
 use clap::Parser;
 use cloud::CloudExtensionProvider;
 use runtime::buildtools::transpiler::ModuleTranspiler;
-use runtime::buildtools::{
-  transpiler::BabelTranspiler, FileModuleLoader, FilePathResolver,
-};
+use runtime::buildtools::{transpiler::BabelTranspiler, FileModuleLoader};
 use runtime::config::{ArenaConfig, RuntimeConfig};
 use runtime::extensions::{BuiltinExtensionProvider, BuiltinModule};
 use runtime::permissions::{
   FileSystemPermissions, NetPermissions, PermissionsContainer, TimerPermissions,
 };
+use runtime::resolver::FilePathResolver;
 use runtime::{IsolatedRuntime, RuntimeOptions};
 use url::Url;
 
