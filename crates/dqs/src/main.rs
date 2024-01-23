@@ -1,5 +1,4 @@
 use std::env;
-use std::path::Path;
 use std::str::FromStr;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
@@ -29,9 +28,6 @@ use cluster::{DqsCluster, DqsClusterOptions};
 #[derive(Parser, Debug)]
 #[command(version)]
 struct Args {
-  /// The base dir where data like apps database should be temporarily mounted
-  #[arg(long)]
-  data_dir: String,
   /// The IP address that DQS should use for outgoing network requests
   /// from DQS JS runtime
   #[arg(long)]
@@ -80,16 +76,10 @@ fn main() -> Result<()> {
   let _ = required_env!("DATABASE_URL");
   let _ = required_env!("JWT_SIGNING_SECRET");
 
-  let data_dir = Path::new(&args.data_dir).to_path_buf().canonicalize()?;
-  if !data_dir.is_dir() {
-    panic!("data_dir should be a valid directory")
-  }
-
   let dqs_cluster = DqsCluster::new(DqsClusterOptions {
     address: host,
     port,
     dqs_egress_addr,
-    data_dir,
     registry: Registry {
       host: registry_host,
       api_key: registry_api_key,

@@ -6,7 +6,6 @@ use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
 use std::net::IpAddr;
-use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{watch, Mutex};
 use uuid::Uuid;
@@ -31,8 +30,6 @@ pub struct DqsClusterOptions {
   /// The IP address that DQS should use for outgoing network requests
   /// from DQS JS runtime
   pub dqs_egress_addr: Option<IpAddr>,
-  /// The base dir where data like apps database should be temporarily mounted
-  pub data_dir: PathBuf,
   /// Registry to be used to fetch bundled JS from
   pub registry: Registry,
 }
@@ -41,7 +38,6 @@ pub struct DqsClusterOptions {
 pub struct DqsCluster {
   pub options: DqsClusterOptions,
   pub node_id: String,
-  pub data_dir: PathBuf,
   /// DqsServerStatus by server id
   pub servers: Arc<DashMap<String, DqsServerStatus>>,
   /// It seems like there's a race condition occationally that causes
@@ -55,15 +51,10 @@ pub struct DqsCluster {
 
 impl DqsCluster {
   pub fn new(options: DqsClusterOptions) -> Result<Self> {
-    if !options.data_dir.is_absolute() {
-      bail!("options.data_dir should be an absolute path");
-    }
-
     let db_pool = db::create_connection_pool()?;
     Ok(Self {
       options: options.clone(),
       node_id: Uuid::new_v4().to_string(),
-      data_dir: options.data_dir,
       servers: Arc::new(DashMap::with_shard_amount(32)),
       spawn_lock: Arc::new(Mutex::new(0)),
       exchanges: Arc::new(DashMap::with_shard_amount(32)),
