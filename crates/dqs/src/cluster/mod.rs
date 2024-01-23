@@ -131,7 +131,7 @@ impl DqsCluster {
     }
   }
 
-  #[tracing::instrument(skip_all, level = "debug")]
+  #[tracing::instrument(skip_all, level = "trace")]
   pub async fn get_or_spawn_dqs_server(
     &self,
     options: DqsServerOptions,

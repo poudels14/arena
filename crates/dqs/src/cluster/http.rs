@@ -209,7 +209,7 @@ pub async fn handle_app_routes(
   pipe_app_request(cluster, app_id, path, search_params, req).await
 }
 
-#[tracing::instrument(skip_all, err, level = "debug")]
+#[tracing::instrument(skip_all, err, level = "trace")]
 pub async fn pipe_app_request(
   cluster: DqsCluster,
   app_id: String,
@@ -267,7 +267,7 @@ pub async fn pipe_app_request(
   res.into_response().await
 }
 
-#[tracing::instrument(skip_all, err, level = "debug")]
+#[tracing::instrument(skip_all, err, level = "trace")]
 pub async fn pipe_widget_query_request(
   cluster: &DqsCluster,
   trigger: &str, // "QUERY" | "MUTATION"
