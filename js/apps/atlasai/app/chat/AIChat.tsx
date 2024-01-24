@@ -16,7 +16,7 @@ import cleanSet from "clean-set";
 import dlv from "dlv";
 import deepEqual from "fast-deep-equal/es6";
 import hljs from "highlight.js/lib/core";
-import "highlight.js/styles/atom-one-dark";
+import "highlight.js/styles/atom-one-dark.css";
 import jsGrammar from "highlight.js/lib/languages/javascript";
 import cssGrammar from "highlight.js/lib/languages/css";
 import xmlGrammar from "highlight.js/lib/languages/xml";
@@ -106,6 +106,7 @@ const AIChat = () => {
 
   const threadTaskExecutionsById = createMemo(() => {
     const activeThreadId = state.activeThreadId();
+    if (!activeThreadId) return;
     // reload tasks if the ids change
     void threadTaskCallIds();
     const route = createQuery<Chat.TaskExecution[]>(

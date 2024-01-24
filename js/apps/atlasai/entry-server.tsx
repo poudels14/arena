@@ -11,11 +11,11 @@ import { env } from "./api/env";
 import { createRepo } from "./api/repo";
 
 const dbpool = new Pool({
-  host: env.DATABASE_HOST,
-  port: env.DATABASE_PORT,
-  database: env.DATABASE_NAME,
-  user: env.DATABASE_USER,
-  password: env.DATABASE_PASSWORD,
+  host: env.PORTAL_DATABASE_HOST,
+  port: env.PORTAL_DATABASE_PORT,
+  database: env.PORTAL_DATABASE_NAME,
+  user: env.PORTAL_DATABASE_USER,
+  password: env.PORTAL_DATABASE_PASSWORD,
 });
 
 const handler = chainMiddlewares<{ event: PageEvent }>(async ({ event }) => {
@@ -26,6 +26,7 @@ const handler = chainMiddlewares<{ event: PageEvent }>(async ({ event }) => {
       context: {
         dbpool,
         repo,
+        embeddingsModel: null!,
         // TODO
         // user: {
         //   id: "test-user",
@@ -43,3 +44,5 @@ const http = createHandler(async (event) => await handler({ event }));
 export default {
   fetch: http.fetch,
 };
+
+export { default as migrations } from "./migrations";

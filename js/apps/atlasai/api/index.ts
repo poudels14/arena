@@ -3,6 +3,7 @@ import * as chat from "./chat";
 
 const router = createRouter({
   prefix: "/api/",
+  ignoreTrailingSlash: true,
   async middleware({ ctx, next }) {
     try {
       return await next({ ctx });
@@ -12,13 +13,13 @@ const router = createRouter({
     }
   },
   routes: {
-    "/chat/threads": chat.listThreads,
+    "/chat/threads/": chat.listThreads,
     "/chat/threads/:threadId": chat.getThread,
     "/chat/threads/:threadId/delete": chat.deleteThread,
     "/chat/threads/:threadId/messages/:id": chat.deleteMessage,
     "/chat/threads/:threadId/send": chat.sendMessage,
-    "/chat/threads/:threadId/tasks": chat.listActiveTasks,
-    "/chat/tasks": chat.listActiveTasks,
+    "/chat/threads/:threadId/tasks/": chat.listActiveTasks,
+    "/chat/tasks/": chat.listActiveTasks,
     // "/documents": documents.listDocuments,
     // "/documents/:documentId": documents.getDocument,
     // "/documents/:documentId/edit": documents.updateDocument,
