@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      volumes:
+        - name: minio-volume
+          persistentVolumeClaim:
+            claimName: minio-pvc
+      containers:
+        - name: minio
+          image: minio
+          command:
+            - /bin/bash
+            - -c
+          args:
+            - minio server /data --address :8001 --console-address :10001
+          ports:
+            - containerPort: 8001
+            - containerPort: 10001
+          volumeMounts:
+            - mountPath: /var/lib/minioql/data
+              name: minio-volume

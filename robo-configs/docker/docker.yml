@@ -1,0 +1,6 @@
+build:
+  summary: Create a new database migration schema
+  exec: robo --config {{ .robo.path }}/build.yml
+
+variables:
+  dir: $(echo $ARENA_ROOT/schemas)

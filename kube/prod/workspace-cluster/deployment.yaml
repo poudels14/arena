@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workspace-cluster
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: workspace-cluster
+  template:
+    metadata:
+      labels:
+        app: workspace-cluster
+    spec:
+      containers:
+        - name: workspace-cluster
+          image: workspace-cluster
+          imagePullPolicy: Always
+          command:
+          - /bin/bash
+          - -c
+          args: 
+          - /bin/dagger server serve --port 9000 --enable-cloud-ext --s3bucket registry apps/workspace-cluster/0.1.0/server/index.js
+          ports:
+            - containerPort: 9000
+          envFrom:
+            - secretRef:
+                name: workspace-cluster-env-secrets

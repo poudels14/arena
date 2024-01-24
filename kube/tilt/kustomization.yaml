@@ -3,10 +3,16 @@ kind: Kustomization
 namePrefix: tilt-arena-
 bases:
   - ./postgres
+  - ./minio
+  - ../prod/arenasql-cluster
+  - ../prod/app-cluster
+  - ../prod/workspace-cluster
 commonLabels:
   group: core-services
 resources:
-  - pvc.yaml
+  - arenasql-pvc.yaml
+  - postgres-pvc.yaml
+  - minio-pvc.yaml
 secretGenerator:
   - name: postgres-secrets
     envs:
@@ -15,3 +21,6 @@ images:
   - name: postgres
     newName: postgres
     newTag: "15"
+  - name: minio
+    newName: quay.io/minio/minio
+    newTag: latest

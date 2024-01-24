@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-cluster
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-cluster
+  template:
+    metadata:
+      labels:
+        app: app-cluster
+    spec:
+      containers:
+        - name: app-cluster
+          image: app-cluster
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 9000
+          envFrom:
+            - secretRef:
+                name: app-cluster-env-secrets

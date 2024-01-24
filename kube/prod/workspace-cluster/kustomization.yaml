@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - service.yaml
+  - deployment.yaml
+commonLabels:
+  app: workspace-cluster
+  version: "1.0"
+secretGenerator:
+  - name: workspace-cluster-env-secrets
+    envs:
+      - secrets/workspace-cluster.env
+images:
+  - name: workspace-cluster
+    newName: workspace-cluster

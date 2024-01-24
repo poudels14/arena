@@ -1,0 +1,15 @@
+arenasql-cluster:
+  summary: Build docker image for arenasql-cluster
+  exec: docker build -f {{ .prod }}/arenasql-cluster/Dockerfile -t arenasql-cluster {{ .crates_release }}
+
+app-cluster:
+  summary: Build docker image for app-cluster
+  exec: docker build -f {{ .prod }}/app-cluster/Dockerfile -t app-cluster {{ .crates_release }}
+
+workspace-cluster:
+  summary: Build docker image for workspace-cluster
+  exec: docker build -f {{ .prod }}/workspace-cluster/Dockerfile -t workspace-cluster {{ .crates_release }}
+
+variables:
+  prod: $(echo $ARENA_ROOT/)/kube/prod
+  crates_release: $(echo $ARENA_ROOT/)/crates/target/release
