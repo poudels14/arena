@@ -6,7 +6,7 @@ import { procedure, router as trpcRouter } from "./trpc";
 import { appsRouter } from "./routes/apps";
 import { widgetsRouter } from "./routes/widgets";
 import { resourcesRouter } from "./routes/resources";
-import { accountRouter } from "./routes/account";
+import { accountRouter } from "../../../../workspace-cluster/api/account";
 import { pluginsRouter } from "./routes/plugins";
 import { workflowsRouter } from "./routes/workflows";
 

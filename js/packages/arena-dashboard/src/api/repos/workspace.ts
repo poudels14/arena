@@ -1,20 +1,15 @@
-import {
-  and,
-  drizzle,
-  eq,
-  isNull,
-  pgTable,
-  timestamp,
-  varchar,
-} from "@arena/db/pg";
+import { and, eq, isNull } from "drizzle-orm";
+import { json, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
+import { drizzle } from "drizzle-orm/postgres-js";
 import { uniqueId } from "@arena/sdk/utils/uniqueId";
-import { pick } from "lodash-es";
+import { merge, pick } from "lodash-es";
 import { Context } from "./context";
 import { WorkspaceAccessType } from "../auth/acl";
 
 const workspaces = pgTable("workspaces", {
   id: varchar("id").notNull(),
   name: varchar("name").notNull(),
+  config: json("config"),
   createdAt: timestamp("created_at").defaultNow(),
   archivedAt: timestamp("archived_at"),
 });
@@ -30,12 +25,40 @@ const workspaceMembers = pgTable("workspace_members", {
 type Workspace = {
   id: string;
   name: string;
+  config: {
+    runtime: any;
+    databaseHost: string;
+  };
   access: WorkspaceAccessType;
 };
 
 const createRepo = (ctx: Context) => {
-  const db = drizzle(ctx.client);
+  const db = drizzle(ctx.client, { schema: {} });
   return {
+    async getWorkspaceById(id: string): Promise<Required<Workspace> | null> {
+      const rows = await db
+        .with()
+        .select({
+          id: workspaces.id,
+          name: workspaces.name,
+          config: workspaces.config,
+          access: workspaceMembers.access,
+        })
+        .from(workspaces)
+        .leftJoin(
+          workspaceMembers,
+          eq(workspaceMembers.workspaceId, workspaces.id)
+        )
+        .where(
+          and(
+            eq(workspaces.id, id),
+            isNull(workspaceMembers.archivedAt),
+            isNull(workspaces.archivedAt)
+          )
+        );
+
+      return (rows[0] as Workspace) || null;
+    },
     async listWorkspaces(filter: {
       userId: string;
     }): Promise<Required<Workspace>[]> {
@@ -78,7 +101,7 @@ const createRepo = (ctx: Context) => {
       });
 
       return {
-        ...pick(workspace, "id", "name"),
+        ...(pick(workspace, "id", "name", "config") as Workspace),
         access: "owner",
       };
     },

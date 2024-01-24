@@ -10,7 +10,7 @@ import {
   text,
   timestamp,
   varchar,
-} from "@arena/db/pg";
+} from "./drizzle";
 import { Context } from "./context";
 import { merge } from "lodash-es";
 

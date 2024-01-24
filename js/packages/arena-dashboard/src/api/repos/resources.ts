@@ -11,7 +11,7 @@ import {
   and,
   isNull,
   sql,
-} from "@arena/db/pg";
+} from "./drizzle";
 import { isUndefined, merge } from "lodash-es";
 import { Context } from "./context";
 

@@ -1,4 +1,4 @@
-import { drizzle, jsonb, pgTable, timestamp, varchar } from "@arena/db/pg";
+import { drizzle, jsonb, pgTable, timestamp, varchar } from "./drizzle";
 import { Status } from "@arena/sdk/plugins/workflow";
 import { Context } from "./context";
 

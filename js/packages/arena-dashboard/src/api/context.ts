@@ -52,7 +52,7 @@ const parseUserIdFromCookies = (req: Request) => {
       const { payload } = jwt.verify(
         cookies.user,
         "HS256",
-        process.env.JWT_SIGNINIG_SECRET
+        process.env.JWT_SIGNING_SECRET
       );
       return payload.user.id;
     } catch (_) {

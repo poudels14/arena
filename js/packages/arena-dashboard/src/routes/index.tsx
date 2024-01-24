@@ -5,6 +5,9 @@ import { DashboardContextProvider } from "~/context";
 
 const App = lazy(() => import("./apps/App.tsx"));
 const Dashboard = lazy(() => import("./dashboard.tsx"));
+const Assistant = lazy(
+  () => import("../../../arena-workspace/src/app/index.tsx")
+);
 const Waitlisted = lazy(() => import("./waitlist.tsx"));
 
 const Routes = (props: { user: any }) => {
@@ -31,6 +34,7 @@ const Routes = (props: { user: any }) => {
   return (
     <DashboardContextProvider workspace={workspace()} user={props.user}>
       <SolidRoutes>
+        <Route path="/assistant/*" component={Assistant} />
         <Route
           path="/apps/:id"
           matchFilters={{

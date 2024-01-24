@@ -25,7 +25,7 @@ const workflowsRouter = createRouter<any>({
         const { payload } = jwt.verify(
           req.headers.get("x-arena-authorization") || "",
           "HS256",
-          process.env.JWT_SIGNINIG_SECRET
+          process.env.JWT_SIGNING_SECRET
         );
         triggeredBy = payload;
       } catch (e) {

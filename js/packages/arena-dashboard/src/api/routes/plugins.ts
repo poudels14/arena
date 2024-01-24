@@ -1,7 +1,6 @@
 import { createRouter, procedure } from "@arena/runtime/server";
 import { Context } from "../context";
-
-const PLUGINS = [];
+import { PLUGINS } from "@arena/builtins/plugins";
 
 const p = procedure<Context>();
 const pluginsRouter = createRouter<any>({

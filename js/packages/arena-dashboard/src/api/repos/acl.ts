@@ -7,7 +7,7 @@ import {
   pgTable,
   timestamp,
   varchar,
-} from "@arena/db/pg";
+} from "./drizzle";
 import { Context } from "./context";
 import { AccessType } from "../auth";
 import { uniqueId } from "@arena/sdk/utils/uniqueId";

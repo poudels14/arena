@@ -9,7 +9,6 @@
     "jsx": "preserve",
     "allowImportingTsExtensions": true,
     "strict": true,
-    "types": ["@arena/runtime"],
     "paths": {
       "~/*": ["./src/*"]
     }
