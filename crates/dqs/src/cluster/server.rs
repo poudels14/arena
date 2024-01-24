@@ -33,6 +33,8 @@ use crate::runtime::{deno::RuntimeOptions, ServerEvents};
 #[derive(Debug, Clone)]
 pub struct DqsServerOptions {
   pub id: String,
+  /// App version or any other version
+  pub version: String,
   pub workspace_id: String,
   pub root: Option<PathBuf>,
   pub module: MainModule,

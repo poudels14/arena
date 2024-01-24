@@ -20,6 +20,7 @@ use crate::db::deployment::app_deployments;
 use crate::db::nodes::app_clusters;
 use crate::loaders::registry::Registry;
 use crate::runtime::server::ServerEvents;
+use crate::runtime::Command;
 
 #[derive(Clone)]
 pub struct DqsClusterOptions {
@@ -136,56 +137,67 @@ impl DqsCluster {
     // for the first request to spin up the DQS server.
     // try 3 times :shrug:
     let status = self.get_server_by_id(&id).await?;
-    if let Some(DqsServerStatus::Ready(s)) = status {
-      return Ok(s);
+    if let Some(DqsServerStatus::Ready(server)) = status {
+      if options.version == server.options.version {
+        return Ok(server);
+      }
+
+      // if the version of the server doesn't match, terminate old version
+      // and start with the new version
+      let _ = server.commands_channel.send(Command::Terminate).await;
     } else if let Some(DqsServerStatus::Starting(lock)) = status {
       let _l = lock.lock().await;
-    } else {
-      let _l = self.spawn_lock.lock().await;
-
-      // It's possible for two requests to get here at the same time
-      // So, check if the server status has been added to the map before
-      // doing do
-      if !self.servers.contains_key(&id) {
-        let lock = Arc::new(Mutex::new(false));
-        let mut l = lock.lock().await;
-
-        self
-          .servers
-          .insert(id.clone(), DqsServerStatus::Starting(lock.clone()));
-
-        let cluster = self.clone();
-        let result = async move {
-          let (dqs_server, server_events) =
-            cluster.spawn_dqs_server(options).await?;
-
-          dqs_server.healthy().await?;
-          dqs_server
-            .update_server_deployment(&cluster.node_id)
-            .await?;
-
-          cluster.track_dqs_server(dqs_server, server_events).await;
-
-          Ok::<(), anyhow::Error>(())
-        }
-        .await;
-
-        *l = true;
-        drop(l);
-
-        match result {
-          Ok(_) => {}
-          Err(e) => {
-            self.servers.remove(&id);
-            return Err(e.into());
-          }
-        }
+      if let Some(DqsServerStatus::Ready(s)) =
+        self.get_server_by_id(&id).await?
+      {
+        return Ok(s);
       }
     }
 
-    let status = self.get_server_by_id(&id).await?;
-    if let Some(DqsServerStatus::Ready(s)) = status {
-      return Ok(s);
+    let _l = self.spawn_lock.lock().await;
+    // It's possible for two requests to get here at the same time
+    // So, check if the server status has been added to the map before
+    // doing do
+    if !self.servers.contains_key(&id) {
+      let lock = Arc::new(Mutex::new(false));
+      let mut l = lock.lock().await;
+
+      self
+        .servers
+        .insert(id.clone(), DqsServerStatus::Starting(lock.clone()));
+
+      let cluster = self.clone();
+      let result = async move {
+        let (dqs_server, server_events) =
+          cluster.spawn_dqs_server(options).await?;
+
+        dqs_server.healthy().await?;
+        dqs_server
+          .update_server_deployment(&cluster.node_id)
+          .await?;
+
+        cluster.track_dqs_server(dqs_server, server_events).await;
+
+        Ok::<(), anyhow::Error>(())
+      }
+      .await;
+
+      *l = true;
+      drop(l);
+
+      match result {
+        Ok(_) => {
+          if let Some(DqsServerStatus::Ready(s)) =
+            self.get_server_by_id(&id).await?
+          {
+            return Ok(s);
+          }
+        }
+        Err(e) => {
+          self.servers.remove(&id);
+          return Err(e.into());
+        }
+      }
     }
     // Note(sagar): if the read lock is acquired and the server isn't ready,
     // it means there was error starting the server

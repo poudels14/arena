@@ -223,6 +223,7 @@ pub async fn pipe_app_request(
   let dqs_server = cluster
     .get_or_spawn_dqs_server(DqsServerOptions {
       id: format!("app/{}", app_id),
+      version: app.template.version.clone(),
       workspace_id: app.workspace_id.clone(),
       root: None,
       module: MainModule::App { app },
@@ -316,6 +317,7 @@ pub async fn pipe_widget_query_request(
   let dqs_server = cluster
     .get_or_spawn_dqs_server(DqsServerOptions {
       id: format!("workspace/{}", workspace_id),
+      version: app.template.version.clone(),
       workspace_id,
       root: None,
       module: MainModule::WidgetQuery,
@@ -400,7 +402,8 @@ pub async fn pipe_plugin_workflow_request(
 
   let (dqs_server, _) = cluster
     .spawn_dqs_server(DqsServerOptions {
-      id: format!("workflow/{}", workflow_id,),
+      id: format!("workflow/{}", workflow_id),
+      version: "0.0.0".to_owned(),
       workspace_id: wf_run.workspace_id,
       root: None,
       module,
