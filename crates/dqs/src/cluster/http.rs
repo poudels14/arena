@@ -495,6 +495,7 @@ async fn authenticate_user(
   req: &Request<Body>,
 ) -> Result<(Identity, App), errors::Error> {
   let identity = parse_identity_from_header(req).unwrap_or(Identity::Unknown);
+  tracing::trace!("identity = {:?}", identity);
 
   let app = cluster
     .cache
@@ -511,6 +512,7 @@ async fn authenticate_user(
     .get_workspace_acls(&app.workspace_id)
     .await
     .unwrap_or_default();
+  tracing::trace!("acls = {:?}", acls);
 
   let has_access = cloud::acl::has_entity_access(
     &acls,
@@ -525,8 +527,7 @@ async fn authenticate_user(
   .map_err(|_| errors::Error::NotFound)?;
 
   if !has_access {
-    // TODO
-    // return Err(errors::Error::NotFound);
+    return Err(errors::Error::NotFound);
   }
   Ok((identity, app))
 }
@@ -553,7 +554,7 @@ fn parse_identity_from_header(req: &Request<Body>) -> Result<Identity> {
   let token = cookies.get("user").map(|v| v.as_str()).or_else(|| {
     req
       .headers()
-      .get("x-arena-authorization")
+      .get("x-portal-authentication")
       .and_then(|c| c.to_str().ok())
   });
 
