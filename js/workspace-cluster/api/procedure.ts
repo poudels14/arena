@@ -35,38 +35,38 @@ const protectedProcedure = p.use(async ({ ctx, next, errors }) => {
   });
 });
 
-const parseUserFromHeaders = p.use(
-  async ({ req, ctx, next, cookies, errors }) => {
-    if (process.env.DISABLE_AUTH == "true") {
-      return await next({
-        ctx: {
-          ...ctx,
-          user: {
-            id: "test-user-dev",
-            email: "test-user@test.com",
-          },
+const parseUserFromHeaders = p.use(async ({ req, ctx, next, cookies }) => {
+  if (process.env.DISABLE_AUTH == "true") {
+    return await next({
+      ctx: {
+        ...ctx,
+        user: {
+          id: "test-user-dev",
+          email: "test-user@test.com",
         },
-      });
-    }
-
-    try {
-      const { payload } = jwt.verify<{ user: { id: string; email: string } }>(
-        cookies.user || req.headers.get("x-portal-authentication") || "",
-        "HS256",
-        ctx.env.JWT_SIGNING_SECRET
-      );
-      const user = await ctx.repo.users.fetchById(payload.user.id);
-      if (user) {
-        return await next({
-          ctx: {
-            ...ctx,
-            user,
-          },
-        });
-      }
-    } catch (e) {}
+      },
+    });
   }
-);
+
+  let user = null;
+  try {
+    const { payload } = jwt.verify<{ user: { id: string; email: string } }>(
+      cookies.user || req.headers.get("x-portal-authentication") || "",
+      "HS256",
+      ctx.env.JWT_SIGNING_SECRET
+    );
+    user = await ctx.repo.users.fetchById(payload.user.id);
+  } catch (e) {
+    // Ignore error if user info can't be parsed from the header
+  }
+
+  return await next({
+    ctx: {
+      ...ctx,
+      user,
+    },
+  });
+});
 
 const authenticate = parseUserFromHeaders.use(async ({ ctx, next, errors }) => {
   if (!ctx.user?.email) {

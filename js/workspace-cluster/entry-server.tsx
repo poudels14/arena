@@ -5,7 +5,6 @@ import {
   createHandler,
 } from "@portal/server-core";
 import { ServerRoot, renderToStringAsync } from "@portal/solidjs/server";
-// import { createDefaultFileRouter } from "@portal/server-dev/solidjs";
 import { Client as S3Client } from "@arena/cloud/s3";
 import Root from "@portal/workspace/app/root";
 
@@ -21,48 +20,7 @@ const dbpool = new Pool({
   password: env.DATABASE_PASSWORD || "",
 });
 
-// let fileRouter: any;
-// fileRouter = await createDefaultFileRouter({
-//   baseDir: process.cwd(),
-//   env: {
-//     NODE_ENV: "development",
-//     SSR: "false",
-//     PORTAL_SSR: "false",
-//     PORTAL_ENTRY_CLIENT: "./entry-client.tsx",
-//   },
-//   babel: {},
-//   resolverConfig: {
-//     preserveSymlink: true,
-//     alias: {
-//       "~": "./app",
-//     },
-//     conditions: ["solid", "browser"],
-//     dedupe: [
-//       "solid-js",
-//       "@solidjs/router",
-//       "@solidjs/meta",
-//       "@arena/core",
-//       "@portal/solid-store",
-//       "@portal/solid-router",
-//       "@portal/solid-query",
-//       "@portal/solidjs",
-//     ],
-//   },
-//   transpilerConfig: {
-//     resolveImports: true,
-//   },
-// });
-
 const handler = chainMiddlewares<{ event: PageEvent }>(
-  // async ({ event }) => {
-  //   if (process.env.NODE_ENV == "development") {
-  //     const res = await fileRouter.route(event.request);
-  //     console.log("filerouter res =", res);
-  //     if (res && res.status != 404) {
-  //       return res;
-  //     }
-  //   }
-  // },
   async ({ event }) => {
     const repo = await createRepo({ pool: dbpool });
     try {
@@ -89,8 +47,17 @@ const handler = chainMiddlewares<{ event: PageEvent }>(
           }),
         },
       });
+
+      // If the status code is 404 and the path isn't related to API or
+      // registry, return undefined such that HTML renderer handles the
+      // request
       if (result?.status == 404) {
-        return;
+        const url = new URL(event.request.url);
+        if (
+          !url.pathname.startsWith("/api") &&
+          !url.pathname.startsWith("/registry")
+        )
+          return;
       }
       return result;
     } catch (e) {
