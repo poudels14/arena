@@ -34,6 +34,7 @@ pub struct RuntimeOptions {
   /// Runtime id
   pub id: String,
   pub db_pool: Option<Pool<ConnectionManager<PgConnection>>>,
+  pub v8_platform: v8::SharedRef<v8::Platform>,
   pub server_config: HttpServerConfig,
   pub exchange: Option<Exchange>,
   pub permissions: PermissionsContainer,
@@ -111,6 +112,7 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
 
   let mut runtime = JsRuntime::new(deno_core::RuntimeOptions {
     startup_snapshot: Some(Snapshot::Static(WORKSPACE_DQS_SNAPSHOT)),
+    v8_platform: Some(config.v8_platform),
     create_params,
     module_loader: Some(Rc::new(AppkitModuleLoader {
       workspace_id: config.state.workspace_id,

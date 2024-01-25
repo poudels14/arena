@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
 use common::beam;
-use deno_core::v8::IsolateHandle;
 use deno_core::{JsRuntime, ModuleCode, ModuleSpecifier};
 use serde_json::Value;
 use tokio::sync::{oneshot, watch};
@@ -13,7 +12,7 @@ use super::deno::{self, RuntimeOptions};
 #[derive(Debug, Clone)]
 pub enum ServerEvents {
   Init,
-  Started(IsolateHandle, beam::Sender<Command, Value>),
+  Started(beam::Sender<Command, Value>),
   Terminated(Arc<Result<String>>),
 }
 
@@ -46,13 +45,12 @@ pub(crate) fn start(
 
   let local = tokio::task::LocalSet::new();
   let r = local.block_on(&rt, async {
-    let mut runtime = deno::new(config.clone()).await?;
+    let runtime = deno::new(config.clone()).await?;
     let (sender, receiver) = beam::channel(10);
     let (terminate_tx, terminate_rx) = oneshot::channel::<()>();
 
     events_tx
       .send(ServerEvents::Started(
-        runtime.v8_isolate().thread_safe_handle(),
         sender,
       ))?;
     local

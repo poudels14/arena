@@ -2,6 +2,7 @@ use anyhow::{anyhow, bail, Result};
 use cloud::pubsub::exchange::Exchange;
 use colored::Colorize;
 use dashmap::DashMap;
+use deno_core::v8;
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
@@ -41,6 +42,7 @@ pub struct DqsCluster {
   pub node_id: String,
   /// DqsServerStatus by server id
   pub servers: Arc<DashMap<String, DqsServerStatus>>,
+  v8_platform: v8::SharedRef<v8::Platform>,
   /// It seems like there's a race condition occationally that causes
   /// two instances of DQS server gets started for same app. So, use a
   /// global lock to make sure only one DQS server is spawned at a time
@@ -53,9 +55,11 @@ pub struct DqsCluster {
 impl DqsCluster {
   pub fn new(options: DqsClusterOptions) -> Result<Self> {
     let db_pool = db::create_connection_pool()?;
+    let v8_platform = v8::new_default_platform(0, false).make_shared();
     Ok(Self {
       options: options.clone(),
       node_id: Uuid::new_v4().to_string(),
+      v8_platform,
       servers: Arc::new(DashMap::with_shard_amount(32)),
       spawn_lock: Arc::new(Mutex::new(0)),
       exchanges: Arc::new(DashMap::with_shard_amount(32)),
@@ -77,8 +81,12 @@ impl DqsCluster {
       .unwrap_or("None".to_owned());
 
     let exchange = self.get_exchange(&options.workspace_id).await?;
-    let (dqs_server, server_events) =
-      DqsServer::spawn(options.clone(), Some(exchange)).await?;
+    let (dqs_server, server_events) = DqsServer::spawn(
+      self.v8_platform.clone(),
+      options.clone(),
+      Some(exchange),
+    )
+    .await?;
 
     println!(
       "{}",

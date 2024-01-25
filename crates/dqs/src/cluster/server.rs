@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::SystemTime;
@@ -10,9 +11,11 @@ use std::time::SystemTime;
 use anyhow::{anyhow, bail, Result};
 use cloud::pubsub::exchange::Exchange;
 use common::beam;
+use deno_core::v8;
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
+use once_cell::sync::Lazy;
 use runtime::env::EnvironmentVariableStore;
 use runtime::extensions::server::response::ParsedHttpResponse;
 use runtime::extensions::server::{HttpRequest, HttpServerConfig};
@@ -29,6 +32,9 @@ use crate::loaders::registry::Registry;
 use crate::loaders::RegistryTemplateLoader;
 use crate::runtime::Command;
 use crate::runtime::{deno::RuntimeOptions, ServerEvents};
+
+static RUNTIME_COUNTER: Lazy<Arc<AtomicUsize>> =
+  Lazy::new(|| Arc::new(AtomicUsize::new(1)));
 
 #[derive(Debug, Clone)]
 pub struct DqsServerOptions {
@@ -64,6 +70,7 @@ pub struct DqsServer {
 impl DqsServer {
   #[tracing::instrument(skip_all, level = "trace")]
   pub async fn spawn(
+    v8_platform: v8::SharedRef<v8::Platform>,
     options: DqsServerOptions,
     exchange: Option<Exchange>,
   ) -> Result<(DqsServer, watch::Receiver<ServerEvents>)> {
@@ -75,7 +82,11 @@ impl DqsServer {
       ..Default::default()
     };
 
-    let thread = thread::Builder::new().name(format!("dqs-[{}]", options.id));
+    let thread = thread::Builder::new().name(format!(
+      "dqs-[{}]-{}",
+      options.id,
+      RUNTIME_COUNTER.fetch_add(1, Ordering::AcqRel)
+    ));
     let options_clone = options.clone();
     let thread_handle = thread.spawn(move || {
       let env_variables = match options.module.as_app() {
@@ -99,6 +110,7 @@ impl DqsServer {
         RuntimeOptions {
           id: options.id,
           db_pool: options.db_pool.into(),
+          v8_platform,
           server_config: HttpServerConfig::Stream(Rc::new(RefCell::new(
             http_requests_rx,
           ))),
@@ -126,7 +138,7 @@ impl DqsServer {
       let event = receiver.borrow().clone();
       match event {
         ServerEvents::Init => {}
-        ServerEvents::Started(_isolate_handle, commands) => {
+        ServerEvents::Started(commands) => {
           return Ok((
             DqsServer {
               options: options_clone,
