@@ -10,9 +10,9 @@ const env = createEnv({
     DATABASE_NAME: z.string(),
     DATABASE_USER: z.string(),
     DATABASE_PASSWORD: z.string().optional(),
-    S3_ENDPOINT: z.string().optional(),
+    S3_ENDPOINT: z.string(),
     S3_ACCESS_KEY: z.string(),
-    S3_SECRET_KEY: z.string(),
+    S3_ACCESS_SECRET: z.string(),
 
     JWT_SIGNING_SECRET: z.string(),
     // for exmple: signin@emails.tryarena.io

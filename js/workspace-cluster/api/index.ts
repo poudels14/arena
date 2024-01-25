@@ -11,18 +11,19 @@ import * as registry from "./registry";
  * only from the workspace app
  */
 const internalRoutes = createRouter({
-  prefix: "/api",
+  // Use `/internal/api` since `/api` is pubic
+  prefix: "/internal/api",
   middleware: authenticate.toMiddleware(),
   routes: {
-    "/internal/workspaces/add": workspaces.add,
-    "/internal/workspaces/list": workspaces.list,
-    "/internal/databases/clusters/add": databases.addCluster,
-    "/internal/databases/clusters/list": databases.listClusters,
-    "/internal/databases/clusters/delete": databases.deleteCluster,
-    "/internal/databases/list": databases.list,
-    "/internal/apps/add": apps.add,
-    "/internal/apps/list": apps.list,
-    "/internal/apps/archive": apps.archive,
+    "/workspaces/add": workspaces.add,
+    "/workspaces/list": workspaces.list,
+    "/databases/clusters/add": databases.addCluster,
+    "/databases/clusters/list": databases.listClusters,
+    "/databases/clusters/delete": databases.deleteCluster,
+    "/databases/list": databases.list,
+    "/apps/add": apps.add,
+    "/apps/list": apps.list,
+    "/apps/archive": apps.archive,
   },
 });
 
@@ -37,7 +38,7 @@ const accountRoutes = createRouter({
 
 const registryRoutes = createRouter({
   routes: {
-    "/registry/upload": registry.put,
+    "/registry/upload": registry.upload,
     "/registry/*": registry.get,
   },
 });

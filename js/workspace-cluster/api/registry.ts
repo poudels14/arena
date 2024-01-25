@@ -1,20 +1,17 @@
+import mime from "mime";
 import { p } from "./procedure";
 
-const put = p.mutate(async ({ ctx, req, errors, form }) => {
-  const x = await form.multipart(req);
-  // TODO:
-  //   z.object({
-  //     appId: z.string(),
-  //     version: z.string(),
-  //     path: z.string(),
-  //     content: z.any(),
-  //   })
-  console.log(x);
-  // const object = await ctx.s3Client.putObject("registry", "", {
-  //   content: Buffer.from([]),
-  // });
-
-  return errors.notFound();
+const upload = p.mutate(async ({ ctx, searchParams, req, errors, form }) => {
+  const files = await form.multipart(req);
+  // TODO: auth
+  // TODO: check if existing version is already present
+  for (const file of files) {
+    const filepath = `/apps/${searchParams.appId}/${searchParams.version}/${file.filename}`;
+    await ctx.s3Client.putObject("registry", filepath, {
+      content: file.data,
+    });
+  }
+  return { success: true };
 });
 
 const get = p.query(async ({ ctx, req, errors }) => {
@@ -30,7 +27,7 @@ const get = p.query(async ({ ctx, req, errors }) => {
 
     return new Response(object.content, {
       headers: {
-        "content-type": object.headers["content-type"],
+        "content-type": mime.getType(pathname)!,
       },
     });
   } catch (e) {
@@ -39,4 +36,4 @@ const get = p.query(async ({ ctx, req, errors }) => {
   }
 });
 
-export { put, get };
+export { upload, get };
