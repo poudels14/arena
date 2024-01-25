@@ -31,7 +31,10 @@ type Workspace = {
 
 const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
   return {
-    async getWorkspaceById(id: string): Promise<Required<Workspace> | null> {
+    async getWorkspaceById(filter: {
+      id: string;
+      userId: string;
+    }): Promise<Required<Workspace> | null> {
       const rows = await db
         .with()
         .select({
@@ -47,7 +50,8 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
         )
         .where(
           and(
-            eq(workspaces.id, id),
+            eq(workspaces.id, filter.id),
+            eq(workspaceMembers.userId, filter.userId),
             isNull(workspaceMembers.archivedAt),
             isNull(workspaces.archivedAt)
           )
@@ -57,7 +61,7 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
     },
     async listWorkspaces(
       filter: {
-        userId?: string;
+        userId: string;
       },
       pagination: { limit?: number; offset?: number } = {}
     ): Promise<Required<Workspace>[]> {
@@ -75,17 +79,15 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
           eq(workspaceMembers.workspaceId, workspaces.id)
         )
         .where(
-          filter.userId
-            ? and(
-                eq(workspaceMembers.userId, filter.userId),
-                isNull(workspaceMembers.archivedAt),
-                isNull(workspaces.archivedAt)
-              )
-            : and(isNull(workspaces.archivedAt))
+          and(
+            eq(workspaceMembers.userId, filter.userId),
+            isNull(workspaceMembers.archivedAt),
+            isNull(workspaces.archivedAt)
+          )
         )
         .limit(pagination.limit || 500)
         .offset(pagination.offset || 0);
-      return rows as Workspace[];
+      return rows as (Workspace & { access: string })[];
     },
     async createWorkspace(options: {
       id: string;

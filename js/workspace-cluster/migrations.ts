@@ -175,6 +175,43 @@ const migrations: PostgresDatabaseConfig = {
         await db.query(`DROP TABLE environment_variables;`);
       },
     },
+    {
+      async up(db) {
+        await db.query(`CREATE TABLE acls (
+            id VARCHAR(50) UNIQUE,
+            workspace_id VARCHAR(50) NOT NULL,
+            user_id VARCHAR(50) NOT NULL,
+            access VARCHAR(100) NOT NULL,
+            app_id VARCHAR(50) DEFAULT NULL,
+            -- If an app has multiple paths, different paths could have different
+            -- access control
+            path VARCHAR(50) DEFAULT NULL,
+            resource_id VARCHAR(50) DEFAULT NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            updated_at TIMESTAMPTZ DEFAULT NOW(),
+            archived_at TIMESTAMPTZ DEFAULT NULL
+          );`);
+      },
+      async down(db) {
+        await db.query(`DROP TABLE acls;`);
+      },
+    },
+    {
+      async up(db) {
+        await db.query(`CREATE TABLE app_templates (
+            -- unique app template id
+            id VARCHAR(50) UNIQUE,
+            name VARCHAR(1000) NOT NULL,
+            description TEXT,
+            owner_id VARCHAR(50) NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            archived_at TIMESTAMPTZ DEFAULT NULL
+          );`);
+      },
+      async down(db) {
+        await db.query(`DROP TABLE app_templates;`);
+      },
+    },
   ],
 };
 

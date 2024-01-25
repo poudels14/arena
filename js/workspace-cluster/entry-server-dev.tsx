@@ -34,10 +34,10 @@ const fileRouter = await createDefaultFileRouter({
 
 export default {
   async fetch(request: Request) {
-    const res = await fileRouter.route(request);
+    const res = await mainEntry.fetch(request);
     if (res && res.status != 404) {
       return res;
     }
-    return mainEntry.fetch(request);
+    return await fileRouter.route(request);
   },
 };

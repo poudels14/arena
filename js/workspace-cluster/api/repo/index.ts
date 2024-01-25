@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { createRepo as createUsersRepo } from "./users";
 import { createRepo as createWorkspacesRepo } from "./workspace";
 import { createRepo as createAppsRepo } from "./apps";
+import { createRepo as createAppTemplatesRepo } from "./appTemplates";
 import { createRepo as createDatabaseClusterRepo } from "./databaseClusters";
 import { createRepo as createDatabaseRepo } from "./databases";
 
@@ -17,6 +18,7 @@ type Repo = {
   users: ReturnType<typeof createUsersRepo>;
   workspaces: ReturnType<typeof createWorkspacesRepo>;
   apps: ReturnType<typeof createAppsRepo>;
+  appTemplates: ReturnType<typeof createAppTemplatesRepo>;
   dbClusters: ReturnType<typeof createDatabaseClusterRepo>;
   databases: ReturnType<typeof createDatabaseRepo>;
 };
@@ -55,6 +57,7 @@ const createRepo = async (options: { pool?: Pool; client?: Client }) => {
     users: createUsersRepo(pg),
     workspaces: createWorkspacesRepo(pg),
     apps: createAppsRepo(client),
+    appTemplates: createAppTemplatesRepo(pg),
     dbClusters: createDatabaseClusterRepo(pg),
     databases: createDatabaseRepo(pg),
   };

@@ -1,9 +1,12 @@
+const version = "0.0.2";
+
 /** @type {import('@portal/sdk/app/build').AppConfig} */
 module.exports = {
   id: "workspace-cluster",
-  version: "0.0.2",
+  version,
   registry: {
     host: "http://localhost:9009/",
+    apiKey: process.env.REGISTRY_API_KEY,
   },
   resolve: {
     alias: {
@@ -28,8 +31,8 @@ module.exports = {
     replace: {
       NODE_ENV: "production",
       MODE: "production",
-      PORTAL_STYLE_CSS: `/registry/apps/workspace-cluster/${this.version}/static/style.css`,
-      PORTAL_PUBLISHED_ENTRY_CLIENT: `/registry/apps/workspace-cluster/${this.version}/static/entry-client.js`,
+      PORTAL_STYLE_CSS: `/registry/apps/workspace-cluster/${version}/static/style.css`,
+      PORTAL_PUBLISHED_ENTRY_CLIENT: `/registry/apps/workspace-cluster/${version}/static/entry-client.js`,
     },
   },
   server: {
@@ -40,8 +43,8 @@ module.exports = {
     replace: {
       NODE_ENV: "production",
       MODE: "production",
-      PORTAL_STYLE_CSS: `/registry/apps/workspace-cluster/${this.version}/static/style.css`,
-      PORTAL_PUBLISHED_ENTRY_CLIENT: `/registry/apps/workspace-cluster/${this.version}/static/entry-client.js`,
+      PORTAL_STYLE_CSS: `/registry/apps/workspace-cluster/${version}/static/style.css`,
+      PORTAL_PUBLISHED_ENTRY_CLIENT: `/registry/apps/workspace-cluster/${version}/static/entry-client.js`,
     },
   },
 };

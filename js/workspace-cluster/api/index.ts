@@ -1,5 +1,5 @@
 import { createRouter, mergedRouter } from "@portal/server-core/router";
-import { authenticate } from "./procedure";
+import { authenticate, parseUserFromHeaders } from "./procedure";
 import * as account from "./account";
 import * as workspaces from "./workspaces";
 import * as apps from "./apps";
@@ -13,16 +13,16 @@ import * as registry from "./registry";
 const internalRoutes = createRouter({
   // Use `/internal/api` since `/api` is pubic
   prefix: "/internal/api",
+  // TODO: only allow internal system to access these routes
   middleware: authenticate.toMiddleware(),
   routes: {
     "/workspaces/add": workspaces.add,
-    "/workspaces/list": workspaces.list,
     "/databases/clusters/add": databases.addCluster,
     "/databases/clusters/list": databases.listClusters,
     "/databases/clusters/delete": databases.deleteCluster,
     "/databases/list": databases.list,
     "/apps/add": apps.add,
-    "/apps/list": apps.list,
+    "/apps": apps.list,
     "/apps/archive": apps.archive,
   },
 });
@@ -31,12 +31,22 @@ const accountRoutes = createRouter({
   prefix: "/api",
   routes: {
     "/account/signup": account.signup,
-    "/account/magicLink": account.sendMagicLink,
-    "/account/login/email": account.login,
+    "/account/login/magic/send": account.sendMagicLink,
+    "/account/login/magic": account.magicLinkLogin,
+  },
+});
+
+const authorizedRoutes = createRouter({
+  prefix: "/api",
+  middleware: authenticate.toMiddleware(),
+  routes: {
+    "/workspaces/": workspaces.list,
+    "/workspaces/:id": workspaces.get,
   },
 });
 
 const registryRoutes = createRouter({
+  middleware: parseUserFromHeaders.toMiddleware(),
   routes: {
     "/registry/upload": registry.upload,
     "/registry/*": registry.get,
@@ -45,7 +55,7 @@ const registryRoutes = createRouter({
 
 const router = mergedRouter({
   ignoreTrailingSlash: true,
-  routers: [registryRoutes, accountRoutes, internalRoutes],
+  routers: [registryRoutes, accountRoutes, authorizedRoutes, internalRoutes],
   async middleware({ ctx, next }) {
     // This middleware just logs the error
     try {

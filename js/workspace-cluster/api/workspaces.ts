@@ -3,6 +3,7 @@ import { protectedProcedure } from "./procedure";
 import { addDatabase } from "./utils/database";
 import slugify from "@sindresorhus/slugify";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
+import { pick } from "lodash-es";
 
 const add = protectedProcedure
   .input(
@@ -48,11 +49,35 @@ const add = protectedProcedure
     };
   });
 
-const list = protectedProcedure.query(async ({ ctx, env, searchParams }) => {
+const list = protectedProcedure.query(async ({ ctx }) => {
   const workspaces = await ctx.repo.workspaces.listWorkspaces({
-    userId: searchParams.userId,
+    userId: ctx.user!.id,
   });
-  return workspaces;
+  return workspaces.map((workspace) => {
+    return pick(workspace, "id", "name", "access");
+  });
 });
 
-export { add, list };
+const get = protectedProcedure.query(async ({ ctx, params, errors }) => {
+  const workspace = await ctx.repo.workspaces.getWorkspaceById({
+    id: params.id,
+    userId: ctx.user!.id,
+  });
+
+  if (!workspace) {
+    return errors.notFound();
+  }
+
+  const apps = await ctx.repo.apps.listApps({
+    workspaceId: workspace.id,
+  });
+
+  return {
+    ...pick(workspace, "id", "name", "access"),
+    apps: apps.map((app) => {
+      return pick(app, "id", "name", "slug", "description", "template");
+    }),
+  };
+});
+
+export { add, list, get };

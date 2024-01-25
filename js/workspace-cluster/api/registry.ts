@@ -1,9 +1,14 @@
 import mime from "mime";
+import { match } from "path-to-regexp";
 import { p } from "./procedure";
 
 const upload = p.mutate(async ({ ctx, searchParams, req, errors, form }) => {
+  const template = await ctx.repo.appTemplates.fetchById(searchParams.appId);
+  if (!template || template.ownerId != ctx.user?.id) {
+    return errors.forbidden();
+  }
+
   const files = await form.multipart(req);
-  // TODO: auth
   // TODO: check if existing version is already present
   for (const file of files) {
     const filepath = `/apps/${searchParams.appId}/${searchParams.version}/${file.filename}`;
@@ -14,11 +19,22 @@ const upload = p.mutate(async ({ ctx, searchParams, req, errors, form }) => {
   return { success: true };
 });
 
-const get = p.query(async ({ ctx, req, errors }) => {
+const templateMatcher = match<any>("/apps/:appId/:appVersion/:type/(.*)");
+const get = p.query(async ({ ctx, req, searchParams, errors }) => {
   const url = new URL(req.url);
-  const pathname = url.pathname.substring("/registry/".length);
+  const pathname = url.pathname.substring("/registry".length);
+  const pathMatch = templateMatcher(pathname);
+  if (!pathMatch) {
+    return errors.notFound();
+  }
 
-  // TODO: check for access token before allowing access to server code
+  if (
+    pathMatch.params.type == "server" &&
+    searchParams.API_KEY != ctx.env.REGISTRY_API_KEY
+  ) {
+    return errors.forbidden();
+  }
+
   try {
     const object = await ctx.s3Client.getObject("registry", pathname);
     if (!object) {

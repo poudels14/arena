@@ -14,6 +14,8 @@ const env = createEnv({
     S3_ACCESS_KEY: z.string(),
     S3_ACCESS_SECRET: z.string(),
 
+    // Api key used to authorize access to server bundle
+    REGISTRY_API_KEY: z.string(),
     JWT_SIGNING_SECRET: z.string(),
     // for exmple: signin@emails.tryarena.io
     LOGIN_EMAIL_SENDER: z.string().email(),

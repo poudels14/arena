@@ -6,6 +6,7 @@ import * as jwt from "@arena/cloud/jwt";
 import z from "zod";
 import { Login } from "./emails/Login";
 import { p } from "./procedure";
+import { uniqueId } from "@portal/sdk/utils/uniqueId";
 
 const signup = p
   .input(
@@ -40,14 +41,15 @@ const sendMagicLink = p
         user: {
           id: user.id,
         },
-        exp: new Date().getTime() + ms("4 weeks"),
+        // Create a short lived token since this is sent to an email
+        exp: (new Date().getTime() + ms("10 minutes")) / 1000,
       },
       secret: ctx.env.JWT_SIGNING_SECRET,
     });
 
     if (ctx.env.MODE == "development") {
       console.log(
-        `${ctx.host}/api/account/login/email?magicToken=${signInToken}`
+        `${ctx.host}/api/account/login/magic?magicToken=${signInToken}`
       );
     }
     try {
@@ -77,7 +79,7 @@ const sendMagicLink = p
     }
   });
 
-const login = p.query(
+const magicLinkLogin = p.query(
   async ({ ctx, searchParams, setCookie, errors, redirect }) => {
     const { magicToken } = searchParams;
     if (!magicToken) {
@@ -106,6 +108,7 @@ const login = p.query(
       // if there's no workspace for the user, create one
       if (workspaces.length == 0) {
         await ctx.repo.workspaces.createWorkspace({
+          id: uniqueId(19),
           ownerId: user.id,
         });
       }
@@ -118,7 +121,7 @@ const login = p.query(
             email: user.email,
             config: pick(user.config, "waitlisted"),
           },
-          exp: (new Date().getTime() + ms("2 weeks")) / 1000,
+          exp: (new Date().getTime() + ms("4 weeks")) / 1000,
         },
         secret: ctx.env.JWT_SIGNING_SECRET,
       });
@@ -133,4 +136,4 @@ const login = p.query(
   }
 );
 
-export { signup, sendMagicLink, login };
+export { signup, sendMagicLink, magicLinkLogin };
