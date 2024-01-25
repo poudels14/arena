@@ -57,7 +57,6 @@ pub fn extension(options: Config) -> BuiltinExtension {
       cloud_module!("pubsub"),
       cloud_module!("query"),
       cloud_module!("llm"),
-      cloud_module!("vectordb"),
       cloud_module!("pdf"),
       cloud_module!("html"),
     ],

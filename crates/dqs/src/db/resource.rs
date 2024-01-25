@@ -1,6 +1,5 @@
 use diesel::prelude::*;
 pub use environment_variables::table;
-use serde_json::Value;
 use std::time::SystemTime;
 
 #[derive(Queryable, Debug, Clone)]
@@ -11,7 +10,7 @@ pub struct EnvVar {
   pub app_template_id: Option<String>,
   pub app_id: Option<String>,
   pub key: String,
-  pub value: Value,
+  pub value: String,
   pub archived_at: Option<SystemTime>,
 }
 
@@ -23,7 +22,7 @@ diesel::table! {
     app_template_id -> Nullable<Varchar>,
     app_id -> Nullable<Varchar>,
     key -> Varchar,
-    value -> Jsonb,
+    value -> Text,
     archived_at -> Nullable<Timestamp>,
   }
 }

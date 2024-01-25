@@ -95,7 +95,7 @@ impl ArenaRuntimeState {
           EnvVar {
             id: v.id.clone(),
             key: v.key.clone(),
-            value: v.value.clone(),
+            value: Value::String(v.value.clone()),
             is_secret: false,
           },
         )
