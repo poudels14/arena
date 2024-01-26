@@ -2,6 +2,10 @@
 module.exports = {
   id: "atlasai",
   version: "0.0.1",
+  registry: {
+    host: "http://localhost:9009/",
+    apiKey: process.env.REGISTRY_API_KEY,
+  },
   resolve: {
     alias: {
       "~/app": "./app",
@@ -29,9 +33,5 @@ module.exports = {
       SSR: "true",
       PORTAL_SSR: "false",
     },
-  },
-  registry: {
-    host: "http://localhost:9009/",
-    headers: [],
   },
 };
