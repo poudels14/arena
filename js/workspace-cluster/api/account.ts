@@ -111,6 +111,14 @@ const magicLinkLogin = p.query(
         const workspace = await ctx.repo.workspaces.createWorkspace({
           id: uniqueId(14),
           ownerId: user.id,
+          config: {
+            runtime: {
+              netPermissions: {
+                // No restrictions by default
+                restrictedUrls: [],
+              },
+            },
+          },
         });
 
         const repo = await ctx.repo.transaction();

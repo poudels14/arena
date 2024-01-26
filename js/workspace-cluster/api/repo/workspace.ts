@@ -23,8 +23,12 @@ type Workspace = {
   id: string;
   name: string;
   config: {
-    // runtime: any;
-    // databaseHost: string;
+    runtime?: {
+      netPermissions?: {
+        allowedUrls?: string[];
+        restrictedUrls?: string[];
+      };
+    };
   };
   access: WorkspaceAccessType;
 };
@@ -107,11 +111,12 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
       id: string;
       name?: string;
       ownerId: string;
+      config?: Workspace["config"];
     }): Promise<Required<Workspace>> {
       const workspace = {
         id: options.id,
         name: options.name || "Default workspace",
-        config: {},
+        config: options.config || {},
         createdAt: new Date(),
       };
 
