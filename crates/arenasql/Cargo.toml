@@ -3,10 +3,6 @@ name = "arenasql"
 version = "0.1.0"
 edition = "2021"
 
-[[bench]]
-name = "insert"
-harness = false
-
 [features]
 glam-dot = []
 
