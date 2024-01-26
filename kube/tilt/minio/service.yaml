@@ -6,7 +6,9 @@ spec:
   selector:
     app: minio
   ports:
-    - port: 8001
+    - name: api
+      port: 8001
       targetPort: 8001
-    - port: 10001
+    - name: console
+      port: 10001
       targetPort: 10001

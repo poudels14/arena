@@ -19,5 +19,7 @@ spec:
           ports:
             - containerPort: 9000
           envFrom:
+            - configMapRef:
+                name: app-cluster-config
             - secretRef:
                 name: app-cluster-env-secrets

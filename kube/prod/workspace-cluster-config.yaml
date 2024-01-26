@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workspace-cluster-config
+  namespace: default
+data:
+  MODE: production
+  HOST: http://workspace-cluster:9001
+  PORTAL_PUBLISHED_ENTRY_CLIENT: /registry/apps/workspace-cluster/0.0.2/static/entry-client.js
+  WORKSPACE_VERSION: 0.0.2
+  S3_ENDPOINT: http://tilt-minio:8001
+  DATABASE_HOST: tilt-postgres

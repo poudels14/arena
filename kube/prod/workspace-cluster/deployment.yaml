@@ -20,9 +20,11 @@ spec:
           - /bin/bash
           - -c
           args: 
-          - /bin/dagger server serve --port 9000 --enable-cloud-ext --s3bucket registry apps/workspace-cluster/0.1.0/server/index.js
+          - /bin/dagger server serve --port 9000 --enable-cloud-ext --s3bucket registry apps/workspace-cluster/$WORKSPACE_VERSION/server/index.js
           ports:
             - containerPort: 9000
           envFrom:
+            - configMapRef:
+                name: workspace-cluster-config
             - secretRef:
                 name: workspace-cluster-env-secrets

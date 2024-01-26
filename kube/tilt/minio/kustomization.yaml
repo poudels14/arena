@@ -1,3 +1,4 @@
+namePrefix: tilt-
 resources:
   - service.yaml
   - deployment.yaml

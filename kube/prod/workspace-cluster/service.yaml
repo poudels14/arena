@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: workspace-registry
+  name: workspace-cluster
 spec:
   selector:
-    app: workspace-registry
+    app: workspace-cluster
   ports:
-    - name: workspace-registry
+    - name: workspace-cluster
       port: 9000
       targetPort: 9000

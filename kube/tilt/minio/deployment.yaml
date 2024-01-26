@@ -23,10 +23,10 @@ spec:
             - /bin/bash
             - -c
           args:
-            - minio server /data --address :8001 --console-address :10001
+            - minio server /minioql/data --address :8001 --console-address :10001
           ports:
             - containerPort: 8001
             - containerPort: 10001
           volumeMounts:
-            - mountPath: /var/lib/minioql/data
+            - mountPath: /minioql/data
               name: minio-volume
