@@ -6,6 +6,7 @@ export const appTemplates = pgTable("app_templates", {
   id: varchar("id").notNull(),
   name: varchar("name").notNull(),
   description: text("description"),
+  defaultVersion: varchar("default_version"),
   ownerId: varchar("owner_id").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   archivedAt: timestamp("archived_at"),

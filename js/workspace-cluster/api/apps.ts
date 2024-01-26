@@ -1,9 +1,7 @@
 import { merge, pick } from "lodash-es";
 import { z } from "zod";
-import slugify from "@sindresorhus/slugify";
-import { uniqueId } from "@portal/sdk/utils/uniqueId";
 import { protectedProcedure } from "./procedure";
-import { addDatabase } from "./utils/database";
+import { addApp } from "./utils/app";
 
 const add = protectedProcedure
   .input(
@@ -19,37 +17,20 @@ const add = protectedProcedure
     })
   )
   .mutate(async ({ ctx, body, errors }) => {
-    const workspace = await ctx.repo.workspaces.getWorkspaceById(
-      body.workspaceId
-    );
+    const workspace = await ctx.repo.workspaces.getWorkspaceById({
+      id: body.workspaceId,
+    });
     if (!workspace) {
       return errors.badRequest("Invalid workspace id");
     }
 
     const repo = await ctx.repo.transaction();
-    const appId = slugify(body.id || uniqueId(19), {
-      separator: "_",
-      decamelize: false,
-    });
-
-    const newApp = await repo.apps.insert({
-      id: appId,
+    const { app: newApp, database } = await addApp(repo, ctx.user!, {
+      id: body.id,
       workspaceId: body.workspaceId,
       name: body.name,
-      slug: slugify(body.name, {
-        separator: "_",
-      }),
       description: body.description || "",
       template: body.template,
-      createdBy: ctx.user!.id,
-      config: {},
-    });
-
-    const database = await addDatabase(repo, {
-      id: appId,
-      workspaceId: workspace.id,
-      appId,
-      user: "app",
     });
 
     await repo.commit();
@@ -73,9 +54,9 @@ const list = protectedProcedure.query(async ({ ctx, searchParams, errors }) => {
   if (!searchParams.workspaceId) {
     return errors.badRequest("Missing query param: `workspaceId`");
   }
-  const workspace = await ctx.repo.workspaces.getWorkspaceById(
-    searchParams.workspaceId
-  );
+  const workspace = await ctx.repo.workspaces.getWorkspaceById({
+    id: searchParams.workspaceId,
+  });
   if (!workspace) {
     return errors.badRequest("Invalid workspace id");
   }

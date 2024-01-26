@@ -15,7 +15,7 @@ const add = protectedProcedure
   .mutate(async ({ ctx, body }) => {
     const repo = await ctx.repo.transaction();
 
-    let workspaceId = slugify(body.id || uniqueId(18), {
+    let workspaceId = slugify(body.id || uniqueId(), {
       separator: "_",
       decamelize: false,
     });
@@ -61,11 +61,19 @@ const list = protectedProcedure.query(async ({ ctx }) => {
 const get = protectedProcedure.query(async ({ ctx, params, errors }) => {
   const workspace = await ctx.repo.workspaces.getWorkspaceById({
     id: params.id,
-    userId: ctx.user!.id,
   });
 
   if (!workspace) {
     return errors.notFound();
+  }
+
+  const hasAccess = await ctx.repo.workspaces.isWorkspaceMember({
+    userId: ctx.user!.id,
+    workspaaceId: workspace.id,
+  });
+
+  if (!hasAccess) {
+    return errors.forbidden();
   }
 
   const apps = await ctx.repo.apps.listApps({

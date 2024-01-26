@@ -33,7 +33,6 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
   return {
     async getWorkspaceById(filter: {
       id: string;
-      userId: string;
     }): Promise<Required<Workspace> | null> {
       const rows = await db
         .with()
@@ -41,6 +40,22 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
           id: workspaces.id,
           name: workspaces.name,
           config: workspaces.config,
+        })
+        .from(workspaces)
+        .where(
+          and(eq(workspaces.id, filter.id), isNull(workspaces.archivedAt))
+        );
+
+      return (rows[0] as Workspace) || null;
+    },
+    async isWorkspaceMember(options: {
+      userId: string;
+      workspaaceId: string;
+    }): Promise<boolean> {
+      const rows = await db
+        .with()
+        .select({
+          id: workspaces.id,
           access: workspaceMembers.access,
         })
         .from(workspaces)
@@ -50,14 +65,13 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
         )
         .where(
           and(
-            eq(workspaces.id, filter.id),
-            eq(workspaceMembers.userId, filter.userId),
+            eq(workspaces.id, options.workspaaceId),
+            eq(workspaceMembers.userId, options.userId),
             isNull(workspaceMembers.archivedAt),
             isNull(workspaces.archivedAt)
           )
         );
-
-      return (rows[0] as Workspace) || null;
+      return rows.length == 1;
     },
     async listWorkspaces(
       filter: {

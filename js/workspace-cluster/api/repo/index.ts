@@ -1,6 +1,7 @@
 import { Pool, Client } from "@arena/runtime/postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { createRepo as createUsersRepo } from "./users";
+import { createRepo as createAclRepo } from "./acl";
 import { createRepo as createWorkspacesRepo } from "./workspace";
 import { createRepo as createAppsRepo } from "./apps";
 import { createRepo as createAppTemplatesRepo } from "./appTemplates";
@@ -16,6 +17,7 @@ type Repo = {
   >;
   release(): Promise<void>;
   users: ReturnType<typeof createUsersRepo>;
+  acl: ReturnType<typeof createAclRepo>;
   workspaces: ReturnType<typeof createWorkspacesRepo>;
   apps: ReturnType<typeof createAppsRepo>;
   appTemplates: ReturnType<typeof createAppTemplatesRepo>;
@@ -55,6 +57,7 @@ const createRepo = async (options: { pool?: Pool; client?: Client }) => {
       client?.release && client?.release();
     },
     users: createUsersRepo(pg),
+    acl: createAclRepo(pg),
     workspaces: createWorkspacesRepo(pg),
     apps: createAppsRepo(client),
     appTemplates: createAppTemplatesRepo(pg),

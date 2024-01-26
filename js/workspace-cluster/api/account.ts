@@ -7,6 +7,7 @@ import z from "zod";
 import { Login } from "./emails/Login";
 import { p } from "./procedure";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
+import { addApp } from "./utils/app";
 
 const signup = p
   .input(
@@ -107,10 +108,31 @@ const magicLinkLogin = p.query(
 
       // if there's no workspace for the user, create one
       if (workspaces.length == 0) {
-        await ctx.repo.workspaces.createWorkspace({
-          id: uniqueId(19),
+        const workspace = await ctx.repo.workspaces.createWorkspace({
+          id: uniqueId(14),
           ownerId: user.id,
         });
+
+        const repo = await ctx.repo.transaction();
+        const atlasAi = await ctx.repo.appTemplates.fetchById("atlasai");
+        if (atlasAi) {
+          await addApp(
+            repo,
+            { id: userId },
+            {
+              id: uniqueId(14),
+              workspaceId: workspace.id,
+              name: "Atlas AI",
+              description: "An AI Assistant",
+              template: {
+                id: atlasAi.id,
+                version: atlasAi.defaultVersion || "0.0.1",
+              },
+            }
+          );
+        }
+        await repo.commit();
+        await repo.release();
       }
 
       const signInToken = jwt.sign({
