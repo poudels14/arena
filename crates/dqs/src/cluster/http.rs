@@ -506,6 +506,7 @@ async fn authenticate_user(
       errors::Error::AnyhowError(e.to_string())
     })?
     .ok_or(errors::Error::NotFound)?;
+  tracing::trace!("app = {:?}", app);
 
   let acls = cluster
     .cache
@@ -527,7 +528,7 @@ async fn authenticate_user(
   .map_err(|_| errors::Error::NotFound)?;
 
   if !has_access {
-    return Err(errors::Error::NotFound);
+    return Err(errors::Error::Forbidden);
   }
   Ok((identity, app))
 }

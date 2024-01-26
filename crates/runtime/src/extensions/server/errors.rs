@@ -17,6 +17,7 @@ pub enum Error {
   InvalidHeaderValueError,
   ResponseBuilder,
   NotFound,
+  Forbidden,
   ServiceUnavailable,
   BadRequest(Option<&'static str>),
 }
@@ -68,6 +69,9 @@ impl From<InvalidHeaderValue> for Error {
 impl response::IntoResponse for Error {
   fn into_response(self) -> response::Response {
     match self {
+      Self::Forbidden => {
+        (StatusCode::FORBIDDEN, "403 Forbidden").into_response()
+      }
       Self::NotFound => {
         (StatusCode::NOT_FOUND, "404 Not found").into_response()
       }
