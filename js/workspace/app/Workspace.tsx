@@ -1,35 +1,47 @@
-import { lazy, createSelector } from "solid-js";
+import { Show, lazy, createSelector, createMemo } from "solid-js";
 import { SidebarTab } from "@portal/solid-ui/sidebar";
 import { Sidebar as PortalSidebar } from "@portal/solid-ui/sidebar";
 import { Router, Route, useNavigate, useMatcher } from "@portal/solid-router";
 import { HiOutlineDocumentChartBar, HiOutlineHome } from "solid-icons/hi";
 import { QueryContextProvider } from "@portal/solid-query";
+import { WorkspaceContextProvider, useWorkspaceContext } from "./context.tsx";
 
 const Home = lazy(() => import("./home/index.tsx"));
 const Documents = lazy(() => import("./documents/index.tsx"));
-const AtlasAI = lazy(() => import("./AtlasAI.tsx"));
+const AtlasAI = lazy(() => import("@portal-apps/assistant/app"));
 
 const Workspace = () => {
   return (
     <div class="h-screen flex flex-row">
       <Router>
-        <WorkspaceSidebar />
-        <WorkspaceRouter />
+        <QueryContextProvider urlPrefix="/">
+          <WorkspaceContextProvider>
+            <WorkspaceSidebar />
+            <WorkspaceRouter />
+          </WorkspaceContextProvider>
+        </QueryContextProvider>
       </Router>
     </div>
   );
 };
 
 const WorkspaceRouter = () => {
+  const { activeWorkspace } = useWorkspaceContext();
+  const atlasAi = createMemo(() => {
+    const apps = activeWorkspace.apps();
+    return apps.find((app) => app.slug == "atlas_ai");
+  });
   return (
     <main class="content flex-1">
       <Route path="/documents">
         <Documents />
       </Route>
       <Route path="/chat">
-        <QueryContextProvider urlPrefix="/atlas/api/">
-          <AtlasAI />
-        </QueryContextProvider>
+        <Show when={atlasAi()}>
+          <QueryContextProvider urlPrefix={`/w/apps/${atlasAi()!.id}/api/`}>
+            <AtlasAI />
+          </QueryContextProvider>
+        </Show>
       </Route>
       <Route path="/" exact>
         <Home />

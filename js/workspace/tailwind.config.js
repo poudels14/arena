@@ -2,6 +2,13 @@ const solidUi = require("@portal/solid-ui/tailwind");
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  content: [
+    "./app/**/*.{html,css,js,ts,jsx,tsx}",
+    "./node_modules/@portal-apps/assistant/app/**/*.{js,ts,jsx,tsx}",
+    "./node_modules/@portal-apps/assistant/app/*.{js,ts,jsx,tsx}",
+    "./node_modules/@portal/solid-ui/**/*.{js,ts,jsx,tsx}",
+    "./node_modules/@portal/solid-ui/*.{js,ts,jsx,tsx}",
+  ],
   theme: {
     extend: {
       colors: {
