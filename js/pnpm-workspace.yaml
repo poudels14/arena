@@ -1,5 +1,5 @@
 packages:
   - arena-runtime
-  - packages/*
-  - examples/*
-  - templates/*
+  - packages/sdk
+  - portal/*
+  - portal-app/*
