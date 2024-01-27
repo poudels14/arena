@@ -65,7 +65,10 @@ fn main() -> Result<()> {
   )
   .unwrap_or(vec![])
   .iter()
-  .for_each(|(key, value)| env::set_var(key, value));
+  .for_each(|(key, value)| {
+    tracing::debug!("Loading env: {}", key);
+    env::set_var(key, value)
+  });
 
   let rt = tokio::runtime::Builder::new_current_thread()
     .enable_io()

@@ -4,6 +4,7 @@ pub fn load_env(mode: &str, root: &Path) -> Option<Vec<(String, String)>> {
   if mode == "production" {
     dotenvy::from_filename_iter(root.join(".env")).ok()
   } else {
+    tracing::debug!("Loading .env.dev");
     dotenvy::from_filename_iter(root.join(".env.dev")).ok()
   }
   .map(|envs| {
