@@ -4,6 +4,7 @@ mod run;
 mod server;
 
 use anyhow::bail;
+use anyhow::Context;
 use anyhow::Result;
 use clap::Parser;
 use colored::*;
@@ -21,6 +22,10 @@ use tracing_tree::HierarchicalLayer;
 struct Args {
   #[command(subcommand)]
   command: Commands,
+
+  /// Path to env file
+  #[arg(long)]
+  env_file: Option<String>,
 }
 
 #[derive(clap::Subcommand, Debug)]
@@ -59,13 +64,22 @@ fn main() -> Result<()> {
   let args = Args::parse();
   debug!("Running cli with args: {:?}", args);
 
-  dotenv::load_env(
-    &env::var("MODE").unwrap_or(String::from("")),
-    &env::current_dir().unwrap(),
-  )
-  .unwrap_or(vec![])
-  .iter()
-  .for_each(|(key, value)| {
+  let current_dir = env::current_dir().unwrap();
+  let envs = if let Some(env_file) = args.env_file {
+    let env_file_path = current_dir
+      .join(&env_file)
+      .canonicalize()
+      .context(format!("error loading env file: {:?}", env_file))?;
+    tracing::debug!("Loading env file: {:?}", env_file_path);
+    dotenv::from_filename(&env_file_path)
+  } else {
+    dotenv::load_env(
+      &env::var("MODE").unwrap_or(String::from("")),
+      &current_dir,
+    )
+  };
+
+  envs.unwrap_or_default().iter().for_each(|(key, value)| {
     tracing::debug!("Loading env: {}", key);
     env::set_var(key, value)
   });

@@ -3,7 +3,7 @@ use std::str::FromStr;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use common::{dotenv, required_env};
 use loaders::registry::Registry;
 use signal_hook::consts::TERM_SIGNALS;
@@ -31,6 +31,10 @@ struct Args {
   /// from DQS JS runtime
   #[arg(long)]
   egress_addr: Option<String>,
+
+  /// Path to env file
+  #[arg(long)]
+  env_file: Option<String>,
 }
 
 fn main() -> Result<()> {
@@ -49,13 +53,27 @@ fn main() -> Result<()> {
     );
   tracing::subscriber::set_global_default(subscriber).unwrap();
 
-  dotenv::load_env(
-    &env::var("MODE").unwrap_or(String::from("")),
-    &env::current_dir().unwrap(),
-  )
-  .unwrap_or(vec![])
-  .iter()
-  .for_each(|(key, value)| env::set_var(key, value));
+  let args = Args::parse();
+  let current_dir = env::current_dir().unwrap();
+
+  let envs = if let Some(env_file) = args.env_file {
+    let env_file_path = current_dir
+      .join(&env_file)
+      .canonicalize()
+      .context(format!("error loading env file: {:?}", env_file))?;
+    tracing::debug!("Loading env file: {:?}", env_file_path);
+    dotenv::from_filename(&env_file_path)
+  } else {
+    dotenv::load_env(
+      &env::var("MODE").unwrap_or(String::from("")),
+      &current_dir,
+    )
+  };
+
+  envs.unwrap_or_default().iter().for_each(|(key, value)| {
+    tracing::debug!("Loading env: {}", key);
+    env::set_var(key, value)
+  });
 
   let host = env::var("HOST").unwrap_or("0.0.0.0".to_owned());
   let port = env::var("PORT")
@@ -63,7 +81,6 @@ fn main() -> Result<()> {
     .and_then(|p: String| p.parse().ok())
     .unwrap_or(8000);
 
-  let args = Args::parse();
   let dqs_egress_addr = args
     .egress_addr
     .as_ref()
