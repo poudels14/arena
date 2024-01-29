@@ -16,6 +16,7 @@ const env = createEnv({
 
     // Api key used to authorize access to server bundle
     REGISTRY_API_KEY: z.string(),
+    REGISTRY_BUCKET: z.string(),
     JWT_SIGNING_SECRET: z.string(),
     // for exmple: signin@emails.tryarena.io
     LOGIN_EMAIL_SENDER: z.string().email(),

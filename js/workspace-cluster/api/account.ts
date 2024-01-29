@@ -31,9 +31,12 @@ const sendMagicLink = p
   )
   .mutate(async ({ ctx, body, errors }) => {
     // TODO(sagar): use CSRF, rate limiting, etc to prevent DDOS
-    const user = await ctx.repo.users.fetchByEmail(body.email);
+    let user = await ctx.repo.users.fetchByEmail(body.email);
     if (!user) {
-      return errors.forbidden();
+      user = await ctx.repo.users.insert({
+        id: "u-" + uniqueId(16),
+        email: body.email,
+      });
     }
 
     const signInToken = jwt.sign({
@@ -48,10 +51,13 @@ const sendMagicLink = p
       secret: ctx.env.JWT_SIGNING_SECRET,
     });
 
+    const loginLink = new URL(
+      `/api/account/login/magic?magicToken=${signInToken}`,
+      ctx.host
+    );
+
     if (ctx.env.MODE == "development") {
-      console.log(
-        `${ctx.host}/api/account/login/magic?magicToken=${signInToken}`
-      );
+      console.log(loginLink.toString());
     }
     try {
       await ky
@@ -60,13 +66,13 @@ const sendMagicLink = p
             Authorization: `Bearer ${ctx.env.RESEND_API_KEY}`,
           },
           json: {
-            from: `Sign in to Portal <${ctx.env.LOGIN_EMAIL_SENDER}>`,
-            to: "poudels14@gmail.com",
+            from: `Sign in to Sidecar <${ctx.env.LOGIN_EMAIL_SENDER}>`,
+            to: user.email,
             subject: "Sign in to Arena",
             html: renderToString(
               Login({
                 host: ctx.host,
-                magicLink: `${ctx.host}/api/account/login/email?magicToken=${signInToken}`,
+                magicLink: loginLink.toString(),
               })
             ),
           },
@@ -84,7 +90,7 @@ const magicLinkLogin = p.query(
   async ({ ctx, searchParams, setCookie, errors, redirect }) => {
     const { magicToken } = searchParams;
     if (!magicToken) {
-      return errors.badRequest();
+      return errors.badRequest("Missing magicToken search param");
     }
 
     try {
@@ -154,6 +160,9 @@ const magicLinkLogin = p.query(
           exp: (new Date().getTime() + ms("4 weeks")) / 1000,
         },
         secret: ctx.env.JWT_SIGNING_SECRET,
+      });
+      setCookie("logged-in", "true", {
+        path: "/",
       });
       setCookie("user", signInToken, {
         path: "/",

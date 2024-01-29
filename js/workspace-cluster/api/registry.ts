@@ -12,7 +12,7 @@ const upload = p.mutate(async ({ ctx, searchParams, req, errors, form }) => {
   // TODO: check if existing version is already present
   for (const file of files) {
     const filepath = `/apps/${searchParams.appId}/${searchParams.version}/${file.filename}`;
-    await ctx.s3Client.putObject("registry", filepath, {
+    await ctx.s3Client.putObject(ctx.env.REGISTRY_BUCKET, filepath, {
       content: file.data,
     });
   }
@@ -36,7 +36,10 @@ const get = p.query(async ({ ctx, req, searchParams, errors }) => {
   }
 
   try {
-    const object = await ctx.s3Client.getObject("registry", pathname);
+    const object = await ctx.s3Client.getObject(
+      ctx.env.REGISTRY_BUCKET,
+      pathname
+    );
     if (!object) {
       return errors.notFound();
     }

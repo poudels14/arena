@@ -19,7 +19,7 @@ const Login = (props: { host: string; magicLink: string }) => {
             src={`${props.host}/static/portal-logo.png`}
             width={48}
             height={48}
-            alt="Arena"
+            alt="Sidecar"
           />
           <h1
             style={{
@@ -43,7 +43,7 @@ const Login = (props: { host: string; magicLink: string }) => {
           <p style={paragraph}>
             Best,
             <br />
-            Arena Team
+            Sidecar Team
           </p>
           <Hr style={hr} />
           <Img
@@ -56,7 +56,7 @@ const Login = (props: { host: string; magicLink: string }) => {
               margin: "20px 0",
             }}
           />
-          <p style={footer}>Arena Inc.</p>
+          <p style={footer}>Sidecar Inc.</p>
         </Container>
       </Body>
     </Html>

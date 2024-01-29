@@ -8,6 +8,7 @@ const fileRouter = await createDefaultFileRouter({
     SSR: "false",
     PORTAL_SSR: "false",
     PORTAL_ENTRY_CLIENT: "./entry-client.tsx",
+    PORTAL_STYLE_CSS: "./static/style.css",
   },
   babel: {},
   resolverConfig: {
@@ -34,10 +35,13 @@ const fileRouter = await createDefaultFileRouter({
 
 export default {
   async fetch(request: Request) {
-    const res = await mainEntry.fetch(request);
-    if (res && res.status != 404) {
-      return res;
+    const url = new URL(request.url);
+    if (!url.pathname.startsWith("/api")) {
+      const res = await fileRouter.route(request);
+      if (res && res.status != 404) {
+        return res;
+      }
     }
-    return await fileRouter.route(request);
+    return await mainEntry.fetch(request);
   },
 };
