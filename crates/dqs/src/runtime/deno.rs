@@ -94,6 +94,7 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
     BuiltinModule::Node(Some(vec!["crypto"])),
     BuiltinModule::Postgres,
     BuiltinModule::HttpServer(config.server_config.clone()),
+    BuiltinModule::Cloudflare,
     BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider { publisher })),
     BuiltinModule::Custom(Rc::new(arena::extension)),
   ]

@@ -3,7 +3,16 @@ import { Server } from "./tcp";
 import { Websocket } from "./websocket";
 
 type ServeConfig = {
-  fetch: (req: Request) => Promise<Response>;
+  // passing in env and context arguments provides compatibility
+  // with cloudflare workers runtime
+  fetch: (
+    req: Request,
+    env: any,
+    context: {
+      waitUntil(promise: Promise<any>): void;
+      passThroughOnException: () => void;
+    }
+  ) => Promise<Response>;
   websocket?: (websocket: Websocket, data: any) => Promise<void>;
 };
 
@@ -19,7 +28,10 @@ const serve = async (config: ServeConfig) => {
   const streams = from(server);
   streams.pipe(mergeMap((stream) => from(stream!))).subscribe(async (req) => {
     try {
-      let res = await config.fetch(req!);
+      let res = await config.fetch(req!, process.env, {
+        waitUntil() {},
+        passThroughOnException() {},
+      });
       if (!res) {
         return new Response("Not found", {
           status: 404,

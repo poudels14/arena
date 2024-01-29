@@ -84,6 +84,7 @@ impl Command {
           })
           .transpose()?,
       }),
+      BuiltinModule::Cloudflare,
     ];
 
     let resolver_config = arena_config

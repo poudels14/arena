@@ -1,6 +1,7 @@
 mod r#macro;
 
 pub mod babel;
+pub mod cloudflare;
 pub mod env;
 pub mod fs;
 pub mod node;
@@ -66,6 +67,7 @@ pub enum BuiltinModule {
   Babel,
   Postgres,
   HttpServer(HttpServerConfig),
+  Cloudflare,
   /// args: (specifier, code)
   CustomRuntimeModule(&'static str, SourceCode),
   UsingProvider(
@@ -85,6 +87,7 @@ impl BuiltinExtensionProvider for BuiltinModule {
       Self::Babel => self::babel::extension(),
       Self::Postgres => self::postgres::extension(),
       Self::HttpServer(config) => self::server::extension(config.clone()),
+      Self::Cloudflare => self::cloudflare::extension(),
       Self::CustomRuntimeModule(specifier, code) => BuiltinExtension {
         modules: vec![(specifier, code.clone())],
         ..Default::default()

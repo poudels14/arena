@@ -22,7 +22,7 @@ import {
   forgivingBase64Encode as encodeToBase64,
   forgivingBase64UrlEncode as encodeToBase64Url,
 } from "ext:deno_web/00_infra.js";
-import { ReadableStream } from "ext:deno_web/06_streams.js";
+import { ReadableStream, TransformStream } from "ext:deno_web/06_streams.js";
 import { fetch } from "ext:deno_fetch/26_fetch.js";
 import { Console } from "ext:deno_console/01_console.js";
 
@@ -58,6 +58,7 @@ function nonEnumerable(value) {
     AbortController,
     performance,
     ReadableStream,
+    TransformStream,
     TextEncoder,
     TextDecoder,
     TextEncoderStream,
