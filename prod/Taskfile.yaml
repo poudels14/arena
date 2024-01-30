@@ -1,0 +1,12 @@
+version: '3'
+
+tasks:
+  app-cluster:
+    dotenv: ['app-cluster/.env']
+    cmds:
+      - MODE=production app-cluster
+
+  workspace-cluster:
+    dotenv: ['workspace-cluster/.env']
+    cmds:
+      - MODE=production dagger server serve --port 9001 --enable-cloud-ext --s3bucket sidecar-412405-js-registry apps/workspace-cluster/0.0.1/server/index.js

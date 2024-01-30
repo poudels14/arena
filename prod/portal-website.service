@@ -1,0 +1,10 @@
+[Unit]
+Description=
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/dagger --env-file /etc/sidecar/.env.website server serve --port 9000 --enable-cloud-ext --s3bucket sidecar-412405-js-registry apps/portal-website/0.0.1/server/index.mjs
+
+[Install]
+WantedBy=multi-user.target

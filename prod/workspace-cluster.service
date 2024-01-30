@@ -1,0 +1,10 @@
+[Unit]
+Description=
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/dagger --env-file /etc/sidecar/.env.workspace-cluster  server serve --port 9001 --enable-cloud-ext --s3bucket sidecar-412405-js-registry apps/workspace-cluster/0.0.1/server/index.js
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,10 @@
+[Unit]
+Description=
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/app-cluster --env-file /etc/sidecar/.env.app-cluster
+
+[Install]
+WantedBy=multi-user.target
