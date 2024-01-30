@@ -1,3 +1,3 @@
-import { defineConfig } from "@solidjs/start/config";
+import { defineConfig } from "@portal/deploy/bundle/solid-start";
 
 export default defineConfig({});
