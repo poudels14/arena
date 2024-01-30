@@ -124,21 +124,18 @@ impl Command {
         let endpoint = required_env!("S3_ENDPOINT");
         let access_key = required_env!("S3_ACCESS_KEY");
         let access_secret = required_env!("S3_ACCESS_SECRET");
-        Some(Rc::new(S3ModulerLoader::new(
-          self.entry.clone(),
-          S3ModuleLoaderOptions {
-            with_path_style: true,
-            bucket: bucket.to_owned(),
-            endpoint,
-            credentials: Credentials {
-              access_key: Some(access_key),
-              secret_key: Some(access_secret),
-              security_token: None,
-              session_token: None,
-              expiration: None,
-            },
+        Some(Rc::new(S3ModulerLoader::new(S3ModuleLoaderOptions {
+          with_path_style: true,
+          bucket: bucket.to_owned(),
+          endpoint,
+          credentials: Credentials {
+            access_key: Some(access_key),
+            secret_key: Some(access_secret),
+            security_token: None,
+            session_token: None,
+            expiration: None,
           },
-        )))
+        })))
       } else {
         Some(Rc::new(FileModuleLoader::new(
           Rc::new(FilePathResolver::new(

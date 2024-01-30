@@ -13,7 +13,6 @@ use tracing::instrument;
 use url::Url;
 
 pub struct S3ModulerLoader {
-  path: String,
   options: S3ModuleLoaderOptions,
 }
 
@@ -26,8 +25,8 @@ pub struct S3ModuleLoaderOptions {
 }
 
 impl S3ModulerLoader {
-  pub fn new(path: String, options: S3ModuleLoaderOptions) -> Self {
-    Self { path, options }
+  pub fn new(options: S3ModuleLoaderOptions) -> Self {
+    Self { options }
   }
 }
 
@@ -39,9 +38,13 @@ impl ModuleLoader for S3ModulerLoader {
     base: &str,
     resolution: ResolutionKind,
   ) -> Result<ModuleSpecifier> {
-    let object_url = Url::parse(&self.options.endpoint)?.join(specifier)?;
+    let base = Url::parse(base)?;
+    let object_url = if base.scheme() == "file" {
+      Url::parse(&self.options.endpoint)?.join(specifier)
+    } else {
+      base.join(specifier)
+    }?;
     tracing::trace!("resolved: {:?}", object_url.as_ref());
-
     Ok(object_url)
   }
 
@@ -51,7 +54,6 @@ impl ModuleLoader for S3ModulerLoader {
     _maybe_referrer: Option<&ModuleSpecifier>,
     _is_dyn_import: bool,
   ) -> Pin<Box<ModuleSourceFuture>> {
-    let path = self.path.clone();
     let options = self.options.clone();
     let specifier = module_specifier.clone();
     async move {
@@ -67,7 +69,8 @@ impl ModuleLoader for S3ModulerLoader {
         false => bucket,
       };
 
-      let response = bucket.get_object(path.clone()).await?;
+      tracing::debug!("Loading s3 file: {:?}", specifier.path());
+      let response = bucket.get_object(specifier.path()).await?;
       if response.status_code() != 200 {
         bail!("Error: {}", response.as_str().unwrap())
       }
