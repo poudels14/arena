@@ -59,6 +59,10 @@ impl ColumnArrayBuilder {
       DataType::Jsonb => ColumnArrayBuilder::Json(
         StringBuilder::with_capacity(capacity, capacity * 1000),
       ),
+      DataType::File => ColumnArrayBuilder::Json(StringBuilder::with_capacity(
+        capacity,
+        capacity * 1000,
+      )),
       DataType::Varchar { len } => {
         ColumnArrayBuilder::String(StringBuilder::with_capacity(
           capacity,

@@ -65,6 +65,8 @@ pub enum DataType {
   // Posgres Type::TIMESTAMP
   #[strum(serialize = "TIMESTAMP")]
   Timestamp = 15,
+  // Postgres Type::JSONB
+  File = 16,
 }
 
 impl DataType {
@@ -81,6 +83,7 @@ impl DataType {
         let data_type_str = object_name.0[0].value.to_uppercase();
         match data_type_str.as_str() {
           "JSONB" => Ok(DataType::Jsonb),
+          "FILE" => Ok(DataType::File),
           "VECTOR" => {
             let len = data
               .get(0)
@@ -158,6 +161,7 @@ impl DataType {
       Self::Jsonb => Type::JSONB,
       Self::Vector { .. } => Type::FLOAT4_ARRAY,
       Self::Timestamp => Type::TIMESTAMP,
+      Self::File => Type::JSONB,
     }
   }
 
@@ -194,6 +198,7 @@ impl DataType {
       }
       // Datafusion can't convert Timestamp to Uint64, so use utf8
       Self::Timestamp => DfDataType::Utf8,
+      Self::File => DfDataType::Utf8,
     };
 
     (df_data_type, metadata)

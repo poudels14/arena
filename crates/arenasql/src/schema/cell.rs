@@ -45,6 +45,7 @@ pub enum SerializedCell<'a> {
   // Using the reference for bytes prevents data cloning during
   // deserialization
   Blob(&'a [u8]) = 14,
+  File(&'a str) = 15,
 }
 
 // Note: this should only be used when it's impossible to use
@@ -66,6 +67,21 @@ pub enum OwnedSerializedCell {
   Vector(Arc<Vec<f32>>) = 12,
   Timestamp(i64) = 13,
   Blob(Arc<Vec<u8>>) = 14,
+  File(Arc<str>) = 15,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum FileContent {
+  // base64 encoded file content
+  Inline {
+    content: String,
+  },
+  ObjectStore {
+    endpoint: String,
+    bucket: String,
+    path: String,
+  },
 }
 
 impl Default for OwnedSerializedCell {
@@ -164,6 +180,23 @@ impl OwnedSerializedCell {
                 .map_err(|_| Error::InvalidDataType("Invalid JSON".to_owned()))?;
               Ok(Self::Json(
                 serde_json::to_string(&parsed_json).unwrap().into(),
+              ))
+            })
+            .unwrap_or(Ok(OwnedSerializedCell::Null))
+          })
+          .collect();
+      },
+      DataType::File => {
+        return as_string_array(array)
+          .iter()
+          .map(|v| {
+            v.map(|v| {
+              // Convert to FileContent and back to string to make sure it's a valid JSON
+              let file: FileContent = serde_json::from_str(v).map_err(|e| {
+                Error::InvalidDataType(format!("Invalid File content: {:?}", e))
+              })?;
+              Ok(Self::File(
+                serde_json::to_string(&file).unwrap().into(),
               ))
             })
             .unwrap_or(Ok(OwnedSerializedCell::Null))
@@ -323,7 +356,6 @@ impl<'a> SerializedCell<'a> {
 
   #[inline]
   pub fn as_bytes(&self) -> Option<&'a [u8]> {
-    // unimplemented!()
     match self {
       Self::Null => None,
       Self::Blob(value) => Some(value),
@@ -337,6 +369,7 @@ impl<'a> SerializedCell<'a> {
       Self::Null => None,
       Self::String(s) => Some(s),
       Self::Json(s) => Some(s),
+      Self::File(s) => Some(s),
       _ => self.error_converting_to("string"),
     }
   }
