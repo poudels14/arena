@@ -9,6 +9,7 @@ use datafusion::arrow::datatypes::{
   Float32Type, Float64Type, Int16Type, Int32Type, Int64Type, UInt32Type,
   UInt64Type,
 };
+use datafusion::common::cast::as_binary_array;
 use datafusion::error::Result;
 use datafusion::scalar::ScalarValue;
 use serde::{Deserialize, Serialize};
@@ -144,6 +145,14 @@ impl OwnedSerializedCell {
       DataType::Varchar { len: _ } | DataType::Text => as_string_array(array)
         .iter()
         .map(|v| v.map(|v| Self::String(v.into())).unwrap_or_default())
+        .collect(),
+      DataType::Binary => as_binary_array(array)?
+        .iter()
+        .map(|value| {
+          value
+            .map(|v| Self::Blob(Arc::new(v.to_vec())))
+            .unwrap_or_default()
+        })
         .collect(),
       DataType::Jsonb => {
         return as_string_array(array)

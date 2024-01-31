@@ -42,6 +42,9 @@ pub fn derive_pg_type(
       DatafusionDataType::Timestamp(_, _) => Type::TIMESTAMP,
       DatafusionDataType::List(_) => Type::JSONB,
       DatafusionDataType::Null => Type::VOID,
+      DatafusionDataType::Binary | DatafusionDataType::LargeBinary => {
+        Type::BYTEA
+      }
       dt => unimplemented!("Type conversion not implemented for: {}", dt),
     },
   }
