@@ -1,4 +1,4 @@
-import { Show, createContext, useContext, createMemo } from "solid-js";
+import { Show, createContext, useContext } from "solid-js";
 import { createQuery } from "@portal/solid-query";
 import { Store } from "@portal/solid-store";
 
@@ -27,21 +27,19 @@ type WorkspaceContextProviderProps = {
 };
 
 const WorkspaceContextProvider = (props: WorkspaceContextProviderProps) => {
-  const workspaces = createQuery<Workspace[]>("/api/workspaces", {});
-  const workspaceQuery = createMemo(() => {
+  const workspaces = createQuery<Workspace[]>(() => "/api/workspaces", {});
+  const workspaceQuery = createQuery<Workspace>(() => {
     if (!workspaces.data()) {
       return null;
     }
-
     // TODO: use active workspace
     const workspace = workspaces.data()![0];
-
-    return createQuery<Workspace>(`/api/workspaces/${workspace.id}`, {});
-  });
+    return `/api/workspaces/${workspace.id}`;
+  }, {});
 
   const value = {
     get activeWorkspace() {
-      return workspaceQuery()?.data!;
+      return workspaceQuery?.data!;
     },
   };
 
