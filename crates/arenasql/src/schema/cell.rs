@@ -73,14 +73,16 @@ pub enum OwnedSerializedCell {
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum FileContent {
-  // base64 encoded file content
   Inline {
+    // base64 encoded file content
     content: String,
+    metadata: Option<Value>,
   },
   ObjectStore {
     endpoint: String,
     bucket: String,
     path: String,
+    metadata: Option<Value>,
   },
 }
 
