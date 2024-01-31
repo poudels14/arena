@@ -19,7 +19,7 @@ const ChatContextProvider = (props: {
   children: any;
 }) => {
   const threadsRoute = createQuery<any[]>(
-    "/chat/threads",
+    () => "/chat/threads",
     {},
     {
       derive: {

@@ -69,7 +69,7 @@ const AIChat = () => {
   let chatMessagesContainerRef: any;
   let chatMessagesRef: any;
 
-  const threadsRoute = createQuery<any[]>("/chat/threads", {});
+  const threadsRoute = createQuery<any[]>(() => "/chat/threads", {});
   const threadRoute = createMemo(() => {
     const activeThreadId = state.activeThreadId();
     setChatThread("messages", {});
@@ -77,7 +77,7 @@ const AIChat = () => {
       return null;
     }
     const route = createQuery<Chat.Thread>(
-      `/chat/threads/${activeThreadId}`,
+      () => `/chat/threads/${activeThreadId}`,
       {},
       {
         lazy: true,
@@ -104,22 +104,13 @@ const AIChat = () => {
     }
   );
 
-  const threadTaskExecutionsById = createMemo(() => {
+  const threadTaskExecutionsById = createQuery<Chat.TaskExecution[]>(() => {
     const activeThreadId = state.activeThreadId();
-    if (!activeThreadId) return;
+    if (!activeThreadId) return null;
     // reload tasks if the ids change
     void threadTaskCallIds();
-    const route = createQuery<Chat.TaskExecution[]>(
-      `/chat/threads/${activeThreadId}/tasks`,
-      {},
-      {
-        lazy: true,
-      }
-    );
-
-    route.refresh();
-    return route.data;
-  });
+    return `/chat/threads/${activeThreadId}/tasks`;
+  }, {});
 
   createComputed(() => {
     const route = threadRoute();
@@ -258,7 +249,7 @@ const AIChat = () => {
                         state={state}
                         message={message}
                         task={
-                          threadTaskExecutionsById()[
+                          threadTaskExecutionsById.data[
                             message.message.tool_calls[0].id() as any as number
                           ]
                         }
