@@ -257,7 +257,8 @@ impl From<parser::ParserError> for Error {
 
 impl From<rocksdb::Error> for Error {
   fn from(e: rocksdb::Error) -> Self {
-    Self::IOError(e.into_string())
+    eprint!("Rocks db error: {:?}", e);
+    Self::IOError(format!("IO error"))
   }
 }
 

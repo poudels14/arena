@@ -77,15 +77,14 @@ impl Error {
         format!("database \"{}\" does not exist", catalog)
       }
       Self::ArenaSqlError(e) => e.message(),
-      Self::RocksError(_)
-      | Self::IOError(_)
-      | Self::UnsupportedDataType(_)
-      | Self::MultipleCommandsIntoPreparedStmt => {
+      Self::RocksError(_) | Self::IOError(_) => format!("IO error"),
+      Self::MultipleCommandsIntoPreparedStmt => {
         format!("cannot insert multiple commands into a prepared statement")
       }
       Self::InvalidConnection | Self::SessionAlreadyExists => {
         format!("Connection error")
       }
+      Self::UnsupportedDataType(msg) => msg.to_owned(),
     }
   }
 }
@@ -98,12 +97,14 @@ impl From<arenasql::Error> for Error {
 
 impl From<std::io::Error> for Error {
   fn from(err: std::io::Error) -> Self {
+    eprintln!("IO error at {:?}", err);
     Self::IOError(err.into())
   }
 }
 
 impl From<rocks::Error> for Error {
   fn from(err: rocks::Error) -> Self {
+    eprintln!("Rocks error: {:?}", err);
     Self::RocksError(err.into())
   }
 }
