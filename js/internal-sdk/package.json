@@ -1,0 +1,13 @@
+{
+  "name": "@portal/internal-sdk",
+  "version": "0.0.1",
+  "description": "Utils that use interal portal modules like @arena/cloud",
+  "type": "module",
+  "scripts": {},
+  "author": "Sagar Poudel",
+  "private": true,
+  "dependencies": {
+    "@arena/cloud": "workspace:^",
+    "@portal/sdk": "workspace:^"
+  }
+}
