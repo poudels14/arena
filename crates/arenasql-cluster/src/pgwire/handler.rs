@@ -381,7 +381,16 @@ fn convert_bytes_to_scalar_value(
             .try_into()
             .map_err(|_| invalid_param_err(index))
             .map(|v| i64::from_be_bytes(v)),
-          _ => unimplemented!(),
+          Format::Individual(format) => {
+            if format[index] == 0 {
+              parse_from_text(index, by)
+            } else {
+              by.as_bytes()
+                .try_into()
+                .map_err(|_| invalid_param_err(index))
+                .map(|v| i64::from_be_bytes(v))
+            }
+          }
         })
         .transpose()?,
     ),

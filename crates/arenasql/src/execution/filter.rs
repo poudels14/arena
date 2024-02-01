@@ -25,6 +25,14 @@ pub enum Filter {
     projected_columns: Vec<usize>,
     expr: Box<Expr>,
   },
+  IsTrue {
+    projected_columns: Vec<usize>,
+    expr: Box<Expr>,
+  },
+  IsFalse {
+    projected_columns: Vec<usize>,
+    expr: Box<Expr>,
+  },
 }
 
 impl Filter {
@@ -68,6 +76,14 @@ impl Filter {
         projected_columns,
         expr: e.clone(),
       }),
+      Expr::IsTrue(e) => Ok(Self::IsTrue {
+        projected_columns,
+        expr: e.clone(),
+      }),
+      Expr::IsFalse(e) => Ok(Self::IsFalse {
+        projected_columns,
+        expr: e.clone(),
+      }),
       _ => Err(Error::UnsupportedQueryFilter(expr.to_string())),
     }
   }
@@ -81,10 +97,16 @@ impl Filter {
       | Self::IsNotNull {
         projected_columns, ..
       }
+      | Self::Like {
+        projected_columns, ..
+      }
       | Self::IsNull {
         projected_columns, ..
       }
-      | Self::Like {
+      | Self::IsTrue {
+        projected_columns, ..
+      }
+      | Self::IsFalse {
         projected_columns, ..
       } => projected_columns,
     }

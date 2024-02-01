@@ -117,7 +117,10 @@ impl DfTableProvider for TableProvider {
     filters
       .iter()
       .map(|expr| {
-        let filter = Filter::for_table(&self.table, *expr)?;
+        let Ok(filter) = Filter::for_table(&self.table, *expr) else {
+          // If filter for table isn't supported, return unsupported
+          return Ok(TableProviderFilterPushDown::Unsupported);
+        };
         Ok(
           self
             .table
