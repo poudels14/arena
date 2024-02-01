@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
+use arenasql::arrow::{Float32Type, ListArray};
 use arenasql::bytes::Bytes;
 use arenasql::datafusion::{LogicalPlan, ScalarValue};
 use arenasql::pgwire::api::portal::{Format, Portal};
@@ -19,6 +20,7 @@ use arenasql::pgwire::messages::extendedquery::{
   Bind, BindComplete, Parse, ParseComplete,
 };
 use arenasql::pgwire::messages::PgWireBackendMessage;
+use arenasql::postgres_types::FromSql;
 use arenasql::schema::CTID_COLUMN;
 use arenasql::{pgwire, Error};
 use async_trait::async_trait;
@@ -389,6 +391,22 @@ fn convert_bytes_to_scalar_value(
     Type::JSONB => ScalarValue::Utf8(
       bytes.and_then(|b| std::str::from_utf8(&b).map(|s| s.to_owned()).ok()),
     ),
+    Type::FLOAT4_ARRAY => {
+      return bytes
+        .map(|b| {
+          let vector =
+            Vec::<f32>::from_sql(&Type::FLOAT4_ARRAY, b).map_err(|e| {
+              Error::InvalidParameter(format!("Invalid FLOAT4_ARRAY: {:?}", e))
+            })?;
+
+          Ok(ScalarValue::List(Arc::new(
+            ListArray::from_iter_primitive::<Float32Type, _, _>(vec![Some(
+              vector.into_iter().map(|v| Some(v)),
+            )]),
+          )))
+        })
+        .unwrap_or(Ok(ScalarValue::Null));
+    }
     _ => {
       unimplemented!("Converting bytes to ScalarValue for type {:?}", r#type)
     }

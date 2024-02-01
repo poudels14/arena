@@ -200,6 +200,20 @@ impl ToSql for Param {
       return Ok(IsNull::Yes);
     }
 
+    match *ty {
+      Type::FLOAT4_ARRAY => match &self.0 {
+        Value::String(value) => {
+          let vector =
+            serde_json::from_str::<Vec<f32>>(value).map_err(|err| {
+              anyhow!("Error deserializing FLOAT4_ARRAY: {:?}", err)
+            })?;
+          return vector.to_sql(ty, out);
+        }
+        _ => {}
+      },
+      _ => {}
+    };
+
     match &self.0 {
       Value::Bool(v) => {
         out.put_i8(if *v { 1 } else { 0 });
@@ -214,19 +228,20 @@ impl ToSql for Param {
           out.put_i64(v.as_i64().unwrap());
           Ok(IsNull::No)
         }
+        Type::FLOAT4 => {
+          out.put_f32(v.as_f64().unwrap() as f32);
+          Ok(IsNull::No)
+        }
+        Type::FLOAT8 => {
+          out.put_f64(v.as_f64().unwrap());
+          Ok(IsNull::No)
+        }
         _ => {
           Err(anyhow!("to_sql: unsupported number type - [ {} ]", ty).into())
         }
       },
-      Value::Object(v) => {
-        json!(v).to_sql(ty, out)?;
-        Ok(IsNull::No)
-      }
-      Value::Array(v) => {
-        json!(v).to_sql(ty, out)?;
-        Ok(IsNull::No)
-      }
-
+      Value::Object(v) => json!(v).to_sql(ty, out),
+      Value::Array(v) => json!(v).to_sql(ty, out),
       Value::String(v) => match *ty {
         Type::TIMESTAMPTZ | Type::TIMESTAMP => {
           let date = chrono::DateTime::parse_from_rfc3339(&v)?;
@@ -262,6 +277,9 @@ impl ToSql for Param {
       | Type::TEXT
       | Type::TIMESTAMP
       | Type::TIMESTAMPTZ
+      | Type::FLOAT4
+      | Type::FLOAT8
+      | Type::FLOAT4_ARRAY
       | Type::JSONB
       | Type::JSON_ARRAY => true,
       _ => {

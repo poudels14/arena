@@ -1,9 +1,13 @@
-use datafusion::arrow::array::as_string_array;
+use std::sync::Arc;
+
+use datafusion::arrow::array::{as_string_array, ListArray};
+use datafusion::arrow::datatypes::Float32Type;
+use datafusion::scalar::ScalarValue;
 
 use crate::tests::create_session_context;
 
 #[tokio::test(flavor = "multi_thread")]
-async fn vector_test_l2_distance() {
+async fn vector_column_type_test_l2_distance() {
   let session = create_session_context();
 
   session
@@ -31,7 +35,7 @@ async fn vector_test_l2_distance() {
 
   let mut res = session
   .execute_sql(
-    r#"SELECT id as dist FROM vectors WHERE l2(embeddings, [1.0, 1.0, 1.0, 1.0]) < 1.1"#
+    r#"SELECT id as dist FROM vectors WHERE l2(embeddings, '[1.0, 1.0, 1.0, 1.0]') < 1.1"#
   )
   .await
   .unwrap();
@@ -51,7 +55,7 @@ async fn vector_test_l2_distance() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn vector_test_create_table_with_odd_length_vector_column() {
+async fn vector_column_type_test_create_table_with_odd_length_vector_column() {
   let session = create_session_context();
 
   let res = session
@@ -63,4 +67,48 @@ async fn vector_test_create_table_with_odd_length_vector_column() {
     )
     .await;
   assert!(res.is_err());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn vector_column_type_test_params() {
+  let session = create_session_context();
+
+  session
+    .execute_sql(
+      r#"CREATE TABLE IF NOT EXISTS vectors (
+      id VARCHAR(50),
+      embeddings VECTOR(4)
+    )"#,
+    )
+    .await
+    .unwrap();
+
+  let stmts =
+    crate::ast::parse("INSERT INTO vectors VALUES ('id1', $1)").unwrap();
+  session
+    .execute_statement(
+      stmts[0].clone().into(),
+      None,
+      Some(vec![ScalarValue::List(Arc::new(
+        ListArray::from_iter_primitive::<Float32Type, _, _>(vec![Some(vec![
+          Some(0.1f32),
+          Some(0.2),
+          Some(0.3),
+          Some(0.4),
+        ])]),
+      ))]),
+    )
+    .await
+    .unwrap();
+
+  let mut res = session
+    .execute_sql(r#"SELECT id FROM vectors"#)
+    .await
+    .unwrap();
+
+  assert_eq!(
+    res.pop().unwrap().num_rows().await.unwrap(),
+    1,
+    "Expected number of rows to be 1"
+  );
 }

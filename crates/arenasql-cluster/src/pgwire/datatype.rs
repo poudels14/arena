@@ -40,7 +40,7 @@ pub fn derive_pg_type(
       DatafusionDataType::Utf8 => Type::TEXT,
       DatafusionDataType::Decimal256(_, _) => Type::JSONB,
       DatafusionDataType::Timestamp(_, _) => Type::TIMESTAMP,
-      DatafusionDataType::List(_) => Type::JSONB,
+      DatafusionDataType::List(_) => Type::FLOAT4_ARRAY,
       DatafusionDataType::Null => Type::VOID,
       DatafusionDataType::Binary | DatafusionDataType::LargeBinary => {
         Type::BYTEA
