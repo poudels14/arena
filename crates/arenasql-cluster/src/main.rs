@@ -23,6 +23,7 @@ use tikv_jemallocator::Jemalloc;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 use tracing_subscriber::filter::Directive;
+use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::prelude::*;
 use tracing_tree::HierarchicalLayer;
 
@@ -65,7 +66,8 @@ fn main() {
       HierarchicalLayer::default()
         .with_indent_amount(2)
         .with_thread_names(true),
-    );
+    )
+    .with(tracing_subscriber::fmt::layer().with_span_events(FmtSpan::CLOSE));
   tracing::subscriber::set_global_default(subscriber).unwrap();
 
   let args = Args::parse();
