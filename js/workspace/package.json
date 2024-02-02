@@ -38,6 +38,7 @@
   },
   "dependencies": {
     "@portal-apps/assistant": "workspace:^",
+    "@portal-apps/drive": "workspace:^",
     "@portal/cli": "workspace:^",
     "@portal/sdk": "workspace:^",
     "@portal/server-core": "workspace:^",
@@ -46,6 +47,7 @@
     "@portal/solid-store": "workspace:^",
     "@portal/solid-ui": "workspace:^",
     "@portal/solidjs": "workspace:^",
+    "@portal/workspace-sdk": "workspace:^",
     "@solidjs/meta": "^0.29.3",
     "@solidjs/router": "0.10.6",
     "drizzle-orm": "^0.26.4",

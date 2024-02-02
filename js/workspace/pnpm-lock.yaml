@@ -8,6 +8,9 @@ dependencies:
   '@portal-apps/assistant':
     specifier: workspace:^
     version: link:../apps/atlasai
+  '@portal-apps/drive':
+    specifier: workspace:^
+    version: link:../apps/drive
   '@portal/cli':
     specifier: workspace:^
     version: link:../portal-app/cli
@@ -32,6 +35,9 @@ dependencies:
   '@portal/solidjs':
     specifier: workspace:^
     version: link:../portal/solidjs
+  '@portal/workspace-sdk':
+    specifier: workspace:^
+    version: link:../portal-app/workspace-sdk
   '@solidjs/meta':
     specifier: ^0.29.3
     version: 0.29.3(solid-js@1.8.7)
