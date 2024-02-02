@@ -39,6 +39,7 @@
     "@portal/solid-router": "workspace:^",
     "@portal/solid-store": "workspace:^",
     "@portal/solid-ui": "workspace:^",
+    "@portal/workspace-sdk": "workspace:^",
     "@solidjs/router": "^0.10.5",
     "@t3-oss/env-core": "^0.7.1",
     "clean-set": "^1.1.2",

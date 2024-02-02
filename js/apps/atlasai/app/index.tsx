@@ -11,9 +11,15 @@ const Chat = lazy(() => import("./chat/index.tsx"));
 const Settings = lazy(() => import("./settings/index.tsx"));
 
 const Assistant = () => {
+  const navigate = useNavigate();
   const threadIdMatcher = useMatcher("/t/:threadId");
   return (
-    <ChatContextProvider activeThreadId={threadIdMatcher()?.params?.threadId}>
+    <ChatContextProvider
+      activeThreadId={threadIdMatcher()?.params?.threadId}
+      onThreadReady={(threadId) => {
+        navigate(`/t/${threadId}`);
+      }}
+    >
       <div class="w-full h-screen flex flex-row">
         <Sidebar />
         <Route path="/settings">

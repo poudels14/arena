@@ -27,10 +27,6 @@ const handler = chainMiddlewares<{ event: PageEvent }>(async ({ event }) => {
         dbpool,
         repo,
         embeddingsModel: null!,
-        // TODO
-        // user: {
-        //   id: "test-user",
-        // },
       },
     });
   } catch (e) {

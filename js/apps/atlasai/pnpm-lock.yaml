@@ -35,6 +35,9 @@ dependencies:
   '@portal/solid-ui':
     specifier: workspace:^
     version: link:../../portal/solid-ui
+  '@portal/workspace-sdk':
+    specifier: workspace:^
+    version: link:../../portal-app/workspace-sdk
   '@solidjs/router':
     specifier: ^0.10.5
     version: 0.10.5(solid-js@1.8.8)
