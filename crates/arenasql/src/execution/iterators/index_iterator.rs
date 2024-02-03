@@ -59,9 +59,10 @@ impl<'a> IndexIterator<'a> {
       (false, false) => {
         self.scan_secondary_index_into_df(&mut index_iter, dataframe)
       }
-      (false, true) => {
-        unimplemented!()
-      }
+      (false, true) => self.scan_secondary_index_with_table_lookup_nto_df(
+        &mut index_iter,
+        dataframe,
+      ),
     }
   }
 
@@ -119,6 +120,43 @@ impl<'a> IndexIterator<'a> {
         .collect();
 
       dataframe.append_row(row_id, &selected_columns);
+      index_iter.next();
+    }
+    Ok(())
+  }
+
+  fn scan_secondary_index_with_table_lookup_nto_df(
+    &self,
+    index_iter: &mut Box<dyn KeyValueIterator>,
+    dataframe: &mut DataFrame,
+  ) -> Result<()> {
+    let index_prefix = index_rows_prefix_key!(self.index.id);
+    while let Some((index_row_with_prefix, _)) = index_iter.get() {
+      let index_row_bytes = &index_row_with_prefix[index_prefix.len()..];
+      let (_, row_id) = self
+        .storage
+        .serializer
+        .deserialize::<(Vec<SerializedCell<'_>>, &[u8])>(index_row_bytes)?;
+
+      let row_bytes = self
+        .storage
+        .kv
+        .get(KeyValueGroup::Rows, &table_row_key!(self.table.id, &row_id))?
+        .ok_or_else(|| {
+          Error::IOError(format!(
+            "Couldn't find row data for rowid: {:?}",
+            RowId::deserialize(&row_id)
+          ))
+        })?;
+
+      let row = self.storage.serializer.deserialize::<Row<'_>>(&row_bytes)?;
+      let selected_columns = self
+        .column_projection
+        .iter()
+        .map(|proj| &row[*proj])
+        .collect();
+
+      dataframe.append_row(&row_id, &selected_columns);
       index_iter.next();
     }
     Ok(())

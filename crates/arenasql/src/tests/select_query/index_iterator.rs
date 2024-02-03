@@ -120,3 +120,65 @@ async fn le_filter_returns_multi_row_iterator() {
   // other operator will return all rows
   assert_eq!(dataframe.row_count(), 3)
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn le_filter_using_secondary_index_returns_only_filtered_rows() {
+  let session = create_session_context();
+  let txn = session.new_active_transaction().unwrap();
+
+  execute_query!(
+    txn,
+    r#"CREATE TABLE IF NOT EXISTS test_table (
+      id VARCHAR(50),
+      name TEXT,
+      group VARCHAR(50)
+    )"#
+  )
+  .unwrap();
+
+  execute_query!(txn, r#"CREATE INDEX group_index ON test_table (group);"#)
+    .unwrap();
+
+  execute_query!(
+    txn,
+    r#"INSERT INTO test_table
+      VALUES
+      ('id_1', 'name 1', 'group1'),
+      ('id_2', 'name', 'group1'),
+      ('id_3', 'name 3', 'group2')"#
+  )
+  .unwrap();
+
+  let storage = txn.handle().lock(false).unwrap();
+  let table = storage
+    .get_table_schema(
+      &session.config.catalog,
+      DEFAULT_SCHEMA_NAME,
+      "test_table",
+    )
+    .unwrap()
+    .unwrap();
+
+  let group_eq_expr = Expr::Column(Column::new_unqualified("group"))
+    .eq(Expr::Literal(ScalarValue::Utf8(Some("group1".to_owned()))));
+
+  let filters = vec![Filter::for_table(&table, &group_eq_expr).unwrap()];
+
+  let group_index = table.indexes.get(0).unwrap();
+  println!("group_index = {:?}", group_index);
+  let column_projection = vec![0];
+  let mut dataframe =
+    DataFrame::with_capacity(10, vec![("text".to_owned(), DataType::Text)]);
+  let rows_iterator = IndexIterator::new(
+    &storage,
+    &table,
+    group_index,
+    &filters,
+    &column_projection,
+  );
+
+  rows_iterator.fill_into(&mut dataframe).unwrap();
+
+  // The secondary index scan for '=' filter should only select matching rows
+  assert_eq!(dataframe.row_count(), 2)
+}
