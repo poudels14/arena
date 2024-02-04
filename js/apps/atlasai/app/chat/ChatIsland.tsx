@@ -101,7 +101,7 @@ const Minimized = (props: {
       onClick={props.openChatBox}
     >
       <div class="flex text-sm justify-center group">
-        <div class="text-nowrap">Search or ask about</div>
+        <div class="text-nowrap">Ask AI about</div>
         <div class="flex px-2 font-semibold space-x-1 overflow-hidden">
           <div class="overflow-hidden text-ellipsis text-nowrap">
             {contextTitle()}

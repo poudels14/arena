@@ -158,9 +158,8 @@ const sendMessage = p
         .post(
           new URL(
             `/w/apps/${app.id}/api/portal/llm/search`,
-            env.PORTAL_APPS_PROXY
+            ctx.env.PORTAL_WORKSPACE_HOST
           ).href,
-
           {
             json: {
               query: body.message.content,

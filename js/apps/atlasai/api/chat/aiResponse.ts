@@ -9,8 +9,6 @@ import { jsonStreamToAsyncIterator } from "@portal/sdk/utils/stream";
 import dlv from "dlv";
 import { pick } from "lodash-es";
 import { Context } from "../procedure";
-import { DocumentEmbeddingsGenerator } from "../../llm/EmbeddingsGenerator";
-import { generateSystemPrompt } from "./prompt";
 import { ChatMessage } from "../repo/chatMessages";
 import { ChatThread } from "./types";
 import { llmDeltaToResponseBuilder } from "../../llm/utils";
@@ -19,7 +17,7 @@ import { createQueryContextExtension } from "./llmQueryContext";
 import { Search } from "@portal/workspace-sdk/llm/search";
 
 async function generateLLMResponseStream(
-  { ctx, errors }: Pick<ProcedureRequest<Context, any>, "ctx" | "errors">,
+  { ctx }: Pick<ProcedureRequest<Context, any>, "ctx" | "errors">,
   {
     thread,
     message,

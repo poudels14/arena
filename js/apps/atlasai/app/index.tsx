@@ -76,7 +76,7 @@ const Sidebar = () => {
       >
         <div>Chat</div>
       </SidebarTab>
-      <PortalSidebar class="tab:pl-6 tab-active:bg-gray-100 tab-hover:bg-gray-100">
+      <PortalSidebar class="tab:pl-6 tab:py-2 tab-active:bg-gray-100 tab-hover:bg-gray-100">
         <For each={threadIds()}>
           {(threadId) => {
             return (

@@ -24,6 +24,7 @@ const handler = chainMiddlewares<{ event: PageEvent }>(async ({ event }) => {
     return await router.route(event.request, {
       env: event.env,
       context: {
+        env,
         dbpool,
         repo,
         embeddingsModel: null!,
