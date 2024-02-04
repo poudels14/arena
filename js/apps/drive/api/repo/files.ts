@@ -1,4 +1,4 @@
-import { InferModel, and, eq, isNull } from "drizzle-orm";
+import { InferModel, and, eq, inArray, isNull } from "drizzle-orm";
 import {
   jsonb,
   pgTable,
@@ -19,13 +19,18 @@ export const files = pgTable("files", {
   size: integer("size").notNull(),
   metadata: jsonb("metadata"),
   file: jsonb("file"),
+  contentType: varchar("content_type"),
   createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   archivedAt: timestamp("archived_at"),
 });
 
-type File = InferModel<typeof files>;
+type File = InferModel<typeof files> & {
+  file: {
+    content: string;
+  } | null;
+};
 
 const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
   return {
@@ -51,8 +56,34 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
         );
       return (rows[0] || null) as File | null;
     },
-    async listFiles(filters: {
-      parentId: string | null;
+    async fetchFileNamesByIds(
+      ids: string[]
+    ): Promise<Pick<File, "id" | "name">[]> {
+      const rows = await db
+        .select({
+          id: files.id,
+          name: files.name,
+        })
+        .from(files)
+        .where(and(inArray(files.id, ids), isNull(files.archivedAt)));
+      return rows as File[];
+    },
+    async fetchFileContent(
+      ids: string[]
+    ): Promise<Pick<File, "id" | "name" | "parentId" | "file">[]> {
+      const rows = await db
+        .select({
+          id: files.id,
+          name: files.name,
+          parentId: files.parentId,
+          file: files.file,
+        })
+        .from(files)
+        .where(and(inArray(files.id, ids), isNull(files.archivedAt)));
+      return rows as File[];
+    },
+    async listDirectory(filters: {
+      directoryId: string | null;
     }): Promise<
       Pick<
         File,
@@ -80,13 +111,88 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
         .from(files)
         .where(
           and(
-            filters.parentId == null
+            filters.directoryId == null
               ? isNull(files.parentId)
-              : eq(files.parentId, filters.parentId),
+              : eq(files.parentId, filters.directoryId),
             isNull(files.archivedAt)
           )
         );
       return rows as File[];
+    },
+    // breadcrumb of a directory will also include itself
+    async getBreadcrumb(filters: {
+      directoryId: string | null;
+    }): Promise<Pick<File, "id" | "name" | "description" | "parentId">[]> {
+      // root directory (id = null) doesn't have breadcrumb
+      if (filters.directoryId == null) {
+        return [];
+      }
+      // Note: since arenasql doesn't support recursive CTE, do recursion here
+      const getDirectory = async (directoryId: string) => {
+        const rows = await db
+          .select({
+            id: files.id,
+            name: files.name,
+            description: files.description,
+            parentId: files.parentId,
+          })
+          .from(files)
+          .where(
+            and(
+              eq(files.id, directoryId),
+              eq(files.isDirectory, true),
+              isNull(files.archivedAt)
+            )
+          );
+        return rows.length > 0 ? rows[0] : null;
+      };
+
+      const breadcrumbs = [];
+      let directoryId: string | null = filters.directoryId;
+      while (directoryId) {
+        const directory = await getDirectory(directoryId);
+        if (directory) {
+          breadcrumbs.unshift(directory);
+          directoryId = directory.parentId;
+        } else {
+          return breadcrumbs;
+        }
+      }
+      return breadcrumbs as File[];
+    },
+    // list all the nested directories inside the given directory
+    async listAllSubDirectories(filters: {
+      parentId: string | null;
+    }): Promise<Pick<File, "id" | "name" | "description" | "parentId">[]> {
+      // Note: since arenasql doesn't support recursive CTE, do recursion here
+      const listDirectories = async (directoryId: string | null) => {
+        return await db
+          .select({
+            id: files.id,
+            name: files.name,
+            description: files.description,
+            parentId: files.parentId,
+          })
+          .from(files)
+          .where(
+            and(
+              directoryId == null
+                ? isNull(files.parentId)
+                : eq(files.parentId, directoryId),
+              eq(files.isDirectory, true),
+              isNull(files.archivedAt)
+            )
+          );
+      };
+
+      const allDirectories = [];
+      const stack = [filters.parentId];
+      while (stack.length > 0) {
+        const dirs = await listDirectories(stack.pop()!);
+        allDirectories.push(...dirs);
+        stack.push(...dirs.map((dir) => dir.id));
+      }
+      return allDirectories as File[];
     },
     async archiveById(id: string): Promise<Pick<Required<File>, "archivedAt">> {
       throw new Error("not implemented");

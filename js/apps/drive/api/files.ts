@@ -24,8 +24,8 @@ const addDirectory = p
       }
     }
 
-    const parentsChildren = await ctx.repo.files.listFiles({
-      parentId: body.parentId,
+    const parentsChildren = await ctx.repo.files.listDirectory({
+      directoryId: body.parentId,
     });
     if (parentsChildren.some((child) => child.name == body.name)) {
       return errors.badRequest("Duplicate directory name");
@@ -41,6 +41,7 @@ const addDirectory = p
       metadata: {},
       size: 0,
       file: null,
+      contentType: null,
       createdAt: new Date(),
     };
     await ctx.repo.files.insert(directory);
@@ -57,10 +58,16 @@ const listDirectory = p.query(async ({ ctx, searchParams, errors }) => {
   if (!directory && directoryId != null) {
     return errors.notFound("Directory not found");
   }
-  const children = await ctx.repo.files.listFiles({
-    parentId: directoryId,
+
+  const breadcrumbs = await ctx.repo.files.getBreadcrumb({
+    directoryId,
   });
+  const children = await ctx.repo.files.listDirectory({
+    directoryId,
+  });
+
   return merge(pick(directory, "id", "name", "parentId", "isDirectory"), {
+    breadcrumbs,
     children: children.map((child) => {
       return merge(pick(child, "id", "name", "parentId", "isDirectory"), {
         type: child.isDirectory ? null : mime.getType(child.name),
@@ -70,6 +77,7 @@ const listDirectory = p.query(async ({ ctx, searchParams, errors }) => {
 });
 
 const uploadFiles = p.mutate(async ({ req, ctx, errors, form }) => {
+  const uploadTime = new Date();
   const formData = await form.multipart(req);
   const parentInput = formData.find((input) => input.name == "parentId");
   if (!parentInput) {
@@ -90,8 +98,16 @@ const uploadFiles = p.mutate(async ({ req, ctx, errors, form }) => {
   try {
     for (const formInput of formData) {
       if (formInput.filename) {
+        const contentType = mime.getType(formInput.filename) as ContentType;
+        if (
+          ![ContentType.TEXT, ContentType.MARKDOWN, ContentType.PDF].includes(
+            contentType
+          )
+        ) {
+          return errors.badRequest("Unsupported content type: " + contentType);
+        }
         const fileContent = formInput.data.toString("base64");
-        const file = {
+        const originalFile = {
           id: uniqueId(),
           name: formInput.filename,
           description: null,
@@ -103,9 +119,37 @@ const uploadFiles = p.mutate(async ({ req, ctx, errors, form }) => {
           file: {
             content: fileContent,
           },
-          createdAt: new Date(),
+          contentType,
+          createdAt: uploadTime,
         };
+        await repo.files.insert(originalFile);
+        newFiles.push(originalFile);
 
+        // TODO: use workflows for text extraction
+        const document = createDocument(contentType, formInput);
+        const extractedText = await document.getExtractedText();
+        const extractedFile = extractedText
+          ? {
+              id: uniqueId(),
+              name: formInput.filename,
+              description: null,
+              isDirectory: false,
+              parentId: originalFile.id,
+              createdBy: ctx.user!.id,
+              metadata: {},
+              size: extractedText.length,
+              file: {
+                content: extractedText,
+              },
+              contentType: null,
+              createdAt: uploadTime,
+            }
+          : null;
+        if (extractedFile) {
+          await repo.files.insert(extractedFile);
+        }
+
+        const embeddingFile = extractedFile ? extractedFile : originalFile;
         const documentSplitter = createDocumentSplitter({
           async tokenize(content) {
             return await ctx.llm.embeddingsModel.tokenizeText(content, {
@@ -116,17 +160,11 @@ const uploadFiles = p.mutate(async ({ req, ctx, errors, form }) => {
           windowTerminationNodes: ["heading", "table", "code"],
         });
 
-        const document = createDocument(
-          mime.getType(formInput.filename) as ContentType,
-          formInput
-        );
         const documentChunks = await document.split(documentSplitter);
         const embeddings = await ctx.llm.embeddingsModel.generateEmbeddings(
           documentChunks.map((chunk) => chunk.content)
         );
 
-        await repo.files.insert(file);
-        newFiles.push(file);
         for (let index = 0; index < documentChunks.length; index++) {
           const chunk = documentChunks[index];
           await repo.embeddings.insert({
@@ -137,8 +175,9 @@ const uploadFiles = p.mutate(async ({ req, ctx, errors, form }) => {
               end: chunk.position.end,
               chunk: chunk.metadata,
             },
-            fileId: file.id,
-            createdAt: file.createdAt,
+            fileId: embeddingFile.id,
+            directoryId: parentDirectory!.id,
+            createdAt: uploadTime,
           });
         }
       }

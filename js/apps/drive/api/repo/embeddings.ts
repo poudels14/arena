@@ -1,17 +1,26 @@
-import { InferModel, and, eq, isNotNull, sql } from "drizzle-orm";
+import { InferModel, and, eq, gt, inArray, isNotNull, sql } from "drizzle-orm";
 import { jsonb, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
 import { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
 export const embeddings = pgTable("file_embeddings", {
   id: varchar("id").notNull(),
   fileId: varchar("file_id").notNull(),
+  directoryId: varchar("directory_id"),
   metadata: jsonb("metadata"),
   // embeddings VECTOR
   embeddings: jsonb("embeddings").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-type Embedding = InferModel<typeof embeddings>;
+type Embedding = InferModel<typeof embeddings> & {
+  metadata: {
+    // start index of the file chunk
+    start: number;
+    // end index of the file chunk
+    end: number;
+  } & Record<string, any>;
+};
+type EmbeddingWithScore = Embedding & { score: number };
 
 const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
   return {
@@ -21,25 +30,37 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
     },
     async search(options: {
       embeddings: number[];
+      // if passed, only searches the embeddings of the files that belong to
+      // one of the given directory ids
+      directories?: string[];
       // top K limit
       limit: number;
-    }): Promise<Pick<Embedding, "id" | "fileId" | "metadata">[]> {
+    }): Promise<
+      Pick<EmbeddingWithScore, "id" | "fileId" | "metadata" | "score">[]
+    > {
+      const scoreExpr = sql.raw(
+        "l2(embeddings, " + "'[" + options.embeddings.join(",") + "]') as score"
+      );
       const rows = await db
         .select({
           id: embeddings.id,
           fileId: embeddings.fileId,
           metadata: embeddings.metadata,
           createdAt: embeddings.createdAt,
+          score: scoreExpr,
         })
         .from(embeddings)
-        .orderBy(
-          sql.raw(
-            "l2(embeddings, " + "'[" + options.embeddings.join(",") + "]') DESC"
+        .where(
+          and(
+            options.directories?.length
+              ? inArray(embeddings.directoryId, options.directories)
+              : isNotNull(embeddings.directoryId)
           )
         )
+        .orderBy(sql.raw("score DESC"))
         .limit(options.limit);
 
-      return rows as Embedding[];
+      return rows as EmbeddingWithScore[];
     },
     async list(filters: {
       fileId?: string;

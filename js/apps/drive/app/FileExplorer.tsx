@@ -1,7 +1,8 @@
+import { For, Match, Show, Switch, createMemo, createComputed } from "solid-js";
 import { createQuery } from "@portal/solid-query";
 import { useMatcher, useNavigate } from "@portal/solid-router";
+import { useSharedWorkspaceContext } from "@portal/workspace-sdk";
 import { Directory, File } from "./components/File";
-import { For, Match, Show, Switch, createMemo } from "solid-js";
 import { Uploader } from "./Uploader";
 
 type Directory = {
@@ -10,11 +11,13 @@ type Directory = {
   parentId: string | null;
   type?: string;
   isDirectory: boolean;
+  breadcrumbs: Pick<Directory, "id" | "name">[];
   children: Directory[];
 };
 
 const FileExplorer = () => {
-  const directoryId = useMatcher("/files/:id");
+  const { getCurrentApp, setChatContext } = useSharedWorkspaceContext();
+  const directoryId = useMatcher("/explore/:id");
   const currentDirectoryId = createMemo(() => {
     return directoryId()?.params?.id || null;
   });
@@ -24,8 +27,32 @@ const FileExplorer = () => {
     return `/api/fs/directory?id=${currentDirectoryId()}`;
   }, {});
 
+  const chatContextBreadcrums = createMemo<any[]>((prev) => {
+    const data = filesQuery.data();
+    if (data) {
+      return data.breadcrumbs.map((crumb) => {
+        return {
+          id: crumb.id,
+          title: crumb.name,
+        };
+      });
+    }
+    // Note(sagar): return prev here such that until the new dir data is loaded,
+    // the previous breadcrumb is intact. This will prevent flickering since
+    // `setChatContext` is reactive and clears previous context if called from
+    // reactive context
+    return prev;
+  }, []);
+
+  createComputed(() => {
+    setChatContext({
+      app: getCurrentApp(),
+      breadcrumbs: chatContextBreadcrums(),
+    });
+  });
+
   return (
-    <div class="p-2">
+    <div class="px-8 py-4">
       <Uploader
         parentId={currentDirectoryId()}
         onUpload={() => {
@@ -39,7 +66,7 @@ const FileExplorer = () => {
               id={filesQuery.data.parentId() || "root"}
               name={".."}
               onDblClick={() => {
-                navigate(`/files/` + (filesQuery.data.parentId() ?? ""));
+                navigate(`/explore/` + (filesQuery.data.parentId() ?? ""));
               }}
             />
           </Show>
@@ -52,7 +79,7 @@ const FileExplorer = () => {
                       id={file.id}
                       name={file.name}
                       onDblClick={() => {
-                        navigate(`/files/` + file.id);
+                        navigate(`/explore/` + file.id);
                       }}
                     />
                   </Match>
@@ -62,7 +89,7 @@ const FileExplorer = () => {
                       name={file.name}
                       type={file.type!}
                       onDblClick={() => {
-                        navigate(`/files/` + file.id);
+                        navigate(`/explore/` + file.id);
                       }}
                     />
                   </Match>

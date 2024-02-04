@@ -1,7 +1,7 @@
 import { Html, Head, Body, Link } from "@portal/solidjs";
-import { FileExplorer } from "./FileExplorer";
 import { QueryContextProvider } from "@portal/solid-query";
 import { Router } from "@portal/solid-router";
+import App from "./index";
 
 const Root = () => {
   return (
@@ -21,7 +21,7 @@ const Root = () => {
       <Body class="antialiased">
         <QueryContextProvider urlPrefix="/">
           <Router>
-            <FileExplorer />
+            <App />
           </Router>
         </QueryContextProvider>
       </Body>

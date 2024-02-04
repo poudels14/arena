@@ -1,7 +1,17 @@
+import { createMutationQuery } from "@portal/solid-query";
+
 const Uploader = (props: {
   parentId: string | null;
   onUpload: (files: any[]) => void;
 }) => {
+  const uploader = createMutationQuery<any>((input) => {
+    return {
+      url: "/api/fs/upload",
+      request: {
+        form: input.body,
+      },
+    };
+  }, {});
   let formRef: any, inputRef: any;
   return (
     <div class="p-2">
@@ -23,11 +33,11 @@ const Uploader = (props: {
             onChange={async () => {
               const formData = new FormData(formRef);
               formData.set("parentId", props.parentId || "null");
-              const data = await fetch("/api/fs/upload", {
-                method: "POST",
+              await uploader.mutate({
                 body: formData,
-              }).then((res) => res.json());
-              props.onUpload(data.files);
+              });
+
+              props.onUpload(uploader.data().files);
               // TODO: if error, show toast
               formRef.reset();
             }}

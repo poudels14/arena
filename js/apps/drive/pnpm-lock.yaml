@@ -41,6 +41,9 @@ dependencies:
   '@portal/solidjs':
     specifier: workspace:^
     version: link:../../portal/solidjs
+  '@portal/workspace-sdk':
+    specifier: workspace:^
+    version: link:../../portal-app/workspace-sdk
   '@t3-oss/env-core':
     specifier: ^0.7.1
     version: 0.7.3(zod@3.22.4)

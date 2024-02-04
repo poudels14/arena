@@ -6,6 +6,7 @@
   "keywords": [],
   "author": "Sagar Poudel",
   "private": true,
+  "type": "module",
   "arena": {
     "server": {
       "entry": "entry-server-dev.tsx"
@@ -43,6 +44,7 @@
     "@portal/solid-store": "workspace:^",
     "@portal/solid-ui": "workspace:^",
     "@portal/solidjs": "workspace:^",
+    "@portal/workspace-sdk": "workspace:^",
     "@t3-oss/env-core": "^0.7.1",
     "drizzle-orm": "^0.26.4",
     "lodash-es": "^4.17.21",

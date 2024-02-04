@@ -7,8 +7,8 @@ const Directory = (props: {
 }) => {
   return (
     <Wrapper name={props.name} onDblClick={props.onDblClick}>
-      <div class="absolute left-0 bottom-0 w-[50%] h-14 rounded-lg rounded-b-3xl rounded-tr-lg bg-cyan-500"></div>
-      <div class="absolute w-full h-[3.25rem] bottom-0 rounded-md rounded-b-3xl rounded-t-md bg-gradient-to-t from-cyan-400 to-cyan-500"></div>
+      <div class="absolute left-0 bottom-0 w-[50%] h-14 rounded-lg rounded-b-3xl rounded-tr-lg bg-blue-200"></div>
+      <div class="absolute w-full h-[3.25rem] bottom-0 rounded-md rounded-b-3xl rounded-t-md bg-gradient-to-t from-blue-100 to-blue-200"></div>
       <div class="absolute right-0 bottom-0 w-[50%] h-[2.75rem] rounded-lg bg-slate-400"></div>
       <div class="absolute w-full h-10 bottom-0 rounded-lg bg-gradient-to-bl from-slate-400 to-slate-400"></div>
     </Wrapper>
@@ -43,7 +43,9 @@ const Wrapper = (props: {
       <div class="w-[4.5rem]">
         <div class="relative w-full h-14">{props.children}</div>
         <div class="px-1 py-1 w-full font-semibold leading-5 text-center line-clamp-2 text-gray-600">
-          <div class="overflow-hidden text-ellipsis">{props.name}</div>
+          <div class="overflow-hidden text-ellipsis select-none">
+            {props.name}
+          </div>
         </div>
       </div>
     </div>
