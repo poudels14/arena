@@ -307,7 +307,7 @@ const ChatMessage = (props: {
 };
 
 const SearchResults = (props: { searchResults: Chat.SearchResult[] }) => {
-  const [showSearchResults, setShowSearchResults] = createSignal(false);
+  const [showSearchResults, setShowSearchResults] = createSignal(true);
   return (
     <div class="pt-4">
       <div
