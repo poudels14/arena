@@ -1,10 +1,14 @@
 import { groupBy, keyBy, merge, pick, uniqBy } from "lodash-es";
 import z from "zod";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
+import ky from "ky";
 import { p } from "../procedure";
 import { ChatThread } from "./types";
 import { generateLLMResponseStream } from "./aiResponse";
 import { ChatMessage } from "../repo/chatMessages";
+import { Search, searchResponseSchema } from "@portal/workspace-sdk/llm/search";
+import { klona } from "klona";
+import { dset } from "dset";
 
 const listThreads = p.query(async ({ ctx }) => {
   const threads = await ctx.repo.chatThreads.list();
@@ -66,7 +70,7 @@ const listMessages = p.query(async ({ ctx, params }) => {
         "createdAt"
       ),
       metadata: {
-        documents: uniqBy(m.metadata?.documents, (d: any) => d.documentId),
+        searchResults: m.metadata?.searchResults,
       },
     };
   });
@@ -80,9 +84,23 @@ const sendMessage = p
       message: z.object({
         content: z.string(),
       }),
+      // chat query context
+      context: z
+        .object({
+          app: z.object({
+            id: z.string(),
+          }),
+          breadcrumbs: z.array(
+            z.object({
+              id: z.string(),
+            })
+          ),
+        })
+        .optional()
+        .nullable(),
     })
   )
-  .mutate(async ({ ctx, params, req, body, errors }) => {
+  .mutate(async ({ ctx, env, params, req, body, errors }) => {
     const now = new Date();
     // TODO(sagar): abstract several steps and use middleware like system
     // so that it's easier to build plugins for chat system itself. For example,
@@ -95,8 +113,8 @@ const sendMessage = p
         id: params.threadId,
         metadata: {
           ai: {
-            // model: "gpt-3.5-turbo"
-            model: "gpt-4-1106-preview",
+            model: "gpt-3.5-turbo",
+            // model: "gpt-4-1106-preview",
           },
         },
       },
@@ -126,18 +144,75 @@ const sendMessage = p
       metadata: {},
       parentId: null,
     };
+    await ctx.repo.chatMessages.insert(newMessage);
 
     const oldMessages = await ctx.repo.chatMessages.list({
       threadId: thread.id,
     });
 
-    await ctx.repo.chatMessages.insert(newMessage);
+    let searchResults = [];
+    if (body.context?.app?.id) {
+      const { app, breadcrumbs } = body.context!;
+      // TODO: error handling
+      const activeContextSearchResult = await ky
+        .post(
+          new URL(
+            `/w/apps/${app.id}/api/portal/llm/search`,
+            env.PORTAL_APPS_PROXY
+          ).href,
+
+          {
+            json: {
+              query: body.message.content,
+              context: {
+                breadcrumbs,
+              },
+            },
+          }
+        )
+        .json<Search.Response>();
+      searchResults.push({
+        app: {
+          id: app.id,
+        },
+        ...activeContextSearchResult,
+      });
+    }
+
+    if (searchResults.length > 0) {
+      const clonedSearchResults = klona(searchResults);
+      clonedSearchResults.forEach((result) => {
+        result.files.forEach((file) => {
+          file.chunks.forEach((chunk) => {
+            // clear the chunk content to avoid storing duplicate data
+            dset(chunk, "content", undefined);
+          });
+        });
+      });
+
+      await ctx.repo.chatMessages.insert({
+        id: uniqueId(),
+        message: {
+          content: "",
+        },
+        threadId: thread.id,
+        role: "system",
+        userId: null,
+        createdAt: now,
+        metadata: {
+          searchResults: clonedSearchResults,
+        },
+        parentId: newMessage.id,
+      });
+    }
+
     const stream = await generateLLMResponseStream(
       { ctx, errors },
       {
         thread,
         message: newMessage,
-        messages: oldMessages,
+        previousMessages: oldMessages,
+        searchResults,
       }
     );
 

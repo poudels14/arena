@@ -1,9 +1,4 @@
-import {
-  createContext,
-  Accessor,
-  createEffect,
-  createComputed,
-} from "solid-js";
+import { createContext, Accessor, createComputed } from "solid-js";
 import { Store, StoreSetter, createStore } from "@portal/solid-store";
 import {
   MutationQuery,
@@ -12,6 +7,7 @@ import {
 } from "@portal/solid-query";
 import cleanSet from "clean-set";
 import { Chat } from "../types";
+import { SharedWorkspaceContext } from "@portal/workspace-sdk";
 
 export type ChatState = {
   activeThreadId: Accessor<string | undefined>;
@@ -23,6 +19,10 @@ type ActiveChatThread = {
   messages: Record<string, Chat.Message>;
 };
 
+type ChatQueryContext = NonNullable<
+  ReturnType<SharedWorkspaceContext["getChatContext"]>
+>;
+
 type ChatContext = {
   state: ChatState;
   activeChatThread: Store<ActiveChatThread>;
@@ -32,6 +32,7 @@ type ChatContext = {
       id: string;
       threadId: string;
       message: { content: string };
+      context?: ChatQueryContext | null;
       isNewThread: boolean;
     },
     any
@@ -113,6 +114,7 @@ const ChatContextProvider = (props: {
     id: string;
     threadId: string;
     message: { content: string };
+    context?: ChatQueryContext | null;
     isNewThread: boolean;
   }>((input) => {
     // If it's a new thread, navigate to that thread first
@@ -122,6 +124,14 @@ const ChatContextProvider = (props: {
         body: {
           id: input.id,
           message: input.message,
+          context: input.context
+            ? {
+                app: {
+                  id: input.context.app.id,
+                },
+                breadcrumbs: input.context.breadcrumbs,
+              }
+            : undefined,
         },
         headers: {
           "content-type": "text/event-stream",

@@ -15,23 +15,25 @@ import { ChatMessage } from "../repo/chatMessages";
 import { ChatThread } from "./types";
 import { llmDeltaToResponseBuilder } from "../../llm/utils";
 import { createExtensionHandler } from "../../extensions/handler";
+import { createQueryContextExtension } from "./llmQueryContext";
+import { Search } from "@portal/workspace-sdk/llm/search";
 
 async function generateLLMResponseStream(
   { ctx, errors }: Pick<ProcedureRequest<Context, any>, "ctx" | "errors">,
   {
     thread,
     message,
-    messages,
+    previousMessages,
+    searchResults,
   }: {
     thread: ChatThread;
     message: ChatMessage;
     // old messages in the thread
-    messages: ChatMessage[];
+    previousMessages: ChatMessage[];
+    searchResults: Search.Response[];
   }
 ): Promise<Subject<any>> {
   const responseStream = new ReplaySubject<any>();
-
-  // const generator = new DocumentEmbeddingsGenerator();
   const aiFunctions: any[] = [];
 
   const aiResponseTime = new Date();
@@ -42,33 +44,36 @@ async function generateLLMResponseStream(
   ).toString("base64");
 
   const extensionHandler = createExtensionHandler();
+  const queryContextExtension = createQueryContextExtension(searchResults);
   const chatRequest = createRequestChain()
     .use(function setup({ request }) {
       request.stream = true;
     })
-    .use(function systemPromptGenerator({ request }) {
-      request.messages = [
-        {
-          role: "system",
-          content: generateSystemPrompt({
-            // TODO(sagar): aggregate all chunks of the same document
-            // into one section in the prompt
-            documents: [
-              {
-                content: "Current date/time is: " + new Date().toISOString(),
-              },
-            ],
-            has_functions: aiFunctions.length > 0,
-          }),
-        },
-      ];
-    })
+    // .use(function systemPromptGenerator({ request }) {
+    //   request.messages = [
+    //     {
+    //       role: "system",
+    //       content: generateSystemPrompt({
+    //         // TODO(sagar): aggregate all chunks of the same document
+    //         // into one section in the prompt
+    //         documents: [
+    //           // {
+    //           //   content:
+    //           //     "Current date and time is: " + new Date().toISOString(),
+    //           // },
+    //         ],
+    //         has_functions: aiFunctions.length > 0,
+    //       }),
+    //     },
+    //   ];
+    // })
     .use(function setUserMessage({ request }) {
       request.addMessages(
-        ...messages.map((m) => {
+        // @ts-expect-error
+        ...previousMessages.map((m) => {
           return {
             content: m.message.content || "",
-            role: m.role == "ai" ? "assistant" : m.role,
+            role: m.role == "user" ? "user" : "assistant",
           };
         })
       );
@@ -77,6 +82,7 @@ async function generateLLMResponseStream(
         content: message.message.content!,
       });
     })
+    .use(await queryContextExtension.middleware())
     .use(await extensionHandler.createRequestMiddleware())
     .use(
       createOpenAIProvider({

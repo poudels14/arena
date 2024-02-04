@@ -1,4 +1,10 @@
-import { Show, createMemo, createSignal, useContext } from "solid-js";
+import {
+  Show,
+  createComputed,
+  createMemo,
+  createSignal,
+  useContext,
+} from "solid-js";
 import {
   useSharedWorkspaceContext,
   SharedWorkspaceContext,
@@ -11,10 +17,15 @@ type WorkspaceChatContext = NonNullable<
   ReturnType<SharedWorkspaceContext["getChatContext"]>
 >;
 
-const ChatIsland = () => {
+const ChatIsland = (props: { hide?: boolean }) => {
   const { getChatContext } = useSharedWorkspaceContext();
   const { sendNewMessage } = useContext(ChatContext)!;
   const [chatBoxExpanded, setExpandChatBox] = createSignal(false);
+  createComputed(() => {
+    if (props.hide) {
+      setExpandChatBox(false);
+    }
+  });
   return (
     <Show when={getChatContext()}>
       <Show when={chatBoxExpanded()}>
@@ -34,8 +45,11 @@ const ChatIsland = () => {
             <div class="flex flex-col flex-1 min-w-[200px] max-w-[650px] bg-white border-t rounded-lg drop-shadow-md shadow-lg pointer-events-auto">
               <Show when={chatBoxExpanded()}>
                 <div class="flex justify-center">
-                  <div class="min-h-[450px] w-full">
-                    <ChatThread showDocument={() => {}} />
+                  <div class="max-h-[450px] min-h-[225px] w-full">
+                    <ChatThread
+                      showDocument={() => {}}
+                      removeBottomPadding={true}
+                    />
                   </div>
                 </div>
               </Show>
@@ -46,7 +60,7 @@ const ChatIsland = () => {
                   sendNewMessage={(input) => {
                     sendNewMessage.mutate(input);
                   }}
-                  hideClearContextButton={true}
+                  disableContextEdit={true}
                   onFocus={() => setExpandChatBox(true)}
                   autoFocus={true}
                   context={getChatContext()}

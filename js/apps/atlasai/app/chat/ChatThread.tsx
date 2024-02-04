@@ -5,6 +5,7 @@ import {
   Switch,
   createEffect,
   createMemo,
+  createSignal,
   lazy,
   useContext,
 } from "solid-js";
@@ -12,6 +13,11 @@ import { Markdown } from "@portal/solid-ui/markdown";
 import { Marked } from "marked";
 import dlv from "dlv";
 import deepEqual from "fast-deep-equal/es6";
+import {
+  HiSolidChevronDown,
+  HiSolidChevronUp,
+  HiOutlinePaperClip,
+} from "solid-icons/hi";
 import hljs from "highlight.js/lib/core";
 import "highlight.js/styles/atom-one-dark.css";
 import jsGrammar from "highlight.js/lib/languages/javascript";
@@ -37,7 +43,10 @@ hljs.registerLanguage("rust", rustGrammar);
 
 const marked = new Marked({});
 
-const ChatThread = (props: { showDocument(doc: any): void }) => {
+const ChatThread = (props: {
+  showDocument(doc: any): void;
+  removeBottomPadding?: boolean;
+}) => {
   let chatMessagesContainerRef: any;
   let chatMessagesRef: any;
   const { state, sendNewMessage, activeChatThread } = useContext(ChatContext)!;
@@ -94,7 +103,10 @@ const ChatThread = (props: { showDocument(doc: any): void }) => {
         </Show>
         <div
           ref={chatMessagesRef}
-          class="chat-messages pt-2 pb-28 text-sm text-accent-12/80 space-y-1"
+          class="chat-messages pt-2 text-sm text-accent-12/80 space-y-1"
+          classList={{
+            "pb-24": !Boolean(props.removeBottomPadding),
+          }}
         >
           <For each={sortedMessageIds()}>
             {(messageId, index) => {
@@ -189,28 +201,40 @@ const ChatMessage = (props: {
     return uniqueDocs;
   });
 
-  const role = () => props.message.role() || "user";
+  const role = () => {
+    const id = props.message.role() || "user";
+    return {
+      id,
+      name: id == "ai" ? "AI" : id == "system" ? null : "User",
+    };
+  };
+
+  const [showSearchResults, setShowSearchResults] = createSignal(false);
   return (
     <div class="flex flex-row w-full space-x-5">
-      <div
-        class="mt-4 w-8 h-8 text-[0.6rem] font-medium leading-8 rounded-xl border select-none text-center text-gray-600"
-        classList={{
-          "bg-[hsl(60_28%_95%)]": role() == "user",
-          "bg-brand-3": role() == "ai",
-        }}
-      >
-        {role() == "ai" ? "AI" : "User"}
+      <div class="w-8 h-8">
+        <Show when={role().name}>
+          <div
+            class="mt-4 text-[0.6rem] font-medium leading-8 rounded-xl border select-none text-center text-gray-600"
+            classList={{
+              "bg-[hsl(60_28%_95%)]": role().id == "user",
+              "bg-brand-3": role().id == "ai",
+            }}
+          >
+            {role().name}
+          </div>
+        </Show>
       </div>
       <div class="flex-1 space-y-2" data-message-id={props.message.id()}>
-        <div
-          class="message px-4 py-1 rounded-lg leading-6"
-          classList={{
-            "bg-[hsl(60_28%_95%)]": role() == "user",
-            "text-gray-800": role() == "ai",
-          }}
-          style={"letter-spacing: 0.1px; word-spacing: 1px"}
-        >
-          <Show when={tokens()}>
+        <Show when={tokens()}>
+          <div
+            class="message px-4 py-1 rounded-lg leading-6"
+            classList={{
+              "bg-[hsl(60_28%_95%)]": role().id == "user",
+              "text-gray-800": role().id == "ai",
+            }}
+            style={"letter-spacing: 0.1px; word-spacing: 1px"}
+          >
             <Markdown
               tokens={tokens()}
               renderer={{
@@ -232,11 +256,16 @@ const ChatMessage = (props: {
                 },
               }}
             />
-          </Show>
-        </div>
+          </div>
+        </Show>
         <Show when={props.task && props.task()}>
           {/* @ts-expect-error */}
           <TaskExecution task={props.task!} />
+        </Show>
+        <Show when={props.message.metadata.searchResults!()}>
+          <SearchResults
+            searchResults={props.message.metadata.searchResults!()!}
+          />
         </Show>
         <Show when={uniqueDocuments().length > 0}>
           <div class="matched-documents px-2 space-y-2">
@@ -273,6 +302,63 @@ const ChatMessage = (props: {
           </div>
         </Show>
       </div>
+    </div>
+  );
+};
+
+const SearchResults = (props: { searchResults: Chat.SearchResult[] }) => {
+  const [showSearchResults, setShowSearchResults] = createSignal(false);
+  return (
+    <div class="pt-4">
+      <div
+        class="px-2 py-1 flex font-semibold bg-gray-100 text-gray-600 rounded cursor-pointer space-x-2"
+        onClick={() => {
+          setShowSearchResults((prev) => !prev);
+        }}
+      >
+        <div class="py-1">
+          <HiOutlinePaperClip size={12} />
+        </div>
+        <div class="flex-1">Found data related to your query</div>
+        <div class="py-0.5">
+          <Switch>
+            <Match when={showSearchResults()}>
+              <HiSolidChevronUp size={14} />
+            </Match>
+            <Match when={!showSearchResults()}>
+              <HiSolidChevronDown size={14} />
+            </Match>
+          </Switch>
+        </div>
+      </div>
+      <Show when={showSearchResults()}>
+        <div class="py-1 bg-gray-100">
+          <For each={props.searchResults}>
+            {(result) => {
+              return (
+                <div class="px-8">
+                  <Show when={result.files.length > 0}>
+                    <div class="text-gray-700">Files</div>
+                    <div class="ml-4">
+                      <ul class="list-disc text-gray-600">
+                        <For each={result.files}>
+                          {(file) => {
+                            return (
+                              <li class="underline cursor-pointer">
+                                {file.name}
+                              </li>
+                            );
+                          }}
+                        </For>
+                      </ul>
+                    </div>
+                  </Show>
+                </div>
+              );
+            }}
+          </For>
+        </div>
+      </Show>
     </div>
   );
 };

@@ -18,7 +18,7 @@ import { Chat } from "../types";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
 import { SharedWorkspaceContext } from "@portal/workspace-sdk";
 
-type ChatContext = NonNullable<
+type ChatQueryContext = NonNullable<
   ReturnType<SharedWorkspaceContext["getChatContext"]>
 >;
 
@@ -29,12 +29,13 @@ const Chatbox = (props: {
     id: string;
     threadId: string;
     message: { content: string };
+    context?: ChatQueryContext | null;
     isNewThread: boolean;
   }) => void;
   onFocus?: () => void;
   autoFocus?: boolean;
-  hideClearContextButton?: boolean;
-  context?: ChatContext | null;
+  disableContextEdit?: boolean;
+  context?: ChatQueryContext | null;
 }) => {
   const [getMessage, setMessage] = createSignal("");
   const [getTextareaHeight, setTextareaHeight] = createSignal(
@@ -80,6 +81,7 @@ const Chatbox = (props: {
       message: {
         content: getMessage(),
       },
+      context: props.context,
       isNewThread: !Boolean(props.threadId),
     });
     setMessage("");
@@ -105,7 +107,7 @@ const Chatbox = (props: {
       <Show when={props.context}>
         <SelectChatContext
           context={props.context!}
-          hideClearContextButton={props.hideClearContextButton}
+          disableContextEdit={props.disableContextEdit}
         />
       </Show>
       <div class="relative py-2 rounded-lg bg-brand-12/90 shadow-lg backdrop-blur-sm">
@@ -155,8 +157,8 @@ const Chatbox = (props: {
 };
 
 const SelectChatContext = (props: {
-  context: ChatContext;
-  hideClearContextButton?: boolean;
+  context: ChatQueryContext;
+  disableContextEdit?: boolean;
 }) => {
   const visibleBreadCrumbs = createMemo(() => {
     return props.context.breadcrumbs.slice(
@@ -166,13 +168,18 @@ const SelectChatContext = (props: {
   return (
     <div class="flex px-2 text-sm font-semibold space-x-1 text-brand-12/90">
       <div class="flex overflow-hidden">
-        <Show when={!props.hideClearContextButton}>
+        <Show when={!props.disableContextEdit}>
           <div class="flex p-1 rounded-l bg-gray-200 hover:bg-gray-300 text-gray-700 cursor-pointer">
             <HiOutlineXMark size={16} />
           </div>
         </Show>
-        <div class="flex rounded bg-white overflow-hidden">
-          <div class="flex px-2 cursor-pointer space-x-1 rounded hover:bg-gray-200">
+        <div class="flex rounded bg-gray-50 overflow-hidden">
+          <div
+            class="flex px-2 cursor-pointer space-x-1 rounded"
+            classList={{
+              "hover:bg-gray-200": !props.disableContextEdit,
+            }}
+          >
             <div class="py-1">
               <Switch>
                 <Match when={props.context.app.icon == "folder"}>
@@ -201,10 +208,12 @@ const SelectChatContext = (props: {
             {(breadcrumb, index) => {
               return (
                 <>
-                  <div class="flex px-2 cursor-pointer space-x-1 rounded hover:bg-gray-200 overflow-hidden text-nowrap">
-                    <div class="py-1">
-                      <HiOutlineFolderOpen size={16} />
-                    </div>
+                  <div
+                    class="flex px-2 cursor-pointer space-x-1 rounded overflow-hidden text-nowrap"
+                    classList={{
+                      "hover:bg-gray-200": !props.disableContextEdit,
+                    }}
+                  >
                     <div class="py-0.5 overflow-hidden text-ellipsis">
                       {breadcrumb.title}
                     </div>

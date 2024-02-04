@@ -58,6 +58,7 @@ export namespace Chat {
     createdAt: string;
     userId: string | null;
     metadata: {
+      searchResults?: SearchResult[];
       documents?: { documentId: string; score: number }[];
       workflow?: {
         id: string;
@@ -68,6 +69,8 @@ export namespace Chat {
      */
     streaming: boolean | undefined;
   };
+
+  export type SearchResult = { files: { id: string; name: string }[] };
 
   export type TaskExecution = {
     id: string;
