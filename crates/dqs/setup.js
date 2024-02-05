@@ -25,6 +25,7 @@ import {
 import { ReadableStream, TransformStream } from "ext:deno_web/06_streams.js";
 import { fetch } from "ext:deno_fetch/26_fetch.js";
 import { Console } from "ext:deno_console/01_console.js";
+import * as imageData from "ext:deno_web/16_image_data.js";
 
 function nonEnumerable(value) {
   return {
@@ -63,6 +64,7 @@ function nonEnumerable(value) {
     TextDecoder,
     TextEncoderStream,
     TextDecoderStream,
+    ImageData: nonEnumerable(imageData.ImageData),
     fetch,
     encodeToBase64,
     encodeToBase64Url,
@@ -77,10 +79,6 @@ function nonEnumerable(value) {
         TERM: "xterm-256color",
       },
     },
-  });
-
-  Object.defineProperties(globalThis, {
-    [webidl.brand]: nonEnumerable(webidl.brand),
   });
 })(globalThis);
 
@@ -104,10 +102,19 @@ globalThis.__setupRuntime = () => {
   const { core } = Deno;
   setTimeOrigin(DateNow());
 
-  event.setEventTargetData(globalThis);
-  event.saveGlobalThisReference(globalThis);
+  Object.defineProperties(globalThis, {
+    ImageData: nonEnumerable(imageData.ImageData),
+    [webidl.brand]: nonEnumerable(webidl.brand),
+  });
 
   Object.setPrototypeOf(globalThis, Window.prototype);
+  Object.assign(globalThis, {
+    window: globalThis,
+    dispatchEvent: event.EventTarget.prototype.dispatchEvent,
+  });
+
+  event.setEventTargetData(globalThis);
+  event.saveGlobalThisReference(globalThis);
 
   core.setUnhandledPromiseRejectionHandler(processUnhandledPromiseRejection);
 };

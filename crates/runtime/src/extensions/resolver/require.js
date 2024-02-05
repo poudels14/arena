@@ -21,6 +21,7 @@ const NODE_INTERNALS = [
   "module",
   "assert",
   "events",
+  "buffer",
 ];
 
 const ARENA_RUNTIME = ["@arena/runtime/resolver", "@arena/runtime/transpiler"];

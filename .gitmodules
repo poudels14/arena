@@ -16,3 +16,6 @@
 [submodule "js/solid-start"]
 	path = js/solid-start
 	url = git@github.com:poudels14/solid-start.git
+[submodule "pyodide"]
+	path = pyodide
+	url = https://github.com/poudels14/pyodide

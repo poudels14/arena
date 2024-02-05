@@ -91,7 +91,6 @@ program
         entryPoints: {
           perf_hooks: "libs/node/perf_hooks.ts",
           tty: "libs/node/tty.ts",
-          buffer: "libs/node/buffer.ts",
         },
         outdir: "dist/node",
       }),
@@ -110,8 +109,10 @@ program
           "stream.js": createNodejsModule("stream"),
           "util.js": createNodejsModule("util"),
           "stream.js": createNodejsModule("stream"),
+          "buffer.js": createNodejsModule("buffer"),
         },
         outdir: "dist/node",
+        external: ["stream"],
       }),
       build({
         ...options,

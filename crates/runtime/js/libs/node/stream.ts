@@ -1,1 +1,7 @@
-export { Readable, PassThrough, pipeline, Transform } from "readable-stream";
+export {
+  Readable,
+  Writable,
+  PassThrough,
+  pipeline,
+  Transform,
+} from "readable-stream";
