@@ -19,6 +19,7 @@ pub fn extension(module_filter: Option<Vec<&'static str>>) -> BuiltinExtension {
     ("process", js_dist!("/node/process.js")),
     ("buffer", js_dist!("/node/buffer.js")),
     ("crypto", js_dist!("/node/crypto.js")),
+    ("tty", js_dist!("/node/tty.js")),
     // Above are required modules
     (
       "node/setup",
@@ -34,7 +35,6 @@ pub fn extension(module_filter: Option<Vec<&'static str>>) -> BuiltinExtension {
       ("fs", js_dist!("/node/fs.js")),
       ("fs/promises", js_dist!("/node/fs/promises.js")),
       ("constants", js_dist!("/node/constants.js")),
-      ("tty", js_dist!("/node/tty.js")),
       ("util", js_dist!("/node/util.js")),
       ("url", js_dist!("/node/url.js")),
       ("os", js_dist!("/node/os.js")),

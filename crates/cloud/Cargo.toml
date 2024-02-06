@@ -28,10 +28,11 @@ hyper.workspace = true
 fastwebsockets.workspace = true
 uuid.workspace = true
 clap.workspace = true
+bytes.workspace = true
 pdfium-render = { version = "0.8.8", features = ["thread_safe"] }
 html-escape = "0.2.13"
 html5ever = "0.26.0"
-tokenizers = { version = "0.13.3" }
+tokenizers = { version = "0.15.1", features = ["http"] }
 common = { path = "../common", features = ["data_query"] }
 deno_core = "=0.238.0"
 runtime = { path = "../runtime" }
@@ -41,3 +42,8 @@ candle-transformers = "0.3.2"
 hf-hub = "0.3.2"
 aws-region = { version = "0.25.4", features = ["serde"] }
 rust-s3 = "0.33.0"
+tar = "0.4.40"
+tempfile = "3.8.1"
+
+[build-dependencies]
+tar = "0.4.40"

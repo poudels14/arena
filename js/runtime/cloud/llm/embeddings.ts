@@ -27,19 +27,17 @@ class EmbeddingsModel {
   async generateEmbeddings(
     texts: string[],
     options?: GenerateEmbeddingsOptions
-  ): Promise<{ ids: number[]; offsetMapping: number[][] }> {
+  ): Promise<number[][]> {
     return await opAsync("op_cloud_llm_embeddings_generate", this.#id, texts, {
       normalize: true,
       ...(options || {}),
     });
   }
 
-  async tokenize(
-    data: any,
+  async tokenizeText(
+    text: string,
     options: TokenizeOptions
   ): Promise<{ ids: number[]; offsetMapping: number[][] }> {
-    const decoder = new TextDecoder();
-    const text = decoder.decode(data);
     return await opAsync(
       "op_cloud_llm_embeddings_tokenize",
       this.#id,

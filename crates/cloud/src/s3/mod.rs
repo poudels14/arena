@@ -164,7 +164,7 @@ pub(crate) async fn op_cloud_s3_list_bucket(
 }
 
 #[op2(async)]
-pub async fn op_cloud_s3_put_object(
+pub(crate) async fn op_cloud_s3_put_object(
   state: Rc<RefCell<OpState>>,
   #[smi] id: ResourceId,
   #[string] bucket_name: String,
@@ -190,7 +190,7 @@ pub async fn op_cloud_s3_put_object(
 
 #[op2(async)]
 #[serde]
-pub async fn op_cloud_s3_head_object(
+pub(crate) async fn op_cloud_s3_head_object(
   state: Rc<RefCell<OpState>>,
   #[smi] id: ResourceId,
   #[string] bucket_name: String,
@@ -230,7 +230,7 @@ pub async fn op_cloud_s3_head_object(
 
 #[op2(async)]
 #[serde]
-pub async fn op_cloud_s3_get_object(
+pub(crate) async fn op_cloud_s3_get_object(
   state: Rc<RefCell<OpState>>,
   #[smi] id: ResourceId,
   #[string] bucket_name: String,

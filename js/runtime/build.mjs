@@ -73,7 +73,6 @@ program
         ...options,
         entryPoints: {
           // TODO(sagar): "assert" is being bundled in several files, fix it
-          vectordb: "./cloud/vectordb/index.ts",
           jwt: "./cloud/jwt.ts",
           s3: "./cloud/s3.ts",
           pubsub: "./cloud/pubsub/index.ts",
@@ -81,8 +80,11 @@ program
           llm: "./cloud/llm/index.ts",
           html: "./cloud/html/index.ts",
           pdf: "./cloud/pdf/index.ts",
+          pyodide: "./cloud/pyodide/index.ts",
+          "pyodide/pyodide.asm": "./cloud/pyodide/pyodide.asm.js",
         },
         outdir: "dist/cloud",
+        external: ["crypto", "fs", "fs/promises", "path", "tty", "url"],
       }),
     ]);
   });

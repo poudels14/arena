@@ -32,6 +32,14 @@ pub struct Command {
   #[arg(long)]
   egress_addr: Option<String>,
 
+  /// Disable network access
+  #[arg(long)]
+  disable_net: bool,
+
+  /// Heap limit hint
+  #[arg(long)]
+  heap_limit_mb: Option<usize>,
+
   /// File or npm module to execute
   module: String,
 
@@ -109,6 +117,11 @@ impl Command {
       },
       enable_arena_global: true,
       enable_console: true,
+      heap_limits: if let Some(limit) = self.heap_limit_mb {
+        Some((0, limit * 1024 * 1024))
+      } else {
+        None
+      },
       module_loader: Some(Rc::new(FileModuleLoader::new(
         Rc::new(FilePathResolver::new(
           project_root.clone(),
@@ -126,7 +139,11 @@ impl Command {
         .collect(),
       permissions: PermissionsContainer {
         fs: Some(FileSystemPermissions::allow_all("/".into())),
-        net: Some(NetPermissions::allow_all()),
+        net: if self.disable_net {
+          None
+        } else {
+          Some(NetPermissions::allow_all())
+        },
         timer: Some(TimerPermissions::allow_hrtime()),
       },
       ..Default::default()
