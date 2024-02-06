@@ -102,8 +102,10 @@ globalThis.__setupRuntime = () => {
   Object.setPrototypeOf(globalThis, Window.prototype);
   Object.assign(globalThis, {
     window: globalThis,
+    self: globalThis,
     dispatchEvent: event.EventTarget.prototype.dispatchEvent,
   });
+  globalThis.window.location = new URL("http://127.0.0.1/");
 
   event.setEventTargetData(globalThis);
   event.saveGlobalThisReference(globalThis);
