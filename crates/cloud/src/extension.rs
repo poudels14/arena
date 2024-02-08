@@ -60,7 +60,6 @@ pub fn extension(options: Config) -> BuiltinExtension {
       cloud_module!("pdf"),
       cloud_module!("html"),
       cloud_module!("pyodide"),
-      cloud_module!("pyodide/pyodide.asm"),
     ],
   )
 }

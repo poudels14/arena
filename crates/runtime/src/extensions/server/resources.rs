@@ -1,13 +1,14 @@
+use std::borrow::Cow;
+use std::cell::RefCell;
+use std::path::PathBuf;
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
+
 use super::request::HttpRequest;
 use super::response::ParsedHttpResponse;
 use deno_core::Resource;
 use derivative::Derivative;
 use futures::future::{RemoteHandle, Shared};
-use std::borrow::Cow;
-use std::cell::RefCell;
-use std::path::PathBuf;
-use std::rc::Rc;
-use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::{mpsc, oneshot};
 
@@ -21,9 +22,11 @@ pub enum HttpServerConfig {
   },
   Stream(
     #[derivative(Debug = "ignore")]
-    Rc<
-      RefCell<
-        mpsc::Receiver<(HttpRequest, oneshot::Sender<ParsedHttpResponse>)>,
+    Arc<
+      Mutex<
+        Option<
+          mpsc::Receiver<(HttpRequest, oneshot::Sender<ParsedHttpResponse>)>,
+        >,
       >,
     >,
   ),

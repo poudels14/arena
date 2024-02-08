@@ -5,6 +5,7 @@ mod pyodide;
 mod s3;
 mod transpile;
 
+pub mod dqs;
 pub mod html;
 pub mod pdf;
 

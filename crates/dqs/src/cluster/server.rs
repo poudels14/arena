@@ -1,8 +1,6 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::path::PathBuf;
-use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
@@ -111,9 +109,9 @@ impl DqsServer {
           id: options.id,
           db_pool: options.db_pool.into(),
           v8_platform,
-          server_config: HttpServerConfig::Stream(Rc::new(RefCell::new(
-            http_requests_rx,
-          ))),
+          server_config: HttpServerConfig::Stream(Arc::new(
+            std::sync::Mutex::new(Some(http_requests_rx)),
+          )),
           egress_address: options.dqs_egress_addr,
           heap_limits: workspace_config
             .runtime

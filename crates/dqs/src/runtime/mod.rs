@@ -1,3 +1,4 @@
+pub(crate) mod core;
 pub(crate) mod server;
 
 pub mod deno;

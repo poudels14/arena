@@ -4,4 +4,5 @@ pub(crate) mod specifier;
 
 pub mod arena;
 pub mod loaders;
+pub mod pyodide;
 pub mod runtime;

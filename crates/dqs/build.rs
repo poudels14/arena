@@ -127,13 +127,13 @@ fn get_basic_runtime() -> JsRuntimeForSnapshot {
       ExtensionFileSource {
         specifier: "ext:runtime/setup.js",
         code: deno_core::ExtensionFileSourceCode::IncludedInBinary(
-          include_str!("setup.js"),
+          include_str!("./src/runtime/setup.js"),
         ),
       },
       ExtensionFileSource {
         specifier: "ext:runtime/main.js",
         code: deno_core::ExtensionFileSourceCode::IncludedInBinary(
-          include_str!("main.js"),
+          include_str!("./src/runtime/main.js"),
         ),
       },
     ]

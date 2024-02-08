@@ -55,13 +55,12 @@ deno_unsync = "0.3.1"
 
 common = { path = "../common", features = ["dotenv"] }
 runtime = { path = "../runtime", features = [], default-features = false }
-cloud = { path = "../cloud" }
-
+cloud = { path = "../cloud", features = [], default-features = false }
 
 [build-dependencies]
 common = { path = "../common", features = [] }
 runtime = { path = "../runtime", features = ["include-in-binary"] }
-cloud = { path = "../cloud" }
+cloud = { path = "../cloud", features = [] }
 futures.workspace = true
 url.workspace = true
 anyhow.workspace = true

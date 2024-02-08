@@ -37,7 +37,6 @@ pub enum SourceCode {
   Preserved(&'static str),
   /// use this if the module is already snapshotted and the source
   /// code is no longer needed
-  #[cfg(not(feature = "include-in-binary"))]
   NotPreserved,
 }
 
@@ -45,7 +44,6 @@ impl SourceCode {
   pub fn code(&self) -> &'static str {
     match self {
       Self::Preserved(s) => s,
-      #[cfg(not(feature = "include-in-binary"))]
       Self::NotPreserved => panic!("Source code not included"),
     }
   }
@@ -130,19 +128,23 @@ impl BuiltinExtensions {
       for extension in extensions.iter() {
         for module in &extension.modules {
           let (specifier, code) = module;
-          debug!(
-            "Loading built-in module into the runtime: {:?}, code len = {}",
-            specifier,
-            code.code().len()
-          );
-          let mod_id = runtime
-            .load_side_module(
-              &Url::parse(&format!("builtin://{}", specifier))?,
-              ModuleCode::from_static(code.code()).into(),
-            )
-            .await?;
-          let receiver = runtime.mod_evaluate(mod_id);
-          receiver.await?;
+          if let SourceCode::Preserved(code) = code {
+            debug!(
+              "Loading built-in module into the runtime: {:?}, code len = {}",
+              specifier,
+              code.len()
+            );
+            let mod_id = runtime
+              .load_side_module(
+                &Url::parse(&format!("builtin://{}", specifier))?,
+                ModuleCode::from_static(code).into(),
+              )
+              .await?;
+            let receiver = runtime.mod_evaluate(mod_id);
+            receiver.await?;
+          } else {
+            debug!("Built-in module loading during runtime disabled");
+          }
         }
       }
       Ok(())

@@ -81,10 +81,19 @@ program
           html: "./cloud/html/index.ts",
           pdf: "./cloud/pdf/index.ts",
           pyodide: "./cloud/pyodide/index.ts",
-          "pyodide/pyodide.asm": "./cloud/pyodide/pyodide.asm.js",
+          "pyodide/server": "./cloud/pyodide/server.ts",
         },
         outdir: "dist/cloud",
-        external: ["crypto", "fs", "fs/promises", "path", "tty", "url"],
+        external: [
+          "crypto",
+          "fs",
+          "fs/promises",
+          "path",
+          "tty",
+          "url",
+          "@arena/runtime/server",
+          "builtin://@arena/cloud/pyodide",
+        ],
       }),
     ]);
   });

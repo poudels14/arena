@@ -9,7 +9,7 @@ pub mod permissions;
 pub mod resolver;
 pub mod utils;
 
-pub use crate::core::{IsolatedRuntime, RuntimeOptions};
+pub use crate::core::{DefaultModuleLoader, IsolatedRuntime, RuntimeOptions};
 
 pub mod buildtools {
   pub use crate::loaders::FileModuleLoader;

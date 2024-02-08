@@ -1,7 +1,5 @@
-use std::cell::RefCell;
 use std::path::PathBuf;
-use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, bail, Result};
 use async_trait::async_trait;
@@ -35,8 +33,8 @@ impl BabelTranspiler {
           BuiltinModule::Node(None),
           BuiltinModule::Resolver(config),
           BuiltinModule::Babel,
-          BuiltinModule::HttpServer(HttpServerConfig::Stream(Rc::new(
-            RefCell::new(stream_rx),
+          BuiltinModule::HttpServer(HttpServerConfig::Stream(Arc::new(
+            Mutex::new(Some(stream_rx)),
           ))),
         ]
         .iter()

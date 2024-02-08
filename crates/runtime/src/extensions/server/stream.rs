@@ -1,6 +1,6 @@
 use super::resources::{HttpConnection, StreamServer};
 use super::HttpServerConfig;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use deno_core::{op2, OpState, ResourceId};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -9,13 +9,17 @@ use std::rc::Rc;
 pub(crate) async fn op_http_listen(state: Rc<RefCell<OpState>>) -> Result<()> {
   let config = { state.borrow().borrow::<HttpServerConfig>().clone() };
   let listener = match config {
-    HttpServerConfig::Stream(listener) => listener,
+    HttpServerConfig::Stream(listener) => listener
+      .lock()
+      .map_err(|e| anyhow!("{:?}", e))?
+      .take()
+      .ok_or_else(|| anyhow!("Invalid stream listener"))?,
     _ => unreachable!(),
   };
 
-  state
-    .borrow_mut()
-    .put::<StreamServer>(StreamServer { listener });
+  state.borrow_mut().put::<StreamServer>(StreamServer {
+    listener: Rc::new(RefCell::new(listener)),
+  });
   Ok(())
 }
 

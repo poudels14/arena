@@ -1,8 +1,13 @@
 use std::path::{Path, PathBuf};
 use std::{env, fs};
+
 use tar::{Builder, Header};
 
 fn main() {
+  create_pyodide_archive();
+}
+
+fn create_pyodide_archive() {
   let files = vec![
     "pyodide-lock.json",
     "pyodide.asm.wasm",

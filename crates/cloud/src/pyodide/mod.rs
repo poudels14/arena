@@ -1,16 +1,17 @@
-use std::io::Read;
 use std::path::PathBuf;
-use std::sync::Once;
-use std::time::Instant;
 
 use anyhow::{anyhow, Context, Result};
 use runtime::deno::core::{op2, OpState};
-use tar::Archive;
 
+#[cfg(feature = "include-pyodide-archive")]
 pub static BINARIES_ARCHIVE: &[u8] =
   include_bytes!(concat!(env!("OUT_DIR"), "/pyodide.tar.gz"));
 
+#[cfg(feature = "include-pyodide-archive")]
+use std::sync::Once;
+#[cfg(feature = "include-pyodide-archive")]
 static UNARCHIVE: Once = Once::new();
+
 static mut TEMP_DIR: Option<PathBuf> = None;
 
 #[tracing::instrument(skip(_state), level = "trace")]
@@ -43,7 +44,12 @@ pub fn op_cloud_pyoddide_load_binary(
 }
 
 fn setup_files_once() -> Result<PathBuf> {
+  #[cfg(feature = "include-pyodide-archive")]
   UNARCHIVE.call_once(|| unsafe {
+    use std::io::Read;
+    use std::time::Instant;
+    use tar::Archive;
+
     let now = Instant::now();
     TEMP_DIR = tempfile::tempdir().map(|dir| dir.into_path()).ok();
     if TEMP_DIR.is_none() {

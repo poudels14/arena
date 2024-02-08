@@ -38,7 +38,7 @@ impl ModuleLoader for DefaultModuleLoader {
       // 1. Apply the URL parser to specifier.
       //    If the result is not failure, return he result.
       Ok(url) => {
-        trace!("module resolution not needed");
+        trace!("module resolution not needed {}", specifier);
         Ok(url)
       }
       Err(err) => match self.extension.as_ref() {
