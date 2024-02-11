@@ -196,8 +196,7 @@ impl DataType {
           true,
         )))
       }
-      // Datafusion can't convert Timestamp to Uint64, so use utf8
-      Self::Timestamp => DfDataType::Utf8,
+      Self::Timestamp => DfDataType::Int64,
       Self::File => DfDataType::Utf8,
     };
 

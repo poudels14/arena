@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -311,7 +310,11 @@ fn get_params_and_field_types(
         index,
         r#type
           .as_ref()
-          .map(|t| datatype::derive_pg_type(&t, &HashMap::new()))
+          .map(|t| {
+            let arena_type =
+              t.1.iter().find(|f| f.0 == "TYPE").map(|f| f.1.clone());
+            datatype::derive_pg_type(&t.0, arena_type.as_ref())
+          })
           .unwrap_or(Type::TEXT),
       )
     })
@@ -346,60 +349,69 @@ fn convert_bytes_to_scalar_value(
   r#type: &Type,
   format: &Format,
 ) -> PgWireResult<ScalarValue> {
+  let is_binary_format = match format {
+    Format::UnifiedText => false,
+    Format::UnifiedBinary => true,
+    Format::Individual(format) => format[index] == 1,
+  };
   let scalar = match *r#type {
     Type::BOOL => {
       ScalarValue::Boolean(bytes.map(|b| if b[0] > 0 { true } else { false }))
     }
     Type::INT4 => ScalarValue::Int32(
       bytes
-        .map(|by| match format {
-          Format::UnifiedText => parse_from_text(index, by),
-          Format::UnifiedBinary => by
+        .map(|by| match is_binary_format {
+          false => parse_from_text(index, by),
+          true => by
             .as_bytes()
             .try_into()
             .map_err(|_| invalid_param_err(index))
             .map(|v| i32::from_be_bytes(v)),
-          Format::Individual(format) => {
-            if format[index] == 0 {
-              parse_from_text(index, by)
-            } else {
-              by.as_bytes()
-                .try_into()
-                .map_err(|_| invalid_param_err(index))
-                .map(|v| i32::from_be_bytes(v))
-            }
-          }
         })
         .transpose()?,
     ),
     Type::INT8 => ScalarValue::Int64(
       bytes
-        .map(|by| match format {
-          Format::UnifiedText => parse_from_text(index, by),
-          Format::UnifiedBinary => by
+        .map(|by| match is_binary_format {
+          false => parse_from_text(index, by),
+          true => by
             .as_bytes()
             .try_into()
             .map_err(|_| invalid_param_err(index))
             .map(|v| i64::from_be_bytes(v)),
-          Format::Individual(format) => {
-            if format[index] == 0 {
-              parse_from_text(index, by)
-            } else {
-              by.as_bytes()
-                .try_into()
-                .map_err(|_| invalid_param_err(index))
-                .map(|v| i64::from_be_bytes(v))
-            }
-          }
         })
         .transpose()?,
     ),
     Type::TEXT | Type::VARCHAR => ScalarValue::Utf8(
       bytes.and_then(|b| std::str::from_utf8(&b).map(|s| s.to_owned()).ok()),
     ),
-    Type::JSONB => ScalarValue::Utf8(
-      bytes.and_then(|b| std::str::from_utf8(&b).map(|s| s.to_owned()).ok()),
-    ),
+    Type::JSONB => {
+      bytes
+        .map(|b| {
+          let raw_bytes = if is_binary_format {
+            if b[0] != 1 {
+              tracing::error!(
+                "Unsuported JSONB format; exepcted first byte to be 1"
+              );
+              return Err(Error::InternalError(format!(
+                "Unknown param format"
+              )));
+            }
+            // start from index 1 since first byte is 1 for JSONB
+            &b[1..]
+          } else {
+            b
+          };
+          std::str::from_utf8(raw_bytes)
+            .map(|s| s.to_owned())
+            .map_err(|e| {
+              Error::InvalidDataType(format!("Invalid JSON: {:?}", e))
+            })
+            .map(|v| ScalarValue::Utf8(Some(v)))
+        })
+        .transpose()?
+        .unwrap()
+    }
     Type::FLOAT4_ARRAY => {
       return bytes
         .map(|b| {
@@ -413,6 +425,21 @@ fn convert_bytes_to_scalar_value(
               vector.into_iter().map(|v| Some(v)),
             )]),
           )))
+        })
+        .unwrap_or(Ok(ScalarValue::Null));
+    }
+    Type::TIMESTAMP => {
+      return bytes
+        .map(|by| {
+          let timestamp = match is_binary_format {
+            false => parse_from_text(index, by),
+            true => by
+              .as_bytes()
+              .try_into()
+              .map_err(|_| invalid_param_err(index))
+              .map(|v| i64::from_be_bytes(v)),
+          };
+          Ok(ScalarValue::Int64(timestamp.ok()))
         })
         .unwrap_or(Ok(ScalarValue::Null));
     }

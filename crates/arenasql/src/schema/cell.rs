@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use chrono::{NaiveDateTime, SecondsFormat};
 use datafusion::arrow::array::{
   as_boolean_array, as_generic_list_array, as_primitive_array, as_string_array,
   ArrayRef,
@@ -227,24 +226,11 @@ impl OwnedSerializedCell {
         res?
       }
       DataType::Timestamp => {
-        let result: Result<Vec<Self>> = as_string_array(array)
+        // timestamp should be i64 microseconds
+        as_primitive_array::<Int64Type>(array)
           .iter()
-          .map(|value| {
-            value
-              .map(|v| {
-                let date =
-                  chrono::DateTime::parse_from_rfc3339(&v).map_err(|e| {
-                    df_error!(Error::InvalidQuery(format!(
-                      "Error parsing timestamp: {:?}",
-                      e
-                    )))
-                  })?;
-                Ok(Self::Timestamp(date.timestamp_micros()))
-              })
-              .unwrap_or_else(|| Ok(Self::Null))
-          })
-          .collect();
-        result?
+          .map(|v| v.map(|v| Self::Timestamp(v)).unwrap_or_default())
+          .collect()
       }
       dt => unimplemented!(
         "ColumnArray to Vec<OwnedSerializedCell> not implemented for type: {:?}",
@@ -324,6 +310,7 @@ impl<'a> SerializedCell<'a> {
   pub fn as_i64(&self) -> Option<i64> {
     match self {
       Self::Null => None,
+      Self::Timestamp(value) => Some(*value),
       Self::Int64(value) => Some(*value),
       _ => self.error_converting_to("i64"),
     }
@@ -373,23 +360,6 @@ impl<'a> SerializedCell<'a> {
       Self::Json(s) => Some(s),
       Self::File(s) => Some(s),
       _ => self.error_converting_to("string"),
-    }
-  }
-
-  #[inline]
-  pub fn as_iso_string(&self) -> Option<String> {
-    match self {
-      Self::Null => None,
-      Self::Timestamp(v) => match NaiveDateTime::from_timestamp_micros(*v) {
-        Some(date) => {
-          Some(date.and_utc().to_rfc3339_opts(SecondsFormat::Micros, false))
-        }
-        None => {
-          eprintln!("Error converting {:?} to RFC3339 datetime", v);
-          None
-        }
-      },
-      _ => self.error_converting_to("iso string"),
     }
   }
 

@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::str::FromStr;
 
 use arenasql::datafusion::{DatafusionDataType, DatafusionField};
@@ -14,18 +13,18 @@ pub fn to_field_info(
     field.name().clone(),
     None,
     None,
-    derive_pg_type(field.data_type(), field.metadata()),
+    derive_pg_type(field.data_type(), field.metadata().get("TYPE")),
     field_format,
   )
 }
 
 pub fn derive_pg_type(
   data_type: &DatafusionDataType,
-  metadata: &HashMap<String, String>,
+  arena_data_type: Option<&String>,
 ) -> Type {
   // If there's metadata, use it, else derive default type
   // Metadata will be set if the type came from table schema
-  match metadata.get("TYPE") {
+  match arena_data_type {
     Some(ty) => ArenaDataType::from_str(ty).unwrap().pg_type(),
     // The following is to derive fields that aren't associated with
     // a table, for sth like scalar value

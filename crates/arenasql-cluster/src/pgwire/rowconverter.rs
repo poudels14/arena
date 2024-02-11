@@ -30,7 +30,7 @@ pub fn convert_to_rows<'a>(
         batch.column_by_name(&field.name()).map(|arr| {
           (
             arr.clone(),
-            derive_pg_type(field.data_type(), field.metadata()),
+            derive_pg_type(field.data_type(), field.metadata().get("TYPE")),
           )
         })
       }

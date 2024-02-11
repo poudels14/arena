@@ -68,6 +68,7 @@ impl Visitor for AdvisoryLockAnalyzer {
           self.placeholder = Some(Expr::Placeholder(Placeholder {
             id: "$1".to_string(),
             data_type: Some(DataType::Int64),
+            metadata: Default::default(),
           }));
         }
         Value::Number(lock, _) => {

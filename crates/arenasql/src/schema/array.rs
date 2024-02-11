@@ -23,7 +23,7 @@ pub enum ColumnArrayBuilder {
   Vector(ListBuilder<Float32Builder>),
   // Need to store timestamp as string because DF can't cast
   // timestamp to u64 or i64
-  Timestamp(StringBuilder),
+  Timestamp(Int64Builder),
 }
 
 impl ColumnArrayBuilder {
@@ -69,9 +69,9 @@ impl ColumnArrayBuilder {
           capacity * len.unwrap_or(100) as usize,
         ))
       }
-      DataType::Timestamp => ColumnArrayBuilder::Timestamp(
-        StringBuilder::with_capacity(capacity, capacity * 27),
-      ),
+      DataType::Timestamp => {
+        ColumnArrayBuilder::Timestamp(Int64Builder::with_capacity(capacity))
+      }
       DataType::Binary => {
         ColumnArrayBuilder::Binary(BinaryBuilder::with_capacity(capacity, 1000))
       }
@@ -103,9 +103,7 @@ impl ColumnArrayBuilder {
         let vector = value.as_vector().unwrap();
         builder.append_option(Some(vector.clone().iter().map(|f| Some(*f))))
       }
-      Self::Timestamp(ref mut builder) => {
-        builder.append_option(value.as_iso_string())
-      }
+      Self::Timestamp(ref mut builder) => builder.append_option(value.as_i64()),
     }
   }
 
