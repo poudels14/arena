@@ -386,62 +386,65 @@ fn convert_bytes_to_scalar_value(
       bytes.and_then(|b| std::str::from_utf8(&b).map(|s| s.to_owned()).ok()),
     ),
     Type::JSONB => {
-      bytes
-        .map(|b| {
-          let raw_bytes = if is_binary_format {
-            if b[0] != 1 {
-              tracing::error!(
-                "Unsuported JSONB format; exepcted first byte to be 1"
-              );
-              return Err(Error::InternalError(format!(
-                "Unknown param format"
-              )));
-            }
-            // start from index 1 since first byte is 1 for JSONB
-            &b[1..]
-          } else {
-            b
-          };
-          std::str::from_utf8(raw_bytes)
-            .map(|s| s.to_owned())
-            .map_err(|e| {
-              Error::InvalidDataType(format!("Invalid JSON: {:?}", e))
-            })
-            .map(|v| ScalarValue::Utf8(Some(v)))
-        })
-        .transpose()?
-        .unwrap()
+      ScalarValue::Utf8(
+        bytes
+          .map(|b| {
+            let raw_bytes = if is_binary_format {
+              if b[0] != 1 {
+                tracing::error!(
+                  "Unsuported JSONB format; exepcted first byte to be 1"
+                );
+                return Err(Error::InternalError(format!(
+                  "Unknown param format"
+                )));
+              }
+              // start from index 1 since first byte is 1 for JSONB
+              &b[1..]
+            } else {
+              b
+            };
+            std::str::from_utf8(raw_bytes)
+              .map(|s| s.to_owned())
+              .map_err(|e| {
+                Error::InvalidDataType(format!("Invalid JSON: {:?}", e))
+              })
+          })
+          .transpose()?,
+      )
     }
     Type::FLOAT4_ARRAY => {
-      return bytes
-        .map(|b| {
-          let vector =
-            Vec::<f32>::from_sql(&Type::FLOAT4_ARRAY, b).map_err(|e| {
-              Error::InvalidParameter(format!("Invalid FLOAT4_ARRAY: {:?}", e))
-            })?;
+      return Ok(ScalarValue::List(Arc::new(
+        ListArray::from_iter_primitive::<Float32Type, _, _>(
+          bytes
+            .map(|b| {
+              let vector = Vec::<f32>::from_sql(&Type::FLOAT4_ARRAY, b)
+                .map_err(|e| {
+                  Error::InvalidParameter(format!(
+                    "Invalid FLOAT4_ARRAY: {:?}",
+                    e
+                  ))
+                })?;
 
-          Ok(ScalarValue::List(Arc::new(
-            ListArray::from_iter_primitive::<Float32Type, _, _>(vec![Some(
-              vector.into_iter().map(|v| Some(v)),
-            )]),
-          )))
-        })
-        .unwrap_or(Ok(ScalarValue::Null));
+              Ok::<_, Error>(vec![Some(vector.into_iter().map(|v| Some(v)))])
+            })
+            .transpose()?
+            .unwrap_or_default(),
+        ),
+      )));
     }
     Type::TIMESTAMP => {
-      return bytes
-        .map(|by| {
-          let timestamp = match is_binary_format {
+      return Ok(ScalarValue::Int64(
+        bytes
+          .map(|by| match is_binary_format {
             false => parse_from_text(index, by),
             true => by
               .as_bytes()
               .try_into()
               .map_err(|_| invalid_param_err(index))
               .map(|v| i64::from_be_bytes(v)),
-          };
-          Ok(ScalarValue::Int64(timestamp.ok()))
-        })
-        .unwrap_or(Ok(ScalarValue::Null));
+          })
+          .transpose()?,
+      ))
     }
     _ => {
       unimplemented!("Converting bytes to ScalarValue for type {:?}", r#type)
