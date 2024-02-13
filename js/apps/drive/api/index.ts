@@ -16,7 +16,7 @@ const system = createRouter({
 const protectedRoutes = createRouter({
   prefix: "/api",
   routes: {
-    "/fs/directory": files.listDirectory,
+    "/fs/directory/:id?": files.listDirectory,
     "/fs/directory/add": files.addDirectory,
     "/fs/upload": files.uploadFiles,
   },

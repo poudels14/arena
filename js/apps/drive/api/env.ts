@@ -11,6 +11,7 @@ const env = createEnv({
     PORTAL_DATABASE_PASSWORD: z.string(),
     OPENAI_API_KEY: z.string(),
   },
+  isServer: true,
   runtimeEnv: process.env,
 });
 

@@ -50,9 +50,8 @@ const addDirectory = p
     });
   });
 
-const listDirectory = p.query(async ({ ctx, searchParams, errors }) => {
-  const directoryId =
-    searchParams.id == "null" ? null : searchParams.id || null;
+const listDirectory = p.query(async ({ ctx, params, errors }) => {
+  const directoryId = params.id ? params.id : null;
 
   const directory = await ctx.repo.files.fetchById(directoryId);
   if (!directory && directoryId != null) {
