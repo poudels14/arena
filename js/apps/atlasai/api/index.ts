@@ -1,5 +1,6 @@
 import { createRouter } from "@portal/server-core/router";
 import * as chat from "./chat";
+import * as artifacts from "./artifacts";
 
 const router = createRouter({
   prefix: "/api/",
@@ -20,6 +21,8 @@ const router = createRouter({
     "/chat/threads/:threadId/send": chat.sendMessage,
     "/chat/threads/:threadId/tasks/": chat.listActiveTasks,
     "/chat/tasks/": chat.listActiveTasks,
+    "/chat/artifacts/:id": artifacts.getArtifact,
+    "/chat/artifacts/:id/content": artifacts.getArtifactContent,
     // "/documents": documents.listDocuments,
     // "/documents/:documentId": documents.getDocument,
     // "/documents/:documentId/edit": documents.updateDocument,

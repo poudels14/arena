@@ -65,6 +65,24 @@ const migrations: PostgresDatabaseConfig = {
         await db.query(`DROP TABLE task_executions`);
       },
     },
+    {
+      async up(db) {
+        await db.query(`CREATE TABLE chat_artifacts (
+          id VARCHAR(50) UNIQUE NOT NULL,
+          name VARCHAR(250) NOT NULL,
+          thread_id     VARCHAR(100) NOT NULL,
+          message_id   VARCHAR(100) NOT NULL,
+          size INTEGER NOT NULL,
+          file FILE NOT NULL,
+          metadata JSONB NOT NULL,
+          created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+          archived_at TIMESTAMP DEFAULT NULL
+        )`);
+      },
+      async down(db) {
+        await db.query(`DROP TABLE chat_artifacts;`);
+      },
+    },
   ],
 };
 
