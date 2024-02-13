@@ -8,9 +8,9 @@ import { ServerRoot, renderToStringAsync } from "@portal/solidjs/server";
 import { Client as S3Client } from "@arena/cloud/s3";
 import Root from "@portal/workspace/app/root";
 
+import { env } from "~/api/utils/env";
 import { router } from "~/api/index";
 import { createRepo } from "./api/repo";
-import { env } from "./api/env";
 
 const dbpool = new Pool({
   host: env.DATABASE_HOST,

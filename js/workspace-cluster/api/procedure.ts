@@ -3,7 +3,7 @@ import { Pool } from "@arena/runtime/postgres";
 import * as jwt from "@arena/cloud/jwt";
 import { Client } from "@arena/cloud/s3";
 import { Repo } from "./repo";
-import { Env } from "./env";
+import { Env } from "./utils/env";
 
 type Context = {
   host: string;
@@ -26,52 +26,50 @@ type Context = {
 
 const p = procedure<Context>();
 
-const protectedProcedure = p.use(async ({ ctx, next, errors }) => {
-  if (!ctx.user?.email) {
-    return errors.forbidden();
-  }
-  return next({
-    ctx,
-  });
-});
-
-const parseUserFromHeaders = p.use(
-  async ({ req, ctx, next, cookies, clearCookie, redirect }) => {
-    if (process.env.DISABLE_AUTH == "true") {
-      return await next({
-        ctx: {
-          ...ctx,
-          user: {
-            id: "test-user-dev",
-            email: "test-user@test.com",
-          },
-        },
-      });
-    }
-
-    const token = cookies.user || req.headers.get("x-portal-authentication");
-    let user = null;
-    try {
-      const { payload } = jwt.verify<{ user: { id: string; email: string } }>(
-        token || "",
-        "HS256",
-        ctx.env.JWT_SIGNING_SECRET
-      );
-      user = await ctx.repo.users.fetchById(payload.user.id);
-    } catch (e) {
+const protectedProcedure = p.use(
+  async ({ ctx, next, errors, clearCookie, redirect }) => {
+    if (!ctx.user?.email) {
       // Ignore error if user info can't be parsed from the header
       clearCookie("logged-in");
       return redirect("/login");
     }
-
-    return await next({
-      ctx: {
-        ...ctx,
-        user,
-      },
+    return next({
+      ctx,
     });
   }
 );
+
+const parseUserFromHeaders = p.use(async ({ req, ctx, next, cookies }) => {
+  if (process.env.DISABLE_AUTH == "true") {
+    return await next({
+      ctx: {
+        ...ctx,
+        user: {
+          id: "test-user-dev",
+          email: "test-user@test.com",
+        },
+      },
+    });
+  }
+
+  const token = cookies.user || req.headers.get("x-portal-authentication");
+  let user = null;
+  try {
+    const { payload } = jwt.verify<{ user: { id: string; email: string } }>(
+      token || "",
+      "HS256",
+      ctx.env.JWT_SIGNING_SECRET
+    );
+    user = await ctx.repo.users.fetchById(payload.user.id);
+  } catch (e) {}
+
+  return await next({
+    ctx: {
+      ...ctx,
+      user,
+    },
+  });
+});
 
 const authenticate = parseUserFromHeaders.use(async ({ ctx, next, errors }) => {
   if (!ctx.user?.email) {

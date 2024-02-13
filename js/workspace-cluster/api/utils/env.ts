@@ -22,6 +22,7 @@ const env = createEnv({
     LOGIN_EMAIL_SENDER: z.string().email(),
     RESEND_API_KEY: z.string(),
   },
+  isServer: true,
   runtimeEnv: process.env,
 });
 

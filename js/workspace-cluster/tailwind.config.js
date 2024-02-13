@@ -2,6 +2,7 @@ const solidUi = require("@portal/solid-ui/tailwind");
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: "class",
   content: [
     "./node_modules/@portal/workspace/app/**/*.{js,ts,jsx,tsx}",
     "./node_modules/@portal-apps/assistant/app/**/*.{js,ts,jsx,tsx}",
