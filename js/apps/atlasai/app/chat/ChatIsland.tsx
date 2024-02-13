@@ -2,6 +2,7 @@ import {
   Show,
   createComputed,
   createMemo,
+  createSelector,
   createSignal,
   useContext,
 } from "solid-js";
@@ -12,6 +13,7 @@ import {
 import { Chatbox } from "./ChatBox";
 import { ChatContext } from "./ChatContext";
 import { ChatThread } from "./ChatThread";
+import { Artifacts } from "./Artifacts";
 
 type WorkspaceChatContext = NonNullable<
   ReturnType<SharedWorkspaceContext["getChatContext"]>
@@ -21,6 +23,8 @@ const ChatIsland = (props: { hide?: boolean }) => {
   const { getChatContext } = useSharedWorkspaceContext();
   const { sendNewMessage } = useContext(ChatContext)!;
   const [chatBoxExpanded, setExpandChatBox] = createSignal(false);
+  const [getActiveTab, setActiveTab] = createSignal("chat");
+  const isTabActive = createSelector(getActiveTab);
   createComputed(() => {
     if (props.hide) {
       setExpandChatBox(false);
@@ -30,7 +34,7 @@ const ChatIsland = (props: { hide?: boolean }) => {
     <Show when={getChatContext()}>
       <Show when={chatBoxExpanded()}>
         <div
-          class="absolute bottom-0 left-0 right-0 w-full backdrop-blur-[1px]"
+          class="chat-island absolute bottom-0 left-0 right-0 w-full backdrop-blur-[1px]"
           classList={{
             "top-0": chatBoxExpanded(),
           }}
@@ -42,14 +46,43 @@ const ChatIsland = (props: { hide?: boolean }) => {
             }}
           ></div>
           <div class="absolute bottom-2 w-full flex justify-center pointer-events-none">
-            <div class="flex flex-col flex-1 min-w-[200px] max-w-[700px] bg-white border-t rounded-lg drop-shadow-md shadow-lg pointer-events-auto">
+            <div class="island flex flex-col flex-1 min-w-[200px] max-w-[700px] bg-white border-t rounded-lg drop-shadow-md shadow-lg pointer-events-auto">
+              <div class="flex text-xs shadow-sm text-gray-500">
+                <div
+                  class="px-4 py-1 border-transparent border-t border-r rounded-t cursor-pointer hover:bg-gray-100"
+                  classList={{
+                    "bg-gray-100  border-gray-200 text-gray-700":
+                      isTabActive("chat"),
+                  }}
+                  onClick={() => setActiveTab("chat")}
+                >
+                  Chat
+                </div>
+                <div
+                  class="px-4 py-1 border-transparent border-t border-r rounded-t cursor-pointer hover:bg-gray-100"
+                  classList={{
+                    "bg-gray-100 border-gray-200 text-gray-700":
+                      isTabActive("artifacts"),
+                  }}
+                  onClick={() => setActiveTab("artifacts")}
+                >
+                  Artifacts
+                </div>
+              </div>
               <Show when={chatBoxExpanded()}>
                 <div class="flex justify-center">
                   <div class="max-h-[450px] min-h-[225px] w-full">
-                    <ChatThread
-                      showDocument={() => {}}
-                      removeBottomPadding={true}
-                    />
+                    <Show when={getActiveTab() == "chat"}>
+                      <ChatThread
+                        showDocument={() => {}}
+                        removeBottomPadding={true}
+                      />
+                    </Show>
+                    <Show when={getActiveTab() == "artifacts"}>
+                      <div class="max-h-[225px] overflow-x-hidden overflow-y-auto scroll:w-1 thumb:rounded thumb:bg-gray-400">
+                        <Artifacts />
+                      </div>
+                    </Show>
                   </div>
                 </div>
               </Show>

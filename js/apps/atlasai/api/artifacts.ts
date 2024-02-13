@@ -3,6 +3,13 @@ import mime from "mime";
 import { p } from "./procedure";
 import { convertToDataFrame } from "./utils/file";
 
+const listArtifacts = p.query(async ({ ctx }) => {
+  const artifacts = await ctx.repo.artifacts.list({}, { limit: 20 });
+  return artifacts.map((artifact) =>
+    pick(artifact, "id", "name", "threadId", "metadata", "createdAt")
+  );
+});
+
 const getArtifact = p.query(async ({ ctx, params, errors }) => {
   const artifact = await ctx.repo.artifacts.get({
     id: params.id,
@@ -66,4 +73,4 @@ const getArtifactContent = p.query(
   }
 );
 
-export { getArtifact, getArtifactContent };
+export { listArtifacts, getArtifact, getArtifactContent };

@@ -1,4 +1,4 @@
-import { InferModel, eq } from "drizzle-orm";
+import { InferModel, and, desc, eq, isNull } from "drizzle-orm";
 import {
   integer,
   jsonb,
@@ -40,13 +40,30 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
         .where(eq(artifacts.id, filter.id));
       return rows[0] as Artifact;
     },
-    async list(filter: { threadId: string }): Promise<Artifact[]> {
+    async list(
+      filter: { threadId?: string },
+      options: { limit: number }
+    ): Promise<Artifact[]> {
       const rows = await db
         .with()
-        .select()
+        .select({
+          id: artifacts.id,
+          name: artifacts.name,
+          threadId: artifacts.threadId,
+          metadata: artifacts.metadata,
+          createdAt: artifacts.createdAt,
+        })
         .from(artifacts)
-        .where(eq(artifacts.threadId, filter.threadId))
-        .orderBy(artifacts.createdAt);
+        .where(
+          and(
+            filter.threadId
+              ? eq(artifacts.threadId, filter.threadId)
+              : isNull(artifacts.archivedAt),
+            isNull(artifacts.archivedAt)
+          )
+        )
+        .orderBy(desc(artifacts.createdAt))
+        .limit(options.limit);
       return rows as Artifact[];
     },
   };
