@@ -21,6 +21,8 @@ module.exports = {
       "@portal/solid-store",
       "@portal/solid-router",
       "@portal/solid-ui",
+      "@portal/solid-dnd",
+      "@portal/workspace-sdk",
     ],
   },
   client: {

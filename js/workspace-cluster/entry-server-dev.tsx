@@ -26,6 +26,9 @@ const fileRouter = await createDefaultFileRouter({
       "@portal/solid-router",
       "@portal/solid-query",
       "@portal/solidjs",
+      "@portal/solid-ui",
+      "@portal/solid-dnd",
+      "@portal/workspace-sdk",
     ],
   },
   transpilerConfig: {

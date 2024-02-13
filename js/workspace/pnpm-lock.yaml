@@ -20,6 +20,9 @@ dependencies:
   '@portal/server-core':
     specifier: workspace:^
     version: link:../portal/server-core
+  '@portal/solid-dnd':
+    specifier: workspace:^
+    version: link:../portal/dnd
   '@portal/solid-query':
     specifier: workspace:^
     version: link:../portal/solid-query

@@ -25,6 +25,7 @@ import {
   ChatIsland,
 } from "@portal-apps/assistant/app/chat";
 import { WorkspaceContextProvider, useWorkspaceContext } from "./context";
+import { DragDropProvider, DragOverlay } from "@portal/solid-dnd";
 
 const Home = lazy(() => import("./home/index.tsx"));
 const AtlasAI = lazy(() => import("@portal-apps/assistant/app"));
@@ -79,42 +80,45 @@ const WorkspaceRouter = (props: { setActiveApp: Setter<any> }) => {
   });
   return (
     <main class="relative content flex-1">
-      <Route path="/drive">
-        <Show when={portalDrive()}>
-          <CurrentAppSetter
-            setActiveApp={props.setActiveApp}
-            app={portalDrive()!}
-          />
-          <QueryContextProvider urlPrefix={`/w/apps/${portalDrive()!.id}/`}>
-            <PortalDrive />
-          </QueryContextProvider>
-        </Show>
-      </Route>
-      <Route path="/chat">
-        <Show when={atlasAi()}>
-          <CurrentAppSetter
-            setActiveApp={props.setActiveApp}
-            app={atlasAi()!}
-          />
-          <QueryContextProvider urlPrefix={`/w/apps/${atlasAi()!.id}/api/`}>
-            <AtlasAI />
-          </QueryContextProvider>
-        </Show>
-      </Route>
-      <Route path="/" exact>
-        <Home />
-      </Route>
-      <QueryContextProvider urlPrefix={`/w/apps/${atlasAi()!.id}/api/`}>
-        <ChatContextProvider
-          activeThreadId={getActiveThreadId()}
-          singleThreadOnly={true}
-          onThreadReady={(threadId) => {
-            setActiveThreadId(threadId);
-          }}
-        >
-          <ChatIsland hide={hideChatIsland()} />
-        </ChatContextProvider>
-      </QueryContextProvider>
+      <DragDropProvider>
+        <Route path="/drive">
+          <Show when={portalDrive()}>
+            <CurrentAppSetter
+              setActiveApp={props.setActiveApp}
+              app={portalDrive()!}
+            />
+            <QueryContextProvider urlPrefix={`/w/apps/${portalDrive()!.id}/`}>
+              <PortalDrive />
+            </QueryContextProvider>
+          </Show>
+        </Route>
+        <Route path="/chat">
+          <Show when={atlasAi()}>
+            <CurrentAppSetter
+              setActiveApp={props.setActiveApp}
+              app={atlasAi()!}
+            />
+            <QueryContextProvider urlPrefix={`/w/apps/${atlasAi()!.id}/api/`}>
+              <AtlasAI />
+            </QueryContextProvider>
+          </Show>
+        </Route>
+        <Route path="/" exact>
+          <Home />
+        </Route>
+        <QueryContextProvider urlPrefix={`/w/apps/${atlasAi()!.id}/api/`}>
+          <ChatContextProvider
+            activeThreadId={getActiveThreadId()}
+            singleThreadOnly={true}
+            onThreadReady={(threadId) => {
+              setActiveThreadId(threadId);
+            }}
+          >
+            <ChatIsland hide={hideChatIsland()} />
+          </ChatContextProvider>
+        </QueryContextProvider>
+        <DragOverlay />
+      </DragDropProvider>
     </main>
   );
 };
