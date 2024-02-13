@@ -98,20 +98,14 @@ const uploadFiles = p.mutate(async ({ req, ctx, errors, form }) => {
     for (const formInput of formData) {
       if (formInput.filename) {
         const contentType = mime.getType(formInput.filename) as ContentType;
-        if (
-          ![ContentType.TEXT, ContentType.MARKDOWN, ContentType.PDF].includes(
-            contentType
-          )
-        ) {
-          return errors.badRequest("Unsupported content type: " + contentType);
-        }
+
         const fileContent = formInput.data.toString("base64");
         const originalFile = {
           id: uniqueId(),
           name: formInput.filename,
           description: null,
           isDirectory: false,
-          parentId: parentDirectory!.id,
+          parentId: parentDirectory?.id || null,
           createdBy: ctx.user!.id,
           metadata: {},
           size: fileContent.length,
@@ -124,60 +118,67 @@ const uploadFiles = p.mutate(async ({ req, ctx, errors, form }) => {
         await repo.files.insert(originalFile);
         newFiles.push(originalFile);
 
-        // TODO: use workflows for text extraction
-        const document = createDocument(contentType, formInput);
-        const extractedText = await document.getExtractedText();
-        const extractedFile = extractedText
-          ? {
-              id: uniqueId(),
-              name: formInput.filename,
-              description: null,
-              isDirectory: false,
-              parentId: originalFile.id,
-              createdBy: ctx.user!.id,
-              metadata: {},
-              size: extractedText.length,
-              file: {
-                content: extractedText,
-              },
-              contentType: null,
-              createdAt: uploadTime,
-            }
-          : null;
-        if (extractedFile) {
-          await repo.files.insert(extractedFile);
-        }
+        // for files that support embeddings, add embeddings
+        if (
+          [ContentType.TEXT, ContentType.MARKDOWN, ContentType.PDF].includes(
+            contentType
+          )
+        ) {
+          // TODO: use workflows for text extraction
+          const document = createDocument(contentType, formInput);
+          const extractedText = await document.getExtractedText();
+          const extractedFile = extractedText
+            ? {
+                id: uniqueId(),
+                name: formInput.filename,
+                description: null,
+                isDirectory: false,
+                parentId: originalFile.id,
+                createdBy: ctx.user!.id,
+                metadata: {},
+                size: extractedText.length,
+                file: {
+                  content: extractedText,
+                },
+                contentType: null,
+                createdAt: uploadTime,
+              }
+            : null;
+          if (extractedFile) {
+            await repo.files.insert(extractedFile);
+          }
 
-        const embeddingFile = extractedFile ? extractedFile : originalFile;
-        const documentSplitter = createDocumentSplitter({
-          async tokenize(content) {
-            return await ctx.llm.embeddingsModel.tokenizeText(content, {
-              truncate: false,
-            });
-          },
-          maxTokenLength: 200,
-          windowTerminationNodes: ["heading", "table", "code"],
-        });
-
-        const documentChunks = await document.split(documentSplitter);
-        const embeddings = await ctx.llm.embeddingsModel.generateEmbeddings(
-          documentChunks.map((chunk) => chunk.content)
-        );
-
-        for (let index = 0; index < documentChunks.length; index++) {
-          const chunk = documentChunks[index];
-          await repo.embeddings.insert({
-            id: uniqueId(),
-            embeddings: embeddings[index],
-            metadata: {
-              start: chunk.position.start,
-              end: chunk.position.end,
-              chunk: chunk.metadata,
+          const embeddingFile = extractedFile ? extractedFile : originalFile;
+          const documentSplitter = createDocumentSplitter({
+            async tokenize(content) {
+              return await ctx.llm.embeddingsModel.tokenizeText(content, {
+                truncate: false,
+              });
             },
-            fileId: embeddingFile.id,
-            directoryId: parentDirectory!.id,
-            createdAt: uploadTime,
+            maxTokenLength: 200,
+            windowTerminationNodes: ["heading", "table", "code"],
           });
+
+          const documentChunks = await document.split(documentSplitter);
+          const embeddings = await ctx.llm.embeddingsModel.generateEmbeddings(
+            documentChunks.map((chunk) => chunk.content)
+          );
+
+          for (let index = 0; index < documentChunks.length; index++) {
+            const chunk = documentChunks[index];
+            await repo.embeddings.insert({
+              id: uniqueId(),
+              embeddings: embeddings[index],
+              metadata: {
+                start: chunk.position.start,
+                end: chunk.position.end,
+                chunk: chunk.metadata,
+              },
+              fileId: embeddingFile.id,
+              directoryId: parentDirectory!.id,
+              createdAt: uploadTime,
+            });
+          }
         }
       }
     }
