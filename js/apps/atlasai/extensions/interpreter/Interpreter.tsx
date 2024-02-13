@@ -1,4 +1,4 @@
-import { createQuery } from "@portal/solid-query";
+import { createQuery, resolveFullUrl } from "@portal/solid-query";
 import { For, Match, Show, Switch, createMemo, createSignal } from "solid-js";
 
 type InterpreterState = {
@@ -51,9 +51,9 @@ const Artifacts = (props: { UI: any; artifacts: any }) => {
   const { Markdown, Table } = props.UI;
   const [getActiveTab, setActiveTab] = createSignal(0);
 
+  const getActiveArtifact = createMemo(() => props.artifacts[getActiveTab()]);
   const artifactContent = createQuery<any>(() => {
-    const index = getActiveTab();
-    return `/chat/artifacts/${props.artifacts[index].id}/content?json=true`;
+    return `/chat/artifacts/${getActiveArtifact().id}/content?json=true`;
   }, {});
 
   const contentType = createMemo(() => artifactContent.data()?.contentType);
@@ -87,7 +87,12 @@ const Artifacts = (props: { UI: any; artifacts: any }) => {
                 <Table
                   rows={data().rows || []}
                   class="w-full"
-                  downloadUrl="NICE!"
+                  download={{
+                    filename: getActiveArtifact().name,
+                    url: resolveFullUrl(
+                      `/chat/artifacts/${getActiveArtifact().id}/content`
+                    ),
+                  }}
                 />
               </Match>
             </Switch>
