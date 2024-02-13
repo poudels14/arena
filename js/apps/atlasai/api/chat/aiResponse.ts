@@ -15,6 +15,7 @@ import { llmDeltaToResponseBuilder } from "../../llm/utils";
 import { createExtensionHandler } from "../../extensions/handler";
 import { createQueryContextExtension } from "./llmQueryContext";
 import { Search } from "@portal/workspace-sdk/llm/search";
+import { zod as z, zodToJsonSchema } from "@portal/sdk";
 
 async function generateLLMResponseStream(
   { ctx }: Pick<ProcedureRequest<Context, any>, "ctx" | "errors">,
@@ -32,7 +33,6 @@ async function generateLLMResponseStream(
   }
 ): Promise<Subject<any>> {
   const responseStream = new ReplaySubject<any>();
-  const aiFunctions: any[] = [];
 
   const aiResponseTime = new Date();
   const aiResponseId = uniqueId();
@@ -184,6 +184,9 @@ async function generateLLMResponseStream(
         }
 
         streamSubject?.subscribe({
+          error(err) {
+            responseStream.complete();
+          },
           async complete() {
             const aiResponse: any = await extensionHandler.parseResponse({
               data: {
@@ -217,28 +220,28 @@ async function generateLLMResponseStream(
                 );
               } else {
                 const func = aiResponse.tool_calls[0];
-                extensionHandler
-                  .startTask({
-                    repo: ctx.repo.taskExecutions,
-                    task: {
-                      id: func.id,
-                      threadId: thread.id,
-                      messageId: aiResponseId,
-                      name: func.function.name,
-                      arguments: func.function.arguments,
+                responseStream.next({
+                  ops: [
+                    {
+                      op: "replace",
+                      path: ["messages", aiResponseId, "message"],
+                      value: aiResponse,
                     },
-                  })
-                  .then(() => {
-                    responseStream.next({
-                      ops: [
-                        {
-                          op: "replace",
-                          path: ["messages", aiResponseId, "message"],
-                          value: aiResponse,
-                        },
-                      ],
-                    });
-                  });
+                  ],
+                });
+                extensionHandler.startTask({
+                  repos: {
+                    tasks: ctx.repo.taskExecutions,
+                    artifacts: ctx.repo.artifacts,
+                  },
+                  task: {
+                    id: func.id,
+                    threadId: thread.id,
+                    messageId: aiResponseId,
+                    name: func.function.name,
+                    arguments: func.function.arguments,
+                  },
+                });
               }
             } else {
               // If a tool is called, only send the message with tool call
@@ -283,6 +286,7 @@ async function generateLLMResponseStream(
                 });
               }
             }
+            responseStream.complete();
           },
         });
       }

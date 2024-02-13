@@ -103,7 +103,7 @@ const Chatbox = (props: {
   };
 
   return (
-    <div class="min-w-[200px] max-w-[650px] space-y-1">
+    <div class="chat-box min-w-[200px] max-w-[650px] space-y-1">
       <Show when={props.context}>
         <SelectChatContext
           context={props.context!}

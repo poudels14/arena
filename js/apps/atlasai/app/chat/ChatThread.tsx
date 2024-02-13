@@ -7,9 +7,9 @@ import {
   createMemo,
   createSignal,
   lazy,
+  onCleanup,
   useContext,
 } from "solid-js";
-import { Markdown } from "@portal/solid-ui/markdown";
 import { Marked } from "marked";
 import dlv from "dlv";
 import deepEqual from "fast-deep-equal/es6";
@@ -17,14 +17,8 @@ import {
   HiSolidChevronDown,
   HiSolidChevronUp,
   HiOutlinePaperClip,
+  HiOutlineArrowPath,
 } from "solid-icons/hi";
-import hljs from "highlight.js/lib/core";
-import "highlight.js/styles/atom-one-dark.css";
-import jsGrammar from "highlight.js/lib/languages/javascript";
-import cssGrammar from "highlight.js/lib/languages/css";
-import xmlGrammar from "highlight.js/lib/languages/xml";
-import pythonGrammar from "highlight.js/lib/languages/python";
-import rustGrammar from "highlight.js/lib/languages/rust";
 
 import { EmptyThread } from "./EmptyThread";
 import { ChatContext, ChatState } from "./ChatContext";
@@ -33,15 +27,7 @@ import { Chat, Document } from "../types";
 import { Store } from "@portal/solid-store";
 import { createQuery } from "@portal/solid-query";
 import { WigetContainer } from "./Widget";
-
-hljs.registerLanguage("javascript", jsGrammar);
-hljs.registerLanguage("css", cssGrammar);
-hljs.registerLanguage("html", xmlGrammar);
-hljs.registerLanguage("xml", xmlGrammar);
-hljs.registerLanguage("python", pythonGrammar);
-hljs.registerLanguage("rust", rustGrammar);
-
-const marked = new Marked({});
+import { Markdown } from "./Markdown";
 
 const ChatThread = (props: {
   showDocument(doc: any): void;
@@ -76,13 +62,44 @@ const ChatThread = (props: {
     }
   );
 
-  const threadTaskExecutionsById = createQuery<Chat.TaskExecution[]>(() => {
-    const activeThreadId = state.activeThreadId();
-    if (!activeThreadId) return null;
+  const threadTaskExecutionsById = createQuery<Chat.TaskExecution[]>(
+    () => {
+      const activeThreadId = state.activeThreadId();
+      if (!activeThreadId) return null;
+      return `/chat/threads/${activeThreadId}/tasks`;
+    },
+    {},
+    {
+      manual: true,
+    }
+  );
+
+  const pendingTasks = createMemo(
+    () => {
+      const tasks = threadTaskExecutionsById.data();
+      return Object.values(tasks || []).filter(
+        (task) => task.status == "STARTED"
+      );
+    },
+    [],
+    {
+      equals(prev, next) {
+        return deepEqual(prev, next);
+      },
+    }
+  );
+  createEffect(() => {
     // reload tasks if the ids change
-    void threadTaskCallIds();
-    return `/chat/threads/${activeThreadId}/tasks`;
-  }, {});
+    const ids = threadTaskCallIds();
+    if (ids.length == 0) return;
+    threadTaskExecutionsById.refresh();
+    if (pendingTasks().length > 0) {
+      let interval = setInterval(() => {
+        threadTaskExecutionsById.refresh();
+      }, 1000);
+      onCleanup(() => clearInterval(interval));
+    }
+  });
 
   const error = createMemo<{ message: string } | null>(() => {
     // TODO
@@ -97,13 +114,13 @@ const ChatThread = (props: {
       ref={chatMessagesContainerRef}
       class="flex justify-center h-full overflow-y-auto scroll:w-1 thumb:rounded thumb:bg-gray-400"
     >
-      <div class="px-4 flex-1 min-w-[350px] max-w-[650px]">
+      <div class="px-4 flex-1 min-w-[350px] max-w-[700px]">
         <Show when={!state.activeThreadId()}>
           <EmptyThread />
         </Show>
         <div
           ref={chatMessagesRef}
-          class="chat-messages pt-2 text-sm text-accent-12/80 space-y-1"
+          class="chat-messages pt-2 text-sm text-accent-12/80 space-y-3"
           classList={{
             "pb-24": !Boolean(props.removeBottomPadding),
           }}
@@ -143,6 +160,10 @@ const ChatThread = (props: {
                         ]
                       }
                       showDocument={props.showDocument}
+                      showLoadingBar={
+                        sendNewMessage.isStreaming &&
+                        index() == sortedMessageIds().length - 1
+                      }
                     />
                   </Match>
                 </Switch>
@@ -175,14 +196,8 @@ const ChatMessage = (props: {
   message: Store<Pick<Chat.Message, "id" | "message" | "metadata" | "role">>;
   task?: Store<Chat.TaskExecution | undefined>;
   showDocument(doc: any): void;
+  showLoadingBar?: boolean;
 }) => {
-  const tokens = createMemo(() => {
-    const content = props.message.message.content!();
-    if (content) {
-      return marked.lexer(content);
-    }
-    return null;
-  });
   const uniqueDocuments = createMemo(() => {
     // TODO:
     // const allDocs = props.state.documents() || [];
@@ -209,13 +224,13 @@ const ChatMessage = (props: {
     };
   };
 
-  const [showSearchResults, setShowSearchResults] = createSignal(false);
+  const isPending = () => props.task && props.task.status() == "STARTED";
   return (
-    <div class="flex flex-row w-full space-x-5">
-      <div class="w-8 h-8">
+    <div class="chat-message flex flex-row w-full space-x-5">
+      <div class="w-8">
         <Show when={role().name}>
           <div
-            class="mt-4 text-[0.6rem] font-medium leading-8 rounded-xl border select-none text-center text-gray-600"
+            class="mt-2 text-[0.6rem] font-medium leading-8 rounded-xl border select-none text-center text-gray-600"
             classList={{
               "bg-[hsl(60_28%_95%)]": role().id == "user",
               "bg-brand-3": role().id == "ai",
@@ -225,8 +240,11 @@ const ChatMessage = (props: {
           </div>
         </Show>
       </div>
-      <div class="flex-1 space-y-2" data-message-id={props.message.id()}>
-        <Show when={tokens()}>
+      <div
+        class="flex-1 space-y-2 overflow-x-hidden"
+        data-message-id={props.message.id()}
+      >
+        <Show when={props.message.message.content!()}>
           <div
             class="message px-4 py-1 rounded-lg leading-6"
             classList={{
@@ -235,27 +253,7 @@ const ChatMessage = (props: {
             }}
             style={"letter-spacing: 0.1px; word-spacing: 1px"}
           >
-            <Markdown
-              tokens={tokens()}
-              renderer={{
-                code(props) {
-                  const highlighted =
-                    props.lang && hljs.listLanguages().includes(props.lang);
-                  return (
-                    <code
-                      class="block my-2 px-4 py-4 rounded bg-gray-800 text-white whitespace-pre overflow-auto"
-                      innerHTML={
-                        highlighted
-                          ? hljs.highlight(props.text, {
-                              language: props.lang,
-                            }).value
-                          : props.text
-                      }
-                    />
-                  );
-                },
-              }}
-            />
+            <Markdown markdown={props.message.message.content!()!} />
           </div>
         </Show>
         <Show when={props.task && props.task()}>
@@ -300,6 +298,9 @@ const ChatMessage = (props: {
               </For>
             </div>
           </div>
+        </Show>
+        <Show when={props.showLoadingBar || isPending()}>
+          <InProgressBar />
         </Show>
       </div>
     </div>
@@ -364,16 +365,63 @@ const SearchResults = (props: { searchResults: Chat.SearchResult[] }) => {
 };
 
 const Timer = lazy(() => import("../../extensions/clock/Timer"));
+const CodeInterpreter = lazy(
+  () => import("../../extensions/interpreter/Interpreter")
+);
+const Table = lazy(() => import("@portal/solid-ui/table/DefaultTable"));
 const TaskExecution = (props: { task: Store<Chat.TaskExecution> }) => {
+  const state = createMemo(() => {
+    return props.task.state();
+  });
+
   return (
-    <Switch>
-      <Match when={props.task.taskId() == "start_timer"}>
-        <WigetContainer Widget={Timer} state={props.task.state()} />
-      </Match>
-      <Match when={true}>
-        <div>Unsupported task</div>
-      </Match>
-    </Switch>
+    <>
+      <Switch>
+        <Match when={props.task.taskId() == "start_timer"}>
+          <WigetContainer
+            Widget={Timer}
+            metadata={props.task.metadata()}
+            state={state()}
+            UI={{
+              Markdown,
+              Table,
+            }}
+          />
+        </Match>
+        <Match when={props.task.taskId() == "portal_code_interpreter"}>
+          <WigetContainer
+            Widget={CodeInterpreter}
+            metadata={props.task.metadata()}
+            state={state()}
+            UI={{
+              Markdown,
+              Table,
+            }}
+          />
+        </Match>
+        <Match when={true}>
+          <div>Unsupported task</div>
+        </Match>
+      </Switch>
+    </>
+  );
+};
+
+const InProgressBar = () => {
+  return (
+    <div class="px-4 py-2 text-gray-800 space-y-1">
+      <div class="flex py-0 justify-center items-center space-x-4">
+        <div class="flex-[0.2] h-2 bg-gray-300 rounded animate-pulse"></div>
+        <div class="h-2 basis-1"></div>
+        <div class="flex-1 h-2 bg-gray-300 rounded animate-pulse"></div>
+      </div>
+      <div class="flex py-0 justify-center items-center space-x-4">
+        <div class="flex-1 h-2 bg-gray-300 rounded animate-pulse"></div>
+        <div class="h-2 basis-2"></div>
+        <div class="flex-[0.3] h-2 bg-gray-300 rounded animate-pulse"></div>
+      </div>
+      <div class="h-2 bg-gray-300 rounded animate-pulse"></div>
+    </div>
   );
 };
 

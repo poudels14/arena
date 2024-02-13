@@ -78,7 +78,9 @@ export namespace Chat {
     threadId: string;
     messageId: string;
     status: "STARTED" | string;
-    metadata: any;
+    metadata: {
+      arguments: any;
+    };
     state: any;
     startedAt: string;
   };

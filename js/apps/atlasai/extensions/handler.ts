@@ -5,11 +5,19 @@ import dlv from "dlv";
 import cleanSet from "clean-set";
 import { klona } from "klona";
 import { merge } from "lodash-es";
+import { serializeError } from "serialize-error";
+
 import { llmDeltaToResponseBuilder } from "../llm/utils";
 
 import { manifest as timer } from "./clock/timer";
-import { createRepo } from "~/api/repo/tasks";
+import { manifest as interpreter } from "./interpreter";
+import { createRepo as createTaskRepo } from "~/api/repo/tasks";
+import { createRepo as createArtifactRepo } from "~/api/repo/artifacts";
 import { dset } from "dset";
+import { env } from "~/api/env";
+
+import type { Artifact } from "./types";
+import path from "path";
 
 const followUpQuestionSchema = z.object({
   _followup_question_: z
@@ -20,19 +28,22 @@ const followUpQuestionSchema = z.object({
     ),
 });
 
-const TASKS = [timer];
+const TOOLS = [timer, interpreter];
 
 function createExtensionHandler() {
   return {
     async createRequestMiddleware(): Promise<Middleware> {
       return function addFunctions({ request }) {
-        request.addFunction({
-          name: timer.name,
-          description: timer.description,
-          parameters: zodToJsonSchema(
-            timer.schema.merge(followUpQuestionSchema)
-          ),
-        });
+        for (const tool of TOOLS) {
+          const parameters = tool.config?.setup?.disableFollowUp
+            ? tool.schema
+            : tool.schema.merge(followUpQuestionSchema);
+          request.addFunction({
+            name: tool.name,
+            description: tool.description,
+            parameters: zodToJsonSchema(parameters),
+          });
+        }
       };
     },
     async parseResponse(result: { data?: any; stream?: Subject<any> }) {
@@ -79,26 +90,46 @@ function createExtensionHandler() {
               responseBuilder.push(dlv(payload, "choices.0.delta"));
             },
             complete() {
-              resolve(createFinalPayload(responseBuilder.build()));
+              try {
+                resolve(createFinalPayload(responseBuilder.build()));
+              } catch (e) {
+                resolve({
+                  raw: responseBuilder.build(),
+                });
+              }
             },
           });
         } else if (result.data) {
           const content = dlv(result.data, "choices.0.message.content");
           const tool_calls = dlv(result.data, "choices.0.message.tool_calls");
-          resolve(
-            createFinalPayload({
-              role: dlv(result.data, "choices.0.message.role") || "assistant",
-              content,
-              tool_calls,
-            })
-          );
+
+          try {
+            resolve(
+              createFinalPayload({
+                role: dlv(result.data, "choices.0.message.role") || "assistant",
+                content,
+                tool_calls,
+              })
+            );
+          } catch (e) {
+            resolve({
+              raw: {
+                role: dlv(result.data, "choices.0.message.role") || "assistant",
+                content,
+                tool_calls,
+              },
+            });
+          }
         } else {
           throw new Error("Either stream or data expected");
         }
       });
     },
     async startTask(options: {
-      repo: ReturnType<typeof createRepo>;
+      repos: {
+        tasks: ReturnType<typeof createTaskRepo>;
+        artifacts: ReturnType<typeof createArtifactRepo>;
+      };
       task: {
         id: string;
         threadId: string;
@@ -107,31 +138,71 @@ function createExtensionHandler() {
         arguments: any;
       };
     }) {
-      const { repo, task } = options;
-      const selectedTask = TASKS.find((t) => t.name == task.name);
+      const { repos, task } = options;
+      const selectedTask = TOOLS.find((t) => t.name == task.name);
 
       if (!selectedTask) return;
-      await repo.insert({
+      const taskMetadata = { arguments: task.arguments };
+      await repos.tasks.insert({
         id: task.id,
         taskId: task.name,
         threadId: task.threadId,
         messageId: task.messageId,
-        metadata: { arguments: task.arguments },
+        metadata: taskMetadata,
         state: {},
       });
 
-      await selectedTask.start({
-        input: task.arguments,
-        async prompt(message) {
-          throw new Error("not implemented");
-        },
-        async setState(state) {
-          await repo.update({
+      await selectedTask
+        .start({
+          args: task.arguments,
+          env: {
+            PORTAL_CODE_INTERPRETER_HOST: env.PORTAL_CODE_INTERPRETER_HOST,
+          },
+          utils: {
+            async uploadArtifact(artifact: Artifact) {
+              const name = path.basename(artifact.path);
+              await repos.artifacts.insert({
+                id: artifact.id,
+                name,
+                threadId: task.threadId,
+                messageId: task.messageId,
+                size: artifact.size,
+                file: {
+                  content: artifact.content,
+                },
+                createdAt: new Date(),
+                metadata: {},
+              });
+              return { id: artifact.id, name };
+            },
+          },
+          async prompt(message) {
+            throw new Error("not implemented");
+          },
+          async setStatus(status) {
+            await repos.tasks.update({
+              id: task.id,
+              status,
+            });
+          },
+          async setState(state, status) {
+            await repos.tasks.update({
+              id: task.id,
+              status,
+              state,
+            });
+          },
+        })
+        .catch(async (e) => {
+          await repos.tasks.update({
             id: task.id,
-            state,
+            status: "ERROR",
+            metadata: {
+              ...taskMetadata,
+              error: serializeError(e),
+            },
           });
-        },
-      });
+        });
     },
   };
 }

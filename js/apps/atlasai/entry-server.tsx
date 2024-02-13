@@ -27,7 +27,6 @@ const handler = chainMiddlewares<{ event: PageEvent }>(async ({ event }) => {
         env,
         dbpool,
         repo,
-        embeddingsModel: null!,
       },
     });
   } catch (e) {

@@ -151,39 +151,37 @@ const ChatContextProvider = (props: {
     if (sendNewMessage.status != 200) return;
     sendNewMessage.stream((data) => {
       if (data.ops) {
-        if (data.ops) {
-          data.ops.forEach((op: any) => {
-            const [pathPrefix, ...path] = op.path;
-            if (pathPrefix == "messages") {
-              setActiveChatThread("messages", (prev) => {
-                const value = op.value;
-                let messages = prev;
-                if (op.op == "replace") {
-                  messages = cleanSet(messages, path, value);
-                } else if (op.op == "add") {
-                  messages = cleanSet(messages, path, (prev) => {
-                    if (typeof value == "string") {
-                      return (prev || "") + value;
-                    } else if (Array.isArray(prev)) {
-                      return [...(prev || []), value];
-                    } else {
-                      return value;
-                    }
-                  });
-                }
-                return messages;
-              });
-            } else if (pathPrefix == "threads") {
-              threadsRoute.setState<any>("threadsById", (prev) => {
-                let threadsById = prev;
-                if (op.op == "replace") {
-                  threadsById = cleanSet(threadsById, path, op.value);
-                }
-                return threadsById;
-              });
-            }
-          });
-        }
+        data.ops.forEach((op: any) => {
+          const [pathPrefix, ...path] = op.path;
+          if (pathPrefix == "messages") {
+            setActiveChatThread("messages", (prev) => {
+              const value = op.value;
+              let messages = prev;
+              if (op.op == "replace") {
+                messages = cleanSet(messages, path, value);
+              } else if (op.op == "add") {
+                messages = cleanSet(messages, path, (prev) => {
+                  if (typeof value == "string") {
+                    return (prev || "") + value;
+                  } else if (Array.isArray(prev)) {
+                    return [...(prev || []), value];
+                  } else {
+                    return value;
+                  }
+                });
+              }
+              return messages;
+            });
+          } else if (pathPrefix == "threads") {
+            threadsRoute.setState<any>("threadsById", (prev) => {
+              let threadsById = prev;
+              if (op.op == "replace") {
+                threadsById = cleanSet(threadsById, path, op.value);
+              }
+              return threadsById;
+            });
+          }
+        });
       }
     });
   });

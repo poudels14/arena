@@ -1,4 +1,4 @@
-import { groupBy, keyBy, merge, pick, uniqBy } from "lodash-es";
+import { keyBy, merge, pick } from "lodash-es";
 import z from "zod";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
 import ky from "ky";
@@ -6,7 +6,7 @@ import { p } from "../procedure";
 import { ChatThread } from "./types";
 import { generateLLMResponseStream } from "./aiResponse";
 import { ChatMessage } from "../repo/chatMessages";
-import { Search, searchResponseSchema } from "@portal/workspace-sdk/llm/search";
+import { Search } from "@portal/workspace-sdk/llm/search";
 import { klona } from "klona";
 import { dset } from "dset";
 
@@ -113,8 +113,8 @@ const sendMessage = p
         id: params.threadId,
         metadata: {
           ai: {
-            model: "gpt-3.5-turbo",
-            // model: "gpt-4-1106-preview",
+            // model: "gpt-3.5-turbo",
+            model: "gpt-4-1106-preview",
           },
         },
       },
@@ -170,12 +170,18 @@ const sendMessage = p
           }
         )
         .json<Search.Response>();
-      searchResults.push({
-        app: {
-          id: app.id,
-        },
-        ...activeContextSearchResult,
-      });
+
+      if (
+        activeContextSearchResult.files.length > 0 ||
+        activeContextSearchResult.tools.length > 0
+      ) {
+        searchResults.push({
+          app: {
+            id: app.id,
+          },
+          ...activeContextSearchResult,
+        });
+      }
     }
 
     if (searchResults.length > 0) {
@@ -240,6 +246,9 @@ const sendMessage = p
             try {
               controller.enqueue(JSON.stringify(json));
             } catch (e) {}
+          },
+          complete() {
+            controller.close();
           },
         });
       },

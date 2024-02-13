@@ -57,7 +57,7 @@ const Sidebar = () => {
 
   const isThreadActive = createSelector(() => state.activeThreadId());
   return (
-    <PortalSidebar class="basis-[200px] shrink-0 no-scrollbar py-4 h-screen shadow text-sm tab:py-1 tab:px-4 tab:py-2 tab:text-gray-600 tab:text-xs tab-hover:text-gray-700 tab-active:text-black tab-active:font-medium icon:w-4 icon:h-4 icon:text-gray-400 overflow-y-auto">
+    <PortalSidebar class="basis-[225px] shrink-0 no-scrollbar py-4 h-screen shadow text-sm tab:py-1 tab:px-4 tab:py-2 tab:text-gray-600 tab:text-xs tab-hover:text-gray-700 tab-active:text-black tab-active:font-medium icon:w-4 icon:h-4 icon:text-gray-400 overflow-y-auto">
       <SidebarTab
         icon={{
           svg: <HiOutlineCog6Tooth />,

@@ -14,7 +14,9 @@ const taskExecutions = pgTable("task_executions", {
   startedAt: timestamp("started_at").defaultNow(),
 });
 
-type DbTaskExecution = InferModel<typeof taskExecutions>;
+type DbTaskExecution = InferModel<typeof taskExecutions> & {
+  status: "STARTED" | "TERMINATED" | "COMPLETED" | "ERROR";
+};
 
 const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
   return {
@@ -66,7 +68,7 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
           )
         )
         .orderBy(desc(taskExecutions.startedAt));
-      return rows;
+      return rows as DbTaskExecution[];
     },
   };
 };

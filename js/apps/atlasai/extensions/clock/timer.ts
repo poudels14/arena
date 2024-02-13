@@ -1,3 +1,4 @@
+import { Manifest } from "../types";
 import Component from "./Timer";
 import { fromZodError, zod as z } from "@portal/sdk";
 
@@ -9,26 +10,22 @@ const startTimerSchema = z.object({
   unit: z.enum(["minute", "second"]).optional().describe("Unit of time"),
 });
 
-export const manifest = {
+export const manifest: Manifest<z.infer<typeof startTimerSchema>> = {
   name: "start_timer",
   description: "Start a timer for a given duration",
   schema: startTimerSchema,
-  async start(options: {
-    input: any;
-    prompt: (message: string) => Promise<void>;
-    setState: (state: any) => Promise<void>;
-  }) {
-    const { input } = options;
+  async start(options) {
+    const { args } = options;
 
-    const parsed = startTimerSchema.safeParse(options.input);
+    const parsed = startTimerSchema.safeParse(options.args);
     if (!parsed.success) {
       throw new Error(fromZodError(parsed.error!).toString());
     }
     const durationInSeconds =
-      input.unit == "second"
-        ? input.duration
-        : input.unit == "minute"
-        ? input.duration * 60
+      args.unit == "second"
+        ? args.duration!
+        : args.unit == "minute"
+        ? args.duration! * 60
         : 0;
     const startedAt = new Date().getTime();
     await options.setState({

@@ -42,7 +42,7 @@ const ChatIsland = (props: { hide?: boolean }) => {
             }}
           ></div>
           <div class="absolute bottom-2 w-full flex justify-center pointer-events-none">
-            <div class="flex flex-col flex-1 min-w-[200px] max-w-[650px] bg-white border-t rounded-lg drop-shadow-md shadow-lg pointer-events-auto">
+            <div class="flex flex-col flex-1 min-w-[200px] max-w-[700px] bg-white border-t rounded-lg drop-shadow-md shadow-lg pointer-events-auto">
               <Show when={chatBoxExpanded()}>
                 <div class="flex justify-center">
                   <div class="max-h-[450px] min-h-[225px] w-full">
@@ -53,18 +53,20 @@ const ChatIsland = (props: { hide?: boolean }) => {
                   </div>
                 </div>
               </Show>
-              <div class="space-y-1 pt-1 bg-gray-100 rounded-b-lg">
-                <Chatbox
-                  threadId={undefined}
-                  blockedBy={null}
-                  sendNewMessage={(input) => {
-                    sendNewMessage.mutate(input);
-                  }}
-                  disableContextEdit={true}
-                  onFocus={() => setExpandChatBox(true)}
-                  autoFocus={true}
-                  context={getChatContext()}
-                />
+              <div class="flex justify-center space-y-1 pt-1 bg-gray-100 rounded-b-lg">
+                <div class="flex-1 max-w-[650px]">
+                  <Chatbox
+                    threadId={undefined}
+                    blockedBy={null}
+                    sendNewMessage={(input) => {
+                      sendNewMessage.mutate(input);
+                    }}
+                    disableContextEdit={true}
+                    onFocus={() => setExpandChatBox(true)}
+                    autoFocus={true}
+                    context={getChatContext()}
+                  />
+                </div>
               </div>
             </div>
           </div>
