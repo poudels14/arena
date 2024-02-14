@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package grpc;
+
+service PythonRuntime {
+  rpc Healthy (HealthyRequest) returns (HealthyResponse) {}
+  rpc ExecCode (ExecCodeRequest) returns (ExecCodeResponse) {}
+}
+
+message HealthyRequest {}
+
+message HealthyResponse {
+  bool healthy = 1;
+}
+
+message ExecCodeRequest {
+  string code = 1;
+}
+
+message ExecCodeResponse {
+  bool success = 1;
+  string stdout = 2;
+  string stderr = 3;
+  optional ExecResult data = 4;
+  optional string error = 5;
+}
+
+message ExecResult {
+  string type = 1;
+  // JSON value
+  string value = 2;
+}
+
+message Artifact {
+  string filename = 1;
+}
