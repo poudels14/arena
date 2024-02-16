@@ -8,6 +8,9 @@ dependencies:
   '@portal/deploy':
     specifier: workspace:^
     version: link:../portal-app/deploy
+  '@portal/solid-ui':
+    specifier: workspace:^
+    version: link:../portal/solid-ui
   '@solidjs/router':
     specifier: ^0.10.10
     version: 0.10.10(solid-js@1.8.12)

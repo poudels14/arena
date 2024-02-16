@@ -12,10 +12,10 @@ export default createHandler(() => (
           <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
           {assets}
         </head>
-        <body>
-          <div id="app">{children}</div>
-          {scripts}
+        <body class="hiddens scroll:w-1 thumb:rounded thumb:bg-slate-700 track:bg-slate-900">
+          {children}
         </body>
+        {scripts}
       </html>
     )}
   />
