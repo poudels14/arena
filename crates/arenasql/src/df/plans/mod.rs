@@ -1,4 +1,5 @@
 pub(crate) mod advisory_lock;
+pub(crate) mod alter_table;
 pub(crate) mod create_index;
 pub(crate) mod delete_rows;
 pub(crate) mod insert_rows;

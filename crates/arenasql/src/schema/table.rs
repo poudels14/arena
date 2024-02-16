@@ -146,43 +146,40 @@ fn get_columns_from_query_stmt(
   schema: DfSchemaRef,
 ) -> Result<Vec<Column>> {
   match stmt {
-    Statement::CreateTable { columns, .. } => {
-      columns
-        .iter()
-        .zip(schema.fields.iter())
-        .enumerate()
-        .map(|(index, (col, field))| {
-          let mut properties = ColumnProperty::DEFAULT;
+    Statement::CreateTable { columns, .. } => columns
+      .iter()
+      .zip(schema.fields.iter())
+      .enumerate()
+      .map(|(index, (col, field))| {
+        let mut properties = ColumnProperty::DEFAULT;
 
-          if col
-            .options
-            .iter()
-            .any(|opt| opt.option == ColumnOption::NotNull)
-          {
-            properties.insert(ColumnProperty::NOT_NULL);
+        if col
+          .options
+          .iter()
+          .any(|opt| opt.option == ColumnOption::NotNull)
+        {
+          properties.insert(ColumnProperty::NOT_NULL);
+        }
+
+        if col.options.iter().any(|opt| {
+          if let ColumnOption::Unique { .. } = opt.option {
+            true
+          } else {
+            false
           }
+        }) {
+          properties.insert(ColumnProperty::UNIQUE);
+        }
 
-          if col.options.iter().any(|opt| {
-            if let ColumnOption::Unique { .. } = opt.option {
-              true
-            } else {
-              false
-            }
-          }) {
-            properties.insert(ColumnProperty::UNIQUE);
-          }
-
-          Ok(Column {
-            id: index as ColumnId,
-            name: col.name.value.clone(),
-            data_type: DataType::from_column_def(&col, field)?,
-            properties,
-            // TODO
-            default_value: None,
-          })
+        Ok(Column {
+          id: index as ColumnId,
+          name: col.name.value.clone(),
+          data_type: DataType::from_column_def(&col, Some(field.as_ref()))?,
+          properties,
+          default_value: None,
         })
-        .collect::<Result<Vec<Column>>>()
-    }
+      })
+      .collect::<Result<Vec<Column>>>(),
     _ => unimplemented!(),
   }
 }

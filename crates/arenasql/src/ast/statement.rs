@@ -29,7 +29,9 @@ impl From<&SQLStatement> for StatementType {
       | SQLStatement::CreateIndex { .. } => Self::Create,
       SQLStatement::Delete { .. } => Self::Delete,
       SQLStatement::Update { .. } => Self::Update,
-      SQLStatement::AlterIndex { .. } => Self::Alter,
+      SQLStatement::AlterIndex { .. } | SQLStatement::AlterTable { .. } => {
+        Self::Alter
+      }
       SQLStatement::Execute { .. } => Self::Execute,
       SQLStatement::Drop { .. } => Self::Drop,
       SQLStatement::SetTimeZone { .. } | SQLStatement::SetVariable { .. } => {

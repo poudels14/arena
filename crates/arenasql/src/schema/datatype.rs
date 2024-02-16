@@ -72,9 +72,16 @@ pub enum DataType {
 impl DataType {
   pub fn from_column_def(
     column_def: &ColumnDef,
-    df_field: &Field,
+    df_field: Option<&Field>,
   ) -> Result<Self> {
     match &column_def.data_type {
+      SQLDataType::Bool => Ok(Self::Boolean),
+      SQLDataType::Text => Ok(Self::Text),
+      SQLDataType::Int4(_) => Ok(Self::Int32),
+      SQLDataType::Int8(_) => Ok(Self::Int64),
+      SQLDataType::Float4 => Ok(Self::Float32),
+      SQLDataType::Float8 => Ok(Self::Float64),
+      SQLDataType::Timestamp(_, _) => Ok(Self::Timestamp),
       SQLDataType::Varchar(len) => {
         let len = len.map(|l| l.length as usize);
         Ok(DataType::Varchar { len })
@@ -106,7 +113,8 @@ impl DataType {
           }
         }
       }
-      _ => DataType::from_field(df_field),
+      _ if df_field.is_some() => DataType::from_field(df_field.unwrap()),
+      dt => Err(Error::UnsupportedDataType(dt.to_string())),
     }
   }
 

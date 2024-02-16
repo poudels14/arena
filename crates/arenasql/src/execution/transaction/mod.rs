@@ -26,7 +26,9 @@ use super::response::ExecutionResponse;
 use super::{custom_functions, ExecutionPlanExtension};
 use super::{SessionConfig, SessionState};
 use crate::ast::statement::StatementType;
-use crate::df::plans::{self, create_index, insert_rows, set_parameter};
+use crate::df::plans::{
+  self, alter_table, create_index, insert_rows, set_parameter,
+};
 use crate::{ast, Error, Result};
 
 pub use handle::TransactionHandle;
@@ -41,6 +43,7 @@ pub const DEFAULT_EXTENSIONS: Lazy<Arc<Vec<ExecutionPlanExtension>>> =
       Arc::new(create_index::extension),
       Arc::new(plans::advisory_lock::extension),
       Arc::new(set_parameter::extension),
+      Arc::new(alter_table::extension),
     ])
   });
 
