@@ -4,9 +4,8 @@ use std::path::Path;
 use anyhow::{bail, Context, Result};
 use arenasql::execution::Privilege;
 
-use crate::io::file::File;
 use crate::schema::{
-  ClusterBuilder, UserBuilder, ADMIN_USERNAME, APPS_USERNAME, MANIFEST_FILE,
+  ClusterConfigBuilder, UserBuilder, ADMIN_USERNAME, APPS_USERNAME,
 };
 
 #[derive(clap::Parser, Debug, Clone)]
@@ -19,22 +18,36 @@ pub struct InitCluster {
   #[arg(default_value = "password")]
   pub apps_password: String,
 
-  /// Directory to setup workspace in
+  /// Path to the directory where database data should be stored
   #[arg(long)]
-  pub dir: String,
+  pub catalogs_dir: String,
+
+  /// Path to the file where config should be written
+  #[arg(long)]
+  pub config: String,
 }
 
 impl InitCluster {
   pub async fn execute(self) -> Result<()> {
-    let path = Path::new(&self.dir);
-    if path.join(MANIFEST_FILE).exists() {
-      bail!("Arena cluster already exists in: {:?}", path);
+    let config_path = Path::new(&self.config);
+    if config_path.exists() {
+      bail!("Arenasql config already exists: {:?}", config_path);
     } else {
-      fs::create_dir_all(path.join("catalogs"))?;
+      if let Some(parent) = config_path.parent() {
+        fs::create_dir_all(parent)?;
+      }
     }
 
-    let mut cluster = ClusterBuilder::default().build().unwrap();
-    cluster.add_user(
+    let catalog_dir = Path::new(&self.catalogs_dir);
+    if !catalog_dir.exists() {
+      fs::create_dir_all(catalog_dir)?;
+    }
+
+    let mut config = ClusterConfigBuilder::default()
+      .catalogs_dir(catalog_dir.canonicalize()?.to_str().unwrap().to_owned())
+      .build()
+      .unwrap();
+    config.add_user(
       UserBuilder::default()
         .name(ADMIN_USERNAME.to_owned())
         .password(self.admin_password)
@@ -42,7 +55,7 @@ impl InitCluster {
         .build()
         .unwrap(),
     )?;
-    cluster.add_user(
+    config.add_user(
       UserBuilder::default()
         .name(APPS_USERNAME.to_owned())
         .password(self.apps_password)
@@ -54,9 +67,9 @@ impl InitCluster {
         .unwrap(),
     )?;
 
-    let mut manifest_file = File::create(&path.join(MANIFEST_FILE))
-      .context("Error creating new manifest file")?;
-    manifest_file.write_sync(&cluster)?;
+    let toml = toml::to_string(&config).context("error serializing config")?;
+    std::fs::write(self.config, toml)
+      .context("error writing config to the file")?;
     Ok(())
   }
 }

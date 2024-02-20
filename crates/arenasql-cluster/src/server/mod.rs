@@ -26,33 +26,10 @@ pub struct ClusterOptions {
   #[arg(long)]
   pub port: Option<u16>,
 
-  /// Directory to store database files
+  /// Path to config files
+  /// Config file should be in .toml format
   #[arg(long)]
-  pub root: String,
-
-  /// A JWT signing secret that's used to authorize queries
-  /// that access non-admin databases.
-  /// If it's not set, env variable `ARENA_JWT_SECRET` will be checked
-  /// and if that's also not set, unauthorized error will be returned
-  /// for those queries.
-  #[arg(long)]
-  pub jwt_secret: Option<String>,
-
-  /// Cache size per database in MB
-  #[arg(long("cache_size"), default_value_t = 10)]
-  pub cache_size_mb: usize,
-
-  /// Directory to backup database to
-  /// If set, all the database that were opened by the cluster will be
-  /// backed up to that directory periodically
-  #[arg(long)]
-  pub backup_dir: Option<String>,
-
-  /// Directory to put a checkpoint of the databases to
-  /// When cluster is terminated, all the databases that were opened will
-  /// be checkpointed to that directory
-  #[arg(long)]
-  checkpoint_dir: Option<String>,
+  pub config: String,
 }
 
 impl ClusterOptions {

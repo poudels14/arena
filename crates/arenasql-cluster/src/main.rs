@@ -2,7 +2,6 @@ mod auth;
 mod error;
 mod extension;
 mod init;
-mod io;
 mod pgwire;
 mod schema;
 mod server;

@@ -20,9 +20,8 @@ use crate::auth::{
 };
 use crate::error::{ArenaClusterError, ArenaClusterResult};
 use crate::extension::admin_exetension;
-use crate::io::file::File;
 use crate::schema::{
-  self, ADMIN_USERNAME, APPS_USERNAME, MANIFEST_FILE, SYSTEM_SCHEMA_NAME,
+  self, ClusterConfig, ADMIN_USERNAME, APPS_USERNAME, SYSTEM_SCHEMA_NAME,
 };
 use crate::system::{
   ArenaClusterCatalogListProvider, CatalogListOptionsBuilder,
@@ -30,7 +29,7 @@ use crate::system::{
 
 #[allow(unused)]
 pub struct ArenaSqlCluster {
-  pub(crate) manifest: Arc<schema::Cluster>,
+  pub(crate) manifest: Arc<schema::ClusterConfig>,
   pub(crate) runtime: Arc<RuntimeEnv>,
   pub(crate) session_store: Arc<AuthenticatedSessionStore>,
   pub(crate) storage: Arc<ClusterStorageFactory>,
@@ -40,36 +39,36 @@ pub struct ArenaSqlCluster {
 
 impl ArenaSqlCluster {
   pub fn load(options: &ClusterOptions) -> Result<Self> {
-    let root_dir = Path::new(&options.root).to_path_buf();
-
-    let manifest = File::read(&root_dir.join(MANIFEST_FILE))
+    let manifest = std::fs::read_to_string(Path::new(&options.config))
       .context("Error reading cluster manifest")?;
+    let manifest: ClusterConfig = toml::from_str(&manifest)?;
 
-    let backup_dir = options
+    let backup_dir = manifest
       .backup_dir
       .as_ref()
       .map(|p| create_path_if_not_exists(&p))
       .transpose()?;
-    let checkpoint_dir = options
+    let checkpoint_dir = manifest
       .checkpoint_dir
       .as_ref()
       .map(|p| create_path_if_not_exists(&p))
       .transpose()?;
+    let catalogs_dir = create_path_if_not_exists(&manifest.catalogs_dir)?;
 
     let mut storage_options = StorageOption::default();
     storage_options
       .set_backup_dir(backup_dir)
       .set_checkpoint_dir(checkpoint_dir)
-      .set_cache_size_mb(Some(options.cache_size_mb))
-      .set_root_dir(root_dir.into());
+      .set_cache_size_mb(Some(manifest.cache_size_mb))
+      .set_root_dir(catalogs_dir.into());
 
     Ok(Self {
-      manifest,
       runtime: Arc::new(RuntimeEnv::default()),
       session_store: Arc::new(AuthenticatedSessionStore::new()),
       storage: Arc::new(ClusterStorageFactory::new(storage_options)),
-      jwt_secret: options.jwt_secret.clone(),
+      jwt_secret: manifest.jwt_secret.clone(),
       advisory_locks: Arc::new(AdvisoryLocks::new()),
+      manifest: manifest.into(),
     })
   }
 
