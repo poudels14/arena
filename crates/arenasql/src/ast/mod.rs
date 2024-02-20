@@ -3,7 +3,9 @@ mod datatype;
 pub mod statement;
 pub use datatype::cast_unsupported_data_types;
 
-use sqlparser::ast::{DataType, Expr, Statement as SQLStatement, StructField};
+use sqlparser::ast::{
+  DataType, Expr, Ident, Statement as SQLStatement, StructField,
+};
 use sqlparser::dialect::{Dialect, PostgreSqlDialect};
 use sqlparser::keywords::Keyword;
 use sqlparser::parser::{Parser, ParserError, ParserOptions};
@@ -99,7 +101,7 @@ impl<'a> ArenasqlParser<'a> {
               (
                 Expr::Value(op.value),
                 StructField {
-                  field_name: Some(op.name.clone()),
+                  field_name: Some(Ident::new(op.name.value.to_lowercase())),
                   // this field type can be anything since data type can
                   // be derived from Value
                   field_type: DataType::Text,

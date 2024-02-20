@@ -4,6 +4,8 @@ use datafusion::arrow::array::{as_string_array, ListArray};
 use datafusion::arrow::datatypes::Float32Type;
 use datafusion::scalar::ScalarValue;
 
+mod index;
+
 use crate::tests::create_session_context;
 
 #[tokio::test(flavor = "multi_thread")]

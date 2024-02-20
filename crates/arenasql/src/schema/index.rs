@@ -1,4 +1,4 @@
-use strum_macros::FromRepr;
+use strum_macros::{EnumString, FromRepr};
 
 use super::{proto, Constraint};
 
@@ -109,13 +109,16 @@ pub enum IndexProvider {
   },
 }
 
-#[derive(Debug, Clone, PartialEq, FromRepr)]
+#[derive(Debug, Clone, PartialEq, FromRepr, EnumString)]
 pub enum VectorMetric {
   /// Dot product
+  #[strum(ascii_case_insensitive)]
   Dot = 1,
   /// L2 squared
+  #[strum(ascii_case_insensitive)]
   L2 = 2,
   /// Cosine distance
+  #[strum(ascii_case_insensitive)]
   Cos = 3,
 }
 
