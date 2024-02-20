@@ -184,7 +184,7 @@ impl CustomExecutionPlan for CreateIndexExecutionPlan {
         }
       }
 
-      let index_provider = IndexProvider::ColumnIndex { columns, unique };
+      let index_provider = IndexProvider::BasicIndex { columns, unique };
 
       let table_lock = transaction
         .acquire_table_schema_write_lock(schema.as_ref(), &table.name)

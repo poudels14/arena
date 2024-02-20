@@ -48,7 +48,9 @@ pub enum Error {
   InternalError(String),
   DatabaseClosed,
   IOError(String),
-  SerdeError(String),
+  EncodingError(Arc<prost::EncodeError>),
+  DecodingError(Arc<prost::DecodeError>),
+  SerdeError(Arc<bincode::Error>),
   InsufficientPrivilege,
   DataFusionError(Arc<DataFusionError>),
   ReservedWord(String),
@@ -96,6 +98,8 @@ impl Error {
       | Self::DatabaseAlreadyExists(_)
       | Self::SchemaDoesntExist(_)
       | Self::IOError(_)
+      | Self::DecodingError(_)
+      | Self::EncodingError(_)
       | Self::SerdeError(_)
       | Self::InternalError(_)
       | Self::DatabaseClosed
@@ -117,8 +121,6 @@ impl Error {
       | Self::UnsupportedQueryFilter(msg)
       | Self::UnsupportedQuery(msg)
       | Self::InvalidQuery(msg)
-      | Self::IOError(msg)
-      | Self::SerdeError(msg)
       | Self::ReservedWord(msg)
       | Self::InvalidParameter(msg)
       | Self::InvalidTransactionState(msg) => msg.to_owned(),
@@ -156,6 +158,13 @@ impl Error {
         format!(r#"column "{col}" does not exist"#)
       }
       Self::DatabaseClosed => format!(r#"database already closed"#),
+      Self::IOError(_)
+      | Self::SerdeError(_)
+      | Self::DecodingError(_)
+      | Self::EncodingError(_) => {
+        eprintln!("Error: {:?}", self);
+        format!("IO error")
+      }
       Self::DataFusionError(df_err) => match df_err.as_ref() {
         DataFusionError::External(err) => {
           if let Some(arena_err) = err.downcast_ref::<Error>() {
@@ -258,7 +267,7 @@ impl From<parser::ParserError> for Error {
 impl From<rocksdb::Error> for Error {
   fn from(e: rocksdb::Error) -> Self {
     eprint!("Rocks db error: {:?}", e);
-    Self::IOError(format!("IO error"))
+    Self::IOError(e.into())
   }
 }
 
@@ -271,13 +280,25 @@ impl From<DataFusionError> for Error {
 
 impl From<bincode::Error> for Error {
   fn from(e: bincode::Error) -> Self {
-    Self::SerdeError(e.to_string())
+    Self::SerdeError(e.into())
   }
 }
 
 impl From<Error> for DataFusionError {
   fn from(err: Error) -> Self {
     DataFusionError::External(Box::new(err))
+  }
+}
+
+impl From<prost::DecodeError> for Error {
+  fn from(e: prost::DecodeError) -> Self {
+    Self::DecodingError(e.into())
+  }
+}
+
+impl From<prost::EncodeError> for Error {
+  fn from(e: prost::EncodeError) -> Self {
+    Self::EncodingError(e.into())
   }
 }
 

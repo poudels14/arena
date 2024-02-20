@@ -1,11 +1,11 @@
-use serde::{Deserialize, Serialize};
+use strum_macros::FromRepr;
 
-use super::Constraint;
+use super::{proto, Constraint};
 
-// Since index id is unique to the table, id doesn't need to be more than 256
-pub type TableIndexId = u8;
+/// Table index id is unique to the database
+pub type TableIndexId = u16;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TableIndex {
   pub id: TableIndexId,
   pub name: String,
@@ -13,6 +13,65 @@ pub struct TableIndex {
 }
 
 impl TableIndex {
+  pub fn from_proto(index: &proto::TableIndex) -> Self {
+    TableIndex {
+      id: index.id as u16,
+      name: index.name.clone(),
+      provider: match index.provider.as_ref().unwrap() {
+        proto::TableIndexProvider::Basic(provider) => {
+          IndexProvider::BasicIndex {
+            columns: provider.columns.iter().map(|col| *col as usize).collect(),
+            unique: provider.unique,
+          }
+        }
+        proto::TableIndexProvider::Hnsw(provider) => IndexProvider::HNSWIndex {
+          columns: provider.columns.iter().map(|col| *col as usize).collect(),
+          metric: VectorMetric::from_repr(provider.metric as usize).unwrap(),
+          m: provider.m as usize,
+          ef_construction: provider.ef_construction as usize,
+          ef: provider.ef as usize,
+          dim: provider.dim as usize,
+          retain_vectors: provider.retain_vectors.unwrap_or(false),
+          namespace_column: provider.namespace_column.map(|idx| idx as usize),
+        },
+      },
+    }
+  }
+
+  pub fn to_proto(&self) -> proto::TableIndex {
+    proto::TableIndex {
+      id: self.id as u32,
+      name: self.name.clone(),
+      provider: Some(match &self.provider {
+        IndexProvider::BasicIndex { columns, unique } => {
+          proto::TableIndexProvider::Basic(proto::BasicIndexProvider {
+            columns: columns.iter().map(|c| *c as u32).collect(),
+            unique: *unique,
+          })
+        }
+        IndexProvider::HNSWIndex {
+          columns,
+          metric,
+          m,
+          ef_construction,
+          ef,
+          dim,
+          retain_vectors,
+          namespace_column,
+        } => proto::TableIndexProvider::Hnsw(proto::HnswIndexProvider {
+          columns: columns.iter().map(|c| *c as u32).collect(),
+          metric: metric.clone() as i32,
+          m: *m as u32,
+          ef_construction: *ef_construction as u32,
+          ef: *ef as u32,
+          dim: *dim as u32,
+          retain_vectors: Some(*retain_vectors),
+          namespace_column: namespace_column.map(|idx| idx as u32),
+        }),
+      }),
+    }
+  }
+
   #[inline]
   pub fn columns(&self) -> &Vec<usize> {
     self.provider.columns()
@@ -24,9 +83,9 @@ impl TableIndex {
   }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum IndexProvider {
-  ColumnIndex {
+  BasicIndex {
     columns: Vec<usize>,
     unique: bool,
   },
@@ -34,14 +93,37 @@ pub enum IndexProvider {
     // Must have only one column but need to store as vec to return
     // &Vec<usize> from `Self::columns` method
     columns: Vec<usize>,
+    metric: VectorMetric,
+    m: usize,
+    ef_construction: usize,
+    ef: usize,
+    dim: usize,
+    // by default, set this to false
+    // if set to false, flat vectors of the columns will be cleared out
+    // for the rows that are already indexed; this is to avoid having
+    // duplicate vectors in index as well as row data and save space.
+    // storing embedding vectors is expensive!
+    retain_vectors: bool,
+    // column to split the indexing by
+    namespace_column: Option<usize>,
   },
+}
+
+#[derive(Debug, Clone, PartialEq, FromRepr)]
+pub enum VectorMetric {
+  /// Dot product
+  Dot = 1,
+  /// L2 squared
+  L2 = 2,
+  /// Cosine distance
+  Cos = 3,
 }
 
 impl IndexProvider {
   pub fn from_constraint(constraint: &Constraint) -> Self {
     match constraint {
       Constraint::Unique(columns) | Constraint::PrimaryKey(columns) => {
-        Self::ColumnIndex {
+        Self::BasicIndex {
           columns: columns.to_vec(),
           unique: true,
         }
@@ -52,7 +134,7 @@ impl IndexProvider {
   #[inline]
   pub fn is_unique(&self) -> bool {
     match self {
-      Self::ColumnIndex { unique, .. } => *unique,
+      Self::BasicIndex { unique, .. } => *unique,
       Self::HNSWIndex { .. } => false,
     }
   }
@@ -60,8 +142,8 @@ impl IndexProvider {
   #[inline]
   pub fn columns(&self) -> &Vec<usize> {
     match self {
-      Self::ColumnIndex { columns, .. } => columns,
-      Self::HNSWIndex { columns } => columns,
+      Self::BasicIndex { columns, .. } => columns,
+      Self::HNSWIndex { columns, .. } => columns,
     }
   }
 }

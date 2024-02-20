@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package arenasql.schema;
+
+message Table {
+  uint32 id = 1;
+  string name = 2;
+  repeated Column columns = 3;
+  repeated Constraint constraints = 4;
+  repeated TableIndex indexes = 5;
+}
+
+message Column {
+  uint32 id = 1;
+  string name = 2;
+  // store as bincode serde bytes because this is enum in Rust and
+  // not sure if there's a good way to store that in protobuf
+  bytes data_type = 3;
+  uint32 properties = 4;
+  optional bytes default_value = 5;
+}
+
+message Constraint {
+  ConstraintType type = 1;
+  repeated uint32 columns = 2;
+}
+
+enum ConstraintType {
+  UNKNOWN_CONSTRAINT = 0;
+  PRIMARY_KEY = 1;
+  UNIQUE = 2;
+}
+
+message TableIndex {
+  uint32 id = 1;
+  string name = 2;
+  oneof provider {
+    BasicIndexProvider basic = 4;
+    HnswIndexProvider hnsw = 9;
+  }
+}
+
+message BasicIndexProvider {
+  repeated uint32 columns = 1;
+  bool unique = 2;
+}
+
+message HnswIndexProvider {
+  repeated uint32 columns = 1;
+  VectorMetric metric = 2;
+  uint32 m = 3;
+  uint32 ef_construction = 4;
+  uint32 ef = 5;
+  uint32 dim = 6;
+  // by default, set this to false
+  // if set to false, flat vectors of the columns will be cleared out
+  // for the rows that are already indexed; this is to avoid having
+  // duplicate vectors in index as well as row data and save space.
+  // storing embedding vectors is expensive!
+  optional bool retain_vectors = 7;
+  optional uint32 namespace_column = 8;
+}
+
+
+enum VectorMetric {
+  UNKNOWN_VECTOR_METRIC = 0;
+  DOT = 1;
+  L2 = 2;
+  COS = 3;
+}

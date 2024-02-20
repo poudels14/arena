@@ -33,17 +33,14 @@ impl StorageHandler {
     schema: &str,
     table: &str,
   ) -> Result<Option<Table>> {
-    Ok(
-      self
-        .kv
-        .get(
-          KeyValueGroup::Schemas,
-          table_schema_key!(catalog, schema, table),
-        )?
-        .and_then(|bytes| {
-          Serializer::FixedInt.deserialize_or_log_error::<Table>(&bytes)
-        }),
-    )
+    self
+      .kv
+      .get(
+        KeyValueGroup::Schemas,
+        table_schema_key!(catalog, schema, table),
+      )?
+      .map(|bytes| Table::from_protobuf(&bytes))
+      .transpose()
   }
 
   #[tracing::instrument(skip(self), level = "TRACE")]
@@ -59,7 +56,7 @@ impl StorageHandler {
 
     let mut tables = Vec::new();
     while let Some((_key, value)) = iter.get() {
-      let table = Serializer::FixedInt.deserialize::<Table>(&value)?;
+      let table = Table::from_protobuf(&value)?;
       tables.push(table);
       iter.next();
     }
@@ -77,7 +74,7 @@ impl StorageHandler {
     schema: &str,
     table: &Table,
   ) -> Result<()> {
-    let table_bytes = Serializer::FixedInt.serialize::<Table>(&table)?;
+    let table_bytes = table.to_protobuf()?;
     self.kv.put(
       KeyValueGroup::Schemas,
       table_schema_key!(catalog, schema, &table.name),

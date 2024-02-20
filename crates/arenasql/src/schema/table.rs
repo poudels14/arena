@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Cursor;
 use std::sync::Arc;
 
 use datafusion::arrow::datatypes::{
@@ -8,25 +9,26 @@ use datafusion::arrow::datatypes::{
 use datafusion::common::Constraints as DfConstraints;
 use datafusion::datasource::TableProvider as DfTableProvider;
 use inflector::Inflector;
-use serde::{Deserialize, Serialize};
+use prost::Message;
 use sqlparser::ast::{ColumnOption, Statement};
 
 use super::column::CTID_COLUMN;
 use super::index::IndexProvider;
 use super::{
-  Column, ColumnId, ColumnProperty, Constraint, DataType, TableIndex,
-  TableIndexId,
+  Column, ColumnId, ColumnProperty, Constraint, DataType, OwnedSerializedCell,
+  TableIndex, TableIndexId,
 };
+use crate::storage::Serializer;
 use crate::Result;
 
 pub type TableId = u16;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Table {
   pub id: TableId,
   pub name: String,
   pub columns: Vec<Column>,
-  pub constraints: Option<Vec<Constraint>>,
+  pub constraints: Vec<Constraint>,
   pub indexes: Vec<TableIndex>,
 }
 
@@ -55,11 +57,6 @@ impl Table {
         constraints.push(Constraint::Unique(vec![col.id as usize]));
       }
     });
-    let constraints = if constraints.is_empty() {
-      None
-    } else {
-      Some(constraints)
-    };
     Ok(Table {
       id,
       name: name.to_owned(),
@@ -84,11 +81,12 @@ impl Table {
   }
 
   pub fn get_df_constraints(&self) -> Option<DfConstraints> {
-    self.constraints.as_ref().map(|constraints| {
-      DfConstraints::new_unverified(
-        constraints.iter().map(|c| c.into()).collect(),
-      )
-    })
+    if self.constraints.is_empty() {
+      return None;
+    }
+    Some(DfConstraints::new_unverified(
+      self.constraints.iter().map(|c| c.into()).collect(),
+    ))
   }
 
   pub fn add_index(
@@ -138,6 +136,78 @@ impl Table {
       .iter()
       .map(|proj| &self.columns[*proj].name)
       .collect()
+  }
+
+  pub fn from_protobuf(buf: &[u8]) -> Result<Self> {
+    let table = super::proto::Table::decode(&mut Cursor::new(buf))?;
+    Ok(Self {
+      id: table.id as u16,
+      name: table.name,
+      columns: table
+        .columns
+        .iter()
+        .map(|col| {
+          Ok(Column {
+            id: col.id as u8,
+            name: col.name.clone(),
+            data_type: Serializer::FixedInt
+              .deserialize::<DataType>(&col.data_type)?,
+            properties: ColumnProperty::from_bits(col.properties).unwrap(),
+            default_value: col
+              .default_value
+              .as_ref()
+              .map(|v| {
+                Serializer::FixedInt.deserialize::<OwnedSerializedCell>(&v)
+              })
+              .transpose()?,
+          })
+        })
+        .collect::<Result<Vec<Column>>>()?,
+      constraints: table
+        .constraints
+        .iter()
+        .map(|constraint| Constraint::from_proto(constraint))
+        .collect(),
+      indexes: table
+        .indexes
+        .iter()
+        .map(|index| TableIndex::from_proto(index))
+        .collect(),
+    })
+  }
+
+  pub fn to_protobuf(&self) -> Result<Vec<u8>> {
+    let table = super::proto::Table {
+      id: self.id as u32,
+      name: self.name.clone(),
+      columns: self
+        .columns
+        .iter()
+        .map(|col| {
+          Ok(super::proto::Column {
+            id: col.id as u32,
+            name: col.name.clone(),
+            data_type: Serializer::FixedInt
+              .serialize::<DataType>(&col.data_type)?,
+            properties: col.properties.bits(),
+            default_value: col
+              .default_value
+              .as_ref()
+              .map(|v| {
+                Serializer::FixedInt.serialize::<OwnedSerializedCell>(&v)
+              })
+              .transpose()?,
+          })
+        })
+        .collect::<Result<Vec<super::proto::Column>>>()?,
+      constraints: self.constraints.iter().map(|c| c.to_proto()).collect(),
+      indexes: self.indexes.iter().map(|index| index.to_proto()).collect(),
+    };
+
+    let mut buf = Vec::new();
+    buf.reserve(table.encoded_len());
+    table.encode(&mut buf)?;
+    Ok(buf)
   }
 }
 

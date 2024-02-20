@@ -78,21 +78,17 @@ impl DfSchemaProvider for SchemaProvider {
     )?;
     let constraints = table.constraints.clone();
     constraints
-      .map(|constraints| {
-        constraints
-          .iter()
-          .filter(|constraint| constraint.needs_index())
-          .map(|constraint| {
-            let index_id = storage_handler.get_next_table_index_id()?;
-            table.add_index(
-              index_id,
-              None,
-              IndexProvider::from_constraint(constraint),
-            )
-          })
-          .collect::<crate::Result<Vec<TableIndex>>>()
+      .iter()
+      .filter(|constraint| constraint.needs_index())
+      .map(|constraint| {
+        let index_id = storage_handler.get_next_table_index_id()?;
+        table.add_index(
+          index_id,
+          None,
+          IndexProvider::from_constraint(constraint),
+        )
       })
-      .transpose()?;
+      .collect::<crate::Result<Vec<TableIndex>>>()?;
 
     let handle = &self.transaction;
     let table = Arc::new(table);

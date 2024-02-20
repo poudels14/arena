@@ -18,7 +18,7 @@ bitflags! {
     Serialize,
     Deserialize,
   )]
-  pub struct ColumnProperty: u16 {
+  pub struct ColumnProperty: u32 {
     const DEFAULT = 0;
     const ARCHIVED = 1 << 1;
     const NOT_NULL = 1 << 2;
