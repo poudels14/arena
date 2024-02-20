@@ -15,10 +15,9 @@ use sqlparser::ast::{ColumnOption, Statement};
 use super::column::CTID_COLUMN;
 use super::index::IndexProvider;
 use super::{
-  Column, ColumnId, ColumnProperty, Constraint, DataType, OwnedSerializedCell,
-  TableIndex, TableIndexId,
+  Column, ColumnId, ColumnProperty, Constraint, DataType, TableIndex,
+  TableIndexId,
 };
-use crate::storage::Serializer;
 use crate::Result;
 
 pub type TableId = u16;
@@ -146,22 +145,7 @@ impl Table {
       columns: table
         .columns
         .iter()
-        .map(|col| {
-          Ok(Column {
-            id: col.id as u8,
-            name: col.name.clone(),
-            data_type: Serializer::FixedInt
-              .deserialize::<DataType>(&col.data_type)?,
-            properties: ColumnProperty::from_bits(col.properties).unwrap(),
-            default_value: col
-              .default_value
-              .as_ref()
-              .map(|v| {
-                Serializer::FixedInt.deserialize::<OwnedSerializedCell>(&v)
-              })
-              .transpose()?,
-          })
-        })
+        .map(|col| Column::from_proto(col))
         .collect::<Result<Vec<Column>>>()?,
       constraints: table
         .constraints
@@ -183,22 +167,7 @@ impl Table {
       columns: self
         .columns
         .iter()
-        .map(|col| {
-          Ok(super::proto::Column {
-            id: col.id as u32,
-            name: col.name.clone(),
-            data_type: Serializer::FixedInt
-              .serialize::<DataType>(&col.data_type)?,
-            properties: col.properties.bits(),
-            default_value: col
-              .default_value
-              .as_ref()
-              .map(|v| {
-                Serializer::FixedInt.serialize::<OwnedSerializedCell>(&v)
-              })
-              .transpose()?,
-          })
-        })
+        .map(|col| col.to_proto())
         .collect::<Result<Vec<super::proto::Column>>>()?,
       constraints: self.constraints.iter().map(|c| c.to_proto()).collect(),
       indexes: self.indexes.iter().map(|index| index.to_proto()).collect(),
