@@ -18,6 +18,10 @@ pub struct Command {
   /// Directory of a workspace to serve; defaults to `${pwd}`
   #[arg(short, long)]
   pub dir: Option<String>,
+
+  /// Heap limit hint
+  #[arg(long)]
+  heap_limit_mb: Option<usize>,
 }
 
 impl Command {
@@ -46,6 +50,7 @@ impl Command {
       transpile: true,
       root_dir: app_dir,
       config,
+      heap_limit_mb: self.heap_limit_mb,
     };
 
     info!(

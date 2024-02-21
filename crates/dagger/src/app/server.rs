@@ -22,6 +22,7 @@ pub(super) struct ServerOptions {
   pub port: u16,
   pub address: String,
   pub transpile: bool,
+  pub heap_limit_mb: Option<usize>,
 }
 
 pub(super) async fn start_js_server(
@@ -90,6 +91,9 @@ pub(super) async fn start_js_server(
       net: Some(NetPermissions::allow_all()),
       timer: Some(TimerPermissions::allow_hrtime()),
     },
+    heap_limits: options
+      .heap_limit_mb
+      .map(|limit| (1024 * 1024 * limit / 10, 1024 * 1024 * limit)),
     ..Default::default()
   })?;
 
