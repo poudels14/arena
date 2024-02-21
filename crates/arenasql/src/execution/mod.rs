@@ -23,7 +23,10 @@ pub use execution_plan::{
   CustomExecutionPlan, ExecutionPlanExtension, ExecutionPlanResponse,
 };
 pub use locks::{AdvisoryLock, AdvisoryLocks, TableSchemaWriteLock};
-pub use plans::{convert_literals_to_columnar_values, ScalarUdfExecutionPlan};
+pub use plans::{
+  convert_literals_to_columnar_values, convert_sql_params_to_df_expr,
+  replace_placeholders_with_values, ScalarUdfExecutionPlan,
+};
 pub use privilege::Privilege;
 pub use state::SessionState;
 pub use transaction::{Transaction, TransactionHandle, TransactionLock};

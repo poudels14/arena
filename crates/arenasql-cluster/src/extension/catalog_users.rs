@@ -2,19 +2,21 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use arenasql::datafusion::{
-  ColumnarValue, DatafusionDataType as DfDataType, DatafusionField as Field,
-  LogicalPlan, ScalarValue, Schema, SchemaRef, TaskContext,
+  self, ColumnarValue, DatafusionDataType as DfDataType,
+  DatafusionField as Field, LogicalPlan, ScalarValue, Schema, SchemaRef,
+  TaskContext,
 };
 use arenasql::execution::tablescan::HeapIterator;
 use arenasql::execution::{
-  convert_literals_to_columnar_values, AdvisoryLocks, CustomExecutionPlan,
+  convert_literals_to_columnar_values, convert_sql_params_to_df_expr,
+  replace_placeholders_with_values, AdvisoryLocks, CustomExecutionPlan,
   ExecutionPlanResponse, Privilege, SessionContext, Transaction,
 };
 use arenasql::runtime::RuntimeEnv;
 use arenasql::schema::{
   DataFrame, DataType, OwnedSerializedCell, SerializedCell,
 };
-use arenasql::sqlparser::ast::Expr;
+use arenasql::sqlparser::ast::{Expr, Value};
 use arenasql::storage::Serializer;
 use arenasql::{Error, Result};
 use futures::Stream;
@@ -47,38 +49,14 @@ struct CatalogUser {
 #[derive(Clone)]
 pub struct SetCatalogUserCredentials {
   transaction: Transaction,
-  user: CatalogUser,
+  parameters: Vec<Expr>,
 }
 
 impl SetCatalogUserCredentials {
   pub fn new(transaction: Transaction, parameters: &Vec<Expr>) -> Result<Self> {
-    let args = convert_literals_to_columnar_values(
-      &vec![DfDataType::Utf8, DfDataType::Utf8, DfDataType::Utf8],
-      &parameters,
-    )?;
-
-    let catalog = args
-      .get(0)
-      .and_then(get_scalar_string)
-      .ok_or(Error::InvalidQuery(format!("Catalog missing")))?;
-    let username = args
-      .get(1)
-      .and_then(get_scalar_string)
-      .ok_or(Error::InvalidQuery(format!("Username missing")))?;
-    let password = args
-      .get(2)
-      .and_then(get_scalar_string)
-      .ok_or(Error::InvalidQuery(format!("Password missing")))?;
-
-    validate_username(&username)?;
-
     Ok(Self {
       transaction,
-      user: CatalogUser {
-        catalog,
-        username,
-        password,
-      },
+      parameters: parameters.clone(),
     })
   }
 }
@@ -88,22 +66,91 @@ impl CustomExecutionPlan for SetCatalogUserCredentials {
     schema()
   }
 
+  fn list_expressions(&self) -> Vec<datafusion::Expr> {
+    self
+      .parameters
+      .iter()
+      .filter_map(|param| {
+        if let Expr::Value(Value::Placeholder(placeholder)) = param {
+          return Some(datafusion::Expr::Placeholder(
+            datafusion::Placeholder::new(
+              placeholder.clone(),
+              // all args to this function is utf8,
+              // so no need to check placeholder name
+              Some(DfDataType::Utf8),
+              vec![("TYPE".to_owned(), "TEXT".to_owned())],
+            ),
+          ));
+        }
+        return None;
+      })
+      .collect()
+  }
+
   fn execute(
     &self,
     _partition: usize,
     _context: Arc<TaskContext>,
-    _exprs: Vec<arenasql::datafusion::Expr>,
+    exprs: Vec<datafusion::Expr>,
     _inputs: Vec<LogicalPlan>,
   ) -> Result<Pin<Box<dyn Stream<Item = Result<DataFrame>> + Send>>> {
+    let arg_exprs = convert_sql_params_to_df_expr(
+      &vec![DfDataType::Utf8, DfDataType::Utf8, DfDataType::Utf8],
+      &self.parameters,
+    )?;
+
+    let input_values = exprs
+      .iter()
+      .map(|expr| match expr {
+        datafusion::Expr::Literal(value) => Ok(value.clone()),
+        _ => Err(Error::InvalidDataType(format!("Expected literal value",))),
+      })
+      .collect::<Result<Vec<ScalarValue>>>()?;
+
+    let final_args =
+      replace_placeholders_with_values(arg_exprs, &input_values)?;
+    let args_strs: Vec<String> = final_args
+      .iter()
+      .map(|arg| match arg {
+        datafusion::Expr::Literal(value) => match value {
+          ScalarValue::Utf8(s) => {
+            s.to_owned().expect("Expected string literal")
+          }
+          _ => unreachable!(),
+        },
+        _ => unreachable!(),
+      })
+      .collect();
+
+    let catalog = args_strs
+      .get(0)
+      .ok_or(Error::InvalidQuery(format!("Catalog missing")))?
+      .to_owned();
+    let username = args_strs
+      .get(1)
+      .ok_or(Error::InvalidQuery(format!("Username missing")))?
+      .to_owned();
+    let password = args_strs
+      .get(2)
+      .ok_or(Error::InvalidQuery(format!("Password missing")))?
+      .to_owned();
+
+    let user = CatalogUser {
+      catalog,
+      username,
+      password,
+    };
+
     let session_context = create_admin_session_context_for_catalog(
       &self.transaction,
-      &self.user.catalog,
+      &user.catalog,
     )?;
 
     let transaction =
       unsafe { session_context.get_or_create_active_transaction() };
-    let user = self.user.clone();
     let query = async move {
+      validate_username(&user.username)?;
+
       transaction.execute_sql(CREATE_USERS_TABLE).await?;
 
       let mut dataframe = DataFrame::with_capacity(

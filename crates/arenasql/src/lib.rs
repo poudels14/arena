@@ -49,7 +49,7 @@ pub mod datafusion {
   };
   pub use datafusion::error::{DataFusionError, Result};
   pub use datafusion::execution::{context::SessionState, TaskContext};
-  pub use datafusion::logical_expr::expr::Expr;
+  pub use datafusion::logical_expr::expr::*;
   pub use datafusion::logical_expr::{
     create_udf, AggregateUDF, LogicalPlan, ScalarUDF, Volatility, WindowUDF,
   };
