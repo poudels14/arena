@@ -24,8 +24,8 @@ const addDirectory = p
       }
     }
 
-    const parentsChildren = await ctx.repo.files.listDirectory({
-      directoryId: body.parentId,
+    const parentsChildren = await ctx.repo.files.fetchDirectChildren({
+      parentId: body.parentId,
     });
     if (parentsChildren.some((child) => child.name == body.name)) {
       return errors.badRequest("Duplicate directory name");
@@ -61,8 +61,8 @@ const listDirectory = p.query(async ({ ctx, params, errors }) => {
   const breadcrumbs = await ctx.repo.files.getBreadcrumb({
     directoryId,
   });
-  const children = await ctx.repo.files.listDirectory({
-    directoryId,
+  const children = await ctx.repo.files.fetchDirectChildren({
+    parentId: directoryId,
   });
 
   return merge(pick(directory, "id", "name", "parentId", "isDirectory"), {
@@ -175,7 +175,7 @@ const uploadFiles = p.mutate(async ({ req, ctx, errors, form }) => {
                 chunk: chunk.metadata,
               },
               fileId: embeddingFile.id,
-              directoryId: parentDirectory!.id,
+              directoryId: parentDirectory?.id || null,
               createdAt: uploadTime,
             });
           }

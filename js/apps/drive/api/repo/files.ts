@@ -82,8 +82,11 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
         .where(and(inArray(files.id, ids), isNull(files.archivedAt)));
       return rows as File[];
     },
-    async listDirectory(filters: {
-      directoryId: string | null;
+    // This list all the files and directories of the given parent file id
+    // if there are derived files like pdf will have one (plain text version),
+    // this can be used to get derived file ids of the original file
+    async fetchDirectChildren(filters: {
+      parentId: string | null;
     }): Promise<
       Pick<
         File,
@@ -111,9 +114,9 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
         .from(files)
         .where(
           and(
-            filters.directoryId == null
+            filters.parentId == null
               ? isNull(files.parentId)
-              : eq(files.parentId, filters.directoryId),
+              : eq(files.parentId, filters.parentId),
             isNull(files.archivedAt)
           )
         );

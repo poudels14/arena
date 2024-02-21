@@ -1,4 +1,13 @@
-import { InferModel, and, eq, gt, inArray, isNotNull, sql } from "drizzle-orm";
+import {
+  InferModel,
+  and,
+  eq,
+  gt,
+  inArray,
+  isNotNull,
+  or,
+  sql,
+} from "drizzle-orm";
 import { jsonb, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
 import { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
@@ -30,6 +39,7 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
     },
     async search(options: {
       embeddings: number[];
+      fileIds?: string[];
       // if passed, only searches the embeddings of the files that belong to
       // one of the given directory ids
       directories?: string[];
@@ -51,9 +61,12 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
         })
         .from(embeddings)
         .where(
-          and(
+          or(
             options.directories?.length
               ? inArray(embeddings.directoryId, options.directories)
+              : isNotNull(embeddings.directoryId),
+            options.fileIds
+              ? inArray(embeddings.fileId, options.fileIds)
               : isNotNull(embeddings.directoryId)
           )
         )
