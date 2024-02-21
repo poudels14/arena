@@ -11,6 +11,7 @@ use rocksdb::{
 };
 
 use super::KeyValueStore;
+use crate::error::Error;
 use crate::storage::{self, KeyValueGroup, KeyValueStoreProvider};
 use crate::Result as DatabaseResult;
 
@@ -107,7 +108,8 @@ impl RocksStorage {
           rows_cf_options,
         ),
       ],
-    )?;
+    )
+    .map_err(|e| Error::IOError(format!("error opening rocksdb: {:?}", e)))?;
     Ok(Self { db: Arc::new(db) })
   }
 
