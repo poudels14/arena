@@ -11,6 +11,8 @@ import {
 import { createQuery } from "@portal/solid-query";
 import { useMatcher, useNavigate } from "@portal/solid-router";
 import { useSharedWorkspaceContext } from "@portal/workspace-sdk";
+import { createDroppable } from "@portal/solid-dnd";
+
 import { Directory, File } from "./components/File";
 import { FileProperties } from "./FileProperties";
 import { Header } from "./Header";
@@ -37,17 +39,11 @@ const FileExplorer = () => {
   });
 
   const navigate = useNavigate();
+  const goToDirectory = (id: string) => navigate(`/explore/` + id);
   const filesQuery = createQuery<Directory>(() => {
     const id = currentDirectoryId() ?? "";
     return `/api/fs/directory/${id}`;
   }, {});
-
-  // const selectedFileDetails = createQuery<Directory>(() => {
-  //   if (getSelectedFile()) {
-  //     // return `/api/fs/preview?id=${getSelectedFile().id}`;
-  //   }
-  //   return null;
-  // }, {});
 
   const isFileSelected = createSelector(() => getSelectedFile()?.id);
 
@@ -97,9 +93,11 @@ const FileExplorer = () => {
     });
   });
 
+  const droppable = createDroppable(`drive-file-explorer`, {});
+
   return (
-    <div class="flex h-full">
-      <div class="file-explorer flex flex-col flex-1">
+    <div class="file-explorer flex h-full">
+      <div class="flex flex-col flex-1">
         <Header
           currentDir={currentDirectoryId()}
           selected={getSelectedFile()}
@@ -107,8 +105,17 @@ const FileExplorer = () => {
           onUpload={() => {
             filesQuery.refresh();
           }}
+          onNewDirectory={() => filesQuery.refresh()}
+          onClickBreadcrumb={(id) => goToDirectory(id)}
         />
-        <div class="flex-1 pl-8 py-4 ">
+        <div
+          class="files flex-1 pl-8 py-4 border-4"
+          ref={droppable.ref}
+          classList={{
+            "border-indigo-300": droppable.isActiveDroppable,
+            "border-transparent": !droppable.isActiveDroppable,
+          }}
+        >
           <div class="flex gap-6 text-xs">
             <Show when={filesQuery.data.children()}>
               <Show when={currentDirectoryId() != null}>
@@ -120,7 +127,7 @@ const FileExplorer = () => {
                     setSelectedFile(null);
                   }}
                   onDblClick={() => {
-                    navigate(`/explore/` + (filesQuery.data.parentId() ?? ""));
+                    goToDirectory(filesQuery.data.parentId() ?? "");
                   }}
                 />
               </Show>

@@ -39,6 +39,7 @@
     "@portal/internal-sdk": "workspace:^",
     "@portal/sdk": "workspace:^",
     "@portal/server-core": "workspace:^",
+    "@portal/solid-dnd": "workspace:^",
     "@portal/solid-query": "workspace:^",
     "@portal/solid-router": "workspace:^",
     "@portal/solid-store": "workspace:^",
