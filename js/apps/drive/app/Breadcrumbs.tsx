@@ -6,15 +6,19 @@ const Breadcrumbs = (props: {
     id: string;
     title: string;
   }[];
+  onClickBreadcrumb: (id: string) => void;
 }) => {
   const visibleBreadCrumbs = createMemo(() => {
-    return props.breadcrumbs.slice(props.breadcrumbs.length - 3);
+    return props.breadcrumbs.slice(-3);
   });
   return (
     <div class="flex px-2 py-2 text-base font-medium space-x-1 text-brand-12/90">
       <div class="flex overflow-hidden">
         <div class="flex rounded overflow-hidden">
-          <div class="flex px-2 cursor-pointer space-x-2 rounded">
+          <div
+            class="flex px-2 cursor-pointer space-x-2 rounded"
+            onClick={() => props.onClickBreadcrumb("")}
+          >
             <div class="py-1.5">
               <HiOutlineFolderOpen size={16} />
             </div>
@@ -35,7 +39,10 @@ const Breadcrumbs = (props: {
             {(breadcrumb, index) => {
               return (
                 <>
-                  <div class="flex px-2 cursor-pointer space-x-1 rounded overflow-hidden text-nowrap">
+                  <div
+                    class="flex px-2 cursor-pointer space-x-1 rounded overflow-hidden text-nowrap"
+                    onClick={() => props.onClickBreadcrumb(breadcrumb.id)}
+                  >
                     <div class="py-0.5 overflow-hidden text-ellipsis">
                       {breadcrumb.title}
                     </div>
