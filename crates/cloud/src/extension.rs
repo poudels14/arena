@@ -4,7 +4,7 @@ use runtime::extensions::{BuiltinExtension, BuiltinExtensionProvider};
 use crate::jwt::{op_cloud_jwt_sign, op_cloud_jwt_verify};
 use crate::pubsub::publisher::Publisher;
 use crate::transpile::op_cloud_transpile_js_data_query;
-use crate::{html, llm, pdf, pubsub, pyodide, s3};
+use crate::{html, llm, pdf, pubsub, pyodide, rowacl, s3};
 
 #[macro_export]
 macro_rules! cloud_module {
@@ -83,6 +83,10 @@ pub(crate) fn init(options: Config) -> Extension {
       s3::op_cloud_s3_put_object::DECL,
       s3::op_cloud_s3_head_object::DECL,
       s3::op_cloud_s3_get_object::DECL,
+      // rowacl
+      rowacl::op_cloud_rowacl_new::DECL,
+      rowacl::op_cloud_rowacl_apply_filters::DECL,
+      rowacl::op_cloud_rowacl_close::DECL,
       // llm
       llm::tokenizer::op_cloud_llm_hf_new_pretrained_tokenizer::DECL,
       llm::tokenizer::op_cloud_llm_hf_encode::DECL,
