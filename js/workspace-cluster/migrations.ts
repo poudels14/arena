@@ -183,9 +183,10 @@ const migrations: PostgresDatabaseConfig = {
             user_id VARCHAR(50) NOT NULL,
             access VARCHAR(100) NOT NULL,
             app_id VARCHAR(50) DEFAULT NULL,
+            app_template_id VARCHAR(50) DEFAULT NULL,
             -- If an app has multiple paths, different paths could have different
-            -- access control
-            path VARCHAR(50) DEFAULT NULL,
+            -- access control. path is stored in metadata
+            metadata JSONB DEFAULT '{}',
             resource_id VARCHAR(50) DEFAULT NULL,
             created_at TIMESTAMPTZ DEFAULT NOW(),
             updated_at TIMESTAMPTZ DEFAULT NOW(),

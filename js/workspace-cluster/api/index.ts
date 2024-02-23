@@ -3,7 +3,9 @@ import { authenticate, parseUserFromHeaders } from "./procedure";
 import * as account from "./account";
 import * as workspaces from "./workspaces";
 import * as apps from "./apps";
+import * as acls from "./acls";
 import * as databases from "./databases";
+import * as llm from "./llm";
 import * as registry from "./registry";
 
 /**
@@ -42,6 +44,10 @@ const authorizedRoutes = createRouter({
   routes: {
     "/workspaces/": workspaces.list,
     "/workspaces/:id": workspaces.get,
+    "/acls/add": acls.addAcl,
+    "/acls": acls.listAcls,
+    "/acls/:id/archive": acls.archiveAcl,
+    "/llm": llm.list,
   },
 });
 

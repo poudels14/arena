@@ -30,23 +30,21 @@ const add = protectedProcedure
         id: workspaceId,
         name: body.name,
       });
-    } catch (e) {
-      console.error(e);
-      throw e;
+
+      const database = await addDatabase(repo, {
+        id: workspaceId,
+        workspaceId: workspace.id,
+        user: "app",
+      });
+
+      await repo.commit();
+      return {
+        ...workspace,
+        database,
+      };
+    } finally {
+      await repo.release();
     }
-
-    const database = await addDatabase(repo, {
-      id: workspaceId,
-      workspaceId: workspace.id,
-      user: "app",
-    });
-
-    await repo.commit();
-    await repo.release();
-    return {
-      ...workspace,
-      database,
-    };
   });
 
 const list = protectedProcedure.query(async ({ ctx }) => {

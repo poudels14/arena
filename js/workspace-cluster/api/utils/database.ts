@@ -31,7 +31,8 @@ const addDatabase = async (
 
     const password = uniqueId(29);
     await adminClient.query(
-      `EXECUTE arena_set_catalog_user_credential('${dbName}', 'app', '${password}')`
+      `EXECUTE arena_set_catalog_user_credential('${dbName}', 'app', $1)`,
+      [password]
     );
 
     const newDatabase = await repo.databases.add({

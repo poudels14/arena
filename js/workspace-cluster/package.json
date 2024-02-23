@@ -27,6 +27,7 @@
           "@portal/solid-store",
           "@solidjs/router",
           "@portal/solid-router",
+          "@kobalte/core",
           "postcss",
           "tailwindcss"
         ],
@@ -42,6 +43,7 @@
   "dependencies": {
     "@arena/cloud": "workspace:^",
     "@arena/runtime": "workspace:^",
+    "@kobalte/core": "^0.12.1",
     "@portal-apps/assistant": "workspace:^",
     "@portal/cli": "workspace:^",
     "@portal/deploy": "workspace:^",

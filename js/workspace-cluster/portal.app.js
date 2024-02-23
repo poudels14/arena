@@ -23,6 +23,7 @@ module.exports = {
       "@portal/solid-ui",
       "@portal/solid-dnd",
       "@portal/workspace-sdk",
+      "@kobalte/core",
     ],
   },
   client: {

@@ -25,29 +25,32 @@ const add = protectedProcedure
     }
 
     const repo = await ctx.repo.transaction();
-    const { app: newApp, database } = await addApp(repo, ctx.user!, {
-      id: body.id,
-      workspaceId: body.workspaceId,
-      name: body.name,
-      description: body.description || "",
-      template: body.template,
-    });
+    try {
+      const { app: newApp, database } = await addApp(repo, ctx.user!, {
+        id: body.id,
+        workspaceId: body.workspaceId,
+        name: body.name,
+        description: body.description || "",
+        template: body.template,
+      });
 
-    await repo.commit();
-    await repo.release();
-    return {
-      ...pick(
-        newApp,
-        "id",
-        "name",
-        "slug",
-        "description",
-        "workspaceId",
-        "config",
-        "template"
-      ),
-      database,
-    };
+      await repo.commit();
+      return {
+        ...pick(
+          newApp,
+          "id",
+          "name",
+          "slug",
+          "description",
+          "workspaceId",
+          "config",
+          "template"
+        ),
+        database,
+      };
+    } finally {
+      await repo.release();
+    }
   });
 
 const list = protectedProcedure.query(async ({ ctx, searchParams, errors }) => {

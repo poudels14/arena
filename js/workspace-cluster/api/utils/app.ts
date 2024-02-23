@@ -36,10 +36,18 @@ const addApp = async (
   });
 
   await repo.acl.addAccess({
+    id: uniqueId(19),
     userId: user.id,
     workspaceId: app.workspaceId,
     appId,
-    access: "owner",
+    appTemplateId: app.template.id,
+    access: "OWNER",
+    metadata: {
+      // access all tables
+      table: "*",
+      // access all tables
+      filter: "*",
+    },
     resourceId: "",
   });
 

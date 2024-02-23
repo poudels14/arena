@@ -1,0 +1,6 @@
+version: '3'
+
+tasks:
+  dev:
+    cmds:
+      - dagger-prod app dev --port 9001 --heap-limit-mb 3036

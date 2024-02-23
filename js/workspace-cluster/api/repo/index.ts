@@ -53,8 +53,9 @@ const createRepo = async (options: { pool?: Pool; client?: Client }) => {
       // rollback just in case the client was release
       // in the middle of the transaction
       await client.query("ROLLBACK");
+
       // @ts-expect-error
-      client?.release && client?.release();
+      client?.release && (await client?.release());
     },
     users: createUsersRepo(pg),
     acl: createAclRepo(pg),
