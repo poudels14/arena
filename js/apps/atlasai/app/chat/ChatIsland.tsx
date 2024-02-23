@@ -19,9 +19,9 @@ type WorkspaceChatContext = NonNullable<
   ReturnType<SharedWorkspaceContext["getChatContext"]>
 >;
 
-const ChatIsland = (props: { hide?: boolean }) => {
+const ChatIsland = (props: { onNewThread: () => void; hide?: boolean }) => {
   const { getChatContext } = useSharedWorkspaceContext();
-  const { sendNewMessage } = useContext(ChatContext)!;
+  const { state, sendNewMessage } = useContext(ChatContext)!;
   const [chatBoxExpanded, setExpandChatBox] = createSignal(false);
   const [getActiveTab, setActiveTab] = createSignal("chat");
   const isTabActive = createSelector(getActiveTab);
@@ -40,12 +40,12 @@ const ChatIsland = (props: { hide?: boolean }) => {
           }}
         >
           <div
-            class="overlay w-full h-full"
+            class="overlay w-full h-full bg-slate-400/40"
             onClick={(e) => {
               setExpandChatBox(false);
             }}
           ></div>
-          <div class="absolute bottom-2 w-full flex justify-center pointer-events-none">
+          <div class="absolute bottom-0 w-full flex justify-center pointer-events-none">
             <div class="island flex flex-col flex-1 min-w-[200px] max-w-[700px] bg-white border-t rounded-lg drop-shadow-md shadow-lg pointer-events-auto">
               <div class="flex text-xs shadow-sm text-gray-500">
                 <div
@@ -71,7 +71,7 @@ const ChatIsland = (props: { hide?: boolean }) => {
               </div>
               <Show when={chatBoxExpanded()}>
                 <div class="flex justify-center">
-                  <div class="max-h-[450px] min-h-[225px] w-full">
+                  <div class="max-h-[500px] min-h-[225px] w-full">
                     <Show when={getActiveTab() == "chat"}>
                       <ChatThread
                         showDocument={() => {}}
@@ -86,14 +86,15 @@ const ChatIsland = (props: { hide?: boolean }) => {
                   </div>
                 </div>
               </Show>
-              <div class="flex justify-center space-y-1 pt-1 bg-gray-100 rounded-b-lg">
+              <div class="flex justify-center pb-6 space-y-1 pt-1 bg-gray-100 rounded-b-lg">
                 <div class="flex-1 max-w-[650px]">
                   <Chatbox
-                    threadId={undefined}
+                    threadId={state.activeThreadId()}
                     blockedBy={null}
                     sendNewMessage={(input) => {
                       sendNewMessage.mutate(input);
                     }}
+                    onNewThread={props.onNewThread}
                     disableContextEdit={true}
                     onFocus={() => setExpandChatBox(true)}
                     autoFocus={true}
@@ -106,7 +107,7 @@ const ChatIsland = (props: { hide?: boolean }) => {
         </div>
       </Show>
       <Show when={!chatBoxExpanded()}>
-        <div class="absolute bottom-2 left-0 right-0 w-full backdrop-blur-[1px]">
+        <div class="absolute bottom-4 left-0 right-0 w-full backdrop-blur-[1px]">
           <div class="w-full flex justify-center">
             <Minimized
               context={getChatContext()!}
@@ -132,7 +133,7 @@ const Minimized = (props: {
 
   return (
     <div
-      class="px-4 py-1.5 w-[300px] rounded-2xl bg-brand-12/80 text-white cursor-pointer select-none"
+      class="px-4 py-1.5 w-[300px] rounded-2xl bg-slate-300 text-gray-800 cursor-pointer select-none"
       onClick={props.openChatBox}
     >
       <div class="flex text-sm justify-center group">

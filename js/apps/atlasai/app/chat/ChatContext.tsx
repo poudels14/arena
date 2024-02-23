@@ -43,16 +43,11 @@ const ChatContext = createContext<ChatContext>();
 
 const ChatContextProvider = (props: {
   activeThreadId: string | undefined;
-  // this disables loading/updating other threads info
-  singleThreadOnly?: boolean;
   onThreadReady?: (threadId: string) => void;
   children: any;
 }) => {
   const threadsRoute = createQuery<any[]>(
     () => {
-      if (props.singleThreadOnly) {
-        return null;
-      }
       return "/chat/threads";
     },
     {},
@@ -89,6 +84,12 @@ const ChatContextProvider = (props: {
     }
     return `/chat/threads/${props.activeThreadId}`;
   }, {});
+
+  // refresh chat message when props id change
+  createComputed(() => {
+    void props.activeThreadId;
+    activeThreadRoute.refresh();
+  });
 
   createComputed(() => {
     const messages = activeThreadRoute.data.messages() || [];

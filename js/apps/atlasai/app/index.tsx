@@ -12,7 +12,7 @@ const Settings = lazy(() => import("./settings/index.tsx"));
 
 const Assistant = () => {
   const navigate = useNavigate();
-  const threadIdMatcher = useMatcher("/t/:threadId");
+  const threadIdMatcher = useMatcher(() => "/t/:threadId");
   return (
     <ChatContextProvider
       activeThreadId={threadIdMatcher()?.params?.threadId}
@@ -38,7 +38,7 @@ const Assistant = () => {
 
 const Sidebar = () => {
   const navigate = useNavigate();
-  const tabMatcher = useMatcher("/:tab/*");
+  const tabMatcher = useMatcher(() => "/:tab/*");
   const isTabActive = createSelector(() => tabMatcher()?.params?.tab || "chat");
   const { state } = useContext(ChatContext)!;
 

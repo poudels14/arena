@@ -13,6 +13,7 @@ import {
   HiOutlineFolderOpen,
   HiOutlineXMark,
   HiOutlineChevronRight,
+  HiOutlinePlus,
 } from "solid-icons/hi";
 import { Chat } from "../types";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
@@ -32,6 +33,7 @@ const Chatbox = (props: {
     context?: ChatQueryContext | null;
     isNewThread: boolean;
   }) => void;
+  onNewThread: () => void;
   onFocus?: () => void;
   autoFocus?: boolean;
   disableContextEdit?: boolean;
@@ -103,14 +105,24 @@ const Chatbox = (props: {
   };
 
   return (
-    <div class="chat-box min-w-[200px] max-w-[650px] space-y-1">
+    <div class="chat-box min-w-[200px] max-w-[750px] space-y-1 rounded-md">
+      <Show when={Boolean(props.threadId)}>
+        <div class="flex px-2 pt-2 flex-row text-accent-11">
+          <div class="new-chat flex pr-2 text-xs font-normal text-brand-12/80 border border-brand-12/50 rounded align-middle cursor-pointer select-none bg-white shadow-2xl">
+            <HiOutlinePlus size="20px" class="py-1" />
+            <div class="leading-5" onClick={props.onNewThread}>
+              New thread
+            </div>
+          </div>
+        </div>
+      </Show>
       <Show when={props.context}>
         <SelectChatContext
           context={props.context!}
           disableContextEdit={props.disableContextEdit}
         />
       </Show>
-      <div class="relative py-2 rounded-lg bg-brand-12/90 shadow-lg backdrop-blur-sm">
+      <div class="relative px-2 py-2 rounded-lg bg-gray-50 border border-gray-200 shadow-lg backdrop-blur-sm">
         <form
           class="p-0 m-0"
           onSubmit={(e) => {
@@ -121,7 +133,7 @@ const Chatbox = (props: {
           <textarea
             ref={textareaRef}
             placeholder="Send a message"
-            class="w-full max-h-[180px] px-4 text-sm text-white bg-transparent outline-none resize-none placeholder:text-gray-400"
+            class="w-full max-h-[180px] px-2 text-sm text-gray-800 bg-transparent outline-none resize-none placeholder:text-gray-500"
             style={{
               height: getTextareaHeight(),
               "--uikit-scrollbar-w": "3px",

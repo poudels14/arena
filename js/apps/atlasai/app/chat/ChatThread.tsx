@@ -10,14 +10,12 @@ import {
   onCleanup,
   useContext,
 } from "solid-js";
-import { Marked } from "marked";
 import dlv from "dlv";
 import deepEqual from "fast-deep-equal/es6";
 import {
   HiSolidChevronDown,
   HiSolidChevronUp,
   HiOutlinePaperClip,
-  HiOutlineArrowPath,
 } from "solid-icons/hi";
 
 import { EmptyThread } from "./EmptyThread";
@@ -74,13 +72,8 @@ const ChatThread = (props: {
     }
   );
 
-  const pendingTasks = createMemo(
-    () => {
-      const tasks = threadTaskExecutionsById.data();
-      return Object.values(tasks || []).filter(
-        (task) => task.status == "STARTED"
-      );
-    },
+  const threadTasks = createMemo(
+    () => Object.values(threadTaskExecutionsById.data() || {}),
     [],
     {
       equals(prev, next) {
@@ -92,8 +85,13 @@ const ChatThread = (props: {
     // reload tasks if the ids change
     const ids = threadTaskCallIds();
     if (ids.length == 0) return;
+    const tasks = threadTasks();
+    const pendingTasks = tasks.filter((task) => task.status == "STARTED");
     threadTaskExecutionsById.refresh();
-    if (pendingTasks().length > 0) {
+
+    // it's possible pendingTasks is empty is the server hasn't added the
+    // task to tasks list. So, if `ids.length < tasks tasks`, keep polling
+    if (ids.length != tasks.length || pendingTasks.length > 0) {
       let interval = setInterval(() => {
         threadTaskExecutionsById.refresh();
       }, 1000);
@@ -114,7 +112,7 @@ const ChatThread = (props: {
       ref={chatMessagesContainerRef}
       class="flex justify-center h-full overflow-y-auto scroll:w-1 thumb:rounded thumb:bg-gray-400"
     >
-      <div class="px-4 flex-1 min-w-[350px] max-w-[700px]">
+      <div class="px-4 flex-1 min-w-[350px] max-w-[750px]">
         <Show when={!state.activeThreadId()}>
           <EmptyThread />
         </Show>
