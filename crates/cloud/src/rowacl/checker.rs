@@ -157,7 +157,7 @@ fn apply_filter(
   let mut parsed = Parser::parse_sql(&PostgreSqlDialect {}, query)?;
 
   let mut build_table_alias_map =
-    |table_with_joins: &mut TableWithJoins| -> Result<(String, Option<Ident>)> {
+    |table_with_joins: &mut TableWithJoins| -> Result<(String, Ident)> {
       let factor = &mut table_with_joins.relation;
       match factor {
         TableFactor::Table { name, alias, .. } => {
@@ -171,7 +171,7 @@ fn apply_filter(
 
           Ok((
             name.0.last().unwrap().value.clone(),
-            alias.as_ref().map(|a| a.name.clone()),
+            alias.as_ref().map(|a| a.name.clone()).unwrap(),
           ))
         }
         _ => Err(anyhow!("Unsupported query")),
@@ -179,7 +179,7 @@ fn apply_filter(
     };
 
   let build_selection_filter =
-    |table: &str, alias: &Option<Ident>, acl_type: &AclType| {
+    |table: &str, alias: &Ident, acl_type: &AclType| {
       let table_acls =
         acls_by_table.get(table).and_then(|acls| acls.get(acl_type));
       let wildcard_table_acls =
@@ -205,7 +205,7 @@ fn apply_filter(
         }
       });
 
-      if let (Some(alias), Some(filters)) = (alias, filters.as_mut()) {
+      if let Some(filters) = filters.as_mut() {
         visit_expressions_mut(filters, |expr| {
           match expr {
             Expr::Identifier(id) => {
@@ -238,7 +238,7 @@ fn apply_filter(
               .from
               .iter_mut()
               .map(|from| build_table_alias_map(from))
-              .collect::<Result<Vec<(String, Option<Ident>)>>>();
+              .collect::<Result<BTreeMap<String, Ident>>>();
             let table_alias = match table_alias {
               Ok(alias) => alias,
               Err(e) => {
@@ -246,6 +246,26 @@ fn apply_filter(
                 return ControlFlow::Break(());
               }
             };
+
+            visit_expressions_mut(select, |expr| {
+              match expr {
+                Expr::CompoundIdentifier(ids) => {
+                  // if compound identifier is used, for eg: "table"."id",
+                  // change the "table" to the ident of it's alias
+                  if ids.len() == 2 {
+                    if let Some(alias) = table_alias.get(&ids[0].value) {
+                      ids[0] = alias.clone();
+                    }
+                  } else if ids.len() == 3 {
+                    if let Some(alias) = table_alias.get(&ids[1].value) {
+                      ids[1] = alias.clone();
+                    }
+                  }
+                }
+                _ => {}
+              }
+              ControlFlow::<()>::Continue(())
+            });
 
             let res = table_alias
               .iter()
@@ -307,6 +327,27 @@ fn apply_filter(
           }
         };
 
+        // TODO: figure out alias replacement for assignment, returning, etc
+        visit_expressions_mut(selection, |expr| {
+          match expr {
+            Expr::CompoundIdentifier(ids) => {
+              // if compound identifier is used, for eg: "table"."id",
+              // change the "table" to the ident of it's alias
+              if ids.len() == 2 {
+                if ids[0].value == table_alias.0 {
+                  ids[0] = table_alias.1.clone();
+                }
+              } else if ids.len() == 3 {
+                if ids[1].value == table_alias.0 {
+                  ids[1] = table_alias.1.clone();
+                }
+              }
+            }
+            _ => {}
+          }
+          ControlFlow::<()>::Continue(())
+        });
+
         let filters = build_selection_filter(
           &table_alias.0,
           &table_alias.1,
@@ -340,7 +381,7 @@ fn apply_filter(
         let table_alias = from
           .iter_mut()
           .map(|from| build_table_alias_map(from))
-          .collect::<Result<Vec<(String, Option<Ident>)>>>();
+          .collect::<Result<BTreeMap<String, Ident>>>();
 
         let table_alias = match table_alias {
           Ok(alias) => alias,
@@ -349,6 +390,26 @@ fn apply_filter(
             return ControlFlow::Break(());
           }
         };
+
+        visit_expressions_mut(selection, |expr| {
+          match expr {
+            Expr::CompoundIdentifier(ids) => {
+              // if compound identifier is used, for eg: "table"."id",
+              // change the "table" to the ident of it's alias
+              if ids.len() == 2 {
+                if let Some(alias) = table_alias.get(&ids[0].value) {
+                  ids[0] = alias.clone();
+                }
+              } else if ids.len() == 3 {
+                if let Some(alias) = table_alias.get(&ids[1].value) {
+                  ids[1] = alias.clone();
+                }
+              }
+            }
+            _ => {}
+          }
+          ControlFlow::<()>::Continue(())
+        });
 
         let res = table_alias
           .iter()
@@ -560,6 +621,28 @@ mod tests {
         .apply_sql_filter("user_1", "SELECT * FROM table1")
         .unwrap(),
       "SELECT * FROM table1 AS t1".to_owned()
+    );
+  }
+
+  #[test]
+  fn test_rowacl_apply_select_filter_on_query_using_table_reference() {
+    let checker = RowAclChecker::from(vec![acl(
+      "user_1",
+      "table1",
+      AclType::Select,
+      "id = 1",
+    )])
+    .unwrap();
+
+    // without alias, should add alias
+    assert_eq!(
+      checker
+        .apply_sql_filter(
+          "user_1",
+          "SELECT * FROM table1 WHERE \"table1\".\"id\" > 10 AND \"table1\".\"age\" = 99"
+        )
+        .unwrap().as_str(),
+      "SELECT * FROM table1 AS t1 WHERE t1.\"id\" > 10 AND t1.\"age\" = 99 AND t1.id = 1"
     );
   }
 
