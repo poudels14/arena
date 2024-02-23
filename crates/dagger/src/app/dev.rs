@@ -11,6 +11,11 @@ use crate::app::server::{self, ServerOptions};
 
 #[derive(Parser, Debug)]
 pub struct Command {
+  /// App id
+  /// This must be set for ACL checker to work
+  #[arg(long)]
+  pub app_id: Option<String>,
+
   /// Port to listen to
   #[arg(short, long, default_value_t = 8000)]
   pub port: u16,
@@ -45,6 +50,7 @@ impl Command {
       .expect("Error getting server entry path as str");
 
     let server_options = ServerOptions {
+      app_id: self.app_id.clone(),
       address: "0.0.0.0".to_owned(),
       port: self.port,
       transpile: true,

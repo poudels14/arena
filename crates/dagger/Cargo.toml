@@ -23,3 +23,5 @@ rust-s3 = "0.33.0"
 runtime = { path = "../runtime" }
 common = { path = "../common", features = ["dotenv"] }
 cloud = { path = "../cloud" }
+dqs = { path = "../dqs" }
+axum.workspace = true
