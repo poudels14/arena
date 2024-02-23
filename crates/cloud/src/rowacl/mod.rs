@@ -3,7 +3,7 @@ use deno_core::{op2, OpState, ResourceId};
 use serde::{Deserialize, Serialize};
 
 mod checker;
-use checker::{AclType, RowAcl, RowAclChecker};
+pub use checker::{AclType, RowAcl, RowAclChecker};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -13,7 +13,7 @@ pub(crate) struct RowAclOptions {
 
 #[op2]
 #[smi]
-pub fn op_cloud_rowacl_new(
+pub(crate) fn op_cloud_rowacl_new(
   state: &mut OpState,
   #[serde] options: RowAclOptions,
 ) -> Result<ResourceId> {
@@ -23,7 +23,7 @@ pub fn op_cloud_rowacl_new(
 }
 
 #[op2]
-pub fn op_cloud_rowacl_has_access(
+pub(crate) fn op_cloud_rowacl_has_access(
   state: &mut OpState,
   #[smi] id: ResourceId,
   #[string] user_id: String,
@@ -36,7 +36,7 @@ pub fn op_cloud_rowacl_has_access(
 
 #[op2]
 #[string]
-pub fn op_cloud_rowacl_apply_filters(
+pub(crate) fn op_cloud_rowacl_apply_filters(
   state: &mut OpState,
   #[smi] id: ResourceId,
   #[string] user_id: String,
@@ -47,7 +47,7 @@ pub fn op_cloud_rowacl_apply_filters(
 }
 
 #[op2(fast)]
-pub fn op_cloud_rowacl_close(
+pub(crate) fn op_cloud_rowacl_close(
   state: &mut OpState,
   #[smi] id: ResourceId,
 ) -> Result<()> {

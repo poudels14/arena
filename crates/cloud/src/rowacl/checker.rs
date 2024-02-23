@@ -12,12 +12,13 @@ use sqlparser::ast::{
 use sqlparser::dialect::PostgreSqlDialect;
 use sqlparser::parser::Parser;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct RowAclChecker {
+pub struct RowAclChecker {
   // list of acls per table
   acls_by_user_id: BTreeMap<
     // user id
+    // `public` user id is reserved for non-logged in users, useful for sites
     String,
     BTreeMap<
       // table id
@@ -31,7 +32,7 @@ pub(crate) struct RowAclChecker {
   Debug, Clone, PartialOrd, Ord, Eq, PartialEq, Serialize, Deserialize,
 )]
 #[serde(rename_all = "camelCase")]
-pub(crate) enum AclType {
+pub enum AclType {
   Select,
   Insert,
   Update,
@@ -40,15 +41,15 @@ pub(crate) enum AclType {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct RowAcl {
-  user_id: String,
-  table: String,
-  r#type: AclType,
+pub struct RowAcl {
+  pub user_id: String,
+  pub table: String,
+  pub r#type: AclType,
   // SQL filter expression; only the conditions
   // ex: `id > 10`, `id in (1, 2, 3)`, etc
   // Use wildcard `*` if filter doesn't apply, for eg, for Insert query
   // or to give full access
-  filter: String,
+  pub filter: String,
 }
 
 impl Resource for RowAclChecker {}
@@ -95,18 +96,36 @@ impl RowAclChecker {
     Ok(checker)
   }
 
+  /// Returns whether the user has any type of access
+  /// This can be used to check if the user can access an app
+  pub fn has_any_access(&self, user_id: &str) -> bool {
+    self
+      .acls_by_user_id
+      .get(user_id)
+      .map(|acls| !acls.is_empty())
+      .unwrap_or(false)
+  }
+
   pub fn has_query_access(
     &self,
     user_id: &str,
     table: &str,
     r#type: AclType,
   ) -> bool {
-    self
-      .acls_by_user_id
-      .get(user_id)
-      .and_then(|acls| acls.get(table))
-      .map(|table_acls| table_acls.contains_key(&r#type))
+    let user_acls = self.acls_by_user_id.get(user_id);
+
+    user_acls
+      .and_then(|acls| {
+        acls
+          // widlcard table access
+          .get("*")
+          .map(|table_acls| table_acls.contains_key(&r#type))
+      })
       .unwrap_or(false)
+      || user_acls
+        .and_then(|acls| acls.get(table))
+        .map(|table_acls| table_acls.contains_key(&r#type))
+        .unwrap_or(false)
   }
 
   // returns none if the user doesn't have access
@@ -408,6 +427,17 @@ mod tests {
     )])
     .unwrap();
     assert!(!checker.has_query_access("user_1", "table_2", AclType::Select));
+    assert!(!checker.has_query_access("user_1", "table_2", AclType::Insert));
+    assert!(!checker.has_query_access("user_1", "table_2", AclType::Update));
+    assert!(!checker.has_query_access("user_1", "table_2", AclType::Delete));
+  }
+
+  #[test]
+  fn test_rowacl_check_query_access_on_wildcard_table() {
+    let checker =
+      RowAclChecker::from(vec![acl("user_1", "*", AclType::Select, "*")])
+        .unwrap();
+    assert!(checker.has_query_access("user_1", "table_2", AclType::Select));
     assert!(!checker.has_query_access("user_1", "table_2", AclType::Insert));
     assert!(!checker.has_query_access("user_1", "table_2", AclType::Update));
     assert!(!checker.has_query_access("user_1", "table_2", AclType::Delete));
