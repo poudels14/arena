@@ -4,7 +4,7 @@ use runtime::extensions::{BuiltinExtension, BuiltinExtensionProvider};
 use crate::jwt::{op_cloud_jwt_sign, op_cloud_jwt_verify};
 use crate::pubsub::publisher::Publisher;
 use crate::transpile::op_cloud_transpile_js_data_query;
-use crate::{html, llm, pdf, pubsub, pyodide, rowacl, s3};
+use crate::{html, llm, pdf, pubsub, rowacl, s3};
 
 #[macro_export]
 macro_rules! cloud_module {
@@ -59,7 +59,6 @@ pub fn extension(options: Config) -> BuiltinExtension {
       cloud_module!("llm"),
       cloud_module!("pdf"),
       cloud_module!("html"),
-      cloud_module!("pyodide"),
     ],
   )
 }
@@ -98,9 +97,6 @@ pub(crate) fn init(options: Config) -> Extension {
       pdf::html::op_cloud_pdf_to_html::DECL,
       // html
       html::op_cloud_html_extract_text::DECL,
-      // pyodide
-      pyodide::op_cloud_pyodide_load_text_file::DECL,
-      pyodide::op_cloud_pyoddide_load_binary::DECL,
     ]
     .into(),
     op_state_fn: Some(Box::new(|state| {

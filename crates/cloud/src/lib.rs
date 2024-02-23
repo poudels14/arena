@@ -1,7 +1,6 @@
 mod extension;
 mod jwt;
 mod llm;
-mod pyodide;
 mod s3;
 mod transpile;
 
