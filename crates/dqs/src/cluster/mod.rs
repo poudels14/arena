@@ -83,10 +83,21 @@ impl DqsCluster {
       .unwrap_or("None".to_owned());
 
     let exchange = self.get_exchange(&options.workspace_id).await?;
+    let acl_checker = match options.module.as_app() {
+      Some(app) => Some(
+        self
+          .cache
+          .get_app_acl_checker(&app.id)
+          .await
+          .unwrap_or_default(),
+      ),
+      _ => None,
+    };
     let (dqs_server, server_events) = DqsServer::spawn(
       self.v8_platform.clone(),
       options.clone(),
       Some(exchange),
+      acl_checker,
     )
     .await?;
 

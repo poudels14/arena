@@ -124,6 +124,7 @@ class Client {
     if (this.#rid) {
       ops.op_postgres_close(this.#rid);
     }
+    this.#rid = null;
   }
 
   end() {

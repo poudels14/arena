@@ -8,12 +8,14 @@ use std::time::SystemTime;
 
 use anyhow::{anyhow, bail, Result};
 use cloud::pubsub::exchange::Exchange;
+use cloud::rowacl::RowAclChecker;
 use common::beam;
 use deno_core::v8;
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
 use once_cell::sync::Lazy;
+use parking_lot::RwLock;
 use runtime::env::EnvironmentVariableStore;
 use runtime::extensions::server::response::ParsedHttpResponse;
 use runtime::extensions::server::{HttpRequest, HttpServerConfig};
@@ -71,6 +73,7 @@ impl DqsServer {
     v8_platform: v8::SharedRef<v8::Platform>,
     options: DqsServerOptions,
     exchange: Option<Exchange>,
+    acl_checker: Option<Arc<RwLock<RowAclChecker>>>,
   ) -> Result<(DqsServer, watch::Receiver<ServerEvents>)> {
     let (http_requests_tx, http_requests_rx) = mpsc::channel(200);
     let (events_tx, mut receiver) = watch::channel(ServerEvents::Init);
@@ -119,6 +122,7 @@ impl DqsServer {
             .map(|limit| (10 * 1024 * 1024, limit * 1024 * 1204)),
           permissions,
           exchange,
+          acl_checker,
           state,
           template_loader: Arc::new(RegistryTemplateLoader {
             registry: options.registry,

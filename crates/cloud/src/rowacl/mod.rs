@@ -1,5 +1,8 @@
-use anyhow::Result;
+use std::sync::Arc;
+
+use anyhow::{anyhow, Result};
 use deno_core::{op2, OpState, ResourceId};
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
 mod checker;
@@ -53,4 +56,17 @@ pub(crate) fn op_cloud_rowacl_close(
 ) -> Result<()> {
   let _ = state.resource_table.take::<RowAclChecker>(id);
   Ok(())
+}
+
+#[op2]
+#[string]
+pub(crate) fn op_cloud_default_rowacl_apply_filters(
+  state: &mut OpState,
+  #[string] user_id: String,
+  #[string] query: String,
+) -> Result<String> {
+  let checker = state
+    .try_borrow::<Arc<RwLock<RowAclChecker>>>()
+    .ok_or(anyhow!("default RowAclChecker not found"))?;
+  checker.read().apply_sql_filter(&user_id, &query)
 }

@@ -6,6 +6,7 @@ use dashmap::DashMap;
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
+use parking_lot::RwLock;
 
 use crate::arena::App;
 use crate::db::acl;
@@ -16,7 +17,7 @@ use crate::db::app::{self, apps};
 pub struct Cache {
   db_pool: Option<Pool<ConnectionManager<PgConnection>>>,
   pub apps_by_id: Arc<DashMap<String, App>>,
-  pub acl_checker_by_app_id: Arc<DashMap<String, Arc<RowAclChecker>>>,
+  pub acl_checker_by_app_id: Arc<DashMap<String, Arc<RwLock<RowAclChecker>>>>,
 }
 
 impl Cache {
@@ -40,15 +41,24 @@ impl Cache {
   pub async fn get_app_acl_checker(
     &self,
     app_id: &str,
-  ) -> Option<Arc<RowAclChecker>> {
-    let acls = self
+  ) -> Result<Arc<RwLock<RowAclChecker>>> {
+    let checker = self
       .acl_checker_by_app_id
       .get(app_id)
       .map(|m| m.value().clone());
 
-    match acls {
-      Some(acls) => Some(acls),
-      None => self.build_and_cache_app_acl_checker(app_id).await.ok(),
+    match checker {
+      Some(checker) => Ok(checker),
+      None => {
+        let acl_checker = Arc::new(RwLock::new(RowAclChecker::from(vec![])?));
+        self
+          .acl_checker_by_app_id
+          .insert(app_id.to_string(), acl_checker.clone());
+        let acls = self.fetch_app_acls(app_id).await?;
+
+        acl_checker.write().set_acls(acls);
+        Ok(acl_checker)
+      }
     }
   }
 
@@ -79,10 +89,7 @@ impl Cache {
     }
   }
 
-  async fn build_and_cache_app_acl_checker(
-    &self,
-    app_id: &str,
-  ) -> Result<Arc<RowAclChecker>> {
+  async fn fetch_app_acls(&self, app_id: &str) -> Result<Vec<RowAcl>> {
     let connection = &mut self
       .db_pool
       .clone()
@@ -130,16 +137,6 @@ impl Cache {
       })
       .flatten()
       .collect::<Vec<RowAcl>>();
-
-    let acl_checker = RowAclChecker::from(acls)?;
-    self
-      .acl_checker_by_app_id
-      .insert(app_id.to_string(), acl_checker.into());
-
-    self
-      .acl_checker_by_app_id
-      .get(app_id)
-      .map(|checker| checker.value().clone())
-      .ok_or(anyhow!("failed to get app acl checker"))
+    Ok(acls)
   }
 }

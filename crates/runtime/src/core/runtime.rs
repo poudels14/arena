@@ -40,6 +40,9 @@ macro_rules! include_in_binary {
 #[derive(Derivative)]
 #[derivative(Default, Debug)]
 pub struct RuntimeOptions {
+  #[derivative(Debug = "ignore")]
+  pub startup_snapshot: Option<Snapshot>,
+
   pub enable_console: bool,
 
   /// Name of the HTTP user_agent
@@ -137,7 +140,11 @@ impl IsolatedRuntime {
     });
 
     let mut js_runtime = JsRuntime::new(deno_core::RuntimeOptions {
-      startup_snapshot: Some(Snapshot::Static(BASE_RUNTIME_SNAPSHOT)),
+      startup_snapshot: Some(
+        options
+          .startup_snapshot
+          .unwrap_or(Snapshot::Static(BASE_RUNTIME_SNAPSHOT)),
+      ),
       create_params,
       module_loader: Some(Rc::new(DefaultModuleLoader::new(
         builtin_modules,

@@ -2,36 +2,63 @@
 import { Client as PgClient } from "pg";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { sql as drizzleSql } from "drizzle-orm";
+import { Pool, Client, ClientConfig } from "@arena/runtime/postgres";
 
-/**
- * Only available in Arena cloud
- */
-type QueryOptions = {
-  /**
-   * Whether to rename column names to camel case
-   * default: true
-   */
-  camelCase?: boolean;
-};
+declare var Arena;
+const { core } = Arena;
 
-type ClientConfig = {
-  credential: {
-    host: string;
-    port: number;
-    database: string;
-    username: string;
-    password: string;
-  };
+class ArenasqlPool extends Pool {
+  #connect: any;
+  constructor(config) {
+    super(config);
+    this.#connect = super.connect;
+  }
 
-  /**
-   * Whether to use the connection pool
-   *
-   * If not set, the connection will be initiated before executing the query
-   * and termiated after the query is completed
-   */
-  pool?: number;
-  options?: QueryOptions;
-};
+  // @ts-expect-error
+  async connect() {
+    throw new Error("Must use pool created with pool.withDefaultAclChecker()");
+  }
+
+  // @ts-expect-error
+  async query() {
+    throw new Error("Must use pool created with pool.withDefaultAclChecker()");
+  }
+
+  withDefaultAclChecker({ user }: { user: { id: string } }) {
+    const self = this;
+    return {
+      async connect(): Promise<Client & { release(): Promise<void> }> {
+        const client = await self.#connect();
+
+        const clientRelease = client.release.bind(client);
+        const clientQuery = client.query.bind(client);
+        return Object.assign(client, {
+          async query(query, params = undefined, options) {
+            const finalQuery = core.ops.op_cloud_default_rowacl_apply_filters(
+              user.id,
+              query
+            );
+            return await clientQuery(finalQuery, params, options);
+          },
+          async release() {
+            await clientRelease();
+            Object.assign(client, {
+              release: clientRelease,
+              query: clientQuery,
+            });
+          },
+        });
+      },
+
+      async query(...args: [any]) {
+        const client = await this.connect();
+        const res = await client.query(...args);
+        await client.release();
+        return res;
+      },
+    };
+  }
+}
 
 type Query = {
   /**
@@ -45,8 +72,8 @@ type Query = {
 };
 
 const executeQuery = async (config: ClientConfig & { query: Query }) => {
-  const { query, credential } = config;
-  const client = new PgClient({ credential });
+  const { query } = config;
+  const client = new PgClient(config);
   const result = await client.execute(query.sql, query.params);
 
   client.close();
@@ -65,4 +92,4 @@ const sql: SQL & typeof drizzleSql = Object.assign(
   drizzleSql
 );
 
-export { sql, executeQuery };
+export { ArenasqlPool as Pool, sql, executeQuery };

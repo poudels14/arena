@@ -21,8 +21,10 @@ use dqs::cluster::auth::{
   authenticate_user_using_headers, parse_identity_from_header,
 };
 use dqs::cluster::cache::Cache;
+use dqs::runtime::DQS_SNAPSHOT;
 use runtime::buildtools::{transpiler::BabelTranspiler, FileModuleLoader};
 use runtime::config::{ArenaConfig, RuntimeConfig};
+use runtime::deno::core::Snapshot;
 use runtime::extensions::server::request::read_http_body_to_buffer;
 use runtime::extensions::server::response::ParsedHttpResponse;
 use runtime::extensions::server::{errors, HttpRequest, HttpServerConfig};
@@ -64,6 +66,19 @@ pub(super) async fn start_js_server(
     .unwrap_or_default();
 
   let (stream_tx, stream_rx) = mpsc::channel(10);
+
+  let db_pool = options
+    .app_id
+    .as_ref()
+    .map(|_| dqs::db::create_connection_pool())
+    .transpose()?;
+  let server = AxumServer {
+    app_id: options.app_id.clone(),
+    allow_headers: options.allow_headers.clone().unwrap_or(false),
+    cache: Cache::new(db_pool),
+    stream: stream_tx,
+  };
+
   let mut builtin_modules = vec![
     BuiltinModule::Fs,
     BuiltinModule::Env,
@@ -82,12 +97,21 @@ pub(super) async fn start_js_server(
 
   let mut builtin_extensions: Vec<BuiltinExtension> =
     builtin_modules.iter().map(|m| m.get_extension()).collect();
+
+  let acl_checker = match options.app_id {
+    Some(ref app_id) => Some(server.cache.get_app_acl_checker(&app_id).await?),
+    _ => None,
+  };
   builtin_extensions.push(
-    BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider::default()))
-      .get_extension(),
+    BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider {
+      publisher: None,
+      acl_checker,
+    }))
+    .get_extension(),
   );
 
   let mut runtime = IsolatedRuntime::new(RuntimeOptions {
+    startup_snapshot: Some(Snapshot::Static(DQS_SNAPSHOT)),
     config: RuntimeConfig {
       project_root: options.root_dir.clone(),
       ..Default::default()
@@ -120,7 +144,8 @@ pub(super) async fn start_js_server(
   })?;
 
   tokio::spawn(async move {
-    start_axum_server(options, stream_tx)
+    server
+      .start(options)
       .await
       .expect("Error starting axum server");
   });
@@ -142,46 +167,36 @@ pub struct AxumServer {
   stream: mpsc::Sender<(HttpRequest, oneshot::Sender<ParsedHttpResponse>)>,
 }
 
-async fn start_axum_server(
-  options: ServerOptions,
-  stream_tx: mpsc::Sender<(HttpRequest, oneshot::Sender<ParsedHttpResponse>)>,
-) -> Result<()> {
-  let db_pool = options
-    .app_id
-    .as_ref()
-    .map(|_| dqs::db::create_connection_pool())
-    .transpose()?;
-  let server = AxumServer {
-    app_id: options.app_id.clone(),
-    allow_headers: options.allow_headers.clone().unwrap_or(false),
-    cache: Cache::new(db_pool),
-    stream: stream_tx,
-  };
-  let app = Router::new()
-    .route(
-      "/_admin/healthy",
-      routing::get(|| async { (StatusCode::OK, "Ok") }),
-    )
-    .route(
-      "/*path",
-      routing::on(MethodFilter::all(), handle_app_routes),
-    )
-    .layer(ServiceBuilder::new().layer(middleware::from_fn(logger::middleware)))
-    .with_state(server.clone());
-  let addr: SocketAddr =
-    (Ipv4Addr::from_str(&options.address)?, options.port).into();
+impl AxumServer {
+  async fn start(self, options: ServerOptions) -> Result<()> {
+    let app = Router::new()
+      .route(
+        "/_admin/healthy",
+        routing::get(|| async { (StatusCode::OK, "Ok") }),
+      )
+      .route(
+        "/*path",
+        routing::on(MethodFilter::all(), handle_app_routes),
+      )
+      .layer(
+        ServiceBuilder::new().layer(middleware::from_fn(logger::middleware)),
+      )
+      .with_state(self.clone());
+    let addr: SocketAddr =
+      (Ipv4Addr::from_str(&options.address)?, options.port).into();
 
-  println!(
-    "{}",
-    format!("Starting app server port {}...", options.port)
-      .yellow()
-      .bold()
-  );
+    println!(
+      "{}",
+      format!("Starting app server port {}...", options.port)
+        .yellow()
+        .bold()
+    );
 
-  axum::Server::bind(&addr)
-    .serve(app.into_make_service())
-    .await?;
-  Ok(())
+    axum::Server::bind(&addr)
+      .serve(app.into_make_service())
+      .await?;
+    Ok(())
+  }
 }
 
 pub async fn handle_app_routes(

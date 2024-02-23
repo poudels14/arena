@@ -5,11 +5,13 @@ use std::sync::Arc;
 use anyhow::Result;
 use cloud::identity::Identity;
 use cloud::pubsub::exchange::Exchange;
+use cloud::rowacl::RowAclChecker;
 use cloud::CloudExtensionProvider;
 use deno_core::{v8, JsRuntime};
 use derivative::Derivative;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
+use parking_lot::RwLock;
 use runtime::extensions::server::HttpServerConfig;
 use runtime::extensions::BuiltinModule;
 use runtime::permissions::PermissionsContainer;
@@ -28,6 +30,7 @@ pub struct RuntimeOptions {
   pub v8_platform: v8::SharedRef<v8::Platform>,
   pub server_config: HttpServerConfig,
   pub exchange: Option<Exchange>,
+  pub acl_checker: Option<Arc<RwLock<RowAclChecker>>>,
   pub permissions: PermissionsContainer,
   /// Heap limit tuple: (initial size, max hard limit) in bytes
   pub heap_limits: Option<(usize, usize)>,
@@ -66,6 +69,7 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
       BuiltinModule::HttpServer(config.server_config),
       BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider {
         publisher,
+        acl_checker: config.acl_checker,
       })),
       BuiltinModule::Custom(Rc::new(arena::extension)),
     ],

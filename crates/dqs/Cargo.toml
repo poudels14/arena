@@ -56,6 +56,7 @@ deno_unsync = "0.3.1"
 common = { path = "../common", features = ["dotenv"] }
 runtime = { path = "../runtime", features = [], default-features = false }
 cloud = { path = "../cloud", features = [], default-features = false }
+parking_lot = "0.12.1"
 
 [build-dependencies]
 common = { path = "../common", features = [] }

@@ -26,6 +26,22 @@ class Pool {
     );
   }
 
+  get size() {
+    return this.#pool.size;
+  }
+
+  get available() {
+    return this.#pool.available;
+  }
+
+  get borrowed() {
+    return this.#pool.borrowed;
+  }
+
+  get pending() {
+    return this.#pool.pending;
+  }
+
   async connect(): Promise<Client & { release(): Promise<void> }> {
     const pool = this.#pool;
     const client = await pool.acquire();

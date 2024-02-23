@@ -1,8 +1,12 @@
+use std::sync::Arc;
+
+use parking_lot::RwLock;
 use runtime::deno::core::{Extension, Op};
 use runtime::extensions::{BuiltinExtension, BuiltinExtensionProvider};
 
 use crate::jwt::{op_cloud_jwt_sign, op_cloud_jwt_verify};
 use crate::pubsub::publisher::Publisher;
+use crate::rowacl::RowAclChecker;
 use crate::transpile::op_cloud_transpile_js_data_query;
 use crate::{html, llm, pdf, pubsub, rowacl, s3};
 
@@ -32,17 +36,20 @@ macro_rules! cloud_module {
 #[derive(Default, Clone)]
 pub struct Config {
   pub publisher: Option<Publisher>,
+  pub acl_checker: Option<Arc<RwLock<RowAclChecker>>>,
 }
 
 #[derive(Default)]
 pub struct CloudExtensionProvider {
   pub publisher: Option<Publisher>,
+  pub acl_checker: Option<Arc<RwLock<RowAclChecker>>>,
 }
 
 impl BuiltinExtensionProvider for CloudExtensionProvider {
   fn get_extension(&self) -> BuiltinExtension {
     extension(Config {
       publisher: self.publisher.clone(),
+      acl_checker: self.acl_checker.clone(),
     })
   }
 }
@@ -84,8 +91,10 @@ pub(crate) fn init(options: Config) -> Extension {
       s3::op_cloud_s3_get_object::DECL,
       // rowacl
       rowacl::op_cloud_rowacl_new::DECL,
+      rowacl::op_cloud_rowacl_has_access::DECL,
       rowacl::op_cloud_rowacl_apply_filters::DECL,
       rowacl::op_cloud_rowacl_close::DECL,
+      rowacl::op_cloud_default_rowacl_apply_filters::DECL,
       // llm
       llm::tokenizer::op_cloud_llm_hf_new_pretrained_tokenizer::DECL,
       llm::tokenizer::op_cloud_llm_hf_encode::DECL,
@@ -102,6 +111,9 @@ pub(crate) fn init(options: Config) -> Extension {
     op_state_fn: Some(Box::new(|state| {
       if let Some(publisher) = options.publisher {
         state.put::<Publisher>(publisher);
+      }
+      if let Some(checker) = options.acl_checker {
+        state.put::<Arc<RwLock<RowAclChecker>>>(checker);
       }
     })),
     enabled: true,
