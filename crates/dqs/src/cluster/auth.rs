@@ -48,8 +48,8 @@ pub async fn authenticate_user(
     cache.get_app_acl_checker(&app.id).await.unwrap_or_default();
 
   let has_access = match identity {
-    Identity::User { ref id, .. } => acl_checker.has_any_access(&id),
-    Identity::Unknown => acl_checker.has_any_access("public"),
+    Identity::User { ref id, .. } => acl_checker.read().has_any_access(&id),
+    Identity::Unknown => acl_checker.read().has_any_access("public"),
     _ => false,
   };
 
