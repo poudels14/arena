@@ -12,6 +12,7 @@ use axum::http::{Request, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::MethodFilter;
 use axum::{routing, Router};
+use cloud::identity::Identity;
 use cloud::CloudExtensionProvider;
 use colored::Colorize;
 use dqs::cluster::auth::authenticate_user_using_headers;
@@ -190,17 +191,21 @@ pub async fn pipe_app_request(
   search_params: BTreeMap<String, String>,
   mut req: Request<Body>,
 ) -> Result<Response, errors::Error> {
-  if let Some(app_id) = &server.app_id {
-    let jwt_secret = std::env::var("JWT_SIGNING_SECRET")
-      .expect("missing JWT_SIGNING_SECRET env variable");
-    let _ = authenticate_user_using_headers(
-      &server.cache,
-      jwt_secret.as_str(),
-      app_id,
-      &req,
-    )
-    .await?;
-  }
+  let identity = match &server.app_id {
+    Some(app_id) => {
+      let jwt_secret = std::env::var("JWT_SIGNING_SECRET")
+        .expect("missing JWT_SIGNING_SECRET env variable");
+      let (identity, _) = authenticate_user_using_headers(
+        &server.cache,
+        jwt_secret.as_str(),
+        app_id,
+        &req,
+      )
+      .await?;
+      identity
+    }
+    _ => Identity::Unknown,
+  };
 
   let url = {
     let mut url = Url::parse(&format!("http://0.0.0.0/")).unwrap();
@@ -218,7 +223,12 @@ pub async fn pipe_app_request(
   let request = HttpRequest {
     method: req.method().to_string(),
     url: url.as_str().to_owned(),
-    headers: vec![],
+    headers: vec![(
+      "x-portal-user".to_owned(),
+      identity
+        .to_json()
+        .expect("Error converting identity to JSON"),
+    )],
     body,
   };
 

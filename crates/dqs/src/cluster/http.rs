@@ -202,7 +202,7 @@ pub async fn pipe_app_request(
   search_params: IndexMap<String, String>,
   mut req: Request<Body>,
 ) -> Result<Response, errors::Error> {
-  let (_, app) = authenticate_user_using_headers(
+  let (identity, app) = authenticate_user_using_headers(
     &cluster.cache,
     jwt_secret()?.as_str(),
     &app_id,
@@ -240,10 +240,14 @@ pub async fn pipe_app_request(
   let request = HttpRequest {
     method: req.method().to_string(),
     url: url.as_str().to_owned(),
-    // TODO(sagar): pass in headers
     // don't pass in headers like `Cookie` that might contain
     // user auth credentials
-    headers: vec![],
+    headers: vec![(
+      "x-portal-user".to_owned(),
+      identity
+        .to_json()
+        .expect("Error converting identity to JSON"),
+    )],
     body,
   };
 
