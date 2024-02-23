@@ -1,10 +1,11 @@
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Identity {
   #[serde(rename_all = "camelCase")]
-  User { id: String },
+  User { id: String, email: Option<String> },
 
   #[serde(rename_all = "camelCase")]
   App {
@@ -46,5 +47,15 @@ impl Identity {
       _ => &None,
     }
     .unwrap_or(false)
+  }
+
+  pub fn to_json(&self) -> Result<String> {
+    match self {
+      Identity::Unknown => Ok(serde_json::to_string(&Identity::User {
+        id: "public".to_owned(),
+        email: None,
+      })?),
+      _ => Ok(serde_json::to_string(self)?),
+    }
   }
 }
