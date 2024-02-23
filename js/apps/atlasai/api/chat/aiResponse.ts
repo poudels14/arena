@@ -15,7 +15,6 @@ import { llmDeltaToResponseBuilder } from "../../llm/utils";
 import { createExtensionHandler } from "../../extensions/handler";
 import { createQueryContextExtension } from "./llmQueryContext";
 import { Search } from "@portal/workspace-sdk/llm/search";
-import { zod as z, zodToJsonSchema } from "@portal/sdk";
 
 async function generateLLMResponseStream(
   { ctx }: Pick<ProcedureRequest<Context, any>, "ctx" | "errors">,
@@ -24,12 +23,19 @@ async function generateLLMResponseStream(
     message,
     previousMessages,
     searchResults,
+    context,
   }: {
     thread: ChatThread;
     message: ChatMessage;
     // old messages in the thread
     previousMessages: ChatMessage[];
     searchResults: Search.Response[];
+    context?: {
+      app: {
+        id: string;
+      };
+      breadcrumbs: {}[];
+    } | null;
   }
 ): Promise<Subject<any>> {
   const responseStream = new ReplaySubject<any>();
@@ -220,15 +226,6 @@ async function generateLLMResponseStream(
                 );
               } else {
                 const func = aiResponse.tool_calls[0];
-                responseStream.next({
-                  ops: [
-                    {
-                      op: "replace",
-                      path: ["messages", aiResponseId, "message"],
-                      value: aiResponse,
-                    },
-                  ],
-                });
                 extensionHandler.startTask({
                   repos: {
                     tasks: ctx.repo.taskExecutions,
@@ -241,6 +238,16 @@ async function generateLLMResponseStream(
                     name: func.function.name,
                     arguments: func.function.arguments,
                   },
+                  context,
+                });
+                responseStream.next({
+                  ops: [
+                    {
+                      op: "replace",
+                      path: ["messages", aiResponseId, "message"],
+                      value: aiResponse,
+                    },
+                  ],
                 });
               }
             } else {

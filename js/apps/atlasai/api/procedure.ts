@@ -10,11 +10,18 @@ type Context = {
   user?: { id: string };
 };
 
-const p = procedure<Context>().use(async ({ ctx, next }) => {
+const p = procedure<Context>().use(async ({ ctx, req, next }) => {
+  const portalUser = req.headers.get("x-portal-user");
+  let user = null;
+  if (portalUser) {
+    user = JSON.parse(portalUser).user;
+  }
   return await next({
-    ctx,
+    ctx: {
+      ...ctx,
+      user,
+    },
   });
-  // TODO(sagar): do auth
 });
 
 export { p };

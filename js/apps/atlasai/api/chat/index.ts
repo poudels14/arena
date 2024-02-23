@@ -134,6 +134,9 @@ const sendMessage = p
       await ctx.repo.chatThreads.insert(thread);
     }
 
+    const oldMessages = await ctx.repo.chatMessages.list({
+      threadId: thread.id,
+    });
     const newMessage: ChatMessage = {
       id: body.id,
       message: body.message,
@@ -145,10 +148,6 @@ const sendMessage = p
       parentId: null,
     };
     await ctx.repo.chatMessages.insert(newMessage);
-
-    const oldMessages = await ctx.repo.chatMessages.list({
-      threadId: thread.id,
-    });
 
     let searchResults = [];
     if (body.context?.app?.id) {
@@ -218,6 +217,7 @@ const sendMessage = p
         message: newMessage,
         previousMessages: oldMessages,
         searchResults,
+        context: body.context,
       }
     );
 
@@ -232,15 +232,21 @@ const sendMessage = p
                   path: ["threads", thread.id],
                   value: thread,
                 },
-                {
-                  op: "replace",
-                  path: ["messages", newMessage.id],
-                  value: newMessage,
-                },
               ],
             })
           );
         }
+        controller.enqueue(
+          JSON.stringify({
+            ops: [
+              {
+                op: "replace",
+                path: ["messages", newMessage.id],
+                value: newMessage,
+              },
+            ],
+          })
+        );
         stream.subscribe({
           next(json) {
             try {
