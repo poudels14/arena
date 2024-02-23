@@ -17,7 +17,9 @@ use cloud::identity::Identity;
 use cloud::CloudExtensionProvider;
 use colored::Colorize;
 use common::axum::logger;
-use dqs::cluster::auth::authenticate_user_using_headers;
+use dqs::cluster::auth::{
+  authenticate_user_using_headers, parse_identity_from_header,
+};
 use dqs::cluster::cache::Cache;
 use runtime::buildtools::{transpiler::BabelTranspiler, FileModuleLoader};
 use runtime::config::{ArenaConfig, RuntimeConfig};
@@ -41,6 +43,7 @@ pub(super) struct ServerOptions {
   pub root_dir: PathBuf,
   // set this if ACL checker should be enabled
   pub app_id: Option<String>,
+  pub allow_headers: Option<bool>,
   pub config: ArenaConfig,
   pub port: u16,
   pub address: String,
@@ -134,6 +137,7 @@ pub(super) async fn start_js_server(
 #[derive(Clone)]
 pub struct AxumServer {
   app_id: Option<String>,
+  allow_headers: bool,
   cache: Cache,
   stream: mpsc::Sender<(HttpRequest, oneshot::Sender<ParsedHttpResponse>)>,
 }
@@ -149,6 +153,7 @@ async fn start_axum_server(
     .transpose()?;
   let server = AxumServer {
     app_id: options.app_id.clone(),
+    allow_headers: options.allow_headers.clone().unwrap_or(false),
     cache: Cache::new(db_pool),
     stream: stream_tx,
   };
@@ -195,10 +200,10 @@ pub async fn pipe_app_request(
   search_params: BTreeMap<String, String>,
   mut req: Request<Body>,
 ) -> Result<Response, errors::Error> {
+  let jwt_secret = std::env::var("JWT_SIGNING_SECRET")
+    .expect("missing JWT_SIGNING_SECRET env variable");
   let identity = match &server.app_id {
     Some(app_id) => {
-      let jwt_secret = std::env::var("JWT_SIGNING_SECRET")
-        .expect("missing JWT_SIGNING_SECRET env variable");
       let (identity, _) = authenticate_user_using_headers(
         &server.cache,
         jwt_secret.as_str(),
@@ -208,7 +213,8 @@ pub async fn pipe_app_request(
       .await?;
       identity
     }
-    _ => Identity::Unknown,
+    _ => parse_identity_from_header(jwt_secret.as_str(), &req)
+      .unwrap_or(Identity::Unknown),
   };
 
   let url = {
@@ -226,7 +232,7 @@ pub async fn pipe_app_request(
   let mut headers = req
     .headers()
     .iter()
-    .filter(|(name, _)| name.as_str() == "referer")
+    .filter(|(name, _)| server.allow_headers || name.as_str() == "referer")
     .map(|(name, value)| (name.to_string(), value.to_str().unwrap().to_owned()))
     .collect::<Vec<(String, String)>>();
 

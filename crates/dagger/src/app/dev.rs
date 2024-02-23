@@ -16,6 +16,11 @@ pub struct Command {
   #[arg(long)]
   pub app_id: Option<String>,
 
+  /// If true, headers won't be filtered and all headers
+  // will be passed through the proxy
+  #[arg(long)]
+  pub allow_headers: Option<bool>,
+
   /// Port to listen to
   #[arg(short, long, default_value_t = 8000)]
   pub port: u16,
@@ -51,6 +56,7 @@ impl Command {
 
     let server_options = ServerOptions {
       app_id: self.app_id.clone(),
+      allow_headers: self.allow_headers.clone(),
       address: "0.0.0.0".to_owned(),
       port: self.port,
       transpile: true,
