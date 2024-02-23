@@ -9,12 +9,14 @@ use anyhow::Result;
 use axum::body::Body;
 use axum::extract::{Path, Query, State};
 use axum::http::{Request, StatusCode};
+use axum::middleware;
 use axum::response::{IntoResponse, Response};
 use axum::routing::MethodFilter;
 use axum::{routing, Router};
 use cloud::identity::Identity;
 use cloud::CloudExtensionProvider;
 use colored::Colorize;
+use common::axum::logger;
 use dqs::cluster::auth::authenticate_user_using_headers;
 use dqs::cluster::cache::Cache;
 use runtime::buildtools::{transpiler::BabelTranspiler, FileModuleLoader};
@@ -31,6 +33,7 @@ use runtime::permissions::{
 use runtime::resolver::FilePathResolver;
 use runtime::{IsolatedRuntime, RuntimeOptions};
 use tokio::sync::{mpsc, oneshot};
+use tower::ServiceBuilder;
 use url::Url;
 
 #[derive(Debug, Clone)]
@@ -158,6 +161,7 @@ async fn start_axum_server(
       "/*path",
       routing::on(MethodFilter::all(), handle_app_routes),
     )
+    .layer(ServiceBuilder::new().layer(middleware::from_fn(logger::middleware)))
     .with_state(server.clone());
   let addr: SocketAddr =
     (Ipv4Addr::from_str(&options.address)?, options.port).into();
@@ -219,16 +223,24 @@ pub async fn pipe_app_request(
     url
   };
 
+  let mut headers = req
+    .headers()
+    .iter()
+    .filter(|(name, _)| name.as_str() == "referer")
+    .map(|(name, value)| (name.to_string(), value.to_str().unwrap().to_owned()))
+    .collect::<Vec<(String, String)>>();
+
+  headers.push((
+    "x-portal-user".to_owned(),
+    identity
+      .to_json()
+      .expect("Error converting identity to JSON"),
+  ));
   let body = read_http_body_to_buffer(&mut req).await?;
   let request = HttpRequest {
     method: req.method().to_string(),
     url: url.as_str().to_owned(),
-    headers: vec![(
-      "x-portal-user".to_owned(),
-      identity
-        .to_json()
-        .expect("Error converting identity to JSON"),
-    )],
+    headers,
     body,
   };
 

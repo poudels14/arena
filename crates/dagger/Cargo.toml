@@ -25,3 +25,4 @@ common = { path = "../common", features = ["dotenv"] }
 cloud = { path = "../cloud" }
 dqs = { path = "../dqs" }
 axum.workspace = true
+tower.workspace = true
