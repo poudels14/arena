@@ -1,8 +1,13 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AclEntity {
-  App { id: String, path: Option<String> },
+  App {
+    id: String,
+    path: Option<String>,
+    entity: Option<Value>,
+  },
   Resource(String),
   Unknown,
 }
@@ -10,7 +15,7 @@ pub enum AclEntity {
 impl AclEntity {
   pub fn get_id<'a>(&'a self) -> &'a str {
     match self {
-      Self::App { id, path: _ } => id,
+      Self::App { id, .. } => id,
       Self::Resource(id) => id,
       _ => panic!("Can't get id of unknown resource"),
     }
@@ -21,11 +26,8 @@ impl AclEntity {
       return 0;
     }
     match self {
-      Self::App { id, path } => match other {
-        Self::App {
-          id: other_id,
-          path: _,
-        } => {
+      Self::App { id, path, .. } => match other {
+        Self::App { id: other_id, .. } => {
           if (id == "*" || id == other_id) && path.is_none() {
             return 1;
           }
@@ -84,6 +86,7 @@ mod tests {
     App {
       id: id.to_owned(),
       path: path.map(|p| p.to_owned()),
+      entity: None,
     }
   }
 
