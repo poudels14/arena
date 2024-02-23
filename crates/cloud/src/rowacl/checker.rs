@@ -56,7 +56,15 @@ impl Resource for RowAclChecker {}
 
 impl RowAclChecker {
   pub fn from(acls: Vec<RowAcl>) -> Result<Self> {
-    let mut acls_by_user_id = BTreeMap::new();
+    let mut checker = RowAclChecker {
+      acls_by_user_id: BTreeMap::new(),
+    };
+    checker.set_acls(acls);
+    Ok(checker)
+  }
+
+  pub fn set_acls(&mut self, acls: Vec<RowAcl>) {
+    self.acls_by_user_id.clear();
     acls
       .iter()
       .group_by(|acl| acl.user_id.clone())
@@ -90,10 +98,8 @@ impl RowAclChecker {
             (table, acls)
           })
           .collect::<BTreeMap<String, BTreeMap<AclType, Vec<Expr>>>>();
-        acls_by_user_id.insert(user_id, acls_by_table);
+        self.acls_by_user_id.insert(user_id, acls_by_table);
       });
-    let checker = RowAclChecker { acls_by_user_id };
-    Ok(checker)
   }
 
   /// Returns whether the user has any type of access
@@ -174,29 +180,33 @@ fn apply_filter(
 
   let build_selection_filter =
     |table: &str, alias: &Option<Ident>, acl_type: &AclType| {
-      let filters = acls_by_table.get(table).and_then(|acls| {
-        acls.get(acl_type).as_ref().map(|exprs| {
-          if exprs.is_empty() {
-            None
-          } else {
-            Some(exprs.iter().skip(1).fold(exprs[0].clone(), |agg, expr| {
-              Expr::BinaryOp {
-                left: Box::new(agg),
-                op: BinaryOperator::Or,
-                right: Box::new(expr.clone()),
-              }
-            }))
-          }
-        })
-      });
+      let table_acls =
+        acls_by_table.get(table).and_then(|acls| acls.get(acl_type));
+      let wildcard_table_acls =
+        acls_by_table.get("*").and_then(|acls| acls.get(acl_type));
 
-      if filters.is_none() {
+      if table_acls.is_none() && wildcard_table_acls.is_none() {
         bail!(format!("Doesn't have {:?} access", acl_type));
       }
 
-      let mut filters = filters.unwrap();
-      if let Some(alias) = alias {
-        visit_expressions_mut(&mut filters, |expr| {
+      // Note: wildcard tables shouldn't have filters, so dont use it here
+      let mut filters: Option<Expr> = table_acls.and_then(|exprs| {
+        if exprs.is_empty() {
+          None
+        } else {
+          exprs
+            .iter()
+            .map(|expr| expr.to_owned())
+            .reduce(|agg, expr| Expr::BinaryOp {
+              left: Box::new(agg),
+              op: BinaryOperator::Or,
+              right: Box::new(expr),
+            })
+        }
+      });
+
+      if let (Some(alias), Some(filters)) = (alias, filters.as_mut()) {
+        visit_expressions_mut(filters, |expr| {
           match expr {
             Expr::Identifier(id) => {
               *expr = Expr::CompoundIdentifier(vec![
@@ -277,6 +287,10 @@ fn apply_filter(
           .get(&table)
           .map(|acls| acls.contains_key(&AclType::Insert))
           .unwrap_or(false)
+          && !acls_by_table
+            .get("*")
+            .map(|acls| acls.contains_key(&AclType::Insert))
+            .unwrap_or(false)
         {
           err = Some(anyhow!("Doesn't have INSERT access"));
           return ControlFlow::Break(());
@@ -434,13 +448,43 @@ mod tests {
 
   #[test]
   fn test_rowacl_check_query_access_on_wildcard_table() {
-    let checker =
-      RowAclChecker::from(vec![acl("user_1", "*", AclType::Select, "*")])
-        .unwrap();
+    let checker = RowAclChecker::from(vec![
+      acl("user_1", "*", AclType::Select, "*"),
+      acl("user_1", "*", AclType::Insert, "*"),
+      acl("user_1", "*", AclType::Update, "*"),
+      acl("user_1", "*", AclType::Delete, "*"),
+    ])
+    .unwrap();
     assert!(checker.has_query_access("user_1", "table_2", AclType::Select));
-    assert!(!checker.has_query_access("user_1", "table_2", AclType::Insert));
-    assert!(!checker.has_query_access("user_1", "table_2", AclType::Update));
-    assert!(!checker.has_query_access("user_1", "table_2", AclType::Delete));
+    assert!(checker.has_query_access("user_1", "table_2", AclType::Insert));
+    assert!(checker.has_query_access("user_1", "table_2", AclType::Update));
+    assert!(checker.has_query_access("user_1", "table_2", AclType::Delete));
+
+    // no filter applied for wildcard table access with wildcard filter
+    assert_eq!(
+      checker
+        .apply_sql_filter("user_1", "SELECT * FROM table1")
+        .unwrap(),
+      "SELECT * FROM table1 AS t1".to_owned()
+    );
+    assert_eq!(
+      checker
+        .apply_sql_filter("user_1", "INSERT INTO table1 VALUES(1)")
+        .unwrap(),
+      "INSERT INTO table1 VALUES (1)".to_owned()
+    );
+    assert_eq!(
+      checker
+        .apply_sql_filter("user_1", "UPDATE table1 SET id = 1")
+        .unwrap(),
+      "UPDATE table1 AS t1 SET id = 1".to_owned()
+    );
+    assert_eq!(
+      checker
+        .apply_sql_filter("user_1", "DELETE FROM table1")
+        .unwrap(),
+      "DELETE FROM table1 AS t1".to_owned()
+    );
   }
 
   #[test]
