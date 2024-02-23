@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{anyhow, bail, Result};
-use cloud::acl::{Access, Acl, AclEntity};
-use cloud::identity::Identity;
+use cloud::rowacl::{AclType, RowAcl, RowAclChecker};
 use dashmap::DashMap;
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
@@ -17,7 +16,7 @@ use crate::db::app::{self, apps};
 pub struct Cache {
   db_pool: Option<Pool<ConnectionManager<PgConnection>>>,
   pub apps_by_id: Arc<DashMap<String, App>>,
-  pub acls: Arc<DashMap<String, Box<Vec<Acl>>>>,
+  pub acl_checker_by_app_id: Arc<DashMap<String, Arc<RowAclChecker>>>,
 }
 
 impl Cache {
@@ -25,7 +24,7 @@ impl Cache {
     Self {
       db_pool,
       apps_by_id: Arc::new(DashMap::with_shard_amount(32)),
-      acls: Arc::new(DashMap::with_shard_amount(32)),
+      acl_checker_by_app_id: Arc::new(DashMap::with_shard_amount(32)),
     }
   }
 
@@ -38,15 +37,18 @@ impl Cache {
     }
   }
 
-  pub async fn get_workspace_acls(
+  pub async fn get_app_acl_checker(
     &self,
-    workspace_id: &str,
-  ) -> Option<Box<Vec<Acl>>> {
-    let acls = self.acls.get(workspace_id).map(|m| m.value().clone());
+    app_id: &str,
+  ) -> Option<Arc<RowAclChecker>> {
+    let acls = self
+      .acl_checker_by_app_id
+      .get(app_id)
+      .map(|m| m.value().clone());
 
     match acls {
       Some(acls) => Some(acls),
-      None => self.fetch_and_cache_workspace_acls(workspace_id).await.ok(),
+      None => self.build_and_cache_app_acl_checker(app_id).await.ok(),
     }
   }
 
@@ -54,7 +56,7 @@ impl Cache {
     let connection = &mut self
       .db_pool
       .clone()
-      .ok_or(anyhow!("Db pool not set"))?
+      .ok_or(anyhow!("db pool not set"))?
       .get()?;
 
     let res = app::table
@@ -77,56 +79,67 @@ impl Cache {
     }
   }
 
-  async fn fetch_and_cache_workspace_acls(
+  async fn build_and_cache_app_acl_checker(
     &self,
-    workspace_id: &str,
-  ) -> Result<Box<Vec<Acl>>> {
+    app_id: &str,
+  ) -> Result<Arc<RowAclChecker>> {
     let connection = &mut self
       .db_pool
       .clone()
-      .ok_or(anyhow!("Db pool not set"))?
+      .ok_or(anyhow!("db pool not set"))?
       .get()?;
 
     let db_acls = acl::table
-      .filter(acls::workspace_id.eq(workspace_id.to_string()))
+      .filter(acls::app_id.eq(Some(app_id)))
       .filter(acls::archived_at.is_null())
       .load::<acl::Acl>(connection)?;
 
     let acls = db_acls
-      .iter()
-      .map(|acl| {
-        let identity = match acl.user_id.as_str() {
-          "public" => Identity::Unknown,
-          user_id => Identity::User {
-            id: user_id.to_owned(),
-          },
+      .into_iter()
+      .filter_map(|acl| {
+        let acl_types = match acl.access.to_uppercase().as_str() {
+          "READ" => vec![AclType::Select],
+          "WRITE" => vec![AclType::Insert],
+          "UPDATE" => vec![AclType::Update],
+          "DELETE" => vec![AclType::Delete],
+          "OWNER" | "ADMIN" => vec![
+            AclType::Select,
+            AclType::Insert,
+            AclType::Update,
+            AclType::Delete,
+          ],
+          _ => vec![],
         };
 
-        Acl {
-          id: acl.id.to_owned(),
-          identity,
-          workspace_id: acl.workspace_id.to_owned(),
-          access: Access::from(&acl.access),
-          entity: match acl.app_id.as_ref() {
-            Some(app_id) => AclEntity::App {
-              id: app_id.to_owned(),
-              path: acl.path.to_owned(),
-            },
-            None if acl.resource_id.is_some() => {
-              AclEntity::Resource(acl.resource_id.to_owned().unwrap())
-            }
-            _ => AclEntity::Unknown,
-          },
+        let metadata = acl.metadata;
+        let table = metadata.get("table").and_then(|t| t.as_str());
+        let filter = metadata.get("filter").and_then(|t| t.as_str());
+        match (table, filter) {
+          (Some(table), Some(filter)) => {
+            let table = table.to_owned();
+            let filter = filter.to_owned();
+            Some(acl_types.into_iter().map(move |r#type| RowAcl {
+              user_id: acl.user_id.to_owned(),
+              table: table.clone(),
+              r#type,
+              filter: filter.clone(),
+            }))
+          }
+          _ => None,
         }
       })
-      .collect::<Vec<Acl>>();
+      .flatten()
+      .collect::<Vec<RowAcl>>();
 
-    self.acls.insert(workspace_id.to_string(), acls.into());
+    let acl_checker = RowAclChecker::from(acls)?;
+    self
+      .acl_checker_by_app_id
+      .insert(app_id.to_string(), acl_checker.into());
 
     self
-      .acls
-      .get(workspace_id)
-      .map(|acls| acls.value().clone())
-      .ok_or(anyhow!("failed to get workspace acls"))
+      .acl_checker_by_app_id
+      .get(app_id)
+      .map(|checker| checker.value().clone())
+      .ok_or(anyhow!("failed to get app acl checker"))
   }
 }

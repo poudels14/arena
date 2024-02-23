@@ -19,6 +19,7 @@ pub fn create_connection_pool() -> Result<Pool<ConnectionManager<PgConnection>>>
     })
     .unwrap_or(10);
 
+  tracing::debug!("Connecting to database $DATABASE_URL");
   let manager = ConnectionManager::<PgConnection>::new(database_url);
   Ok(
     Pool::builder()

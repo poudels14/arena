@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-use std::env;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
 use std::str::FromStr;
@@ -12,8 +10,6 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::MethodFilter;
 use axum::RequestExt;
 use axum::{routing, Router};
-use axum_extra::extract::cookie::Cookie;
-use cloud::acl::{Access, AclEntity};
 use cloud::identity::Identity;
 use cloud::pubsub::EventSink;
 use cloud::pubsub::Subscriber;
@@ -24,7 +20,6 @@ use http::StatusCode;
 use http::{Method, Request};
 use hyper::Body;
 use indexmap::IndexMap;
-use jsonwebtoken::{Algorithm, DecodingKey, Validation};
 use runtime::extensions::server::errors::Error;
 use runtime::extensions::server::request::read_http_body_to_buffer;
 use runtime::extensions::server::response::ParsedHttpResponse;
@@ -40,10 +35,11 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 use url::Url;
 use uuid::Uuid;
 
+use super::auth::authenticate_user_using_headers;
+use super::auth::parse_identity_from_header;
 use super::{DqsCluster, DqsServerOptions};
 use crate::arena::workflow::PluginWorkflow;
 use crate::arena::workflow::WorkflowTemplate;
-use crate::arena::App;
 use crate::arena::MainModule;
 use crate::cluster::server::DqsServerStatus;
 use crate::db::workflow::workflow_runs;
@@ -51,6 +47,7 @@ use crate::db::workflow::WorkflowRun;
 use crate::runtime::Command;
 
 impl DqsCluster {
+  #[allow(dead_code)]
   pub(crate) async fn start_server(
     &self,
     shutdown_signal: oneshot::Receiver<()>,
@@ -59,18 +56,6 @@ impl DqsCluster {
       .and(NotForContentType::new(mime::TEXT_EVENT_STREAM.as_ref()));
 
     let app = Router::new()
-      .route(
-        "/w/workflow/:workflowId/*path",
-        routing::on(MethodFilter::all(), pipe_plugin_workflow_request),
-      )
-      // .route(
-      //   "/w/apps/:appId/widgets/:widgetId/api/:field",
-      //   routing::get(handle_widget_get_query),
-      // )
-      // .route(
-      //   "/w/apps/:appId/widgets/:widgetId/api/:field",
-      //   routing::post(handle_widgets_mutate_query),
-      // )
       .route(
         "/w/apps/:appId/",
         routing::on(MethodFilter::all(), handle_app_routes_index),
@@ -217,8 +202,13 @@ pub async fn pipe_app_request(
   search_params: IndexMap<String, String>,
   mut req: Request<Body>,
 ) -> Result<Response, errors::Error> {
-  let (_, app) =
-    authenticate_user(&cluster, &app_id, Some(path.clone()), &req).await?;
+  let (_, app) = authenticate_user_using_headers(
+    &cluster.cache,
+    jwt_secret()?.as_str(),
+    &app_id,
+    &req,
+  )
+  .await?;
 
   let dqs_server = cluster
     .get_or_spawn_dqs_server(DqsServerOptions {
@@ -279,8 +269,13 @@ pub async fn pipe_widget_query_request(
   mut req: Request<Body>,
 ) -> Result<Response, errors::Error> {
   let path = format!("/{app_id}/widgets/{widget_id}/api/{field}");
-  let (_, app) =
-    authenticate_user(cluster, &app_id, Some(path.clone()), &req).await?;
+  let (_, app) = authenticate_user_using_headers(
+    &cluster.cache,
+    jwt_secret()?.as_str(),
+    &app_id,
+    &req,
+  )
+  .await?;
 
   let (tx, rx) = oneshot::channel::<ParsedHttpResponse>();
   let body = read_http_body_to_buffer(&mut req).await?;
@@ -338,13 +333,14 @@ pub async fn pipe_widget_query_request(
   res.into_response().await
 }
 
+#[allow(dead_code)]
 pub async fn pipe_plugin_workflow_request(
   Path((workflow_id, path)): Path<(String, String)>,
   State(cluster): State<DqsCluster>,
   req: Request<Body>,
 ) -> Result<Response, errors::Error> {
-  let identity =
-    parse_identity_from_header(&req).map_err(|_| errors::Error::NotFound)?;
+  let identity = parse_identity_from_header(jwt_secret()?.as_str(), &req)
+    .map_err(|_| errors::Error::NotFound)?;
 
   let mut connection = cluster
     .db_pool
@@ -443,7 +439,8 @@ async fn subscribe_to_events(
   Path((workspace_id, _path)): Path<(String, String)>,
   mut req: Request<Body>,
 ) -> Result<http::Response<hyper::Body>, errors::Error> {
-  let identity = parse_identity_from_header(&req).unwrap_or(Identity::Unknown);
+  let identity = parse_identity_from_header(jwt_secret()?.as_str(), &req)
+    .unwrap_or(Identity::Unknown);
 
   // Disable events subscription for unknown user
   if identity == Identity::Unknown {
@@ -487,100 +484,6 @@ async fn subscribe_to_events(
   Ok::<_, errors::Error>(response.into())
 }
 
-/// Returns tuple of (identity, App) if authorization succeeds
-async fn authenticate_user(
-  cluster: &DqsCluster,
-  app_id: &str,
-  path: Option<String>,
-  req: &Request<Body>,
-) -> Result<(Identity, App), errors::Error> {
-  let identity = parse_identity_from_header(req).unwrap_or(Identity::Unknown);
-  tracing::trace!("identity = {:?}", identity);
-
-  let app = cluster
-    .cache
-    .get_app(app_id)
-    .await
-    .map_err(|e| {
-      tracing::error!("Error getting workspace id: {}", e);
-      errors::Error::AnyhowError(e.to_string())
-    })?
-    .ok_or(errors::Error::NotFound)?;
-  tracing::trace!("app = {:?}", app);
-
-  let acls = cluster
-    .cache
-    .get_workspace_acls(&app.workspace_id)
-    .await
-    .unwrap_or_default();
-  tracing::trace!("acls = {:?}", acls);
-
-  let has_access = cloud::acl::has_entity_access(
-    &acls,
-    &identity,
-    Access::CanQuery,
-    &app.workspace_id,
-    AclEntity::App {
-      id: app.id.to_string(),
-      path,
-    },
-  )
-  .map_err(|_| errors::Error::NotFound)?;
-
-  if !has_access {
-    return Err(errors::Error::Forbidden);
-  }
-  Ok((identity, app))
-}
-
-fn parse_cookies(req: &Request<Body>) -> HashMap<String, String> {
-  Cookie::split_parse(
-    req
-      .headers()
-      .get("cookie")
-      .and_then(|c| c.to_str().ok())
-      .unwrap_or_default(),
-  )
-  .into_iter()
-  .fold(HashMap::new(), |mut map, c| {
-    if let Ok(cookie) = c {
-      map.insert(cookie.name().to_string(), cookie.value().to_string());
-    }
-    map
-  })
-}
-
-fn parse_identity_from_header(req: &Request<Body>) -> Result<Identity> {
-  let cookies = { parse_cookies(req) };
-  let token = cookies.get("user").map(|v| v.as_str()).or_else(|| {
-    req
-      .headers()
-      .get("x-portal-authentication")
-      .and_then(|c| c.to_str().ok())
-  });
-
-  if token.is_none() {
-    return Ok(Identity::Unknown);
-  }
-  let token = token.unwrap();
-
-  let secret = env::var("JWT_SIGNING_SECRET")?;
-  jsonwebtoken::decode::<Value>(
-    &token,
-    &DecodingKey::from_secret(secret.as_ref()),
-    &Validation::new(Algorithm::HS256),
-  )
-  .context("JWT verification error")
-  .and_then(|mut r| {
-    let claims = r
-      .claims
-      .as_object_mut()
-      .ok_or(anyhow!("Invalid JWT token"))?;
-
-    // when deserializing enum, can't have unspecified fields
-    claims.retain(|k, _| k == "user" || k == "app" || k == "workflowRun");
-
-    serde_json::from_value(r.claims)
-      .context("Failed to parse identity from cookie")
-  })
+fn jwt_secret() -> Result<String> {
+  Ok(std::env::var("JWT_SIGNING_SECRET")?)
 }

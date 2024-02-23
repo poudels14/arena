@@ -11,9 +11,11 @@ use std::sync::Arc;
 use tokio::sync::{watch, Mutex};
 use uuid::Uuid;
 
-pub(crate) mod cache;
+pub mod auth;
+pub mod cache;
 pub(crate) mod http;
 pub(crate) mod server;
+
 use self::cache::Cache;
 use self::server::{DqsServer, DqsServerOptions, DqsServerStatus};
 use crate::db;

@@ -11,6 +11,7 @@ pub enum MainModule {
   App {
     app: App,
   },
+  #[allow(dead_code)]
   PluginWorkflowRun {
     workflow: PluginWorkflow,
   },
