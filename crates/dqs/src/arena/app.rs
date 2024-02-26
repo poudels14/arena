@@ -5,4 +5,5 @@ pub struct App {
   pub workspace_id: String,
   pub id: String,
   pub template: Template,
+  pub owner_id: Option<String>,
 }

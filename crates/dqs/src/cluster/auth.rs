@@ -49,6 +49,12 @@ pub async fn authenticate_user(
 
   let has_access = match identity {
     Identity::User { ref id, .. } => acl_checker.read().has_any_access(&id),
+    Identity::App { id, .. } => cache
+      .get_app(id)
+      .await?
+      .and_then(|app| app.owner_id)
+      .map(|owner_id| acl_checker.read().has_any_access(&owner_id))
+      .unwrap_or(false),
     Identity::Unknown => acl_checker.read().has_any_access("public"),
     _ => false,
   };
@@ -96,7 +102,7 @@ pub fn parse_identity_from_header(
   jsonwebtoken::decode::<Value>(
     &token,
     &DecodingKey::from_secret(jwt_secret.as_bytes()),
-    &Validation::new(Algorithm::HS256),
+    &Validation::new(Algorithm::HS512),
   )
   .context("JWT verification error")
   .and_then(|mut r| {

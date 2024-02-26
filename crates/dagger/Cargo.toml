@@ -18,11 +18,12 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 tracing-tree.workspace = true
 colored.workspace = true
+axum.workspace = true
+tower.workspace = true
+jsonwebtoken.workspace = true
 aws-region = { version = "0.25.4", features = ["serde"] }
 rust-s3 = "0.33.0"
 runtime = { path = "../runtime" }
 common = { path = "../common", features = ["dotenv"] }
 cloud = { path = "../cloud" }
 dqs = { path = "../dqs" }
-axum.workspace = true
-tower.workspace = true

@@ -9,6 +9,7 @@ pub struct App {
   pub id: String,
   pub workspace_id: String,
   pub template: Option<Value>,
+  pub owner_id: Option<String>,
   pub archived_at: Option<SystemTime>,
 }
 
@@ -17,6 +18,7 @@ diesel::table! {
     id -> Varchar,
     workspace_id -> Varchar,
     template -> Nullable<Jsonb>,
+    owner_id -> Nullable<Varchar>,
     archived_at -> Nullable<Timestamp>,
   }
 }

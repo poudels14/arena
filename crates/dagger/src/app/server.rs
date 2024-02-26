@@ -1,10 +1,10 @@
-use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
+use anyhow::Context;
 use anyhow::Result;
 use axum::body::Body;
 use axum::extract::{Path, Query, State};
@@ -22,6 +22,7 @@ use dqs::cluster::auth::{
 };
 use dqs::cluster::cache::Cache;
 use dqs::runtime::DQS_SNAPSHOT;
+use jsonwebtoken::{Algorithm, EncodingKey, Header};
 use runtime::buildtools::{transpiler::BabelTranspiler, FileModuleLoader};
 use runtime::config::{ArenaConfig, RuntimeConfig};
 use runtime::deno::core::Snapshot;
@@ -110,10 +111,30 @@ pub(super) async fn start_js_server(
     .get_extension(),
   );
 
+  let app_identity = options
+    .app_id
+    .clone()
+    .map(|app_id| Identity::App {
+      id: app_id,
+      system_originated: Some(true),
+    })
+    .unwrap_or_default();
+  let auth_header = jsonwebtoken::encode(
+    &Header::new(Algorithm::HS512),
+    &serde_json::to_string(&app_identity)?,
+    &EncodingKey::from_secret((&jwt_secret()).as_ref()),
+  )
+  .context("JWT encoding error")?;
   let mut runtime = IsolatedRuntime::new(RuntimeOptions {
     startup_snapshot: Some(Snapshot::Static(DQS_SNAPSHOT)),
     config: RuntimeConfig {
       project_root: options.root_dir.clone(),
+      // TODO: make portal-authentication header domain specific
+      // auth header should be sent only to portal apps
+      egress_headers: Some(vec![(
+        "x-portal-authentication".to_owned(),
+        auth_header,
+      )]),
       ..Default::default()
     },
     enable_console: true,
@@ -174,6 +195,7 @@ impl AxumServer {
         "/_admin/healthy",
         routing::get(|| async { (StatusCode::OK, "Ok") }),
       )
+      .route("/", routing::on(MethodFilter::all(), handle_app_index))
       .route(
         "/*path",
         routing::on(MethodFilter::all(), handle_app_routes),
@@ -201,44 +223,56 @@ impl AxumServer {
 
 pub async fn handle_app_routes(
   Path(path): Path<String>,
-  Query(search_params): Query<BTreeMap<String, String>>,
+  Query(search_params): Query<Vec<(String, String)>>,
   State(server): State<AxumServer>,
   req: Request<Body>,
 ) -> impl IntoResponse {
   pipe_app_request(&server, path, search_params, req).await
 }
 
+pub async fn handle_app_index(
+  Query(search_params): Query<Vec<(String, String)>>,
+  State(server): State<AxumServer>,
+  req: Request<Body>,
+) -> impl IntoResponse {
+  pipe_app_request(&server, "/".to_owned(), search_params, req).await
+}
+
 #[tracing::instrument(skip_all, err, level = "trace")]
 pub async fn pipe_app_request(
   server: &AxumServer,
   path: String,
-  search_params: BTreeMap<String, String>,
+  search_params: Vec<(String, String)>,
   mut req: Request<Body>,
 ) -> Result<Response, errors::Error> {
-  let jwt_secret = std::env::var("JWT_SIGNING_SECRET")
-    .expect("missing JWT_SIGNING_SECRET env variable");
-  let identity = match &server.app_id {
+  let jwt_secret = jwt_secret();
+
+  let (identity, app) = match &server.app_id {
     Some(app_id) => {
-      let (identity, _) = authenticate_user_using_headers(
+      let (identity, app) = authenticate_user_using_headers(
         &server.cache,
         jwt_secret.as_str(),
         app_id,
         &req,
       )
       .await?;
-      identity
+      (identity, Some(app))
     }
-    _ => parse_identity_from_header(jwt_secret.as_str(), &req)
-      .unwrap_or(Identity::Unknown),
+    _ => (
+      parse_identity_from_header(jwt_secret.as_str(), &req)
+        .unwrap_or(Identity::Unknown),
+      None,
+    ),
   };
 
+  tracing::trace!("identity = {:?}", identity);
   let url = {
     let mut url = Url::parse(&format!("http://0.0.0.0/")).unwrap();
     url.set_path(&path);
     {
       let mut params = url.query_pairs_mut();
-      search_params.iter().for_each(|e| {
-        params.append_pair(e.0, e.1);
+      search_params.iter().for_each(|(key, value)| {
+        params.append_pair(key, value);
       });
     }
     url
@@ -257,6 +291,16 @@ pub async fn pipe_app_request(
       .to_json()
       .expect("Error converting identity to JSON"),
   ));
+  if let Some(app) = app {
+    headers.push((
+      "x-portal-app".to_owned(),
+      format!(
+        r#"{{"id": "{}", "template": {{"id": "{}"}}}}"#,
+        app.id, app.template.id
+      ),
+    ));
+  }
+
   let body = read_http_body_to_buffer(&mut req).await?;
   let request = HttpRequest {
     method: req.method().to_string(),
@@ -274,4 +318,9 @@ pub async fn pipe_app_request(
 
   let res = rx.await.map_err(|_| errors::Error::ResponseBuilder)?;
   res.into_response().await
+}
+
+fn jwt_secret() -> String {
+  std::env::var("JWT_SIGNING_SECRET")
+    .expect("missing JWT_SIGNING_SECRET env variable")
 }

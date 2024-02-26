@@ -37,12 +37,10 @@ impl Identity {
   pub fn system_originated(&self) -> bool {
     match self {
       Identity::App {
-        id: _,
-        system_originated,
+        system_originated, ..
       } => system_originated,
       Identity::WorkflowRun {
-        id: _,
-        system_originated,
+        system_originated, ..
       } => system_originated,
       _ => &None,
     }

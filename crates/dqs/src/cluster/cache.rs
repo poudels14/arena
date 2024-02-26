@@ -80,6 +80,7 @@ impl Cache {
           workspace_id: db_app.workspace_id.clone(),
           id: db_app.id.clone(),
           template: db_app.template.unwrap().try_into()?,
+          owner_id: db_app.owner_id,
         };
         self.apps_by_id.insert(app.id.clone(), app.clone());
         Ok(Some(app))

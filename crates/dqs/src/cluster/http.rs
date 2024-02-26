@@ -19,7 +19,6 @@ use diesel::prelude::*;
 use http::StatusCode;
 use http::{Method, Request};
 use hyper::Body;
-use indexmap::IndexMap;
 use runtime::extensions::server::errors::Error;
 use runtime::extensions::server::request::read_http_body_to_buffer;
 use runtime::extensions::server::response::ParsedHttpResponse;
@@ -178,7 +177,7 @@ pub async fn handle_widgets_mutate_query(
 
 pub async fn handle_app_routes_index(
   Path(app_id): Path<String>,
-  Query(search_params): Query<IndexMap<String, String>>,
+  Query(search_params): Query<Vec<(String, String)>>,
   State(cluster): State<DqsCluster>,
   req: Request<Body>,
 ) -> impl IntoResponse {
@@ -187,7 +186,7 @@ pub async fn handle_app_routes_index(
 
 pub async fn handle_app_routes(
   Path((app_id, path)): Path<(String, String)>,
-  Query(search_params): Query<IndexMap<String, String>>,
+  Query(search_params): Query<Vec<(String, String)>>,
   State(cluster): State<DqsCluster>,
   req: Request<Body>,
 ) -> impl IntoResponse {
@@ -199,7 +198,7 @@ pub async fn pipe_app_request(
   cluster: DqsCluster,
   app_id: String,
   path: String,
-  search_params: IndexMap<String, String>,
+  search_params: Vec<(String, String)>,
   mut req: Request<Body>,
 ) -> Result<Response, errors::Error> {
   let (identity, app) = authenticate_user_using_headers(
@@ -229,8 +228,8 @@ pub async fn pipe_app_request(
     url.set_path(&path);
     {
       let mut params = url.query_pairs_mut();
-      search_params.iter().for_each(|e| {
-        params.append_pair(e.0, e.1);
+      search_params.iter().for_each(|(key, value)| {
+        params.append_pair(key, value);
       });
     }
     url
@@ -371,6 +370,7 @@ pub async fn pipe_plugin_workflow_request(
     Identity::App {
       id,
       system_originated,
+      ..
     } => {
       system_originated.unwrap_or(false)
         && wf_run
