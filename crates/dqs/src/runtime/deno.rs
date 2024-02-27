@@ -17,7 +17,7 @@ use runtime::extensions::BuiltinModule;
 use runtime::permissions::PermissionsContainer;
 
 use super::core;
-use crate::arena::{self, ArenaRuntimeState, MainModule};
+use crate::arena::{self, ArenaRuntimeState};
 use crate::loaders::moduleloader::AppkitModuleLoader;
 use crate::loaders::template::TemplateLoader;
 
@@ -38,27 +38,20 @@ pub struct RuntimeOptions {
   /// This is useful if we need to restrict the outgoing network
   /// request to a specific network device/address
   pub egress_address: Option<IpAddr>,
+  /// Default egress headers
+  pub egress_headers: Option<Vec<(String, String)>>,
 
   #[derivative(Debug = "ignore")]
   pub template_loader: Arc<dyn TemplateLoader>,
 
   pub state: ArenaRuntimeState,
+  /// Identity of the app server
+  pub identity: Identity,
 }
 
 pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
   let publisher = if let Some(exchange) = &config.exchange {
-    let node = match &config.state.module {
-      MainModule::App { app } => Identity::App {
-        id: app.id.clone(),
-        system_originated: None,
-      },
-      MainModule::PluginWorkflowRun { workflow } => Identity::WorkflowRun {
-        id: workflow.id.to_string(),
-        system_originated: None,
-      },
-      _ => Identity::Unknown,
-    };
-    Some(exchange.new_publisher(node).await)
+    Some(exchange.new_publisher(config.identity).await)
   } else {
     None
   };
@@ -74,6 +67,7 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
       BuiltinModule::Custom(Rc::new(arena::extension)),
     ],
     egress_address: config.egress_address,
+    egress_headers: config.egress_headers,
     heap_limits: config.heap_limits,
     module_loader: Some(Rc::new(AppkitModuleLoader {
       workspace_id: config.state.workspace_id.clone(),

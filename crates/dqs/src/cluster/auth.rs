@@ -60,6 +60,7 @@ pub async fn authenticate_user(
   };
 
   if !has_access {
+    tracing::trace!("doesn't have access");
     return Err(errors::Error::Forbidden);
   }
   Ok(app)
@@ -115,6 +116,6 @@ pub fn parse_identity_from_header(
     claims.retain(|k, _| k == "user" || k == "app" || k == "workflowRun");
 
     serde_json::from_value(r.claims)
-      .context("Failed to parse identity from cookie")
+      .context("Failed to parse identity from header")
   })
 }

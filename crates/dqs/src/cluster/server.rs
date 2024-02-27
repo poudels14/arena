@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 use std::net::IpAddr;
+use std::ops::Add;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
+use cloud::identity::Identity;
 use cloud::pubsub::exchange::Exchange;
 use cloud::rowacl::RowAclChecker;
 use common::beam;
@@ -14,6 +16,7 @@ use deno_core::v8;
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
+use jsonwebtoken::{Algorithm, EncodingKey, Header};
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
 use runtime::env::EnvironmentVariableStore;
@@ -107,6 +110,40 @@ impl DqsServer {
         registry: options.registry.clone(),
       };
 
+      let identity = match &state.module {
+        MainModule::App { app } => Identity::App {
+          id: app.id.clone(),
+          owner_id: app.owner_id.clone(),
+          system_originated: None,
+        },
+        MainModule::PluginWorkflowRun { workflow } => Identity::WorkflowRun {
+          id: workflow.id.to_string(),
+          system_originated: None,
+        },
+        _ => Identity::Unknown,
+      };
+
+      let jwt_secret = std::env::var("JWT_SIGNING_SECRET")?;
+      let mut identity_json = serde_json::to_value(&identity)?;
+      if let Value::Object(_) = identity_json {
+        // TODO: make exp <5mins and figure out a way to update default headers
+        identity_json["exp"] = Value::Number(
+          SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .expect("Time went backwards")
+            .add(Duration::from_secs(60 * 60 * 24 * 30))
+            .as_secs()
+            .into(),
+        );
+      }
+      let auth_header = jsonwebtoken::encode(
+        &Header::new(Algorithm::HS512),
+        &identity_json,
+        &EncodingKey::from_secret((&jwt_secret).as_ref()),
+      )
+      .context("JWT encoding error")?;
+      let egress_headers =
+        Some(vec![("x-portal-authentication".to_owned(), auth_header)]);
       crate::runtime::server::start(
         RuntimeOptions {
           id: options.id,
@@ -116,6 +153,7 @@ impl DqsServer {
             std::sync::Mutex::new(Some(http_requests_rx)),
           )),
           egress_address: options.dqs_egress_addr,
+          egress_headers,
           heap_limits: workspace_config
             .runtime
             .heap_limit_mb
@@ -124,6 +162,7 @@ impl DqsServer {
           exchange,
           acl_checker,
           state,
+          identity,
           template_loader: Arc::new(RegistryTemplateLoader {
             registry: options.registry,
             module: options.module,

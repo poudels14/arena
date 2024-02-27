@@ -1,5 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -10,6 +11,9 @@ pub enum Identity {
   #[serde(rename_all = "camelCase")]
   App {
     id: String,
+
+    // user id of the app owner
+    owner_id: Option<String>,
 
     /// Whether the request was originated from user code or Arena system
     /// if `system_originated` is true, it will have "admin" privileges
@@ -47,13 +51,19 @@ impl Identity {
     .unwrap_or(false)
   }
 
-  pub fn to_json(&self) -> Result<String> {
-    match self {
-      Identity::Unknown => Ok(serde_json::to_string(&Identity::User {
-        id: "public".to_owned(),
-        email: None,
-      })?),
-      _ => Ok(serde_json::to_string(self)?),
-    }
+  pub fn to_user_json(&self) -> Result<String> {
+    let user = match self {
+      Identity::User { id, email } => json!({
+        "id": id,
+        "email": email
+      }),
+      Identity::App { owner_id, .. } => json!({
+        "id": owner_id
+      }),
+      _ => json!({
+        "id": "public",
+      }),
+    };
+    Ok(serde_json::to_string(&user)?)
   }
 }

@@ -244,7 +244,7 @@ pub async fn pipe_app_request(
     headers: vec![(
       "x-portal-user".to_owned(),
       identity
-        .to_json()
+        .to_user_json()
         .expect("Error converting identity to JSON"),
     )],
     body,

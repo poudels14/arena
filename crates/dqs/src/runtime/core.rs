@@ -1,5 +1,6 @@
 use std::net::IpAddr;
 use std::rc::Rc;
+use std::str::FromStr;
 
 use anyhow::Result;
 use deno_core::{
@@ -8,6 +9,7 @@ use deno_core::{
 };
 use deno_fetch::CreateHttpClientOptions;
 use derivative::Derivative;
+use http::{HeaderMap, HeaderName, HeaderValue};
 use runtime::extensions::{
   BuiltinExtensionProvider, BuiltinExtensions, BuiltinModule,
 };
@@ -32,6 +34,9 @@ pub struct RuntimeOptions<State> {
   /// This is useful if we need to restrict the outgoing network
   /// request to a specific network device/address
   pub egress_address: Option<IpAddr>,
+
+  /// Default egress headers
+  pub egress_headers: Option<Vec<(String, String)>>,
 
   #[derivative(Debug = "ignore")]
   pub module_loader: Option<Rc<dyn ModuleLoader>>,
@@ -129,6 +134,7 @@ where
 {
   let user_agent = get_user_agent(&config.id);
   let egress_address = config.egress_address.clone();
+  let egress_headers = config.egress_headers.clone().unwrap_or_default();
   let state = config.state.clone();
   let permissions = config.permissions.clone();
 
@@ -146,27 +152,36 @@ where
         op_state.put::<State>(state);
       }
       op_state.put::<PermissionsContainer>(permissions);
+      let mut client = runtime::utils::fetch::get_default_http_client_builder(
+        &user_agent,
+        CreateHttpClientOptions {
+          root_cert_store: None,
+          ca_certs: vec![],
+          proxy: None,
+          unsafely_ignore_certificate_errors: None,
+          client_cert_chain_and_key: None,
+          pool_max_idle_per_host: None,
+          pool_idle_timeout: None,
+          http1: true,
+          http2: true,
+        },
+      )
+      .unwrap();
 
-      if let Some(egress_address) = egress_address {
-        let mut client =
-          runtime::utils::fetch::get_default_http_client_builder(
-            &user_agent,
-            CreateHttpClientOptions {
-              root_cert_store: None,
-              ca_certs: vec![],
-              proxy: None,
-              unsafely_ignore_certificate_errors: None,
-              client_cert_chain_and_key: None,
-              pool_max_idle_per_host: None,
-              pool_idle_timeout: None,
-              http1: true,
-              http2: true,
-            },
-          )
-          .unwrap();
-        client = client.local_address(egress_address);
-        op_state.put::<reqwest::Client>(client.build().unwrap());
+      let mut default_headers = HeaderMap::new();
+      egress_headers.into_iter().for_each(|(key, value)| {
+        if let (Ok(key), Ok(value)) =
+          (HeaderName::from_str(&key), HeaderValue::from_str(&value))
+        {
+          default_headers.insert(key, value);
+        }
+      });
+      client = client.default_headers(default_headers);
+      if let Some(egress_addr) = egress_address {
+        client = client.local_address(egress_addr);
       }
+      client = client.local_address(egress_address);
+      op_state.put::<reqwest::Client>(client.build().unwrap());
     })),
     enabled: true,
     ..Default::default()

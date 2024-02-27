@@ -1,8 +1,10 @@
 use std::net::{Ipv4Addr, SocketAddr};
+use std::ops::Add;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, SystemTime};
 
 use anyhow::Context;
 use anyhow::Result;
@@ -37,6 +39,7 @@ use runtime::permissions::{
 };
 use runtime::resolver::FilePathResolver;
 use runtime::{IsolatedRuntime, RuntimeOptions};
+use serde_json::Value;
 use tokio::sync::{mpsc, oneshot};
 use tower::ServiceBuilder;
 use url::Url;
@@ -73,10 +76,12 @@ pub(super) async fn start_js_server(
     .as_ref()
     .map(|_| dqs::db::create_connection_pool())
     .transpose()?;
+
+  let cache = Cache::new(db_pool);
   let server = AxumServer {
     app_id: options.app_id.clone(),
+    cache: cache.clone(),
     allow_headers: options.allow_headers.clone().unwrap_or(false),
-    cache: Cache::new(db_pool),
     stream: stream_tx,
   };
 
@@ -99,8 +104,8 @@ pub(super) async fn start_js_server(
   let mut builtin_extensions: Vec<BuiltinExtension> =
     builtin_modules.iter().map(|m| m.get_extension()).collect();
 
-  let acl_checker = match options.app_id {
-    Some(ref app_id) => Some(server.cache.get_app_acl_checker(&app_id).await?),
+  let acl_checker = match options.app_id.as_ref() {
+    Some(ref id) => Some(server.cache.get_app_acl_checker(&id).await?),
     _ => None,
   };
   builtin_extensions.push(
@@ -111,17 +116,34 @@ pub(super) async fn start_js_server(
     .get_extension(),
   );
 
-  let app_identity = options
-    .app_id
+  let app = match options.app_id {
+    Some(ref id) => cache.get_app(&id).await?,
+    _ => None,
+  };
+  let app_identity = app
     .clone()
-    .map(|app_id| Identity::App {
-      id: app_id,
+    .map(|app| Identity::App {
+      id: app.id,
+      owner_id: app.owner_id,
       system_originated: Some(true),
     })
     .unwrap_or_default();
+
+  let mut identity_json = serde_json::to_value(&app_identity)?;
+  if let Value::Object(_) = identity_json {
+    // TODO: make exp <5mins and figure out a way to update default headers
+    identity_json["exp"] = Value::Number(
+      SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .expect("Time went backwards")
+        .add(Duration::from_secs(60 * 60 * 24 * 30))
+        .as_secs()
+        .into(),
+    );
+  }
   let auth_header = jsonwebtoken::encode(
     &Header::new(Algorithm::HS512),
-    &serde_json::to_string(&app_identity)?,
+    &identity_json,
     &EncodingKey::from_secret((&jwt_secret()).as_ref()),
   )
   .context("JWT encoding error")?;
@@ -246,7 +268,6 @@ pub async fn pipe_app_request(
   mut req: Request<Body>,
 ) -> Result<Response, errors::Error> {
   let jwt_secret = jwt_secret();
-
   let (identity, app) = match &server.app_id {
     Some(app_id) => {
       let (identity, app) = authenticate_user_using_headers(
@@ -288,7 +309,7 @@ pub async fn pipe_app_request(
   headers.push((
     "x-portal-user".to_owned(),
     identity
-      .to_json()
+      .to_user_json()
       .expect("Error converting identity to JSON"),
   ));
   if let Some(app) = app {

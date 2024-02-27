@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
@@ -9,6 +10,7 @@ use deno_core::{
 use deno_core::{Extension, JsRuntime, Snapshot};
 use deno_fetch::CreateHttpClientOptions;
 use derivative::Derivative;
+use http::{HeaderMap, HeaderName, HeaderValue};
 use tracing::error;
 use url::Url;
 
@@ -291,28 +293,39 @@ fn set_fetch_client_with_egress(
   config: &RuntimeConfig,
 ) -> Extension {
   let egress_addr = config.egress_addr.clone();
+  let headers = config.egress_headers.clone().unwrap_or_default();
   Extension {
     name: "rutime/init/fetch",
     op_state_fn: Some(Box::new(move |state| {
+      let mut client = utils::fetch::get_default_http_client_builder(
+        &user_agent,
+        CreateHttpClientOptions {
+          root_cert_store: None,
+          ca_certs: vec![],
+          proxy: None,
+          unsafely_ignore_certificate_errors: None,
+          client_cert_chain_and_key: None,
+          pool_max_idle_per_host: None,
+          pool_idle_timeout: None,
+          http1: true,
+          http2: true,
+        },
+      )
+      .unwrap();
+
+      let mut default_headers = HeaderMap::new();
+      headers.into_iter().for_each(|(key, value)| {
+        if let (Ok(key), Ok(value)) =
+          (HeaderName::from_str(&key), HeaderValue::from_str(&value))
+        {
+          default_headers.insert(key, value);
+        }
+      });
+      client = client.default_headers(default_headers);
       if let Some(egress_addr) = egress_addr {
-        let mut client = utils::fetch::get_default_http_client_builder(
-          &user_agent,
-          CreateHttpClientOptions {
-            root_cert_store: None,
-            ca_certs: vec![],
-            proxy: None,
-            unsafely_ignore_certificate_errors: None,
-            client_cert_chain_and_key: None,
-            pool_max_idle_per_host: None,
-            pool_idle_timeout: None,
-            http1: true,
-            http2: true,
-          },
-        )
-        .unwrap();
         client = client.local_address(egress_addr);
-        state.put::<reqwest::Client>(client.build().unwrap());
       }
+      state.put::<reqwest::Client>(client.build().unwrap());
     })),
     ..Default::default()
   }

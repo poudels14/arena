@@ -25,6 +25,9 @@ pub struct RuntimeConfig {
   /// request to a specific network device/address
   pub egress_addr: Option<IpAddr>,
 
+  /// Default egress headers
+  pub egress_headers: Option<Vec<(String, String)>>,
+
   pub process_args: Vec<String>,
 }
 
@@ -35,6 +38,7 @@ impl Default for RuntimeConfig {
     Self {
       project_root: temp_dir.into_path(),
       egress_addr: None,
+      egress_headers: None,
       process_args: vec![],
     }
   }
