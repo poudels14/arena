@@ -1,0 +1,9 @@
+version: '3'
+
+tasks:
+  dev:
+    cmds:
+      - dagger-prod app dev --port 9002 --app-id atlas_ai
+  dev2:
+    cmds:
+      - dagger-prod --env-file .env.dev_99 app dev --port 9052 --app-id atlas_ai_99

@@ -12,10 +12,7 @@ type Context = {
 
 const p = procedure<Context>().use(async ({ ctx, req, next }) => {
   const portalUser = req.headers.get("x-portal-user");
-  let user = null;
-  if (portalUser) {
-    user = JSON.parse(portalUser).user;
-  }
+  const user = JSON.parse(portalUser || "null");
   return await next({
     ctx: {
       ...ctx,

@@ -34,7 +34,7 @@ const ChatIsland = (props: { onNewThread: () => void; hide?: boolean }) => {
     <Show when={getChatContext()}>
       <Show when={chatBoxExpanded()}>
         <div
-          class="chat-island absolute bottom-0 left-0 right-0 w-full backdrop-blur-[1px]"
+          class="chat-island fixed bottom-0 left-0 right-0 w-full backdrop-blur-[1px]"
           classList={{
             "top-0": chatBoxExpanded(),
           }}
