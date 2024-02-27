@@ -9,7 +9,7 @@ import {
   createSelector,
 } from "solid-js";
 import { createQuery } from "@portal/solid-query";
-import { useMatcher, useNavigate } from "@portal/solid-router";
+import { useLocation, useMatcher, useNavigate } from "@portal/solid-router";
 import { useSharedWorkspaceContext } from "@portal/workspace-sdk";
 import { createDroppable } from "@portal/solid-dnd";
 
@@ -25,24 +25,36 @@ export type Directory = {
   isDirectory: boolean;
   breadcrumbs: Pick<Directory, "id" | "name">[];
   children: Directory[];
+  appId?: string;
 };
 
 const FileExplorer = () => {
   const { getCurrentApp, setChatContext } = useSharedWorkspaceContext();
-
   const [getSelectedFile, setSelectedFile] = createSignal<null | Directory>(
     null
   );
-  const directoryId = useMatcher("/explore/:id");
+  const directoryId = useMatcher(() => `/:appId/explore/:id`);
   const currentDirectoryId = createMemo(() => {
     return directoryId()?.params?.id || null;
   });
 
   const navigate = useNavigate();
-  const goToDirectory = (id: string) => navigate(`/explore/` + id);
+  const location = useLocation();
+  const goToDirectory = (id: string, appId?: string) => {
+    let query = "";
+    if (appId) {
+      query = `?app=${appId}`;
+    }
+    navigate(`/${getCurrentApp()!.id}/explore/` + id + query);
+  };
   const filesQuery = createQuery<Directory>(() => {
     const id = currentDirectoryId() ?? "";
-    return `/api/fs/directory/${id}`;
+    const appId = location.searchParams.find((p) => p[0] == "app");
+    let query = "";
+    if (appId) {
+      query = `?app=${appId[1]}`;
+    }
+    return `/api/fs/directory/${id}${query}`;
   }, {});
 
   const isFileSelected = createSelector(() => getSelectedFile()?.id);
@@ -51,6 +63,7 @@ const FileExplorer = () => {
     // reset selection when directory changes
     void currentDirectoryId();
     setSelectedFile(null);
+    filesQuery.refresh();
   });
 
   const chatContextBreadcrums = createMemo<any[]>((prev) => {
@@ -82,7 +95,7 @@ const FileExplorer = () => {
 
     const selction = breadcrumbs[breadcrumbs.length - 1];
     setChatContext({
-      app: getCurrentApp(),
+      app: getCurrentApp()!,
       selection: selction
         ? {
             id: selction.id,
@@ -109,14 +122,14 @@ const FileExplorer = () => {
           onClickBreadcrumb={(id) => goToDirectory(id)}
         />
         <div
-          class="files flex-1 pl-8 py-4 border-4"
+          class="files flex-1 px-8 py-4 border-4"
           ref={droppable.ref}
           classList={{
             "border-indigo-300": droppable.isActiveDroppable,
             "border-transparent": !droppable.isActiveDroppable,
           }}
         >
-          <div class="flex gap-6 text-xs">
+          <div class="flex flex-wrap gap-6 text-xs">
             <Show when={filesQuery.data.children()}>
               <Show when={currentDirectoryId() != null}>
                 <Directory
@@ -131,6 +144,9 @@ const FileExplorer = () => {
                   }}
                 />
               </Show>
+              <Show when={currentDirectoryId() == null}>
+                <SharedWithMe />
+              </Show>
               <For each={filesQuery.data.children()}>
                 {(file) => {
                   return (
@@ -144,7 +160,7 @@ const FileExplorer = () => {
                             setSelectedFile(file);
                           }}
                           onDblClick={() => {
-                            navigate(`/explore/` + file.id);
+                            goToDirectory(file.id, file.appId);
                           }}
                         />
                       </Match>
@@ -158,7 +174,7 @@ const FileExplorer = () => {
                             setSelectedFile(file);
                           }}
                           onDblClick={() => {
-                            navigate(`/explore/` + file.id);
+                            goToDirectory(file.id, file.appId);
                           }}
                         />
                       </Match>
@@ -175,10 +191,28 @@ const FileExplorer = () => {
           </div>
         </div>
       </div>
-      <div class="w-96 h-full border-l border-gray-100 bg-gray-50">
+      <div class="sm:w-0 lg:w-96 h-full border-l border-gray-100 bg-gray-50">
         <FileProperties selected={getSelectedFile()} />
       </div>
     </div>
+  );
+};
+
+const SharedWithMe = () => {
+  const { getCurrentApp } = useSharedWorkspaceContext();
+  const navigate = useNavigate();
+  const goToDirectory = (id: string) =>
+    navigate(`${getCurrentApp()!.id}/explore/` + id);
+  return (
+    <Directory
+      id={"shared"}
+      name={"Shared with me"}
+      selected={false}
+      onClick={() => {}}
+      onDblClick={() => {
+        goToDirectory("shared");
+      }}
+    />
   );
 };
 

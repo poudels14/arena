@@ -3,6 +3,7 @@ import { RiDocumentFileTextLine } from "solid-icons/ri";
 const Directory = (props: {
   id: string;
   name: string;
+  appId?: string;
   selected: boolean;
   onClick?: () => void;
   onDblClick?: () => void;

@@ -1,4 +1,4 @@
-import { Pool } from "@arena/runtime/postgres";
+import { Pool } from "builtin://@arena/dqs/postgres";
 import {
   PageEvent,
   chainMiddlewares,
@@ -21,12 +21,16 @@ const dbpool = new Pool({
 
 const handler = chainMiddlewares<{ event: PageEvent }>(
   async ({ event }) => {
-    const repo = await createRepo({ pool: dbpool });
+    const portalUser = event.request.headers.get("x-portal-user") || "null";
+    let pool = dbpool.withDefaultAclChecker({
+      user: JSON.parse(portalUser),
+    });
+    const repo = await createRepo({ pool });
     try {
       const result = await router.route(event.request, {
         env: process.env,
         context: {
-          dbpool,
+          dbpool: pool,
           repo,
           llm: {
             embeddingsModel: new EmbeddingsModel({}),

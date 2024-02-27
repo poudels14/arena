@@ -1,13 +1,18 @@
 import { merge, pick } from "lodash-es";
 import { z } from "zod";
 import mime from "mime";
+import ky from "ky";
+import qs from "qs";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
 import {
   ContentType,
   createDocument,
 } from "@portal/internal-sdk/llm/documents";
-import { p } from "./procedure";
 import { createDocumentSplitter } from "@portal/sdk/llm/splitter";
+import { p } from "./procedure";
+import { env } from "./env";
+
+const WORKSPACE_HOST_ORIGIN = new URL(env.PORTAL_WORKSPACE_HOST).origin;
 
 const addDirectory = p
   .input(
@@ -17,8 +22,9 @@ const addDirectory = p
     })
   )
   .mutate(async ({ ctx, body, errors }) => {
+    let parent = null;
     if (body.parentId != null) {
-      const parent = await ctx.repo.files.fetchById(body.parentId);
+      parent = await ctx.repo.files.fetchById(body.parentId);
       if (!parent) {
         return errors.badRequest("Invalid parentId");
       }
@@ -31,27 +37,70 @@ const addDirectory = p
       return errors.badRequest("Duplicate directory name");
     }
 
-    const directory = {
-      id: uniqueId(),
-      name: body.name,
-      description: null,
-      isDirectory: true,
-      parentId: body.parentId,
-      createdBy: ctx.user!.id,
-      metadata: {},
-      size: 0,
-      file: null,
-      contentType: null,
-      createdAt: new Date(),
-    };
-    await ctx.repo.files.insert(directory);
+    let directory;
+    let success = false;
+    // creating a directory in a loop such that, if there's id
+    // collision between two directories in a same parent, retry
+    // again with different id
+    for (let i = 0; i < 10; i++) {
+      // if parent is null, create an unique id,
+      // else add `-{3}` suffix to the parent
+      // this makes it easy to implement ACL
+      const id = parent ? `${parent.id}-${uniqueId(3)}` : uniqueId(25);
+      directory = {
+        id,
+        name: body.name,
+        description: null,
+        isDirectory: true,
+        parentId: body.parentId,
+        createdBy: ctx.user!.id,
+        metadata: {},
+        size: 0,
+        file: null,
+        contentType: null,
+        createdAt: new Date(),
+      };
+      await ctx.repo.files.insert(directory).then(() => (success = true));
+      if (success) {
+        break;
+      }
+    }
     return merge(pick(directory, "id", "name", "parentId", "isDirectory"), {
       children: [],
     });
   });
 
-const listDirectory = p.query(async ({ ctx, params, errors }) => {
+// Returns info of a list of files and directories
+const getFiles = p.query(async ({ ctx, searchParams }) => {
+  const ids =
+    typeof searchParams.id == "string" ? [searchParams.id] : searchParams.id;
+  const files = await ctx.repo.files.fetchByIds(ids);
+  return files.map((file) => {
+    return pick(file, "id", "name", "isDirectory");
+  });
+});
+
+const listDirectory = p.query(async ({ ctx, params, searchParams, errors }) => {
   const directoryId = params.id ? params.id : null;
+
+  // If listing directory from different app, proxy request
+  // this happens for shared files and directories
+  if (searchParams.app) {
+    const dir = await ky
+      .get(
+        `${WORKSPACE_HOST_ORIGIN}/w/apps/${searchParams.app}/api/fs/directory/${
+          directoryId || ""
+        }`
+      )
+      .json<any>();
+    if (dir.breadcrumbs) {
+      dir.breadcrumbs.unshift({
+        id: "shared",
+        name: "Shared with me",
+      });
+    }
+    return dir;
+  }
 
   const directory = await ctx.repo.files.fetchById(directoryId);
   if (!directory && directoryId != null) {
@@ -61,6 +110,7 @@ const listDirectory = p.query(async ({ ctx, params, errors }) => {
   const breadcrumbs = await ctx.repo.files.getBreadcrumb({
     directoryId,
   });
+
   const children = await ctx.repo.files.fetchDirectChildren({
     parentId: directoryId,
   });
@@ -73,6 +123,60 @@ const listDirectory = p.query(async ({ ctx, params, errors }) => {
       });
     }),
   });
+});
+
+const listSharedDirectories = p.query(async ({ ctx }) => {
+  const acls = await ky
+    .get(
+      `${WORKSPACE_HOST_ORIGIN}/api/acls?appTemplateId=${ctx.app.template.id}`
+    )
+    .json<any[]>();
+
+  const sharedFileIds = acls
+    .filter((acl) => {
+      return acl.appId != ctx.app!.id;
+    })
+    .map((acl) => {
+      return {
+        appId: acl.appId,
+        entities: (acl.metadata.entities || []).map((e: any) => e.id),
+      };
+    })
+    .filter((app) => app.entities.length > 0);
+
+  const sharedFiles = await Promise.all(
+    sharedFileIds.map(async (app) => {
+      const query = qs.stringify(
+        { id: app.entities },
+        { arrayFormat: "repeat" }
+      );
+      const filesMetadata = await ky
+        .get(
+          `${WORKSPACE_HOST_ORIGIN}/w/apps/${app.appId}/api/fs/files?${query}`
+        )
+        .json<any[]>();
+      return filesMetadata.map((file) => {
+        return merge(file, { appId: app.appId });
+      });
+    })
+  );
+
+  return {
+    id: "shared",
+    name: "Shared with me",
+    breadcrumbs: [
+      {
+        id: "shared",
+        name: "Shared with me",
+        parentId: null,
+      },
+    ],
+    children: sharedFiles.flatMap((files) => {
+      return files.map((file) => {
+        return pick(file, "appId", "id", "name", "isDirectory");
+      });
+    }),
+  };
 });
 
 const uploadFiles = p.mutate(async ({ req, ctx, errors, form }) => {
@@ -92,6 +196,17 @@ const uploadFiles = p.mutate(async ({ req, ctx, errors, form }) => {
     return errors.notFound("Directory not found");
   }
 
+  // if parent is null, create an unique id,
+  // else add `-{6}` suffix to the parent
+  // this makes it easy to implement ACL
+  // adding suffixing of 7 because file wont have children,
+  // so can make this longer than suffix for directory (3)
+  const createUniqueIdForChildren = () => {
+    return parentDirectory
+      ? `${parentDirectory.id}-${uniqueId(7)}`
+      : uniqueId(25);
+  };
+
   const newFiles = [];
   const repo = await ctx.repo.transaction();
   try {
@@ -100,8 +215,9 @@ const uploadFiles = p.mutate(async ({ req, ctx, errors, form }) => {
         const contentType = mime.getType(formInput.filename) as ContentType;
 
         const fileContent = formInput.data.toString("base64");
+
         const originalFile = {
-          id: uniqueId(),
+          id: createUniqueIdForChildren(),
           name: formInput.filename,
           description: null,
           isDirectory: false,
@@ -129,7 +245,7 @@ const uploadFiles = p.mutate(async ({ req, ctx, errors, form }) => {
           const extractedText = await document.getExtractedText();
           const extractedFile = extractedText
             ? {
-                id: uniqueId(),
+                id: createUniqueIdForChildren(),
                 name: formInput.filename,
                 description: null,
                 isDirectory: false,
@@ -167,7 +283,7 @@ const uploadFiles = p.mutate(async ({ req, ctx, errors, form }) => {
           for (let index = 0; index < documentChunks.length; index++) {
             const chunk = documentChunks[index];
             await repo.embeddings.insert({
-              id: uniqueId(),
+              id: uniqueId(13),
               embeddings: embeddings[index],
               metadata: {
                 start: chunk.position.start,
@@ -193,4 +309,10 @@ const uploadFiles = p.mutate(async ({ req, ctx, errors, form }) => {
   };
 });
 
-export { addDirectory, listDirectory, uploadFiles };
+export {
+  addDirectory,
+  listDirectory,
+  listSharedDirectories,
+  getFiles,
+  uploadFiles,
+};

@@ -4,6 +4,7 @@ import z from "zod";
 const env = createEnv({
   server: {
     MODE: z.enum(["development", "production"]).default("development"),
+    PORTAL_WORKSPACE_HOST: z.string().url(),
     PORTAL_DATABASE_HOST: z.string(),
     PORTAL_DATABASE_PORT: z.string().transform((val) => parseInt(val)),
     PORTAL_DATABASE_NAME: z.string(),

@@ -56,6 +56,22 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
         );
       return (rows[0] || null) as File | null;
     },
+    async fetchByIds(ids: string[]): Promise<File[]> {
+      const rows = await db
+        .select({
+          id: files.id,
+          name: files.name,
+          description: files.description,
+          parentId: files.parentId,
+          isDirectory: files.isDirectory,
+          createdBy: files.createdBy,
+          createdAt: files.createdAt,
+          updatedAt: files.updatedAt,
+        })
+        .from(files)
+        .where(and(inArray(files.id, ids), isNull(files.archivedAt)));
+      return rows as File[];
+    },
     async fetchFileNamesByIds(
       ids: string[]
     ): Promise<Pick<File, "id" | "name">[]> {
@@ -63,6 +79,12 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
         .select({
           id: files.id,
           name: files.name,
+          description: files.description,
+          parentId: files.parentId,
+          isDirectory: files.isDirectory,
+          createdBy: files.createdBy,
+          createdAt: files.createdAt,
+          updatedAt: files.updatedAt,
         })
         .from(files)
         .where(and(inArray(files.id, ids), isNull(files.archivedAt)));

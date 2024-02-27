@@ -1,5 +1,4 @@
 import { createRouter, mergedRouter } from "@portal/server-core/router";
-import { z } from "zod";
 import { p } from "./procedure";
 import * as files from "./files";
 import * as portal from "./portal";
@@ -16,8 +15,10 @@ const system = createRouter({
 const protectedRoutes = createRouter({
   prefix: "/api",
   routes: {
-    "/fs/directory/:id?": files.listDirectory,
+    "/fs/directory/shared": files.listSharedDirectories,
     "/fs/directory/add": files.addDirectory,
+    "/fs/directory/:id?": files.listDirectory,
+    "/fs/files": files.getFiles,
     "/fs/upload": files.uploadFiles,
   },
 });

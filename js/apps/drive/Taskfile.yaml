@@ -1,0 +1,9 @@
+version: '3'
+
+tasks:
+  dev:
+    cmds:
+      - DISABLE_AUTH=true dagger-prod app dev --port 9003 --app-id portal_drive_1
+  dev2:
+    cmds:
+      - DISABLE_AUTH=true dagger-prod --env-file .env.dev_99 app dev --port 9053 --app-id portal_drive_99
