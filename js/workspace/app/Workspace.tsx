@@ -105,7 +105,10 @@ const WorkspaceRouter = (props: { setActiveApp: Setter<any> }) => {
             </Show>
           </Route>
           <Route path="/" exact>
-            <Home />
+            {() => {
+              const navigate = useNavigate();
+              navigate("/chat");
+            }}
           </Route>
         </main>
         <QueryContextProvider urlPrefix={`/w/apps/${atlasAi()!.id}/api/`}>
@@ -143,7 +146,7 @@ const WorkspaceSidebar = () => {
       width="150px"
       class="py-4 px-6 h-screen text-sm bg-slate-50 tab:py-1.5 tab:text-gray-600 tab-hover:text-gray-700 tab-active:text-black tab-active:font-medium"
     >
-      <SidebarTab
+      {/* <SidebarTab
         icon={{
           svg: <HiOutlineHome />,
         }}
@@ -153,6 +156,17 @@ const WorkspaceSidebar = () => {
         }}
       >
         <div>Home</div>
+      </SidebarTab> */}
+      <SidebarTab
+        icon={{
+          svg: <HiOutlineHome />,
+        }}
+        active={isTab("chat")}
+        onClick={() => {
+          navigate("/chat");
+        }}
+      >
+        <div>Chat</div>
       </SidebarTab>
       <SidebarTab
         icon={{
@@ -164,17 +178,6 @@ const WorkspaceSidebar = () => {
         }}
       >
         <div>Drive</div>
-      </SidebarTab>
-      <SidebarTab
-        icon={{
-          svg: <HiOutlineHome />,
-        }}
-        active={isTab("chat")}
-        onClick={() => {
-          navigate("/chat");
-        }}
-      >
-        <div>Chat</div>
       </SidebarTab>
     </PortalSidebar>
   );
