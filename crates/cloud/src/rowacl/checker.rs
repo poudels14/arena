@@ -202,6 +202,7 @@ fn apply_filter(
               op: BinaryOperator::Or,
               right: Box::new(expr),
             })
+            .map(|filters| Expr::Nested(Box::new(filters)))
         }
       });
 
@@ -563,7 +564,7 @@ mod tests {
       checker
         .apply_sql_filter("user_1", "SELECT * FROM table1")
         .unwrap(),
-      "SELECT * FROM table1 AS t1 WHERE t1.id = 1".to_owned()
+      "SELECT * FROM table1 AS t1 WHERE (t1.id = 1)".to_owned()
     );
 
     // with alias, should preserve alias
@@ -571,7 +572,7 @@ mod tests {
       checker
         .apply_sql_filter("user_1", "SELECT * FROM table1 t")
         .unwrap(),
-      "SELECT * FROM table1 AS t WHERE t.id = 1".to_owned()
+      "SELECT * FROM table1 AS t WHERE (t.id = 1)".to_owned()
     );
 
     // with quoted table name
@@ -579,7 +580,7 @@ mod tests {
       checker
         .apply_sql_filter("user_1", "SELECT * FROM \"table1\" t")
         .unwrap(),
-      "SELECT * FROM \"table1\" AS t WHERE t.id = 1".to_owned()
+      "SELECT * FROM \"table1\" AS t WHERE (t.id = 1)".to_owned()
     );
 
     // with quoted alias
@@ -587,7 +588,7 @@ mod tests {
       checker
         .apply_sql_filter("user_1", "SELECT * FROM \"table1\" \"t\"")
         .unwrap(),
-      "SELECT * FROM \"table1\" AS \"t\" WHERE \"t\".id = 1".to_owned()
+      "SELECT * FROM \"table1\" AS \"t\" WHERE (\"t\".id = 1)".to_owned()
     );
   }
 
@@ -606,7 +607,25 @@ mod tests {
       checker
         .apply_sql_filter("user_1", "SELECT * FROM table1")
         .unwrap(),
-      "SELECT * FROM table1 AS t1 WHERE t1.id = 1 AND t1.age < 10".to_owned()
+      "SELECT * FROM table1 AS t1 WHERE (t1.id = 1 AND t1.age < 10)".to_owned()
+    );
+  }
+
+  #[test]
+  fn test_rowacl_apply_multiple_acls_with_conditional_select() {
+    let checker = RowAclChecker::from(vec![
+      acl("user_1", "table1", AclType::Select, "id = 2"),
+      acl("user_1", "table1", AclType::Select, "id = 10"),
+    ])
+    .unwrap();
+
+    // without alias, should add alias
+    assert_eq!(
+      checker
+        .apply_sql_filter("user_1", "SELECT * FROM table1 WHERE id > 1")
+        .unwrap(),
+      "SELECT * FROM table1 AS t1 WHERE id > 1 AND (t1.id = 2 OR t1.id = 10)"
+        .to_owned()
     );
   }
 
@@ -642,7 +661,7 @@ mod tests {
           "SELECT * FROM table1 WHERE \"table1\".\"id\" > 10 AND \"table1\".\"age\" = 99"
         )
         .unwrap().as_str(),
-      "SELECT * FROM table1 AS t1 WHERE t1.\"id\" > 10 AND t1.\"age\" = 99 AND t1.id = 1"
+      "SELECT * FROM table1 AS t1 WHERE t1.\"id\" > 10 AND t1.\"age\" = 99 AND (t1.id = 1)"
     );
   }
 
@@ -659,7 +678,7 @@ mod tests {
       checker
         .apply_sql_filter("user_1", "SELECT * FROM table1")
         .unwrap(),
-      "SELECT * FROM table1 AS t1 WHERE t1.id = 1 OR t1.id = 2".to_owned()
+      "SELECT * FROM table1 AS t1 WHERE (t1.id = 1 OR t1.id = 2)".to_owned()
     );
   }
 
@@ -676,7 +695,7 @@ mod tests {
       checker
         .apply_sql_filter("user_1", "SELECT * FROM table1")
         .unwrap(),
-        "SELECT * FROM table1 AS t1 WHERE t1.name ILIKE 'arena%' OR t1.age > 10 OR t1.id IN (69, 420)".to_owned()
+        "SELECT * FROM table1 AS t1 WHERE (t1.name ILIKE 'arena%' OR t1.age > 10 OR t1.id IN (69, 420))".to_owned()
     );
   }
 
@@ -746,7 +765,7 @@ mod tests {
           "UPDATE table1 SET name = 'my name' WHERE id = 1111"
         )
         .unwrap(),
-      "UPDATE table1 AS t1 SET name = 'my name' WHERE id = 1111 AND t1.id = 1"
+      "UPDATE table1 AS t1 SET name = 'my name' WHERE id = 1111 AND (t1.id = 1)"
         .to_owned()
     );
   }
@@ -782,7 +801,7 @@ mod tests {
           "DELETE FROM table1 WHERE name = 'my name' AND id = 1111"
         )
         .unwrap(),
-        "DELETE FROM table1 AS t1 WHERE name = 'my name' AND id = 1111 AND t1.id = 99"
+        "DELETE FROM table1 AS t1 WHERE name = 'my name' AND id = 1111 AND (t1.id = 99)"
           .to_owned()
     );
   }
