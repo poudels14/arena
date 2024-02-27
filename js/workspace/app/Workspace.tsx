@@ -79,47 +79,51 @@ const WorkspaceRouter = (props: { setActiveApp: Setter<any> }) => {
     setActiveThreadId(undefined);
   });
   return (
-    <main class="relative content flex-1">
+    <div class="relative flex-1">
       <DragDropProvider>
-        <Route path="/drive">
-          <Show when={portalDrive()}>
-            <CurrentAppSetter
-              setActiveApp={props.setActiveApp}
-              app={portalDrive()!}
-            />
-            <QueryContextProvider urlPrefix={`/w/apps/${portalDrive()!.id}/`}>
-              <PortalDrive />
-            </QueryContextProvider>
-          </Show>
-        </Route>
-        <Route path="/chat">
-          <Show when={atlasAi()}>
-            <CurrentAppSetter
-              setActiveApp={props.setActiveApp}
-              app={atlasAi()!}
-            />
-            <QueryContextProvider urlPrefix={`/w/apps/${atlasAi()!.id}/api/`}>
-              <AtlasAI />
-            </QueryContextProvider>
-          </Show>
-        </Route>
-        <Route path="/" exact>
-          <Home />
-        </Route>
+        <main class="content overflow-auto no-scrollbar">
+          <Route path="/drive">
+            <Show when={portalDrive()}>
+              <CurrentAppSetter
+                setActiveApp={props.setActiveApp}
+                app={portalDrive()!}
+              />
+              <QueryContextProvider urlPrefix={`/w/apps/${portalDrive()!.id}/`}>
+                <PortalDrive />
+              </QueryContextProvider>
+            </Show>
+          </Route>
+          <Route path="/chat">
+            <Show when={atlasAi()}>
+              <CurrentAppSetter
+                setActiveApp={props.setActiveApp}
+                app={atlasAi()!}
+              />
+              <QueryContextProvider urlPrefix={`/w/apps/${atlasAi()!.id}/api/`}>
+                <AtlasAI />
+              </QueryContextProvider>
+            </Show>
+          </Route>
+          <Route path="/" exact>
+            <Home />
+          </Route>
+        </main>
         <QueryContextProvider urlPrefix={`/w/apps/${atlasAi()!.id}/api/`}>
           <ChatContextProvider
             activeThreadId={getActiveThreadId()}
-            singleThreadOnly={true}
             onThreadReady={(threadId) => {
               setActiveThreadId(threadId);
             }}
           >
-            <ChatIsland hide={hideChatIsland()} />
+            <ChatIsland
+              onNewThread={() => setActiveThreadId(undefined)}
+              hide={hideChatIsland()}
+            />
           </ChatContextProvider>
         </QueryContextProvider>
         <DragOverlay />
       </DragDropProvider>
-    </main>
+    </div>
   );
 };
 
@@ -132,12 +136,12 @@ const CurrentAppSetter = (props: { setActiveApp: Setter<any>; app: any }) => {
 
 const WorkspaceSidebar = () => {
   const navigate = useNavigate();
-  const matcher = useMatcher("/:tab/*");
+  const matcher = useMatcher(() => "/:tab/*");
   const isTab = createSelector(() => matcher()?.params?.tab || "home");
   return (
     <PortalSidebar
-      width="200px"
-      class="py-4 pl-8 h-screen text-sm bg-blue-50 tab:py-1.5 tab:text-gray-600 tab-hover:text-gray-700 tab-active:text-black tab-active:font-medium"
+      width="150px"
+      class="py-4 px-6 h-screen text-sm bg-slate-50 tab:py-1.5 tab:text-gray-600 tab-hover:text-gray-700 tab-active:text-black tab-active:font-medium"
     >
       <SidebarTab
         icon={{
