@@ -47,6 +47,13 @@ impl ArenaRuntimeState {
           .and(environment_variables::app_id.is_null())
           .and(environment_variables::workspace_id.is_null()),
       )
+      // global env variable
+      .or_filter(
+        environment_variables::app_template_id
+          .is_null()
+          .and(environment_variables::app_id.is_null())
+          .and(environment_variables::workspace_id.is_null()),
+      )
       .into_boxed();
 
     let env_vars = query

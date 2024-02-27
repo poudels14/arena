@@ -52,7 +52,7 @@ impl ModuleLoader for AppkitModuleLoader {
       // Note(sagar): allow builtin modules to be loaded by builtin modules
       // This is necessary to load builtin modules like `path` and `process`
       if let Ok(referrer) = referrer_url {
-        if referrer.scheme() == "builtin" {
+        if referrer.scheme() == "builtin" || referrer.scheme() == "dqs" {
           return Ok(url);
         }
       }
@@ -236,5 +236,6 @@ fn is_allowed_builtin_module(specifier: &str) -> bool {
     // allow runtime/server since app templates need it
     || specifier == "@arena/runtime/server"
     || specifier == "@arena/runtime/postgres"
+    || specifier == "@arena/dqs/postgres"
     || specifier.starts_with("@arena/cloud/")
 }
