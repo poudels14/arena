@@ -133,7 +133,7 @@ pub async fn op_postgres_create_connection(
 
   let credential =
     serde_json::from_value::<ConnectionCredential>(cred_value)
-      .map_err(|_| anyhow!("unable to parse connection credential"))?;
+      .map_err(|e| anyhow!("unable to parse connection credential: {:?}", e))?;
   let connection_string = credential.to_connection_string();
 
   let (client, connection) =
