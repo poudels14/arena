@@ -18,6 +18,7 @@ type Context = {
    * session
    */
   user: { id: string; email: string | null } | null;
+  app: { id: string } | null;
   dbpool: Pool;
   repo: Repo;
   s3Client: Client;
@@ -27,8 +28,8 @@ type Context = {
 const p = procedure<Context>();
 
 const protectedProcedure = p.use(
-  async ({ ctx, next, errors, clearCookie, redirect }) => {
-    if (!ctx.user?.email) {
+  async ({ ctx, next, clearCookie, redirect }) => {
+    if (!ctx.user || ctx.user?.id == "public") {
       // Ignore error if user info can't be parsed from the header
       clearCookie("logged-in");
       return redirect("/login");
@@ -39,46 +40,19 @@ const protectedProcedure = p.use(
   }
 );
 
-const parseUserFromHeaders = p.use(async ({ req, ctx, next, cookies }) => {
-  if (process.env.DISABLE_AUTH == "true") {
-    return await next({
-      ctx: {
-        ...ctx,
-        user: {
-          id: "test-user-dev",
-          email: "test-user@test.com",
-        },
-      },
-    });
-  }
-
-  const token = cookies.user || req.headers.get("x-portal-authentication");
-  let user = null;
-  try {
-    const { payload } = jwt.verify<{ user: { id: string; email: string } }>(
-      token || "",
-      "HS256",
-      ctx.env.JWT_SIGNING_SECRET
-    );
-    user = await ctx.repo.users.fetchById(payload.user.id);
-  } catch (e) {}
-
-  return await next({
+const authenticate = p.use(async ({ ctx, next, req, errors }) => {
+  const portalUser = req.headers.get("x-portal-user");
+  const portalApp = req.headers.get("x-portal-app");
+  const user = JSON.parse(portalUser || "null");
+  const app = JSON.parse(portalApp || "null");
+  return next({
     ctx: {
       ...ctx,
       user,
+      app,
     },
   });
 });
 
-const authenticate = parseUserFromHeaders.use(async ({ ctx, next, errors }) => {
-  if (!ctx.user?.email) {
-    return errors.forbidden();
-  }
-  return next({
-    ctx,
-  });
-});
-
-export { p, parseUserFromHeaders, authenticate, protectedProcedure };
+export { p, authenticate, protectedProcedure };
 export type { Context };

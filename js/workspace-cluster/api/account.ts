@@ -40,7 +40,7 @@ const sendMagicLink = p
     }
 
     const signInToken = jwt.sign({
-      header: { alg: "HS256" },
+      header: { alg: "HS512" },
       payload: {
         user: {
           id: user.id,
@@ -96,7 +96,7 @@ const magicLinkLogin = p.query(
     try {
       const { payload } = jwt.verify(
         magicToken,
-        "HS256",
+        "HS512",
         ctx.env.JWT_SIGNING_SECRET
       );
 
@@ -128,29 +128,51 @@ const magicLinkLogin = p.query(
         });
 
         const repo = await ctx.repo.transaction();
-        const atlasAi = await ctx.repo.appTemplates.fetchById("atlasai");
-        if (atlasAi) {
-          await addApp(
-            repo,
-            { id: userId },
-            {
-              id: uniqueId(14),
-              workspaceId: workspace.id,
-              name: "Atlas AI",
-              description: "An AI Assistant",
-              template: {
-                id: atlasAi.id,
-                version: atlasAi.defaultVersion || "0.0.1",
-              },
-            }
+        try {
+          const atlasAi = await ctx.repo.appTemplates.fetchById("atlasai");
+          if (atlasAi) {
+            await addApp(
+              repo,
+              { id: userId },
+              {
+                id: uniqueId(19),
+                workspaceId: workspace.id,
+                name: "Atlas AI",
+                description: "An AI Assistant",
+                template: {
+                  id: atlasAi.id,
+                  version: atlasAi.defaultVersion || "0.0.1",
+                },
+              }
+            );
+          }
+          const portalDrive = await ctx.repo.appTemplates.fetchById(
+            "portal-drive"
           );
+          if (portalDrive) {
+            await addApp(
+              repo,
+              { id: userId },
+              {
+                id: uniqueId(19),
+                workspaceId: workspace.id,
+                name: "Portal Drive",
+                description: "Portal Drive",
+                template: {
+                  id: portalDrive.id,
+                  version: portalDrive.defaultVersion || "0.0.1",
+                },
+              }
+            );
+          }
+          await repo.commit();
+        } finally {
+          await repo.release();
         }
-        await repo.commit();
-        await repo.release();
       }
 
       const signInToken = jwt.sign({
-        header: { alg: "HS256" },
+        header: { alg: "HS512" },
         payload: {
           user: {
             id: user.id,

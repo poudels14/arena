@@ -27,11 +27,11 @@ const accessType = z.enum([
   /**
    * This access allows users to SELECT rows from a table
    */
-  "SELECT",
+  "READ",
   /**
    * This access allows user to INSERT rows in a table
    */
-  "INSERT",
+  "WRITE",
   /**
    * This access allows user to UPDATE rows in a table
    */
@@ -59,6 +59,12 @@ type Acl = InferModel<typeof acls> & {
     table: string;
     // SQL query filter; eg: `id = 1`, `id > 10`, etc
     filter: string;
+    // list of entities that this acl provides access to
+    // this is mostly used by the apps to keep track of shared
+    // resources in case they need to get a list of the shared
+    // resources; for example, when sharing files, might need to
+    // list shared files/directories
+    entities?: { id: string }[];
   };
   createdAt: Date;
   updatedAt?: Date | null;

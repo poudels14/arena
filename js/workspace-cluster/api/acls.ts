@@ -14,10 +14,19 @@ const addAcl = protectedProcedure
         id: z.string(),
         templateId: z.string(),
       }),
-      metadata: z.object({
-        table: z.string(),
-        filter: z.string(),
-      }),
+      metadata: z
+        .object({
+          table: z.string(),
+          filter: z.string(),
+          entities: z.array(
+            z
+              .object({
+                id: z.string(),
+              })
+              .passthrough()
+          ),
+        })
+        .passthrough(),
       resourceId: z.string().optional(),
     })
   )
@@ -55,14 +64,11 @@ const addAcl = protectedProcedure
 
 const listAcls = protectedProcedure.query(
   async ({ ctx, searchParams, errors }) => {
-    if (!searchParams.userId) {
-      return errors.badRequest("Missing required query param: `userId`");
-    }
     if (!searchParams.appTemplateId) {
       return errors.badRequest("Missing required query param: `appTemplateId`");
     }
     const acls = await ctx.repo.acl.listAccess({
-      userId: searchParams.userId!,
+      userId: ctx.user!.id,
       workspaceId: searchParams.workspaceId,
       appId: searchParams.appId,
       appTemplateId: searchParams.appTemplateId,

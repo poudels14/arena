@@ -1,5 +1,5 @@
 import { createRouter, mergedRouter } from "@portal/server-core/router";
-import { authenticate, parseUserFromHeaders } from "./procedure";
+import { authenticate } from "./procedure";
 import * as account from "./account";
 import * as workspaces from "./workspaces";
 import * as apps from "./apps";
@@ -52,7 +52,7 @@ const authorizedRoutes = createRouter({
 });
 
 const registryRoutes = createRouter({
-  middleware: parseUserFromHeaders.toMiddleware(),
+  middleware: authenticate.toMiddleware(),
   routes: {
     "/registry/upload": registry.upload,
     "/registry/*": registry.get,

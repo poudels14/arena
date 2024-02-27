@@ -87,6 +87,7 @@ const migrations: PostgresDatabaseConfig = {
           slug VARCHAR(100),
           description TEXT,
           workspace_id VARCHAR(50),
+          owner_id VARCHAR(50),
           template JSONB DEFAULT NULL,
           config JSONB,
           created_by VARCHAR(50),
@@ -182,6 +183,10 @@ const migrations: PostgresDatabaseConfig = {
             workspace_id VARCHAR(50) NOT NULL,
             user_id VARCHAR(50) NOT NULL,
             access VARCHAR(100) NOT NULL,
+            -- if a single sharing action requires multiple acl rows,
+            -- putting them under a same access_group makes it easier
+            -- to remove access, check for duplicates, etc
+            access_group VARCHAR(100),
             app_id VARCHAR(50) DEFAULT NULL,
             app_template_id VARCHAR(50) DEFAULT NULL,
             -- If an app has multiple paths, different paths could have different
