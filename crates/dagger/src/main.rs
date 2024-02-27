@@ -2,6 +2,7 @@ mod app;
 mod format;
 mod run;
 mod server;
+mod utils;
 
 use anyhow::bail;
 use anyhow::Context;

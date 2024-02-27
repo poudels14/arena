@@ -4,15 +4,17 @@ use std::rc::Rc;
 
 use anyhow::Result;
 use clap::Parser;
-use runtime::buildtools::transpiler::BabelTranspiler;
+use common::required_env;
 use runtime::buildtools::FileModuleLoader;
 use runtime::config::ArenaConfig;
 use runtime::extensions::BuiltinModule;
 use runtime::resolver::FilePathResolver;
 use runtime::utils::fs::has_file_in_file_tree;
+use s3::creds::Credentials;
 use tracing::info;
 
 use crate::app::server::{self, ServerOptions};
+use crate::utils::s3loader::{S3ModuleLoaderOptions, S3ModulerLoader};
 
 #[derive(Parser, Debug)]
 pub struct Command {
@@ -37,6 +39,16 @@ pub struct Command {
   /// Heap limit hint
   #[arg(long)]
   heap_limit_mb: Option<usize>,
+
+  /// Load main module from the given S3 bucket
+  /// The following env variables must be set
+  ///   - S3_ENDPOINT
+  ///   - S3_ACCESS_KEY
+  ///   - S3_SECRET_KEY
+  #[arg(long)]
+  s3bucket: Option<String>,
+
+  entry: String,
 }
 
 impl Command {
@@ -54,17 +66,16 @@ impl Command {
       .expect("Error canonicalizing app dir");
 
     let config = ArenaConfig::load(&cwd.join(&app_dir).canonicalize()?)?;
-    let server_entry = app_dir.join(&config.server.entry);
-    let server_entry = server_entry
-      .to_str()
-      .expect("Error getting server entry path as str");
-
-    let resolver_config = config
-      .server
-      .javascript
-      .as_ref()
-      .and_then(|js| js.resolve.clone())
-      .unwrap_or_default();
+    let server_entry = match self.s3bucket {
+      Some(_) => self.entry.clone(),
+      _ => {
+        let entry = app_dir.join(&self.entry);
+        entry
+          .to_str()
+          .expect("Error getting server entry path as str")
+          .to_owned()
+      }
+    };
 
     let server_options = ServerOptions {
       app_id: self.app_id.clone(),
@@ -74,26 +85,42 @@ impl Command {
       root_dir: app_dir.clone(),
       heap_limit_mb: self.heap_limit_mb,
       builtin_modules: vec![
-        BuiltinModule::Fs,
         BuiltinModule::Env,
+        BuiltinModule::Fs,
         BuiltinModule::Node(None),
         BuiltinModule::Postgres,
-        BuiltinModule::Resolver(resolver_config.clone()),
-        BuiltinModule::Transpiler,
-        BuiltinModule::Babel,
+        BuiltinModule::Cloudflare,
       ],
-      module_loader: Some(Rc::new(FileModuleLoader::new(
-        Rc::new(FilePathResolver::new(
-          app_dir.clone(),
-          config
-            .server
-            .javascript
-            .clone()
-            .and_then(|j| j.resolve)
-            .unwrap_or_default(),
-        )),
-        Some(Rc::new(BabelTranspiler::new(resolver_config).await)),
-      ))),
+      module_loader: if let Some(bucket) = &self.s3bucket {
+        let endpoint = required_env!("S3_ENDPOINT");
+        let access_key = required_env!("S3_ACCESS_KEY");
+        let access_secret = required_env!("S3_ACCESS_SECRET");
+        Some(Rc::new(S3ModulerLoader::new(S3ModuleLoaderOptions {
+          with_path_style: true,
+          bucket: bucket.to_owned(),
+          endpoint,
+          credentials: Credentials {
+            access_key: Some(access_key),
+            secret_key: Some(access_secret),
+            security_token: None,
+            session_token: None,
+            expiration: None,
+          },
+        })))
+      } else {
+        Some(Rc::new(FileModuleLoader::new(
+          Rc::new(FilePathResolver::new(
+            app_dir.clone(),
+            config
+              .server
+              .javascript
+              .clone()
+              .and_then(|j| j.resolve)
+              .unwrap_or_default(),
+          )),
+          None,
+        )))
+      },
     };
 
     info!(

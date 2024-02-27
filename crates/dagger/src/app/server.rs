@@ -25,9 +25,8 @@ use dqs::cluster::auth::{
 use dqs::cluster::cache::Cache;
 use dqs::runtime::DQS_SNAPSHOT;
 use jsonwebtoken::{Algorithm, EncodingKey, Header};
-use runtime::buildtools::{transpiler::BabelTranspiler, FileModuleLoader};
-use runtime::config::{ArenaConfig, RuntimeConfig};
-use runtime::deno::core::Snapshot;
+use runtime::config::RuntimeConfig;
+use runtime::deno::core::{ModuleLoader, Snapshot};
 use runtime::extensions::server::request::read_http_body_to_buffer;
 use runtime::extensions::server::response::ParsedHttpResponse;
 use runtime::extensions::server::{errors, HttpRequest, HttpServerConfig};
@@ -37,38 +36,29 @@ use runtime::extensions::{
 use runtime::permissions::{
   FileSystemPermissions, NetPermissions, PermissionsContainer, TimerPermissions,
 };
-use runtime::resolver::FilePathResolver;
 use runtime::{IsolatedRuntime, RuntimeOptions};
 use serde_json::Value;
 use tokio::sync::{mpsc, oneshot};
 use tower::ServiceBuilder;
 use url::Url;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub(super) struct ServerOptions {
   pub root_dir: PathBuf,
   // set this if ACL checker should be enabled
   pub app_id: Option<String>,
   pub allow_headers: Option<bool>,
-  pub config: ArenaConfig,
   pub port: u16,
   pub address: String,
-  pub transpile: bool,
   pub heap_limit_mb: Option<usize>,
+  pub builtin_modules: Vec<BuiltinModule>,
+  pub module_loader: Option<Rc<dyn ModuleLoader>>,
 }
 
 pub(super) async fn start_js_server(
   options: ServerOptions,
   main_module: &str,
 ) -> Result<()> {
-  let resolver_config = options
-    .config
-    .server
-    .javascript
-    .as_ref()
-    .and_then(|js| js.resolve.clone())
-    .unwrap_or_default();
-
   let (stream_tx, stream_rx) = mpsc::channel(10);
 
   let db_pool = options
@@ -85,24 +75,18 @@ pub(super) async fn start_js_server(
     stream: stream_tx,
   };
 
-  let mut builtin_modules = vec![
-    BuiltinModule::Fs,
-    BuiltinModule::Env,
-    BuiltinModule::Node(None),
-    BuiltinModule::Postgres,
-    BuiltinModule::Resolver(resolver_config.clone()),
-    BuiltinModule::Transpiler,
+  let mut builtin_extensions: Vec<BuiltinExtension> = options
+    .builtin_modules
+    .iter()
+    .map(|m| m.get_extension())
+    .collect();
+
+  builtin_extensions.push(
     BuiltinModule::HttpServer(HttpServerConfig::Stream(Arc::new(Mutex::new(
       Some(stream_rx),
-    )))),
-  ];
-
-  if options.transpile {
-    builtin_modules.extend(vec![BuiltinModule::Babel])
-  }
-
-  let mut builtin_extensions: Vec<BuiltinExtension> =
-    builtin_modules.iter().map(|m| m.get_extension()).collect();
+    ))))
+    .get_extension(),
+  );
 
   let acl_checker = match options.app_id.as_ref() {
     Some(ref id) => Some(server.cache.get_app_acl_checker(&id).await?),
@@ -162,19 +146,7 @@ pub(super) async fn start_js_server(
     enable_console: true,
     enable_arena_global: true,
     builtin_extensions,
-    module_loader: Some(Rc::new(FileModuleLoader::new(
-      Rc::new(FilePathResolver::new(
-        options.root_dir.clone(),
-        options
-          .config
-          .server
-          .javascript
-          .clone()
-          .and_then(|j| j.resolve)
-          .unwrap_or_default(),
-      )),
-      Some(Rc::new(BabelTranspiler::new(resolver_config).await)),
-    ))),
+    module_loader: options.module_loader,
     permissions: PermissionsContainer {
       fs: Some(FileSystemPermissions::allow_all("/".into())),
       net: Some(NetPermissions::allow_all()),
@@ -186,9 +158,11 @@ pub(super) async fn start_js_server(
     ..Default::default()
   })?;
 
+  let address = options.address.clone();
+  let port = options.port;
   tokio::spawn(async move {
     server
-      .start(options)
+      .start(address, port)
       .await
       .expect("Error starting axum server");
   });
@@ -211,7 +185,7 @@ pub struct AxumServer {
 }
 
 impl AxumServer {
-  async fn start(self, options: ServerOptions) -> Result<()> {
+  async fn start(self, address: String, port: u16) -> Result<()> {
     let app = Router::new()
       .route(
         "/_admin/healthy",
@@ -226,12 +200,11 @@ impl AxumServer {
         ServiceBuilder::new().layer(middleware::from_fn(logger::middleware)),
       )
       .with_state(self.clone());
-    let addr: SocketAddr =
-      (Ipv4Addr::from_str(&options.address)?, options.port).into();
+    let addr: SocketAddr = (Ipv4Addr::from_str(&address)?, port).into();
 
     println!(
       "{}",
-      format!("Starting app server port {}...", options.port)
+      format!("Starting app server port {}...", port)
         .yellow()
         .bold()
     );

@@ -20,7 +20,7 @@ use runtime::{IsolatedRuntime, RuntimeOptions};
 use s3::creds::Credentials;
 use url::Url;
 
-use super::s3loader::{S3ModuleLoaderOptions, S3ModulerLoader};
+use crate::utils::s3loader::{S3ModuleLoaderOptions, S3ModulerLoader};
 
 #[derive(Parser, Debug)]
 pub struct Command {
