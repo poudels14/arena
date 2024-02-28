@@ -122,7 +122,7 @@ const Chatbox = (props: {
           disableContextEdit={props.disableContextEdit}
         />
       </Show>
-      <div class="relative px-2 py-2 rounded-lg bg-gray-50 border border-gray-200 shadow-lg backdrop-blur-sm">
+      <div class="relative px-2 py-2 rounded-lg bg-gray-50 border border-gray-200 shadow-sm">
         <form
           class="p-0 m-0"
           onSubmit={(e) => {
