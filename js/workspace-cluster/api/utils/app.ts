@@ -17,14 +17,18 @@ const addApp = async (
     };
   }
 ) => {
-  const appId = slugify(app.id || uniqueId(14), {
-    separator: "_",
-    decamelize: false,
-  });
+  // start with `app` to make sure db name doesn't start with number
+  const appId =
+    "app_" +
+    slugify(app.id || uniqueId(14), {
+      separator: "_",
+      decamelize: false,
+    });
 
   const newApp = await repo.apps.insert({
     id: appId,
     workspaceId: app.workspaceId,
+    ownerId: user.id,
     name: app.name,
     slug: slugify(app.name, {
       separator: "_",

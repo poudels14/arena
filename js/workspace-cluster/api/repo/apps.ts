@@ -10,6 +10,7 @@ export const apps = pgTable("apps", {
   description: text("description"),
   template: jsonb("template"),
   workspaceId: varchar("workspace_id").notNull(),
+  ownerId: varchar("owner_id"),
   config: jsonb("config"),
   createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
