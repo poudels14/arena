@@ -45,6 +45,7 @@
     "@arena/runtime": "workspace:^",
     "@kobalte/core": "^0.12.1",
     "@portal-apps/assistant": "workspace:^",
+    "@portal-apps/drive": "workspace:^",
     "@portal/cli": "workspace:^",
     "@portal/deploy": "workspace:^",
     "@portal/email": "workspace:^",
@@ -77,6 +78,7 @@
     "@types/lodash-es": "^4.17.12",
     "@types/mime-types": "^2.1.4",
     "@types/ms": "^0.7.34",
-    "@types/node": "^20.10.6"
+    "@types/node": "^20.10.6",
+    "tailwindcss": "^3.4.1"
   }
 }

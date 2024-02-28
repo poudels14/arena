@@ -4,9 +4,12 @@ const solidUi = require("@portal/solid-ui/tailwind");
 module.exports = {
   darkMode: "class",
   content: [
+    "./node_modules/@portal/workspace/*.{js,ts,jsx,tsx}",
     "./node_modules/@portal/workspace/app/**/*.{js,ts,jsx,tsx}",
     "./node_modules/@portal-apps/assistant/app/**/*.{js,ts,jsx,tsx}",
-    "./node_modules/@portal-apps/assistant/app/*.{js,ts,jsx,tsx}",
+    "./node_modules/@portal-apps/assistant/*.{js,ts,jsx,tsx}",
+    "./node_modules/@portal-apps/drive/app/**/*.{js,ts,jsx,tsx}",
+    "./node_modules/@portal-apps/drive/*.{js,ts,jsx,tsx}",
     "./node_modules/@portal/solid-ui/**/*.{js,ts,jsx,tsx}",
     "./node_modules/@portal/solid-ui/*.{js,ts,jsx,tsx}",
   ],

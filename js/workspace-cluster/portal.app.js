@@ -1,17 +1,19 @@
-const version = "0.0.1";
+const path = require("path");
+
+const version = "0.0.2";
 
 /** @type {import('@portal/sdk/app/build').AppConfig} */
 module.exports = {
   id: "workspace-cluster",
   version,
   registry: {
-    host: "http://localhost:9009/",
+    host: "http://localhost:9001/",
     apiKey: process.env.REGISTRY_API_KEY,
   },
   resolve: {
     alias: {
-      "~/app": "./app",
-      "~/api": "./api",
+      "~/app": path.resolve("./app"),
+      "~/api": path.resolve("./api"),
     },
     dedupe: [
       "solid-js",
@@ -24,6 +26,8 @@ module.exports = {
       "@portal/solid-dnd",
       "@portal/workspace-sdk",
       "@kobalte/core",
+      "@portal-apps/assistant",
+      "@portal-apps/drive",
     ],
   },
   client: {
