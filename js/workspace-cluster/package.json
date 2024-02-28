@@ -63,6 +63,7 @@
     "@solidjs/meta": "^0.29.3",
     "@solidjs/router": "^0.10.5",
     "@t3-oss/env-core": "^0.8.0",
+    "autoprefixer": "^10.4.14",
     "drizzle-orm": "^0.26.4",
     "ky": "^0.33.3",
     "lodash-es": "^4.17.21",
