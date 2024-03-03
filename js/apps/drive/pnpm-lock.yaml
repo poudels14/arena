@@ -47,12 +47,21 @@ dependencies:
   '@portal/workspace-sdk':
     specifier: workspace:^
     version: link:../../portal-app/workspace-sdk
+  '@solidjs/meta':
+    specifier: ^0.29.3
+    version: 0.29.3(solid-js@1.8.12)
+  '@solidjs/router':
+    specifier: ^0.12.4
+    version: 0.12.4(solid-js@1.8.12)
   '@t3-oss/env-core':
     specifier: ^0.7.1
     version: 0.7.3(zod@3.22.4)
   drizzle-orm:
     specifier: ^0.26.4
     version: 0.26.5
+  fast-deep-equal:
+    specifier: ^3.1.3
+    version: 3.1.3
   ky:
     specifier: ^0.33.3
     version: 0.33.3
@@ -90,6 +99,22 @@ devDependencies:
     version: 6.9.11
 
 packages:
+
+  /@solidjs/meta@0.29.3(solid-js@1.8.12):
+    resolution: {integrity: sha512-R2uirgjgyh3FPFh+rb840plF701N6GvM5w81/QeI61QwjXb4QzLkyI/uzXfC5UW8favpUn9KK9ILQeoTl6pX0A==}
+    peerDependencies:
+      solid-js: '>=1.8.4'
+    dependencies:
+      solid-js: 1.8.12
+    dev: false
+
+  /@solidjs/router@0.12.4(solid-js@1.8.12):
+    resolution: {integrity: sha512-2S5QWYmpWSIWn5ei85eoStEMmECERX2BiBkEvmqYDrgX79I8D95YaWVdHbcFGOxISPTY4TP7RxjRiofs/AIFJQ==}
+    peerDependencies:
+      solid-js: ^1.8.6
+    dependencies:
+      solid-js: 1.8.12
+    dev: false
 
   /@t3-oss/env-core@0.7.3(zod@3.22.4):
     resolution: {integrity: sha512-hhtj59TKC6TKVdwJ0CcbKsvkr9R8Pc/SNKd4IgGUIC9T9X6moB8EZZ3FTJdABA/h9UABCK4J+KsF8gzmvMvHPg==}
@@ -220,6 +245,10 @@ packages:
   /es-errors@1.3.0:
     resolution: {integrity: sha512-Zf5H2Kxt2xjTvbJvP2ZWLEICxA6j+hAmMzIlypy4xcBg1vKVnx89Wy0GbS+kf5cwCVFFzdCFh2XSCFNULS6csw==}
     engines: {node: '>= 0.4'}
+    dev: false
+
+  /fast-deep-equal@3.1.3:
+    resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
     dev: false
 
   /function-bind@1.1.2:

@@ -1,3 +1,4 @@
+import { Show } from "solid-js";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { Uploader } from "./Uploader";
 
@@ -8,6 +9,7 @@ type HeaderProps = {
     id: string;
     title: string;
   }[];
+  disableUpload?: boolean;
   onClickBreadcrumb: (id: string) => void;
   onUpload: (files: any[]) => void;
   onNewDirectory: () => void;
@@ -22,11 +24,13 @@ const Header = (props: HeaderProps) => {
           onClickBreadcrumb={props.onClickBreadcrumb}
         />
       </div>
-      <Uploader
-        parentId={props.currentDir}
-        onUpload={props.onUpload}
-        onNewDirectory={props.onNewDirectory}
-      />
+      <Show when={!props.disableUpload}>
+        <Uploader
+          parentId={props.currentDir}
+          onUpload={props.onUpload}
+          onNewDirectory={props.onNewDirectory}
+        />
+      </Show>
     </div>
   );
 };

@@ -19,6 +19,7 @@ const dbpool = new Pool({
   password: env.PORTAL_DATABASE_PASSWORD,
 });
 
+const embeddingsModel = new EmbeddingsModel({});
 const handler = chainMiddlewares<{ event: PageEvent }>(
   async ({ event }) => {
     const portalUser = event.request.headers.get("x-portal-user") || "null";
@@ -31,9 +32,10 @@ const handler = chainMiddlewares<{ event: PageEvent }>(
         env: process.env,
         context: {
           dbpool: pool,
+          env,
           repo,
           llm: {
-            embeddingsModel: new EmbeddingsModel({}),
+            embeddingsModel,
           },
         },
       });
@@ -66,3 +68,4 @@ const { fetch } = createHandler(async (event) => await handler({ event }));
 
 export { fetch };
 export default { fetch };
+export { default as migrations } from "./migrations";

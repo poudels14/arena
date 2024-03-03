@@ -2,15 +2,18 @@ import { procedure } from "@portal/server-core/router";
 import { Pool } from "@arena/runtime/postgres";
 import { EmbeddingsModel } from "@arena/cloud/llm";
 import { Repo } from "./repo";
+import { Env } from "./env";
 
 type Context = {
+  env: Env;
   dbpool: Pool;
   repo: Repo;
   user: { id: string; email?: string };
-  app: { id: string; template: { id: string } };
+  app: { id: string; ownerId: string; template: { id: string } };
   llm: {
     embeddingsModel: EmbeddingsModel;
   };
+  workspaceHost: string;
 };
 
 const p = procedure<Context>().use(async ({ ctx, req, next }) => {
@@ -23,6 +26,7 @@ const p = procedure<Context>().use(async ({ ctx, req, next }) => {
       ...ctx,
       user,
       app,
+      workspaceHost: new URL(ctx.env.PORTAL_WORKSPACE_HOST).origin,
     },
   });
 });

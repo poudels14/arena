@@ -1,4 +1,4 @@
-import { merge, pick } from "lodash-es";
+import { merge, pick, uniqBy } from "lodash-es";
 import { z } from "zod";
 import mime from "mime";
 import ky from "ky";
@@ -10,9 +10,6 @@ import {
 } from "@portal/internal-sdk/llm/documents";
 import { createDocumentSplitter } from "@portal/sdk/llm/splitter";
 import { p } from "./procedure";
-import { env } from "./env";
-
-const WORKSPACE_HOST_ORIGIN = new URL(env.PORTAL_WORKSPACE_HOST).origin;
 
 const addDirectory = p
   .input(
@@ -88,12 +85,13 @@ const listDirectory = p.query(async ({ ctx, params, searchParams, errors }) => {
   if (searchParams.app) {
     const dir = await ky
       .get(
-        `${WORKSPACE_HOST_ORIGIN}/w/apps/${searchParams.app}/api/fs/directory/${
+        `${ctx.workspaceHost}/w/apps/${searchParams.app}/api/fs/directory/${
           directoryId || ""
         }`
       )
       .json<any>();
     if (dir.breadcrumbs) {
+      dir.parentId = dir.parentId || "shared";
       dir.breadcrumbs.unshift({
         id: "shared",
         name: "Shared with me",
@@ -127,9 +125,7 @@ const listDirectory = p.query(async ({ ctx, params, searchParams, errors }) => {
 
 const listSharedDirectories = p.query(async ({ ctx }) => {
   const acls = await ky
-    .get(
-      `${WORKSPACE_HOST_ORIGIN}/api/acls?appTemplateId=${ctx.app.template.id}`
-    )
+    .get(`${ctx.workspaceHost}/api/acls?appTemplateId=${ctx.app.template.id}`)
     .json<any[]>();
 
   const sharedFileIds = acls
@@ -151,9 +147,7 @@ const listSharedDirectories = p.query(async ({ ctx }) => {
         { arrayFormat: "repeat" }
       );
       const filesMetadata = await ky
-        .get(
-          `${WORKSPACE_HOST_ORIGIN}/w/apps/${app.appId}/api/fs/files?${query}`
-        )
+        .get(`${ctx.workspaceHost}/w/apps/${app.appId}/api/fs/files?${query}`)
         .json<any[]>();
       return filesMetadata.map((file) => {
         return merge(file, { appId: app.appId });
@@ -171,11 +165,17 @@ const listSharedDirectories = p.query(async ({ ctx }) => {
         parentId: null,
       },
     ],
-    children: sharedFiles.flatMap((files) => {
-      return files.map((file) => {
-        return pick(file, "appId", "id", "name", "isDirectory");
-      });
-    }),
+    children: uniqBy(
+      sharedFiles.flatMap((files) => {
+        return files.map((file) => {
+          return {
+            parentId: "shared",
+            ...pick(file, "appId", "id", "name", "isDirectory"),
+          };
+        });
+      }),
+      (file) => file.id
+    ),
   };
 });
 

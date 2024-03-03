@@ -36,7 +36,7 @@ const Uploader = (props: {
   }, {});
   let formRef: any, inputRef: any;
   return (
-    <div class="p-2">
+    <div class="uploader p-2">
       <div class="flex divide-x divide-indigo-400">
         <div>
           <div

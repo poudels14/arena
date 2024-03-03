@@ -9,7 +9,7 @@ import {
   createSelector,
 } from "solid-js";
 import { createQuery } from "@portal/solid-query";
-import { useLocation, useMatcher, useNavigate } from "@portal/solid-router";
+import { useMatcher, useNavigate } from "@portal/solid-router";
 import { useSharedWorkspaceContext } from "@portal/workspace-sdk";
 import { createDroppable } from "@portal/solid-dnd";
 
@@ -29,30 +29,27 @@ export type Directory = {
 };
 
 const FileExplorer = () => {
-  const { getCurrentApp, setChatContext } = useSharedWorkspaceContext();
+  const { getActiveApp, setChatContext } = useSharedWorkspaceContext();
   const [getSelectedFile, setSelectedFile] = createSignal<null | Directory>(
     null
   );
-  const directoryId = useMatcher(() => `/:appId/explore/:id`);
+  const routeMatcher = useMatcher(() => `/:appId/explore/:id`);
   const currentDirectoryId = createMemo(() => {
-    return directoryId()?.params?.id || null;
+    return routeMatcher()?.params?.id || null;
   });
 
   const navigate = useNavigate();
-  const location = useLocation();
   const goToDirectory = (id: string, appId?: string) => {
     let query = "";
-    if (appId) {
-      query = `?app=${appId}`;
-    }
-    navigate(`/${getCurrentApp()!.id}/explore/` + id + query);
+    const routeAppId = routeMatcher()?.params?.appId;
+    navigate(`/${appId || routeAppId}/explore/` + id + query);
   };
   const filesQuery = createQuery<Directory>(() => {
     const id = currentDirectoryId() ?? "";
-    const appId = location.searchParams.find((p) => p[0] == "app");
+    const appId = routeMatcher()?.params?.appId;
     let query = "";
     if (appId) {
-      query = `?app=${appId[1]}`;
+      query = `?app=${appId}`;
     }
     return `/api/fs/directory/${id}${query}`;
   }, {});
@@ -85,25 +82,37 @@ const FileExplorer = () => {
 
   createComputed(() => {
     const breadcrumbs = [...chatContextBreadcrums()];
-    const selection = getSelectedFile();
-    if (selection) {
+    const selectedFile = getSelectedFile();
+    if (selectedFile) {
       breadcrumbs.push({
-        id: selection.id,
-        title: selection.name,
+        id: selectedFile.id,
+        title: selectedFile.name,
       });
     }
 
-    const selction = breadcrumbs[breadcrumbs.length - 1];
-    setChatContext({
-      app: getCurrentApp()!,
-      selection: selction
-        ? {
-            id: selction.id,
-            type: selction.isDirectory ? "directory" : "file",
-          }
-        : undefined,
-      breadcrumbs,
-    });
+    const selection = breadcrumbs[breadcrumbs.length - 1];
+    console.log("selection =", selection);
+    // don't show `Ask AI` in shared directory for now
+    // TODO: make `Ask AI` work in shared directory
+    if (selection?.id == "shared") {
+      setChatContext([]);
+    } else {
+      setChatContext([
+        {
+          app: {
+            id: routeMatcher()?.params?.appId!,
+            name: "Drive",
+          },
+          selection: selection
+            ? {
+                id: selection.id,
+                type: selection.isDirectory ? "directory" : "file",
+              }
+            : undefined,
+          breadcrumbs,
+        },
+      ]);
+    }
   });
 
   const droppable = createDroppable(`drive-file-explorer`, {});
@@ -115,6 +124,7 @@ const FileExplorer = () => {
           currentDir={currentDirectoryId()}
           selected={getSelectedFile()}
           breadcrumbs={chatContextBreadcrums()}
+          disableUpload={currentDirectoryId() == "shared"}
           onUpload={() => {
             filesQuery.refresh();
           }}
@@ -199,10 +209,10 @@ const FileExplorer = () => {
 };
 
 const SharedWithMe = () => {
-  const { getCurrentApp } = useSharedWorkspaceContext();
+  const { getActiveApp } = useSharedWorkspaceContext();
   const navigate = useNavigate();
   const goToDirectory = (id: string) =>
-    navigate(`${getCurrentApp()!.id}/explore/` + id);
+    navigate(`${getActiveApp()!.id}/explore/` + id);
   return (
     <Directory
       id={"shared"}
