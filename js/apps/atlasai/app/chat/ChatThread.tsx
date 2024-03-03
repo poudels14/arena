@@ -19,7 +19,7 @@ import {
 } from "solid-icons/hi";
 
 import { EmptyThread } from "./EmptyThread";
-import { ChatContext, ChatState } from "./ChatContext";
+import { ChatContext, ChatQueryContext, ChatState } from "./ChatContext";
 import { PluginWorkflow } from "./PluginWorkflow";
 import { Chat, Document } from "../types";
 import { Store } from "@portal/solid-store";
@@ -30,6 +30,7 @@ import { Markdown } from "./Markdown";
 const ChatThread = (props: {
   showDocument(doc: any): void;
   removeBottomPadding?: boolean;
+  contextSelection?: ChatQueryContext;
 }) => {
   let chatMessagesContainerRef: any;
   let chatMessagesRef: any;
@@ -114,7 +115,7 @@ const ChatThread = (props: {
     >
       <div class="px-4 flex-1 min-w-[350px] max-w-[750px]">
         <Show when={!state.activeThreadId()}>
-          <EmptyThread />
+          <EmptyThread contextSelection={props.contextSelection} />
         </Show>
         <div
           ref={chatMessagesRef}

@@ -35,7 +35,7 @@ async function generateLLMResponseStream(
         id: string;
       };
       breadcrumbs: {}[];
-    } | null;
+    }[];
   }
 ): Promise<Subject<any>> {
   const responseStream = new ReplaySubject<any>();

@@ -20,7 +20,7 @@ type WorkspaceChatContext = NonNullable<
 >;
 
 const ChatIsland = (props: { onNewThread: () => void; hide?: boolean }) => {
-  const { getChatContext } = useSharedWorkspaceContext();
+  const { getChatContext, isChatIslandVisible } = useSharedWorkspaceContext();
   const { state, sendNewMessage } = useContext(ChatContext)!;
   const [chatBoxExpanded, setExpandChatBox] = createSignal(false);
   const [getActiveTab, setActiveTab] = createSignal("chat");
@@ -31,7 +31,7 @@ const ChatIsland = (props: { onNewThread: () => void; hide?: boolean }) => {
     }
   });
   return (
-    <Show when={getChatContext()}>
+    <Show when={isChatIslandVisible() && getChatContext().length > 0}>
       <Show when={chatBoxExpanded()}>
         <div
           class="chat-island fixed bottom-0 left-0 right-0 w-full backdrop-blur-[1px]"
@@ -98,6 +98,7 @@ const ChatIsland = (props: { onNewThread: () => void; hide?: boolean }) => {
                     disableContextEdit={true}
                     onFocus={() => setExpandChatBox(true)}
                     autoFocus={true}
+                    showContextBreadcrumb={true}
                     context={getChatContext()}
                   />
                 </div>
@@ -110,7 +111,7 @@ const ChatIsland = (props: { onNewThread: () => void; hide?: boolean }) => {
         <div class="absolute bottom-4 left-0 right-0 w-full backdrop-blur-[1px]">
           <div class="w-full flex justify-center">
             <Minimized
-              context={getChatContext()!}
+              context={getChatContext()}
               openChatBox={() => setExpandChatBox(true)}
             />
           </div>
@@ -125,7 +126,10 @@ const Minimized = (props: {
   openChatBox: () => void;
 }) => {
   const contextTitle = createMemo(() => {
-    const { app, breadcrumbs } = props.context;
+    if (props.context.length == 0) {
+      return "";
+    }
+    const { app, breadcrumbs } = props.context[0];
     return breadcrumbs.length > 0
       ? breadcrumbs[breadcrumbs.length - 1].title
       : app.name;

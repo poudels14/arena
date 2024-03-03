@@ -17,10 +17,10 @@ function createQueryContextExtension(searchResults: Search.Response[]) {
                   return (
                     `Filename: ${file.name}\n` +
                     "Content: " +
-                    file.chunks.map((c) => c.content)
+                    file.chunks.map((c) => c.content).join("\n\n...\n\n")
                   );
                 })
-                .join("\n") +
+                .join("\n\n") +
               `\n\n`,
           });
         }

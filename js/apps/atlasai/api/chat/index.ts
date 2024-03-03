@@ -85,8 +85,8 @@ const sendMessage = p
         content: z.string(),
       }),
       // chat query context
-      context: z
-        .object({
+      context: z.array(
+        z.object({
           app: z.object({
             id: z.string(),
           }),
@@ -96,11 +96,10 @@ const sendMessage = p
             })
           ),
         })
-        .optional()
-        .nullable(),
+      ),
     })
   )
-  .mutate(async ({ ctx, env, params, req, body, errors }) => {
+  .mutate(async ({ ctx, params, body, errors }) => {
     const now = new Date();
     // TODO(sagar): abstract several steps and use middleware like system
     // so that it's easier to build plugins for chat system itself. For example,
@@ -113,8 +112,8 @@ const sendMessage = p
         id: params.threadId,
         metadata: {
           ai: {
-            // model: "gpt-3.5-turbo",
-            model: "gpt-4-1106-preview",
+            model: "gpt-3.5-turbo",
+            // model: "gpt-4-1106-preview",
           },
         },
       },
@@ -149,38 +148,51 @@ const sendMessage = p
     };
     await ctx.repo.chatMessages.insert(newMessage);
 
-    let searchResults = [];
-    if (body.context?.app?.id) {
-      const { app, breadcrumbs } = body.context!;
-      // TODO: error handling
-      const activeContextSearchResult = await ky
-        .post(
-          new URL(
-            `/w/apps/${app.id}/api/portal/llm/search`,
-            ctx.env.PORTAL_WORKSPACE_HOST
-          ).href,
-          {
-            json: {
-              query: body.message.content,
-              context: {
-                breadcrumbs,
-              },
-            },
-          }
-        )
-        .json<Search.Response>();
+    let searchResults: (Search.Response & { app: { id: string } })[] = [];
+    if (body.context.length > 0) {
+      const results = await Promise.all(
+        body.context.map(async (context) => {
+          const { app, breadcrumbs } = context;
+          // TODO: error handling
+          const activeContextSearchResult = await ky
+            .post(
+              new URL(
+                `/w/apps/${app.id}/api/portal/llm/search?allApps=true`,
+                ctx.env.PORTAL_WORKSPACE_HOST
+              ).href,
+              {
+                json: {
+                  query: body.message.content,
+                  context: {
+                    breadcrumbs,
+                  },
+                },
+              }
+            )
+            .json<Search.Response>();
 
-      if (
-        activeContextSearchResult.files.length > 0 ||
-        activeContextSearchResult.tools.length > 0
-      ) {
-        searchResults.push({
-          app: {
-            id: app.id,
-          },
-          ...activeContextSearchResult,
-        });
-      }
+          if (
+            activeContextSearchResult.files.length > 0 ||
+            activeContextSearchResult.tools.length > 0
+          ) {
+            searchResults.push({
+              app: {
+                id: app.id,
+              },
+              files: activeContextSearchResult.files.map((file) => {
+                return {
+                  ...file,
+                  // only take top 4 chunks for each file for now
+                  chunks: file.chunks
+                    .sort((a, b) => a.score - b.score)
+                    .slice(0, 4),
+                };
+              }),
+              tools: activeContextSearchResult.tools,
+            });
+          }
+        })
+      );
     }
 
     if (searchResults.length > 0) {

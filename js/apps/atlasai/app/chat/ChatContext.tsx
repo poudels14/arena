@@ -32,7 +32,7 @@ type ChatContext = {
       id: string;
       threadId: string;
       message: { content: string };
-      context?: ChatQueryContext | null;
+      context: ChatQueryContext;
       isNewThread: boolean;
     },
     any
@@ -115,7 +115,7 @@ const ChatContextProvider = (props: {
     id: string;
     threadId: string;
     message: { content: string };
-    context?: ChatQueryContext | null;
+    context: ChatQueryContext;
     isNewThread: boolean;
   }>((input) => {
     // If it's a new thread, navigate to that thread first
@@ -125,14 +125,7 @@ const ChatContextProvider = (props: {
         body: {
           id: input.id,
           message: input.message,
-          context: input.context
-            ? {
-                app: {
-                  id: input.context.app.id,
-                },
-                breadcrumbs: input.context.breadcrumbs,
-              }
-            : undefined,
+          context: input.context,
         },
         headers: {
           "content-type": "text/event-stream",
@@ -211,3 +204,4 @@ const ChatContextProvider = (props: {
 };
 
 export { ChatContext, ChatContextProvider };
+export type { ChatQueryContext };

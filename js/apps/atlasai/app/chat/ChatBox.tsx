@@ -30,14 +30,15 @@ const Chatbox = (props: {
     id: string;
     threadId: string;
     message: { content: string };
-    context?: ChatQueryContext | null;
+    context: ChatQueryContext;
     isNewThread: boolean;
   }) => void;
   onNewThread: () => void;
   onFocus?: () => void;
   autoFocus?: boolean;
+  showContextBreadcrumb?: boolean;
   disableContextEdit?: boolean;
-  context?: ChatQueryContext | null;
+  context: ChatQueryContext;
 }) => {
   const [getMessage, setMessage] = createSignal("");
   const [getTextareaHeight, setTextareaHeight] = createSignal(
@@ -116,9 +117,9 @@ const Chatbox = (props: {
           </div>
         </div>
       </Show>
-      <Show when={props.context}>
+      <Show when={props.showContextBreadcrumb && props.context?.length! > 0}>
         <SelectChatContext
-          context={props.context!}
+          context={props.context[0]}
           disableContextEdit={props.disableContextEdit}
         />
       </Show>
@@ -133,7 +134,7 @@ const Chatbox = (props: {
           <textarea
             ref={textareaRef}
             placeholder="Send a message"
-            class="w-full max-h-[180px] px-2 text-sm text-gray-800 bg-transparent outline-none resize-none placeholder:text-gray-500"
+            class="w-full max-h-[180px] px-2 text-sm text-gray-800 bg-transparent outline-none focus:outline-none resize-none placeholder:text-gray-500"
             style={{
               height: getTextareaHeight(),
               "--uikit-scrollbar-w": "3px",
@@ -169,13 +170,12 @@ const Chatbox = (props: {
 };
 
 const SelectChatContext = (props: {
-  context: ChatQueryContext;
+  context: ChatQueryContext[0];
   disableContextEdit?: boolean;
 }) => {
   const visibleBreadCrumbs = createMemo(() => {
-    return props.context.breadcrumbs.slice(
-      props.context.breadcrumbs.length - 2
-    );
+    const context = props.context;
+    return context.breadcrumbs.slice(props.context.breadcrumbs.length - 2);
   });
   return (
     <div class="flex px-2 text-sm font-semibold space-x-1 text-brand-12/90">
