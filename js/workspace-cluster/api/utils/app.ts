@@ -45,12 +45,17 @@ const addApp = async (
     workspaceId: app.workspaceId,
     appId,
     appTemplateId: app.template.id,
-    access: "OWNER",
+    accessGroup: "owner",
     metadata: {
-      // access all tables
-      table: "*",
-      // access all tables
-      filter: "*",
+      filters: [
+        {
+          command: "*",
+          // access all tables
+          table: "*",
+          // access all tables
+          condition: "*",
+        },
+      ],
     },
     resourceId: "",
   });

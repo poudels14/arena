@@ -1,4 +1,4 @@
-import { InferModel, and, eq, isNull } from "drizzle-orm";
+import { InferModel, and, eq, isNull, or } from "drizzle-orm";
 import { jsonb, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
 import { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { z } from "zod";
@@ -13,7 +13,7 @@ export const acls = pgTable("acls", {
    * - "public": shared publicly
    */
   userId: varchar("user_id").notNull(),
-  access: varchar("access").notNull(),
+  accessGroup: varchar("access_group"),
   appId: varchar("app_id"),
   appTemplateId: varchar("app_template_id"),
   metadata: jsonb("metadata").notNull(),
@@ -23,42 +23,19 @@ export const acls = pgTable("acls", {
   archivedAt: timestamp("archived_at"),
 });
 
-const accessType = z.enum([
-  /**
-   * This access allows users to SELECT rows from a table
-   */
-  "READ",
-  /**
-   * This access allows user to INSERT rows in a table
-   */
-  "WRITE",
-  /**
-   * This access allows user to UPDATE rows in a table
-   */
-  "UPDATE",
-  /**
-   * This access allows user to DELETE rows from a table
-   */
-  "DELETE",
-  /**
-   * The admin of a table and allows all type of queries
-   */
-  "ADMIN",
-  /**
-   * The owner of a table and allows all type of queries
-   */
-  "OWNER",
-]);
-
-type AccessType = z.infer<typeof accessType>;
+const aclCommand = z.enum(["*", "SELECT", "INSERT", "UPDATE", "DELETE"]);
+type AclCommand = z.infer<typeof aclCommand>;
 
 type Acl = InferModel<typeof acls> & {
-  access: AccessType;
+  accessGroup: string;
   metadata: {
-    // table name
-    table: string;
-    // SQL query filter; eg: `id = 1`, `id > 10`, etc
-    filter: string;
+    filters: {
+      command: AclCommand;
+      // table name
+      table: string;
+      // SQL query filter; eg: `id = 1`, `id > 10`, etc
+      condition: string;
+    }[];
     // list of entities that this acl provides access to
     // this is mostly used by the apps to keep track of shared
     // resources in case they need to get a list of the shared
@@ -74,15 +51,18 @@ type Acl = InferModel<typeof acls> & {
 const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
   return {
     async listAccess(filter: {
-      userId: string;
+      userId?: string;
       workspaceId?: string | undefined;
       appId?: string;
       appTemplateId?: string;
     }): Promise<Required<Acl>[]> {
-      const conditions = [
-        eq(acls.userId, filter.userId),
-        isNull(acls.archivedAt),
-      ];
+      const conditions = [isNull(acls.archivedAt)];
+
+      if (filter.userId) {
+        conditions.push(
+          or(eq(acls.userId, filter.userId), eq(acls.userId, "public"))!
+        );
+      }
 
       if (filter.workspaceId) {
         conditions.push(eq(acls.workspaceId, filter.workspaceId));
@@ -107,7 +87,10 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
       return rows[0] as Acl | undefined;
     },
     async addAccess(
-      acl: Pick<Acl, "id" | "workspaceId" | "userId" | "access" | "metadata"> &
+      acl: Pick<
+        Acl,
+        "id" | "workspaceId" | "userId" | "accessGroup" | "metadata"
+      > &
         Partial<
           Pick<Acl, "appId" | "appTemplateId" | "metadata" | "resourceId">
         >
@@ -129,5 +112,5 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
   };
 };
 
-export { createRepo, accessType };
+export { createRepo, aclCommand };
 export type { Acl };

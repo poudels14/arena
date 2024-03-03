@@ -1,4 +1,4 @@
-import { and, eq, isNull, InferModel } from "drizzle-orm";
+import { and, eq, isNull, InferModel, inArray } from "drizzle-orm";
 import { jsonb, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
 import { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { merge } from "lodash-es";
@@ -40,6 +40,13 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
         .from(users)
         .where(and(eq(users.id, id), isNull(users.archivedAt)));
       return withDefaultUserConfig(rows[0] as User);
+    },
+    async fetchByIds(ids: string[]): Promise<User[]> {
+      const rows = await db
+        .select()
+        .from(users)
+        .where(and(inArray(users.id, ids), isNull(users.archivedAt)));
+      return rows.map((row) => withDefaultUserConfig(row as User)) as User[];
     },
     async fetchByEmail(email: string): Promise<User | null> {
       const rows = await db

@@ -7,6 +7,7 @@ import { createRepo as createAppsRepo } from "./apps";
 import { createRepo as createAppTemplatesRepo } from "./appTemplates";
 import { createRepo as createDatabaseClusterRepo } from "./databaseClusters";
 import { createRepo as createDatabaseRepo } from "./databases";
+import { createRepo as createAppDeploymentsRepo } from "./appDeployments";
 
 type Repo = {
   transaction(): Promise<
@@ -21,6 +22,7 @@ type Repo = {
   workspaces: ReturnType<typeof createWorkspacesRepo>;
   apps: ReturnType<typeof createAppsRepo>;
   appTemplates: ReturnType<typeof createAppTemplatesRepo>;
+  appDeployments: ReturnType<typeof createAppDeploymentsRepo>;
   dbClusters: ReturnType<typeof createDatabaseClusterRepo>;
   databases: ReturnType<typeof createDatabaseRepo>;
 };
@@ -62,6 +64,7 @@ const createRepo = async (options: { pool?: Pool; client?: Client }) => {
     workspaces: createWorkspacesRepo(pg),
     apps: createAppsRepo(client),
     appTemplates: createAppTemplatesRepo(pg),
+    appDeployments: createAppDeploymentsRepo(pg),
     dbClusters: createDatabaseClusterRepo(pg),
     databases: createDatabaseRepo(pg),
   };

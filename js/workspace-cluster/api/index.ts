@@ -32,6 +32,8 @@ const internalRoutes = createRouter({
 const accountRoutes = createRouter({
   prefix: "/api",
   routes: {
+    "/account/findUser": account.findUser,
+    "/account/listUsers": account.listUsers,
     "/account/signup": account.signup,
     "/account/login/magic/send": account.sendMagicLink,
     "/account/login/magic": account.magicLinkLogin,
@@ -45,7 +47,7 @@ const authorizedRoutes = createRouter({
     "/workspaces/": workspaces.list,
     "/workspaces/:id": workspaces.get,
     "/acls/add": acls.addAcl,
-    "/acls": acls.listAcls,
+    "/acls": acls.listUserAcls,
     "/acls/:id/archive": acls.archiveAcl,
     "/llm": llm.list,
   },

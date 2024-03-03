@@ -9,6 +9,34 @@ import { p } from "./procedure";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
 import { addApp } from "./utils/app";
 
+const findUser = p
+  .input(
+    z.object({
+      email: z.string(),
+    })
+  )
+  // TODO: add more auth layer to prevent malacious users from crawling this url
+  .mutate(async ({ ctx, body, errors }) => {
+    const user = await ctx.repo.users.fetchByEmail(body.email);
+    if (!user) {
+      return errors.notFound();
+    }
+    return pick(user, "id", "email", "firstName", "lastName");
+  });
+
+// TODO: add more auth layer to prevent malacious users from crawling this url
+const listUsers = p.query(async ({ ctx, searchParams }) => {
+  if (!searchParams.id) {
+    return [];
+  }
+  const ids =
+    typeof searchParams.id == "string" ? [searchParams.id] : searchParams.id;
+  const users = await ctx.repo.users.fetchByIds(ids);
+  return users.map((user) =>
+    pick(user, "id", "email", "firstName", "lastName")
+  );
+});
+
 const signup = p
   .input(
     z.object({
@@ -197,4 +225,4 @@ const magicLinkLogin = p.query(
   }
 );
 
-export { signup, sendMagicLink, magicLinkLogin };
+export { findUser, listUsers, signup, sendMagicLink, magicLinkLogin };
