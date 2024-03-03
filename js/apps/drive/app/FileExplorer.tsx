@@ -42,7 +42,8 @@ const FileExplorer = () => {
   const goToDirectory = (id: string, appId?: string) => {
     let query = "";
     const routeAppId = routeMatcher()?.params?.appId;
-    navigate(`/${appId || routeAppId}/explore/` + id + query);
+    const activeAppId = getActiveApp()?.id;
+    navigate(`/${appId || routeAppId || activeAppId}/explore/` + id + query);
   };
   const filesQuery = createQuery<Directory>(() => {
     const id = currentDirectoryId() ?? "";
@@ -91,7 +92,6 @@ const FileExplorer = () => {
     }
 
     const selection = breadcrumbs[breadcrumbs.length - 1];
-    console.log("selection =", selection);
     // don't show `Ask AI` in shared directory for now
     // TODO: make `Ask AI` work in shared directory
     if (selection?.id == "shared") {

@@ -90,7 +90,7 @@ const listDirectory = p.query(async ({ ctx, params, searchParams, errors }) => {
         }`
       )
       .json<any>();
-    if (dir.breadcrumbs) {
+    if (!dir.breadcrumbs) {
       dir.parentId = dir.parentId || "shared";
       dir.breadcrumbs.unshift({
         id: "shared",
