@@ -5,6 +5,7 @@ const migrations: PostgresDatabaseConfig = {
   type: "postgres",
   migrations: [
     {
+      id: "create_files_table",
       async up(db) {
         await db.query(`CREATE TABLE files (
           id VARCHAR(50) UNIQUE NOT NULL,
@@ -32,6 +33,7 @@ const migrations: PostgresDatabaseConfig = {
       },
     },
     {
+      id: "files_parent_id_index",
       async up(db) {
         await db.query(`CREATE INDEX files_parent_id ON files(
           parent_id
@@ -42,6 +44,7 @@ const migrations: PostgresDatabaseConfig = {
       },
     },
     {
+      id: "create_file_embeddings_table",
       async up(db) {
         await db.query(`CREATE TABLE file_embeddings (
           id VARCHAR(50) UNIQUE NOT NULL,
@@ -60,6 +63,7 @@ const migrations: PostgresDatabaseConfig = {
       },
     },
     {
+      id: "create_embeddings_file_id_key_index",
       async up(db) {
         await db.query(`CREATE INDEX embeddings_file_id_key ON file_embeddings(
           file_id

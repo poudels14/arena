@@ -5,6 +5,7 @@ const migrations: PostgresDatabaseConfig = {
   type: "postgres",
   migrations: [
     {
+      id: "create_chat_threads_table",
       async up(db) {
         await db.query(`CREATE TABLE chat_threads (
           -- thread id
@@ -27,6 +28,7 @@ const migrations: PostgresDatabaseConfig = {
       },
     },
     {
+      id: "create_chat_messages_table",
       async up(db) {
         await db.query(`CREATE TABLE chat_messages (
           id          VARCHAR(100) NOT NULL,
@@ -46,6 +48,7 @@ const migrations: PostgresDatabaseConfig = {
       },
     },
     {
+      id: "create_task_executions_table",
       async up(db) {
         await db.query(`CREATE TABLE task_executions (
           id            VARCHAR(100) NOT NULL,
@@ -66,6 +69,7 @@ const migrations: PostgresDatabaseConfig = {
       },
     },
     {
+      id: "create_chat_artifacts_table",
       async up(db) {
         await db.query(`CREATE TABLE chat_artifacts (
           id VARCHAR(50) UNIQUE NOT NULL,

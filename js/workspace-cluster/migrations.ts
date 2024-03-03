@@ -5,6 +5,7 @@ const migrations: PostgresDatabaseConfig = {
   type: "postgres",
   migrations: [
     {
+      id: "create_users_table",
       async up(db) {
         await db.query(`CREATE TABLE users (
           id VARCHAR(50) UNIQUE,
@@ -22,6 +23,7 @@ const migrations: PostgresDatabaseConfig = {
       },
     },
     {
+      id: "create_workspaces_table",
       async up(db) {
         await db.query(`CREATE TABLE workspaces (
           id VARCHAR(50) UNIQUE,
@@ -36,6 +38,7 @@ const migrations: PostgresDatabaseConfig = {
       },
     },
     {
+      id: "create_workspace_members_table",
       async up(db) {
         await db.query(`CREATE TABLE workspace_members (
           workspace_id VARCHAR(50) NOT NULL,
@@ -50,6 +53,7 @@ const migrations: PostgresDatabaseConfig = {
       },
     },
     {
+      id: "create_database_clusters_table",
       async up(db) {
         await db.query(`CREATE TABLE database_clusters (
           id VARCHAR(50) UNIQUE NOT NULL,
@@ -65,6 +69,7 @@ const migrations: PostgresDatabaseConfig = {
       },
     },
     {
+      id: "create_databases_table",
       async up(db) {
         await db.query(`CREATE TABLE databases (
           id VARCHAR(50) UNIQUE NOT NULL,
@@ -80,6 +85,7 @@ const migrations: PostgresDatabaseConfig = {
       },
     },
     {
+      id: "create_apps_table",
       async up(db) {
         await db.query(`CREATE TABLE apps (
           id VARCHAR(50) UNIQUE,
@@ -101,6 +107,7 @@ const migrations: PostgresDatabaseConfig = {
       },
     },
     {
+      id: "create_apps_workspace_id_slug_index",
       async up(db) {
         await db.query(`CREATE UNIQUE INDEX apps_workspace_id_slug ON apps (
           workspace_id,
@@ -112,6 +119,7 @@ const migrations: PostgresDatabaseConfig = {
       },
     },
     {
+      id: "create_app_clusters_table",
       async up(db) {
         await db.query(`CREATE TABLE app_clusters (
           id VARCHAR(50) UNIQUE,
@@ -126,6 +134,7 @@ const migrations: PostgresDatabaseConfig = {
       },
     },
     {
+      id: "create_app_deployments_table",
       async up(db) {
         await db.query(`
         -- use this to keep track of deployed apps instead
@@ -149,6 +158,7 @@ const migrations: PostgresDatabaseConfig = {
       },
     },
     {
+      id: "create_environment_variables_table",
       async up(db) {
         await db.query(`CREATE TABLE environment_variables (
           id VARCHAR(50) UNIQUE,
@@ -177,6 +187,7 @@ const migrations: PostgresDatabaseConfig = {
       },
     },
     {
+      id: "create_acls_table",
       async up(db) {
         await db.query(`CREATE TABLE acls (
             id VARCHAR(50) UNIQUE,
@@ -203,6 +214,7 @@ const migrations: PostgresDatabaseConfig = {
       },
     },
     {
+      id: "create_app_templates_table",
       async up(db) {
         await db.query(`CREATE TABLE app_templates (
             -- unique app template id
