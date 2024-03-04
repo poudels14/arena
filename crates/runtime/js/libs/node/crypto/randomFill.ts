@@ -24,6 +24,10 @@ function assertSize(size: number, offset: number, length: number) {
 }
 
 function randomFillSync(buf: Buffer, offset = 0, size?: number) {
+  if (buf instanceof Uint8Array) {
+    ops.op_node_generate_secret(buf);
+    return buf;
+  }
   assertOffset(offset, buf.length);
 
   if (size === undefined) size = buf.length - offset;
