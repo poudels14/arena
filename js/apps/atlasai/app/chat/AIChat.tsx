@@ -9,7 +9,8 @@ import { useSharedWorkspaceContext } from "@portal/workspace-sdk";
 const AIChat = () => {
   const navigate = useNavigate();
   const { activeWorkspace, getChatContext } = useSharedWorkspaceContext();
-  const { state, sendNewMessage, activeChatThread } = useContext(ChatContext)!;
+  const { state, sendNewMessage, getActiveChatThread } =
+    useContext(ChatContext)!;
   const [drawerDocument, setDrawerDocument] = createSignal<any>(null);
   const contextSelection = createMemo(() => {
     const apps = activeWorkspace.apps();
@@ -46,7 +47,7 @@ const AIChat = () => {
           <div class="pb-4 bg-gradient-to-b from-transparent to-white rounded">
             <Chatbox
               threadId={state.activeThreadId()!}
-              blockedBy={activeChatThread.blockedBy()}
+              blockedBy={getActiveChatThread().blockedBy()}
               sendNewMessage={(input) => sendNewMessage.mutate(input)}
               onNewThread={() => navigate(`/`)}
               autoFocus={true}

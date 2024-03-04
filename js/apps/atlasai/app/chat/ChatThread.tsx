@@ -34,10 +34,11 @@ const ChatThread = (props: {
 }) => {
   let chatMessagesContainerRef: any;
   let chatMessagesRef: any;
-  const { state, sendNewMessage, activeChatThread } = useContext(ChatContext)!;
+  const { state, sendNewMessage, getActiveChatThread } =
+    useContext(ChatContext)!;
 
   const sortedMessageIds = createMemo(() => {
-    const messages = Object.values(activeChatThread.messages());
+    const messages = Object.values(getActiveChatThread().messages() || []);
     messages.sort(
       (a, b) =>
         new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
@@ -47,7 +48,7 @@ const ChatThread = (props: {
 
   const threadTaskCallIds = createMemo(
     () => {
-      const messages = Object.values(activeChatThread.messages());
+      const messages = Object.values(getActiveChatThread().messages() || []);
       const taskIds = messages
         .map((message) => dlv(message, ["message", "tool_calls", 0, "id"]))
         .filter((id) => Boolean(id));
@@ -114,7 +115,12 @@ const ChatThread = (props: {
       class="flex justify-center h-full overflow-y-auto scroll:w-1 thumb:rounded thumb:bg-gray-400"
     >
       <div class="px-4 flex-1 min-w-[350px] max-w-[750px]">
-        <Show when={!state.activeThreadId()}>
+        <Show
+          when={
+            !state.activeThreadId() &&
+            !(sendNewMessage.isPending && !sendNewMessage.isIdle)
+          }
+        >
           <EmptyThread contextSelection={props.contextSelection} />
         </Show>
         <div
@@ -128,7 +134,7 @@ const ChatThread = (props: {
             {(messageId, index) => {
               // Note(sagar): use state directly to only update message
               // content element when streaming
-              const message = activeChatThread.messages[messageId]!;
+              const message = getActiveChatThread().messages[messageId]!;
               if (index() == sortedMessageIds().length - 1) {
                 createEffect(() => {
                   void message.message();

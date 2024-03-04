@@ -1,5 +1,5 @@
 import { createContext, Accessor, createComputed } from "solid-js";
-import { Store, StoreSetter, createStore } from "@portal/solid-store";
+import { Store, UNDEFINED_PROXY, createStore } from "@portal/solid-store";
 import {
   MutationQuery,
   createMutationQuery,
@@ -14,7 +14,7 @@ export type ChatState = {
   threadsById: Store<Record<string, Chat.Thread>>;
 };
 
-type ActiveChatThread = {
+type ChatThread = {
   blockedBy: string | null;
   messages: Record<string, Chat.Message>;
 };
@@ -25,8 +25,7 @@ type ChatQueryContext = NonNullable<
 
 type ChatContext = {
   state: ChatState;
-  activeChatThread: Store<ActiveChatThread>;
-  setActiveChatThread: StoreSetter<ActiveChatThread>;
+  getActiveChatThread: () => Store<ChatThread>;
   sendNewMessage: MutationQuery<
     {
       id: string;
@@ -70,15 +69,11 @@ const ChatContextProvider = (props: {
     }
   );
 
-  const [activeChatThread, setActiveChatThread] = createStore<ActiveChatThread>(
-    {
-      blockedBy: null,
-      messages: {},
-    }
-  );
+  const [chatThreadsById, setChatThreadsById] = createStore<
+    Record<string, ChatThread>
+  >({});
 
   const activeThreadRoute = createQuery<Chat.Thread>(() => {
-    setActiveChatThread("messages", {});
     if (!props.activeThreadId) {
       return null;
     }
@@ -88,16 +83,28 @@ const ChatContextProvider = (props: {
   // refresh chat message when props id change
   createComputed(() => {
     void props.activeThreadId;
+    if (props.activeThreadId) {
+      // set default messages for thread if it's not already set
+      setChatThreadsById(props.activeThreadId, (prev) => {
+        return (
+          prev || {
+            blockedBy: null,
+            messages: {},
+          }
+        );
+      });
+    }
     activeThreadRoute.refresh();
   });
 
   createComputed(() => {
-    const messages = activeThreadRoute.data.messages() || [];
-    setActiveChatThread(
-      "blockedBy",
-      activeThreadRoute.data.blockedBy!() || null
-    );
-    setActiveChatThread("messages", (prev) => {
+    const data = activeThreadRoute.data()!;
+    if (!data) {
+      return;
+    }
+    const messages = data.messages || [];
+    setChatThreadsById(data.id, "blockedBy", data.blockedBy || null);
+    setChatThreadsById(data.id, "messages", (prev) => {
       return messages.reduce(
         (agg, message) => {
           agg[message.id] = {
@@ -142,13 +149,14 @@ const ChatContextProvider = (props: {
   });
 
   createComputed(() => {
+    const threadId = props.activeThreadId!;
     if (sendNewMessage.status != 200) return;
     sendNewMessage.stream((data) => {
       if (data.ops) {
         data.ops.forEach((op: any) => {
           const [pathPrefix, ...path] = op.path;
           if (pathPrefix == "messages") {
-            setActiveChatThread("messages", (prev) => {
+            setChatThreadsById(threadId, "messages", (prev) => {
               const value = op.value;
               let messages = prev;
               if (op.op == "replace") {
@@ -193,8 +201,12 @@ const ChatContextProvider = (props: {
             );
           },
         },
-        activeChatThread,
-        setActiveChatThread,
+        getActiveChatThread() {
+          if (!props.activeThreadId) {
+            return UNDEFINED_PROXY;
+          }
+          return chatThreadsById[props.activeThreadId!];
+        },
         sendNewMessage,
       }}
     >
