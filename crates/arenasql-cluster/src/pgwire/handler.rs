@@ -3,6 +3,8 @@ use std::sync::Arc;
 
 use arenasql::arrow::{Float32Type, ListArray};
 use arenasql::bytes::Bytes;
+use arenasql::chrono::TimeZone;
+use arenasql::chrono::{Duration, Utc};
 use arenasql::datafusion::{LogicalPlan, ScalarValue};
 use arenasql::pgwire::api::portal::{Format, Portal};
 use arenasql::pgwire::api::query::{
@@ -433,18 +435,25 @@ fn convert_bytes_to_scalar_value(
       )));
     }
     Type::TIMESTAMP => {
-      return Ok(ScalarValue::Int64(
+      return Ok(ScalarValue::TimestampNanosecond(
         bytes
           .map(|by| match is_binary_format {
-            false => parse_from_text(index, by),
+            false => parse_from_text::<i64>(index, by),
             true => by
               .as_bytes()
               .try_into()
               .map_err(|_| invalid_param_err(index))
               .map(|v| i64::from_be_bytes(v)),
           })
-          .transpose()?,
-      ))
+          .transpose()?
+          .map(|y2k| {
+            let base_date = Utc.with_ymd_and_hms(2000, 1, 1, 0, 0, 0).unwrap();
+            let duration = Duration::microseconds(y2k);
+            let datetime = base_date + duration;
+            datetime.timestamp_micros() * 1000
+          }),
+        None,
+      ));
     }
     _ => {
       unimplemented!("Converting bytes to ScalarValue for type {:?}", r#type)
