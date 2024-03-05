@@ -204,7 +204,7 @@ impl DataType {
           true,
         )))
       }
-      Self::Timestamp => DfDataType::Int64,
+      Self::Timestamp => DfDataType::Timestamp(TimeUnit::Nanosecond, None),
       Self::File => DfDataType::Utf8,
     };
 

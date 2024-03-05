@@ -5,8 +5,8 @@ use datafusion::arrow::array::{
   ArrayRef,
 };
 use datafusion::arrow::datatypes::{
-  Float32Type, Float64Type, Int16Type, Int32Type, Int64Type, UInt32Type,
-  UInt64Type,
+  Float32Type, Float64Type, Int16Type, Int32Type, Int64Type,
+  TimestampNanosecondType, UInt32Type, UInt64Type,
 };
 use datafusion::common::cast::as_binary_array;
 use datafusion::error::Result;
@@ -226,8 +226,7 @@ impl OwnedSerializedCell {
         res?
       }
       DataType::Timestamp => {
-        // timestamp should be i64 microseconds
-        as_primitive_array::<Int64Type>(array)
+        as_primitive_array::<TimestampNanosecondType>(array)
           .iter()
           .map(|v| v.map(|v| Self::Timestamp(v)).unwrap_or_default())
           .collect()

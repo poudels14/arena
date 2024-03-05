@@ -3,7 +3,7 @@ use std::sync::Arc;
 use datafusion::arrow::array::{
   ArrayRef, BinaryBuilder, BooleanBuilder, Float32Builder, Float64Builder,
   Int16Builder, Int32Builder, Int64Builder, ListBuilder, StringBuilder,
-  UInt32Builder, UInt64Builder,
+  TimestampNanosecondBuilder, UInt32Builder, UInt64Builder,
 };
 
 use super::{DataType, SerializedCell};
@@ -23,7 +23,7 @@ pub enum ColumnArrayBuilder {
   Vector(ListBuilder<Float32Builder>),
   // Need to store timestamp as string because DF can't cast
   // timestamp to u64 or i64
-  Timestamp(Int64Builder),
+  Timestamp(TimestampNanosecondBuilder),
 }
 
 impl ColumnArrayBuilder {
@@ -69,9 +69,9 @@ impl ColumnArrayBuilder {
           capacity * len.unwrap_or(100) as usize,
         ))
       }
-      DataType::Timestamp => {
-        ColumnArrayBuilder::Timestamp(Int64Builder::with_capacity(capacity))
-      }
+      DataType::Timestamp => ColumnArrayBuilder::Timestamp(
+        TimestampNanosecondBuilder::with_capacity(capacity),
+      ),
       DataType::Binary => {
         ColumnArrayBuilder::Binary(BinaryBuilder::with_capacity(capacity, 1000))
       }
