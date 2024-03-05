@@ -20,6 +20,7 @@ export const files = pgTable("files", {
   metadata: jsonb("metadata"),
   file: jsonb("file"),
   contentType: varchar("content_type"),
+  contentHash: varchar("content_hash"),
   createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -74,13 +75,16 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
     },
     async fetchFileContent(
       ids: string[]
-    ): Promise<Pick<File, "id" | "name" | "parentId" | "file">[]> {
+    ): Promise<
+      Pick<File, "id" | "name" | "parentId" | "file" | "contentHash">[]
+    > {
       const rows = await db
         .select({
           id: files.id,
           name: files.name,
           parentId: files.parentId,
           file: files.file,
+          contentHash: files.contentHash,
         })
         .from(files)
         .where(and(inArray(files.id, ids), isNull(files.archivedAt)));

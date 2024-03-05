@@ -20,6 +20,8 @@ const migrations: PostgresDatabaseConfig = {
           size INTEGER NOT NULL DEFAULT 0,
           file FILE,
           content_type VARCHAR(100) DEFAULT NULL,
+          -- null for a directory
+          content_hash VARCHAR(100) DEFAULT NULL,
           metadata JSONB,
           -- id of the user who created the file/directory
           created_by VARCHAR(50),

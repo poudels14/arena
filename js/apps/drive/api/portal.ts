@@ -92,19 +92,20 @@ const llmSearch = p
       return result.score > 0.1;
     });
 
-    const chunksByFile = groupBy(filteredSearchResult, "fileId");
-    const uniqueFileIds = uniq(Object.keys(chunksByFile));
+    const chunksByFileId = groupBy(filteredSearchResult, "fileId");
+    const uniqueFileIds = uniq(Object.keys(chunksByFileId));
 
     const files =
       uniqueFileIds.length > 0
         ? await ctx.repo.files.fetchFileContent(uniqueFileIds)
         : [];
+    const uniqueContentFiles = uniqBy(files, (file) => file.contentHash);
 
     const orignalFilesById: Record<string, File> =
-      files.length > 0
+      uniqueContentFiles.length > 0
         ? keyBy(
             await ctx.repo.files
-              .fetchByIds(files.map((f) => f.parentId!))
+              .fetchByIds(uniqueContentFiles.map((f) => f.parentId!))
               .then((files) => files.filter((f) => !f.isDirectory)),
             "id"
           )
@@ -112,26 +113,31 @@ const llmSearch = p
 
     const fileById = keyBy(
       files.map((file) => {
-        const content = file.file?.content;
+        const content = file.file?.content
+          ? Buffer.from(file.file?.content, "base64").toString("utf8")
+          : "";
         return {
           id: file.id,
           name: file.name,
           parentId: file.parentId,
           content,
+          contentHash: file.contentHash,
         };
       }),
       "id"
     );
 
-    const fileChunks = Object.entries(chunksByFile)
+    const fileChunks = uniqueContentFiles
+      .map((uniqueFile) => uniqueFile.id)
       // skip the files not found in filesById
       // this happens if the user doesn't have permission to see
       // matching file
       // TODO: when searching, only search files that the user has
       // access to
-      .filter(([fileId, _]) => fileById[fileId])
-      .map(([fileId, chunks]) => {
-        const file = fileById[fileId];
+      .filter((uniqueFileId) => fileById[uniqueFileId])
+      .map((uniqueFileId) => {
+        const file = fileById[uniqueFileId];
+        const chunks = chunksByFileId[uniqueFileId];
         // originalFile might be undefined for markdown, txt, etc files. so,
         // use id of the file itself
         const originalFile = orignalFilesById[file.parentId!] || file;

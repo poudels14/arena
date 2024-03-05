@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { merge, pick, uniqBy } from "lodash-es";
 import { z } from "zod";
 import mime from "mime";
@@ -55,6 +56,7 @@ const addDirectory = p
         size: 0,
         file: null,
         contentType: null,
+        contentHash: null,
         createdAt: new Date(),
       };
       await ctx.repo.files.insert(directory).then(() => (success = true));
@@ -216,6 +218,9 @@ const uploadFiles = p.mutate(async ({ req, ctx, errors, form }) => {
 
         const fileContent = formInput.data.toString("base64");
 
+        var originalFileHash = createHash("sha256");
+        originalFileHash.update(fileContent);
+        const contentHash = originalFileHash.digest("hex");
         const originalFile = {
           id: createUniqueIdForChildren(),
           name: formInput.filename,
@@ -229,6 +234,7 @@ const uploadFiles = p.mutate(async ({ req, ctx, errors, form }) => {
             content: fileContent,
           },
           contentType,
+          contentHash,
           createdAt: uploadTime,
         };
         await repo.files.insert(originalFile);
@@ -254,9 +260,12 @@ const uploadFiles = p.mutate(async ({ req, ctx, errors, form }) => {
                 metadata: {},
                 size: extractedText.length,
                 file: {
-                  content: extractedText,
+                  content: Buffer.from(extractedText).toString("base64"),
                 },
                 contentType: null,
+                // use the content hash of the original file so that it's
+                // this can be deduped without fetching the parent file
+                contentHash,
                 createdAt: uploadTime,
               }
             : null;
@@ -283,7 +292,7 @@ const uploadFiles = p.mutate(async ({ req, ctx, errors, form }) => {
           for (let index = 0; index < documentChunks.length; index++) {
             const chunk = documentChunks[index];
             await repo.embeddings.insert({
-              id: uniqueId(13),
+              id: uniqueId(18),
               embeddings: embeddings[index],
               metadata: {
                 start: chunk.position.start,
