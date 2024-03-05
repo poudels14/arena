@@ -12,7 +12,7 @@ export default createHandler(() => (
           <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
           {assets}
         </head>
-        <body class="hiddens scroll:w-1 thumb:rounded thumb:bg-slate-700 track:bg-slate-900">
+        <body class="hiddens dark scroll:w-1 thumb:rounded thumb:bg-slate-700 track:bg-slate-900">
           {children}
         </body>
         {scripts}

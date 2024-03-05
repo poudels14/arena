@@ -1,21 +1,41 @@
+import { HiSolidArrowLongDown } from "solid-icons/hi";
+import Logo from "~/Logo";
 import NavigationBar from "../navigation";
 
 export default function Home() {
   return (
-    <div class="h-screen font-sans bg-slate-900">
+    <div class="font-sans dark:bg-slate-900">
       <NavigationBar />
-      <main class="h-[calc(100%-theme(spacing.14))] mx-auto text-center">
-        <div class="h-full pt-32 bg-gradient-to-b from-slate-950 from-20% via-70% to-gray-900">
-          <div class="pb-4  justify-center items-baseline">
-            <h1 class="pb-2 text-5xl font-medium text-gray-300">Portal</h1>
-            <div class="pb-16 text-xl font-normal text-gray-500">
-              all in one AI workspace
+      <main class="text-center">
+        <div class="h-full pt-20 pb-24 dark:bg-gradient-to-b dark:from-slate-800 dark:from-20% dark:via-70% dark:to-gray-800">
+          <div class="pb-4 justify-center items-baseline">
+            <div class="pb-2 flex justify-center">
+              <Logo size={150} />
+            </div>
+            <h1 class="pb-6 text-5xl font-medium text-gray-800 dark:text-gray-300">
+              Portal
+            </h1>
+            <div class="pb-2 text-xl font-normal text-gray-800 dark:text-gray-400">
+              All-in-one AI workspace
+            </div>
+            <div class="pb-16 text-xs font-normal text-gray-800 dark:text-gray-500">
+              *offline support using Ollama
             </div>
           </div>
           <div class="flex justify-center">
-            <div class="px-6 py-3 text-base rounded-3xl text-white bg-indigo-600 cursor-pointer hover:underline">
+            {/* <div class="px-6 py-3 text-base rounded-3xl text-white bg-indigo-600 cursor-pointer hover:underline">
               Get started
-            </div>
+            </div> */}
+            <a
+              class="flex px-8 py-3 text-base justify-center items-center space-x-2 rounded-xl text-white bg-indigo-600"
+              href="/download"
+            >
+              <div>Download now</div>
+              <HiSolidArrowLongDown />
+            </a>
+          </div>
+          <div class="flex py-3 justify-center text-xs text-gray-600">
+            <div>Available for macOS and Linux</div>
           </div>
         </div>
 
@@ -33,7 +53,19 @@ export default function Home() {
           <div class="py-2 text-gray-700">Your powerful AI assistant</div>
           <div class="py-40"></div>
         </div> */}
+
+        {/* <ChatWithDocsSection /> */}
       </main>
     </div>
   );
 }
+
+const ChatWithDocsSection = () => {
+  return (
+    <div class="pb-48 ">
+      <div class="text-2xl font-medium text-gray-700">
+        Chat with your documents
+      </div>
+    </div>
+  );
+};

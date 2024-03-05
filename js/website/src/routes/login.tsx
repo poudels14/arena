@@ -47,7 +47,13 @@ function Login() {
                 <div>Please try again</div>
               </div>
             </Show>
-            <div class="">
+            <form
+              class=""
+              onSubmit={(e) => {
+                e.preventDefault();
+                sendMagicLink();
+              }}
+            >
               <label class="space-y-1.5">
                 <div class="text-sm font-medium">Email</div>
                 <input
@@ -67,7 +73,7 @@ function Login() {
                   }
                 />
               </label>
-            </div>
+            </form>
             {/* <Show when={state().email}>
               <div class="px-8 text-sm text-center text-gray-400">
                 <div>A temporary login code has been sent to you email</div>
