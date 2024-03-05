@@ -130,7 +130,10 @@ impl DfTableProvider for TableProvider {
               if filter.is_filter_pushdown_suported()
                 && filter.is_supported_by_index(index)
               {
-                Some(TableProviderFilterPushDown::Exact)
+                // Note: need to use inexact here because pushdown
+                // filter isn't applied properly.
+                // TODO: fix filter pushdown bug
+                Some(TableProviderFilterPushDown::Inexact)
               } else {
                 None
               }
