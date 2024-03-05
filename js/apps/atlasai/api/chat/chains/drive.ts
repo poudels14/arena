@@ -47,7 +47,6 @@ class AtalasDriveSearch extends BaseRetriever {
               ).href,
               {
                 json: {
-                  // query: searchQuery.input,
                   query,
                   context: {
                     breadcrumbs,
