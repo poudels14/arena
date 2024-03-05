@@ -115,14 +115,20 @@ const listDirectory = p.query(async ({ ctx, params, searchParams, errors }) => {
     parentId: directoryId,
   });
 
-  return merge(pick(directory, "id", "name", "parentId", "isDirectory"), {
-    breadcrumbs,
-    children: children.map((child) => {
-      return merge(pick(child, "id", "name", "parentId", "isDirectory"), {
-        type: child.isDirectory ? null : mime.getType(child.name),
-      });
-    }),
-  });
+  return merge(
+    pick(directory, "id", "name", "parentId", "isDirectory", "createdAt"),
+    {
+      breadcrumbs,
+      children: children.map((child) => {
+        return merge(
+          pick(child, "id", "name", "parentId", "isDirectory", "createdAt"),
+          {
+            type: child.isDirectory ? null : mime.getType(child.name),
+          }
+        );
+      }),
+    }
+  );
 });
 
 const listSharedDirectories = p.query(async ({ ctx }) => {
@@ -251,7 +257,7 @@ const uploadFiles = p.mutate(async ({ req, ctx, errors, form }) => {
           const extractedText = await document.getExtractedText();
           const extractedFile = extractedText
             ? {
-                id: createUniqueIdForChildren(),
+                id: originalFile.id + "-text",
                 name: formInput.filename,
                 description: null,
                 isDirectory: false,
@@ -318,10 +324,28 @@ const uploadFiles = p.mutate(async ({ req, ctx, errors, form }) => {
   };
 });
 
+const deleteFile = p
+  .input(
+    z.object({
+      id: z.string(),
+    })
+  )
+  .mutate(async ({ ctx, body, errors }) => {
+    let file = await ctx.repo.files.fetchById(body.id);
+    if (!file) {
+      return errors.notFound("File not found");
+    }
+    const deletedFiles = await ctx.repo.files.deleteById(body.id);
+    const deletedFileIds = deletedFiles.map((file) => file.id);
+    await ctx.repo.embeddings.deleteByFileIds(deletedFileIds);
+    return { success: true };
+  });
+
 export {
   addDirectory,
   listDirectory,
   listSharedDirectories,
   getFiles,
   uploadFiles,
+  deleteFile,
 };

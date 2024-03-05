@@ -202,7 +202,10 @@ const FileExplorer = () => {
         </div>
       </div>
       <div class="sm:w-0 lg:w-96 h-full border-l border-gray-100 bg-gray-50">
-        <FileProperties selected={getSelectedFile()} />
+        <FileProperties
+          selected={getSelectedFile()}
+          refreshDirectory={() => filesQuery.refresh()}
+        />
       </div>
     </div>
   );

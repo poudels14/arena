@@ -96,6 +96,9 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
         );
       return rows as Embedding[];
     },
+    async deleteByFileIds(fileIds: string[]) {
+      await db.delete(embeddings).where(inArray(embeddings.fileId, fileIds));
+    },
   };
 };
 

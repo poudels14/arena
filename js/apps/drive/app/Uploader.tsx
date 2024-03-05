@@ -1,4 +1,4 @@
-import { Show, createSignal } from "solid-js";
+import { createSignal } from "solid-js";
 import { HiOutlineArrowUpOnSquare, HiOutlinePlus } from "solid-icons/hi";
 import { createMutationQuery } from "@portal/solid-query";
 import Dialog from "@portal/solid-ui/Dialog";

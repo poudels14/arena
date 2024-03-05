@@ -19,6 +19,7 @@ const protectedRoutes = createRouter({
     "/fs/directory/add": files.addDirectory,
     "/fs/directory/:id?": files.listDirectory,
     "/fs/files": files.getFiles,
+    "/fs/files/delete": files.deleteFile,
     "/fs/upload": files.uploadFiles,
   },
 });

@@ -1,4 +1,4 @@
-import { InferModel, and, eq, inArray, isNull } from "drizzle-orm";
+import { InferModel, and, eq, inArray, isNull, sql } from "drizzle-orm";
 import {
   jsonb,
   pgTable,
@@ -205,17 +205,23 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
       }
       return allDirectories as File[];
     },
-    async archiveById(id: string): Promise<Pick<Required<File>, "archivedAt">> {
-      throw new Error("not implemented");
-      // TODO: archive all files and directories inside the given directory
-      const archivedAt = new Date();
+    async deleteById(id: string): Promise<Pick<File, "id">[]> {
+      const fileIds = await db
+        .select({
+          id: files.id,
+        })
+        .from(files)
+        .where(sql.raw(`id = '${id}' OR id ilike '${encodeURI(id)}-%'`));
+
+      // TODO: delete all archived files at X time
       await db
         .update(files)
         .set({
-          archivedAt,
+          archivedAt: new Date(),
         })
-        .where(and(eq(files.id, id), isNull(files.archivedAt)));
-      return { archivedAt };
+        // need to inline id in ilike coz arenasql doesn't support it yet
+        .where(sql.raw(`id = '${id}' OR id ilike '${encodeURI(id)}-%'`));
+      return fileIds;
     },
   };
 };
