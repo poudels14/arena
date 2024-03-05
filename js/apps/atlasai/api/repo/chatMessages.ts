@@ -10,12 +10,12 @@ const chatMessages = pgTable("chat_messages", {
   userId: varchar("user_id"),
   message: jsonb("message").notNull(),
   metadata: jsonb("metadata").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 type ChatMessage = InferModel<typeof chatMessages> & {
   message: {
-    content?: string | null;
+    content?: string;
   };
   metadata: any;
 };

@@ -1,14 +1,13 @@
 import { keyBy, merge, pick } from "lodash-es";
 import z from "zod";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
-import ky from "ky";
 import { p } from "../procedure";
 import { ChatThread } from "./types";
-import { generateLLMResponseStream } from "./aiResponse";
+import { generateLLMResponseStream } from "./chains/query";
 import { ChatMessage } from "../repo/chatMessages";
-import { Search } from "@portal/workspace-sdk/llm/search";
-import { klona } from "klona";
-import { dset } from "dset";
+import { ReplaySubject } from "rxjs";
+import { ThreadOperationsStream } from "../../chatsdk";
+import { generateQueryTitle } from "./chains/title";
 
 const listThreads = p.query(async ({ ctx }) => {
   const threads = await ctx.repo.chatThreads.list();
@@ -141,125 +140,42 @@ const sendMessage = p
       message: body.message,
       threadId: thread.id,
       role: "user",
-      userId: ctx.user?.id || null,
+      userId: ctx.user?.id!,
       createdAt: now,
       metadata: {},
       parentId: null,
     };
     await ctx.repo.chatMessages.insert(newMessage);
 
-    let searchResults: (Search.Response & { app: { id: string } })[] = [];
-    if (body.context.length > 0) {
-      const results = await Promise.all(
-        body.context.map(async (context) => {
-          const { app, breadcrumbs } = context;
-          // TODO: error handling
-          const activeContextSearchResult = await ky
-            .post(
-              new URL(
-                `/w/apps/${app.id}/api/portal/llm/search?allApps=true`,
-                ctx.env.PORTAL_WORKSPACE_HOST
-              ).href,
-              {
-                json: {
-                  query: body.message.content,
-                  context: {
-                    breadcrumbs,
-                  },
-                },
-              }
-            )
-            .json<Search.Response>();
-
-          if (
-            activeContextSearchResult.files.length > 0 ||
-            activeContextSearchResult.tools.length > 0
-          ) {
-            searchResults.push({
-              app: {
-                id: app.id,
-              },
-              files: activeContextSearchResult.files.map((file) => {
-                return {
-                  ...file,
-                  // only take top 4 chunks for each file for now
-                  chunks: file.chunks
-                    .sort((a, b) => a.score - b.score)
-                    .slice(0, 4),
-                };
-              }),
-              tools: activeContextSearchResult.tools,
-            });
-          }
-        })
-      );
+    const replayStream = new ReplaySubject<any>();
+    const opsStream = new ThreadOperationsStream(thread.id, replayStream);
+    if (Boolean(!existingThread)) {
+      opsStream.addNewThread(thread);
     }
-
-    if (searchResults.length > 0) {
-      const clonedSearchResults = klona(searchResults);
-      clonedSearchResults.forEach((result) => {
-        result.files.forEach((file) => {
-          file.chunks.forEach((chunk) => {
-            // clear the chunk content to avoid storing duplicate data
-            dset(chunk, "content", undefined);
-          });
-        });
-      });
-
-      await ctx.repo.chatMessages.insert({
-        id: uniqueId(),
-        message: {
-          content: "",
-        },
-        threadId: thread.id,
-        role: "system",
-        userId: null,
-        createdAt: now,
-        metadata: {
-          searchResults: clonedSearchResults,
-        },
-        parentId: newMessage.id,
-      });
-    }
-
-    const stream = await generateLLMResponseStream(
+    opsStream.sendNewMessage(newMessage);
+    generateLLMResponseStream(
       { ctx, errors },
       {
+        opsStream,
         thread,
         message: newMessage,
         previousMessages: oldMessages,
-        searchResults,
         context: body.context,
       }
     );
 
+    if (!existingThread) {
+      const title = await generateQueryTitle(body.message.content);
+      await ctx.repo.chatThreads.update({
+        id: thread.id,
+        title,
+      });
+      opsStream.setThreadTitle(title);
+    }
+
     const responseStream = new ReadableStream({
       async start(controller) {
-        if (Boolean(!existingThread)) {
-          controller.enqueue(
-            JSON.stringify({
-              ops: [
-                {
-                  op: "replace",
-                  path: ["threads", thread.id],
-                  value: thread,
-                },
-              ],
-            })
-          );
-        }
-        controller.enqueue(
-          JSON.stringify({
-            ops: [
-              {
-                op: "replace",
-                path: ["messages", newMessage.id],
-                value: newMessage,
-              },
-            ],
-          })
-        );
-        stream.subscribe({
+        replayStream.subscribe({
           next(json) {
             try {
               controller.enqueue(JSON.stringify(json));

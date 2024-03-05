@@ -19,12 +19,14 @@ import { Search } from "@portal/workspace-sdk/llm/search";
 async function generateLLMResponseStream(
   { ctx }: Pick<ProcedureRequest<Context, any>, "ctx" | "errors">,
   {
+    stream,
     thread,
     message,
     previousMessages,
     searchResults,
     context,
   }: {
+    stream: ReplaySubject<any>;
     thread: ChatThread;
     message: ChatMessage;
     // old messages in the thread
@@ -37,9 +39,7 @@ async function generateLLMResponseStream(
       breadcrumbs: {}[];
     }[];
   }
-): Promise<Subject<any>> {
-  const responseStream = new ReplaySubject<any>();
-
+) {
   const aiResponseTime = new Date();
   const aiResponseId = uniqueId();
 
@@ -107,7 +107,7 @@ async function generateLLMResponseStream(
         //   return errors.internalServerError("Error connection to the AI model");
         // }
 
-        responseStream.next({
+        stream.next({
           ops: [
             {
               op: "replace",
@@ -126,18 +126,20 @@ async function generateLLMResponseStream(
           ],
         });
 
-        const stream = llmQueryRequest.stream
+        const llmResponseStream = llmQueryRequest.stream
           ? jsonStreamToAsyncIterator(llmQueryResponse.body)
           : undefined;
 
-        const streamSubject = stream ? new ReplaySubject<any>() : undefined;
+        const streamSubject = llmResponseStream
+          ? new ReplaySubject<any>()
+          : undefined;
         const builder = llmDeltaToResponseBuilder();
-        if (stream) {
+        if (llmResponseStream) {
           (async function streamRunner() {
             const followupRegex = new RegExp(
               /"_followup_question_":"(.*?)((?<!\\)(?=")|$)/
             );
-            for await (const data of stream) {
+            for await (const data of llmResponseStream) {
               const { json } = data;
               if (json) {
                 const delta = dlv(json, "choices.0.delta");
@@ -152,7 +154,7 @@ async function generateLLMResponseStream(
                 if (toolCallArgument) {
                   const matches = followupRegex.exec(toolCallArgument);
                   if (matches && matches[1]) {
-                    responseStream.next({
+                    stream.next({
                       ops: [
                         {
                           op: "replace",
@@ -171,7 +173,7 @@ async function generateLLMResponseStream(
 
                 streamSubject?.next(json);
                 if (delta.content) {
-                  responseStream.next({
+                  stream.next({
                     ops: [
                       {
                         op: "add",
@@ -191,7 +193,7 @@ async function generateLLMResponseStream(
 
         streamSubject?.subscribe({
           error(err) {
-            responseStream.complete();
+            stream.complete();
           },
           async complete() {
             const aiResponse: any = await extensionHandler.parseResponse({
@@ -240,7 +242,7 @@ async function generateLLMResponseStream(
                   },
                   context,
                 });
-                responseStream.next({
+                stream.next({
                   ops: [
                     {
                       op: "replace",
@@ -254,7 +256,7 @@ async function generateLLMResponseStream(
               // If a tool is called, only send the message with tool call
               // info after the task is executed. If a tool isn't called,
               // send the message immediately
-              responseStream.next({
+              stream.next({
                 ops: [
                   {
                     op: "replace",
@@ -282,7 +284,7 @@ async function generateLLMResponseStream(
                   id: thread.id,
                   title,
                 });
-                responseStream.next({
+                stream.next({
                   ops: [
                     {
                       op: "replace",
@@ -293,7 +295,7 @@ async function generateLLMResponseStream(
                 });
               }
             }
-            responseStream.complete();
+            stream.complete();
           },
         });
       }
@@ -301,7 +303,6 @@ async function generateLLMResponseStream(
     .catch((e) => {
       console.error(e);
     });
-  return responseStream;
 }
 
 const generateThreadTitle = async (req: {

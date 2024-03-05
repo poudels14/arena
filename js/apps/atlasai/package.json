@@ -31,6 +31,8 @@
   "dependencies": {
     "@arena/cloud": "workspace:^",
     "@arena/runtime": "workspace:^",
+    "@langchain/core": "^0.1.40",
+    "@langchain/openai": "^0.0.15",
     "@portal/cli": "workspace:^",
     "@portal/deploy": "workspace:^",
     "@portal/sdk": "workspace:^",
@@ -52,6 +54,7 @@
     "highlight.js": "^11.8.0",
     "klona": "^2.0.6",
     "ky": "^0.33.3",
+    "langchain": "^0.1.25",
     "lodash-es": "^4.17.21",
     "marked": "^11.1.0",
     "mime": "^4.0.1",
