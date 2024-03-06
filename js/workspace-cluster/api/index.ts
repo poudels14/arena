@@ -2,6 +2,7 @@ import { createRouter, mergedRouter } from "@portal/server-core/router";
 import { authenticate } from "./procedure";
 import * as account from "./account";
 import * as workspaces from "./workspaces";
+import * as settings from "./settings";
 import * as apps from "./apps";
 import * as acls from "./acls";
 import * as databases from "./databases";
@@ -46,10 +47,14 @@ const authorizedRoutes = createRouter({
   routes: {
     "/workspaces/": workspaces.list,
     "/workspaces/:id": workspaces.get,
+    "/workspaces/:workspaceId/settings": settings.list,
     "/acls/add": acls.addAcl,
     "/acls": acls.listUserAcls,
     "/acls/:id/archive": acls.archiveAcl,
-    "/llm": llm.list,
+    "/llm/models/add": llm.addCustomModel,
+    "/llm/models/update": llm.updateModel,
+    "/llm/models/delete": llm.deleteModel,
+    "/llm/models": llm.listModels,
   },
 });
 

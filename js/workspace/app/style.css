@@ -2,7 +2,7 @@
 @tailwind utilities;
 @tailwind components;
 
-:root {
+* {
   font-family: "Inter", sans-serif;
 }
 @supports (font-variation-settings: normal) {

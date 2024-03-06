@@ -6,7 +6,6 @@ import {
   createSignal,
   createEffect,
   createComputed,
-  Setter,
 } from "solid-js";
 import { SidebarTab } from "@portal/solid-ui/sidebar";
 import { Sidebar as PortalSidebar } from "@portal/solid-ui/sidebar";
@@ -17,40 +16,45 @@ import {
   useMatcher,
   useLocation,
 } from "@portal/solid-router";
-import { HiOutlineDocumentChartBar, HiOutlineHome } from "solid-icons/hi";
+import {
+  HiOutlineDocumentChartBar,
+  HiOutlineHome,
+  HiOutlineCog6Tooth,
+} from "solid-icons/hi";
 import { QueryContextProvider } from "@portal/solid-query";
-import { SharedWorkspaceContextProvider } from "@portal/workspace-sdk";
+import {
+  SharedWorkspaceContextProvider,
+  useSharedWorkspaceContext,
+  SharingDialog,
+} from "@portal/workspace-sdk";
 import {
   ChatContextProvider,
   ChatIsland,
 } from "@portal-apps/assistant/app/chat";
-import { WorkspaceContextProvider, useWorkspaceContext } from "./context";
 import { DragDropProvider, DragOverlay } from "@portal/solid-dnd";
 
 const Home = lazy(() => import("./home/index.tsx"));
+const WorkspaceSettings = lazy(() => import("./settings/index.tsx"));
 const AtlasAI = lazy(() => import("@portal-apps/assistant/app"));
 const PortalDrive = lazy(() => import("@portal-apps/drive/app"));
 
 const Workspace = () => {
-  const [getActiveApp, setActiveApp] = createSignal(null);
   return (
-    <SharedWorkspaceContextProvider activeApp={getActiveApp()}>
-      <div class="h-screen flex flex-row">
-        <Router>
-          <QueryContextProvider urlPrefix="/">
-            <WorkspaceContextProvider>
-              <WorkspaceSidebar />
-              <WorkspaceRouter setActiveApp={setActiveApp} />
-            </WorkspaceContextProvider>
-          </QueryContextProvider>
-        </Router>
-      </div>
-    </SharedWorkspaceContextProvider>
+    <QueryContextProvider urlPrefix="/">
+      <SharedWorkspaceContextProvider>
+        <div class="h-screen flex flex-row">
+          <Router>
+            <WorkspaceSidebar />
+            <WorkspaceRouter />
+          </Router>
+        </div>
+      </SharedWorkspaceContextProvider>
+    </QueryContextProvider>
   );
 };
 
-const WorkspaceRouter = (props: { setActiveApp: Setter<any> }) => {
-  const { activeWorkspace } = useWorkspaceContext();
+const WorkspaceRouter = () => {
+  const { activeWorkspace } = useSharedWorkspaceContext();
 
   const portalDrive = createMemo(() => {
     const apps = activeWorkspace.apps();
@@ -82,12 +86,15 @@ const WorkspaceRouter = (props: { setActiveApp: Setter<any> }) => {
     <div class="relative flex-1">
       <DragDropProvider>
         <main class="content overflow-auto no-scrollbar">
+          <Route path="/settings">
+            <Show when={atlasAi()}>
+              <CurrentAppSetter app={null} showChatIsland={false} />
+              <WorkspaceSettings />
+            </Show>
+          </Route>
           <Route path="/drive">
             <Show when={portalDrive()}>
-              <CurrentAppSetter
-                setActiveApp={props.setActiveApp}
-                app={portalDrive()!}
-              />
+              <CurrentAppSetter app={portalDrive()!} showChatIsland={true} />
               <QueryContextProvider urlPrefix={`/w/apps/${portalDrive()!.id}/`}>
                 <PortalDrive />
               </QueryContextProvider>
@@ -95,10 +102,7 @@ const WorkspaceRouter = (props: { setActiveApp: Setter<any> }) => {
           </Route>
           <Route path="/chat">
             <Show when={atlasAi()}>
-              <CurrentAppSetter
-                setActiveApp={props.setActiveApp}
-                app={atlasAi()!}
-              />
+              <CurrentAppSetter app={atlasAi()!} showChatIsland={false} />
               <QueryContextProvider urlPrefix={`/w/apps/${atlasAi()!.id}/api/`}>
                 <AtlasAI />
               </QueryContextProvider>
@@ -126,13 +130,16 @@ const WorkspaceRouter = (props: { setActiveApp: Setter<any> }) => {
         </QueryContextProvider>
         <DragOverlay />
       </DragDropProvider>
+      <SharingDialog />
     </div>
   );
 };
 
-const CurrentAppSetter = (props: { setActiveApp: Setter<any>; app: any }) => {
+const CurrentAppSetter = (props: { app: any; showChatIsland: boolean }) => {
+  const { setActiveApp, setChatIslandVisibility } = useSharedWorkspaceContext();
   createComputed(() => {
-    props.setActiveApp(props.app);
+    setActiveApp(props.app);
+    setChatIslandVisibility(props.showChatIsland);
   });
   return <></>;
 };
@@ -142,11 +149,12 @@ const WorkspaceSidebar = () => {
   const matcher = useMatcher(() => "/:tab/*");
   const isTab = createSelector(() => matcher()?.params?.tab || "home");
   return (
-    <PortalSidebar
-      width="150px"
-      class="py-4 px-6 h-screen text-sm bg-slate-50 tab:py-1.5 tab:text-gray-600 tab-hover:text-gray-700 tab-active:text-black tab-active:font-medium"
-    >
-      {/* <SidebarTab
+    <div>
+      <PortalSidebar
+        width="150px"
+        class="py-4 px-6 h-[calc(100vh-theme(spacing.8))] text-sm bg-slate-50 tab:py-1.5 tab:text-gray-600 tab-hover:text-gray-700 tab-active:text-black tab-active:font-medium"
+      >
+        {/* <SidebarTab
         icon={{
           svg: <HiOutlineHome />,
         }}
@@ -157,29 +165,49 @@ const WorkspaceSidebar = () => {
       >
         <div>Home</div>
       </SidebarTab> */}
-      <SidebarTab
-        icon={{
-          svg: <HiOutlineHome />,
-        }}
-        active={isTab("chat")}
-        onClick={() => {
-          navigate("/chat");
-        }}
-      >
-        <div>Chat</div>
-      </SidebarTab>
-      <SidebarTab
-        icon={{
-          svg: <HiOutlineDocumentChartBar />,
-        }}
-        active={isTab("drive")}
-        onClick={() => {
-          navigate("/drive");
-        }}
-      >
-        <div>Drive</div>
-      </SidebarTab>
-    </PortalSidebar>
+        <SidebarTab
+          icon={{
+            svg: <HiOutlineHome />,
+          }}
+          active={isTab("chat")}
+          onClick={() => {
+            navigate("/chat");
+          }}
+        >
+          <div>Chat</div>
+        </SidebarTab>
+        <SidebarTab
+          icon={{
+            svg: <HiOutlineDocumentChartBar />,
+          }}
+          active={isTab("drive")}
+          onClick={() => {
+            navigate("/drive");
+          }}
+        >
+          <div>Drive</div>
+        </SidebarTab>
+      </PortalSidebar>
+      <div class="h-8 flex justify-center text-center text-xs font-medium ">
+        <div
+          class="flex px-2 py-1 mb-2 cursor-pointer space-x-2"
+          classList={{
+            "text-gray-700": !isTab("settings"),
+            "text-black": isTab("settings"),
+          }}
+        >
+          <HiOutlineCog6Tooth size={16} />
+          <div
+            class="leading-1"
+            onClick={() => {
+              navigate("/settings");
+            }}
+          >
+            Settings
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 

@@ -4,6 +4,7 @@ import { addDatabase } from "./utils/database";
 import slugify from "@sindresorhus/slugify";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
 import { pick } from "lodash-es";
+import { listModels } from "./llm";
 
 const add = protectedProcedure
   .input(
@@ -56,7 +57,7 @@ const list = protectedProcedure.query(async ({ ctx }) => {
   });
 });
 
-const get = protectedProcedure.query(async ({ ctx, params, errors }) => {
+const get = protectedProcedure.query(async ({ req, ctx, params, errors }) => {
   const workspace = await ctx.repo.workspaces.getWorkspaceById({
     id: params.id,
   });
@@ -78,11 +79,32 @@ const get = protectedProcedure.query(async ({ ctx, params, errors }) => {
     workspaceId: workspace.id,
   });
 
+  // @ts-expect-error
+  const models: any[] = await listModels({
+    ctx,
+    searchParams: {
+      workspaceId: workspace.id,
+    },
+    req,
+    errors,
+  });
+
   return {
     ...pick(workspace, "id", "name", "access"),
     apps: apps.map((app) => {
       return pick(app, "id", "name", "slug", "description", "template");
     }),
+    models: models.map((m) =>
+      pick(
+        m,
+        "id",
+        "name",
+        "modalities",
+        "custom",
+        "disabled",
+        "requiresSubscription"
+      )
+    ),
   };
 });
 

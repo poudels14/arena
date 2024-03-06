@@ -17,7 +17,7 @@ type Context = {
    * with their account when they signup during the same
    * session
    */
-  user: { id: string; email: string | null } | null;
+  user: { id: string; email: string | null };
   app: { id: string } | null;
   dbpool: Pool;
   repo: Repo;

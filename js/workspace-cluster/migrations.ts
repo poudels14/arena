@@ -231,6 +231,35 @@ const migrations: PostgresDatabaseConfig = {
         await db.query(`DROP TABLE app_templates;`);
       },
     },
+    {
+      id: "create_settings_table",
+      async up(db) {
+        await db.query(`CREATE TABLE settings (
+            id VARCHAR(50) UNIQUE,
+            -- workspace id is null if it's user level settings
+            workspace_id VARCHAR(50),
+            -- user_id is null if it's workspace level settings
+            user_id VARCHAR(50),
+            -- namespace is used to determine the type of settings
+            namespace VARCHAR(100),
+            metadata JSONB,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            archived_at TIMESTAMPTZ DEFAULT NULL
+          );`);
+
+        await db.query(`CREATE INDEX settings_workspace_id ON settings (
+            workspace_id
+          );`);
+        await db.query(`CREATE INDEX settings_user_id ON settings (
+            user_id
+          );`);
+      },
+      async down(db) {
+        await db.query(`DROP TABLE settings;`);
+        await db.query(`DROP INDEX settings_workspace_id;`);
+        await db.query(`DROP INDEX settings_user_id;`);
+      },
+    },
   ],
 };
 
