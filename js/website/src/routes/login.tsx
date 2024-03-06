@@ -17,6 +17,10 @@ function Login() {
         "Content-type": "application/json",
       },
     }).then(async (res) => {
+      if (res.redirected) {
+        window.location.replace(res.url);
+        return;
+      }
       if (!res.ok) {
         const error = await res.text();
         setState((prev) => {
@@ -44,7 +48,6 @@ function Login() {
             <Show when={state().error}>
               <div class="text-xs text-center text-red-600">
                 <div class="line-clamp-3">{state().error}</div>
-                <div>Please try again</div>
               </div>
             </Show>
             <form

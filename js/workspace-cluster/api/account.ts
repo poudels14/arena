@@ -8,6 +8,7 @@ import { Login } from "./emails/Login";
 import { p } from "./procedure";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
 import { addApp } from "./utils/app";
+import { User } from "./repo/users";
 
 const findUser = p
   .input(
@@ -40,12 +41,32 @@ const listUsers = p.query(async ({ ctx, searchParams }) => {
 const signup = p
   .input(
     z.object({
+      firstName: z.string(),
+      lastName: z.string(),
       email: z.string(),
     })
   )
-  .mutate(async ({ ctx, errors }) => {
-    // TODO
-    return errors.notFound();
+  .mutate(async ({ ctx, body, errors }) => {
+    if (!body.firstName) {
+      return errors.badRequest({ error: "First name required" });
+    }
+    if (!body.lastName) {
+      return errors.badRequest({ error: "Last name required" });
+    }
+    if (!body.email) {
+      return errors.badRequest({ error: "Email required" });
+    }
+    let user = await ctx.repo.users.fetchByEmail(body.email);
+    if (user) {
+      return errors.badRequest({ error: "Account already exists" });
+    }
+    user = await ctx.repo.users.insert({
+      id: "u-" + uniqueId(16),
+      firstName: body.firstName,
+      lastName: body.lastName,
+      email: body.email,
+    });
+    return { id: user.id };
   });
 
 /**
@@ -57,14 +78,14 @@ const sendMagicLink = p
       email: z.string(),
     })
   )
-  .mutate(async ({ ctx, body, errors }) => {
+  .mutate(async ({ ctx, body, errors, redirect }) => {
     // TODO(sagar): use CSRF, rate limiting, etc to prevent DDOS
     let user = await ctx.repo.users.fetchByEmail(body.email);
     if (!user) {
-      user = await ctx.repo.users.insert({
-        id: "u-" + uniqueId(16),
-        email: body.email,
-      });
+      return errors.notFound("User not found");
+    }
+    if (user.config.waitlisted) {
+      return redirect("/waitlisted");
     }
 
     const signInToken = jwt.sign({
@@ -132,7 +153,6 @@ const magicLinkLogin = p.query(
 
       let user;
       if (!userId || !(user = await ctx.repo.users.fetchById(userId))) {
-        console.log("Magic token login error: payload =", payload);
         return errors.badRequest();
       }
 
@@ -199,18 +219,7 @@ const magicLinkLogin = p.query(
         }
       }
 
-      const signInToken = jwt.sign({
-        header: { alg: "HS512" },
-        payload: {
-          user: {
-            id: user.id,
-            email: user.email,
-            config: pick(user.config, "waitlisted"),
-          },
-          exp: (new Date().getTime() + ms("4 weeks")) / 1000,
-        },
-        secret: ctx.env.JWT_SIGNING_SECRET,
-      });
+      const signInToken = createSignInToken(ctx.env.JWT_SIGNING_SECRET, user);
       setCookie("logged-in", "true", {
         path: "/",
       });
@@ -224,5 +233,20 @@ const magicLinkLogin = p.query(
     }
   }
 );
+
+const createSignInToken = (secret: string, user: User) => {
+  return jwt.sign({
+    header: { alg: "HS512" },
+    payload: {
+      user: {
+        id: user.id,
+        email: user.email,
+        config: pick(user.config, "waitlisted"),
+      },
+      exp: (new Date().getTime() + ms("4 weeks")) / 1000,
+    },
+    secret,
+  });
+};
 
 export { findUser, listUsers, signup, sendMagicLink, magicLinkLogin };
