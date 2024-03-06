@@ -7,7 +7,10 @@ import {
 } from "@portal/solid-query";
 import cleanSet from "clean-set";
 import { Chat } from "../types";
-import { SharedWorkspaceContext } from "@portal/workspace-sdk";
+import {
+  SharedWorkspaceContext,
+  useSharedWorkspaceContext,
+} from "@portal/workspace-sdk";
 
 export type ChatState = {
   activeThreadId: Accessor<string | undefined>;
@@ -45,6 +48,7 @@ const ChatContextProvider = (props: {
   onThreadReady?: (threadId: string) => void;
   children: any;
 }) => {
+  const { activeWorkspace, getChatConfig } = useSharedWorkspaceContext();
   const threadsRoute = createQuery<any[]>(
     () => {
       return "/chat/threads";
@@ -125,12 +129,18 @@ const ChatContextProvider = (props: {
     context: ChatQueryContext;
     isNewThread: boolean;
   }>((input) => {
+    const chatConfig = getChatConfig();
     // If it's a new thread, navigate to that thread first
     return {
       url: `/chat/threads/${input.threadId}/send`,
       request: {
         body: {
           id: input.id,
+          model: {
+            id:
+              chatConfig.model ||
+              activeWorkspace.models().find((m) => !m.disabled)?.id,
+          },
           message: input.message,
           context: input.context,
         },

@@ -8,6 +8,8 @@ import { ChatMessage } from "../repo/chatMessages";
 import { ReplaySubject } from "rxjs";
 import { ThreadOperationsStream } from "../../chatsdk";
 import { generateQueryTitle } from "./chains/title";
+import ky from "ky";
+import { Workspace } from "@portal/workspace-sdk";
 
 const listThreads = p.query(async ({ ctx }) => {
   const threads = await ctx.repo.chatThreads.list();
@@ -80,6 +82,10 @@ const sendMessage = p
     z.object({
       id: z.string().optional(),
       thread: z.any(),
+      // one of the models provided by workspace /api/llm/models
+      model: z.object({
+        id: z.string(),
+      }),
       message: z.object({
         content: z.string(),
       }),
@@ -99,6 +105,13 @@ const sendMessage = p
     })
   )
   .mutate(async ({ ctx, params, body, errors }) => {
+    const model = await getModelById(
+      ctx.env.PORTAL_WORKSPACE_HOST,
+      body.model.id
+    );
+    if (!model) {
+      return errors.badRequest("Invalid model");
+    }
     const now = new Date();
     // TODO(sagar): abstract several steps and use middleware like system
     // so that it's easier to build plugins for chat system itself. For example,
@@ -110,9 +123,9 @@ const sendMessage = p
       {
         id: params.threadId,
         metadata: {
-          ai: {
-            model: "gpt-3.5-turbo",
-            // model: "gpt-4-1106-preview",
+          model: {
+            id: model.id,
+            name: model.name,
           },
         },
       },
@@ -156,6 +169,7 @@ const sendMessage = p
     generateLLMResponseStream(
       { ctx, errors },
       {
+        model,
         opsStream,
         thread,
         message: newMessage,
@@ -208,6 +222,21 @@ const listActiveTasks = p.query(async ({ ctx, params }) => {
 
   return keyBy(taskExecutions, (task) => task.id);
 });
+
+let AVAILABLE_MODELS_CACHE: Workspace.Model[] = [];
+const getModelById = async (workspaceHost: string, modelId: string) => {
+  const model = AVAILABLE_MODELS_CACHE.find((m) => m.id == modelId);
+  if (model) {
+    return model;
+  }
+
+  const models = await ky
+    .get(new URL(`/api/llm/models`, workspaceHost).href)
+    .json<Workspace.Model[]>();
+  AVAILABLE_MODELS_CACHE = models;
+
+  return models.find((m) => m.id == modelId && !m.disabled);
+};
 
 export {
   listThreads,

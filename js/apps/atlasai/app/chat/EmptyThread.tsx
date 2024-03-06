@@ -2,15 +2,21 @@ import { useSharedWorkspaceContext } from "@portal/workspace-sdk";
 import { ChatQueryContext } from "./ChatContext";
 import { For, Show, createComputed, untrack } from "solid-js";
 import { createSyncedStore } from "@portal/solid-store";
+import { Select } from "@portal/solid-ui/form";
 
 type EmptyThreadProps = {
   contextSelection?: ChatQueryContext;
 };
 
 const EmptyThread = (props: EmptyThreadProps) => {
-  const { setChatContext } = useSharedWorkspaceContext();
-  const [state, setState] = createSyncedStore<{ selectedContext: any[] }>(
+  const { setChatContext, activeWorkspace, setChatConfig } =
+    useSharedWorkspaceContext();
+  const [state, setState] = createSyncedStore<{
+    defaultModel: string;
+    selectedContext: any[];
+  }>(
     {
+      defaultModel: "openai-gpt-3.5",
       selectedContext: [],
     },
     {
@@ -41,10 +47,52 @@ const EmptyThread = (props: EmptyThreadProps) => {
     setChatContext(filteredContext);
   });
 
+  createComputed(() => {
+    setChatConfig("model", state.defaultModel());
+  });
+
   return (
     <div class="h-[calc(100%-theme(spacing.32))] py-16 flex flex-col justify-center space-y-8">
       <div class="font-bold text-xl text-gray-700 text-center">
         How can I help you?
+      </div>
+
+      <div class="flex justify-center">
+        <div class="basis-60 space-y-3">
+          <div>
+            <div class="text-md font-bold text-gray-600">AI Model</div>
+            <div class="text-xs text-gray-400">
+              Enable more models from Settings
+            </div>
+          </div>
+          <div>
+            <Select
+              name="model"
+              triggerClass="px-4 py-1.5 w-full text-sm"
+              contentClass="w-full text-sm"
+              itemClass="px-4 py-2 text-xs cursor-pointer hover:bg-gray-100"
+              itemRenderer={(item) => {
+                return (
+                  <div class="flex-1 flex justify-between">
+                    <div>{item.rawValue.name}</div>
+                    <Show when={item.rawValue.disabled}>
+                      <div class="text-red-700">Disabled</div>
+                    </Show>
+                  </div>
+                );
+              }}
+              placeholder="Select Model"
+              options={activeWorkspace.models().filter((m) => !m.disabled)}
+              optionValue="id"
+              optionTextValue="name"
+              optionDisabled="disabled"
+              value={state.defaultModel()}
+              onChange={(value) => {
+                setState("defaultModel", value);
+              }}
+            />
+          </div>
+        </div>
       </div>
 
       <Show when={props.contextSelection}>

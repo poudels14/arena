@@ -32,6 +32,7 @@
     "@arena/cloud": "workspace:^",
     "@arena/runtime": "workspace:^",
     "@langchain/core": "^0.1.40",
+    "@langchain/groq": "^0.0.2",
     "@langchain/openai": "^0.0.15",
     "@portal/cli": "workspace:^",
     "@portal/deploy": "workspace:^",

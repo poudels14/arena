@@ -1,4 +1,5 @@
 import { ChatOpenAI } from "@langchain/openai";
+import { ChatGroq } from "@langchain/groq";
 import {
   ChatPromptTemplate,
   MessagesPlaceholder,
@@ -20,16 +21,19 @@ import { ChatThread } from "../types";
 import { ChatMessage } from "../../repo/chatMessages";
 import { AtalasChatMessageHistory } from "./history";
 import { AtalasDriveSearch } from "./drive";
+import { Workspace } from "@portal/workspace-sdk";
 
 async function generateLLMResponseStream(
   { ctx }: Pick<ProcedureRequest<Context, any>, "ctx" | "errors">,
   {
+    model,
     opsStream,
     thread,
     message,
     previousMessages,
     context,
   }: {
+    model: Workspace.Model;
     opsStream: ThreadOperationsStream;
     thread: ChatThread;
     message: ChatMessage;
@@ -67,12 +71,30 @@ async function generateLLMResponseStream(
     new MessagesPlaceholder("chat_history"),
     ["human", "{input}"],
   ]);
-  const model = new ChatOpenAI({
-    // openAIApiKey: "",
-  });
+
+  let chainModel;
+  switch (model.family) {
+    case "groq": {
+      chainModel = new ChatGroq({
+        apiKey: process.env.GROQ_API_KEY,
+        modelName: "mixtral-8x7b-32768",
+      });
+      break;
+    }
+    case "openai": {
+      chainModel = new ChatOpenAI({
+        // openAIApiKey: "",
+        // modelName: "",
+      });
+      break;
+    }
+    default:
+      throw new Error("Unsupported model family");
+  }
+
   const outputParser = new StringOutputParser();
 
-  const chain = prompt.pipe(model).pipe(outputParser);
+  const chain = prompt.pipe(chainModel).pipe(outputParser);
   const chainWithHistory = new RunnableWithMessageHistory({
     runnable: chain,
     inputMessagesKey: "input",
@@ -92,7 +114,7 @@ async function generateLLMResponseStream(
 
   const stream = await chatWithDocuments.stream(message.message.content!, {
     configurable: { sessionId: "sessionId" },
-    callbacks: [new ConsoleCallbackHandler()],
+    // callbacks: [new ConsoleCallbackHandler()],
   });
 
   const aiResponseTime = new Date();

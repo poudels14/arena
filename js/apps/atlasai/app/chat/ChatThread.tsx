@@ -416,16 +416,16 @@ const InProgressBar = () => {
   return (
     <div class="px-4 py-2 text-gray-800 space-y-1">
       <div class="flex py-0 justify-center items-center space-x-4">
-        <div class="flex-[0.2] h-2 bg-gray-300 rounded animate-pulse"></div>
-        <div class="h-2 basis-1"></div>
-        <div class="flex-1 h-2 bg-gray-300 rounded animate-pulse"></div>
+        <div class="flex-[0.2] h-1 bg-gray-300 rounded animate-pulse"></div>
+        <div class="h-1 basis-1"></div>
+        <div class="flex-1 h-1 bg-gray-300 rounded animate-pulse"></div>
       </div>
       <div class="flex py-0 justify-center items-center space-x-4">
-        <div class="flex-1 h-2 bg-gray-300 rounded animate-pulse"></div>
-        <div class="h-2 basis-2"></div>
-        <div class="flex-[0.3] h-2 bg-gray-300 rounded animate-pulse"></div>
+        <div class="flex-1 h-1 bg-gray-300 rounded animate-pulse"></div>
+        <div class="h-1 basis-2"></div>
+        <div class="flex-[0.3] h-1 bg-gray-300 rounded animate-pulse"></div>
       </div>
-      <div class="h-2 bg-gray-300 rounded animate-pulse"></div>
+      <div class="h-1 bg-gray-300 rounded animate-pulse"></div>
     </div>
   );
 };

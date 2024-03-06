@@ -8,7 +8,7 @@ import {
 import { ChatContext, ChatContextProvider } from "./chat/ChatContext.tsx";
 
 const Chat = lazy(() => import("./chat/index.tsx"));
-const Settings = lazy(() => import("./settings/index.tsx"));
+// const Settings = lazy(() => import("./settings/index.tsx"));
 
 const Assistant = () => {
   const navigate = useNavigate();
@@ -22,9 +22,9 @@ const Assistant = () => {
     >
       <div class="w-full h-screen flex flex-row">
         <Sidebar />
-        <Route path="/settings">
+        {/* <Route path="/settings">
           <Settings />
-        </Route>
+        </Route> */}
         <Route
           path="/*"
           component={() => {
