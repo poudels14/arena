@@ -180,7 +180,6 @@ where
       if let Some(egress_addr) = egress_address {
         client = client.local_address(egress_addr);
       }
-      client = client.local_address(egress_address);
       op_state.put::<reqwest::Client>(client.build().unwrap());
     })),
     enabled: true,

@@ -1,13 +1,11 @@
 use anyhow::Context;
 use anyhow::Result;
-use diesel::r2d2::ConnectionManager;
-use diesel::r2d2::Pool;
-use diesel::PgConnection;
+use sqlx::postgres::PgPoolOptions;
+use sqlx::{Pool, Postgres};
 use std::env;
 use std::time::Duration;
 
-pub fn create_connection_pool() -> Result<Pool<ConnectionManager<PgConnection>>>
-{
+pub async fn create_connection_pool() -> Result<Pool<Postgres>> {
   let database_url =
     env::var("DATABASE_URL").context("Missing env variable: DATABASE_URL")?;
 
@@ -20,13 +18,12 @@ pub fn create_connection_pool() -> Result<Pool<ConnectionManager<PgConnection>>>
     .unwrap_or(10);
 
   tracing::debug!("Connecting to database $DATABASE_URL");
-  let manager = ConnectionManager::<PgConnection>::new(database_url);
   Ok(
-    Pool::builder()
+    PgPoolOptions::new()
+      .max_connections(max_pool_size)
       .idle_timeout(Some(Duration::from_secs(60)))
-      .max_size(max_pool_size)
-      .connection_timeout(Duration::from_secs(30))
-      .test_on_check_out(true)
-      .build(manager)?,
+      .acquire_timeout(Duration::from_secs(30))
+      .connect(&database_url)
+      .await?,
   )
 }

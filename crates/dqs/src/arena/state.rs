@@ -2,19 +2,15 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use derivative::Derivative;
-use diesel::prelude::*;
-use diesel::r2d2::{ConnectionManager, PooledConnection};
-use diesel::PgConnection;
 use runtime::env::{EnvVar, EnvironmentVariableStore};
 use serde_json::Value;
+use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 
 use super::app::App;
 use super::MainModule;
-use crate::db::database::{
-  database_clusters, databases, Database, DatabaseCluster,
-};
-use crate::db::resource::{self, environment_variables};
+use crate::db::database;
+use crate::db::resource;
 use crate::loaders::registry::Registry;
 
 #[derive(Derivative)]
@@ -28,68 +24,50 @@ pub struct ArenaRuntimeState {
 
 impl ArenaRuntimeState {
   #[tracing::instrument(skip_all, err, level = "debug")]
-  pub fn load_app_env_variables(
+  pub async fn load_app_env_variables(
     workspace_id: &str,
     app: &App,
-    connection: &mut PooledConnection<ConnectionManager<PgConnection>>,
+    pool: &Pool<Postgres>,
   ) -> Result<EnvironmentVariableStore> {
-    let query = resource::table
-      .filter(
-        environment_variables::workspace_id
-          .eq(workspace_id.to_string())
-          .and(environment_variables::app_id.is_null())
-          .and(environment_variables::app_template_id.is_null()),
-      )
-      .or_filter(environment_variables::app_id.eq(app.id.clone()))
-      .or_filter(
-        environment_variables::app_template_id
-          .eq(app.template.id.clone())
-          .and(environment_variables::app_id.is_null())
-          .and(environment_variables::workspace_id.is_null()),
-      )
-      // global env variable
-      .or_filter(
-        environment_variables::app_template_id
-          .is_null()
-          .and(environment_variables::app_id.is_null())
-          .and(environment_variables::workspace_id.is_null()),
-      )
-      .into_boxed();
+    let env_vars: Vec<resource::EnvVar> = sqlx::query_as(
+      r#"SELECT * FROM environment_variables
+    WHERE
+      (
+        (workspace_id = $1 AND app_id IS NULL AND app_template_id IS NULL) OR
+        (app_id = $2) OR
+        (app_template_id = $3 AND app_id IS NULL AND workspace_id IS NULL) OR
+        (app_template_id IS NULL AND app_id IS NULL AND workspace_id IS NULL)
+      ) AND archived_at IS NULL;
+    "#,
+    )
+    .bind(workspace_id)
+    .bind(&app.id)
+    .bind(&app.template.id)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| {
+      tracing::error!("{:?}", e);
+    })
+    .unwrap_or_default();
 
-    let env_vars = query
-      .filter(environment_variables::archived_at.is_null())
-      .load::<resource::EnvVar>(connection)
-      .map_err(|e| {
-        tracing::error!("{:?}", e);
-      })
-      .unwrap_or_default();
-
-    let app_databases = databases::table
-      .filter(
-        databases::workspace_id
-          .eq(workspace_id.to_string())
-          .and(databases::app_id.eq(app.id.clone())),
-      )
-      .load::<Database>(connection)
-      .map_err(|e| {
-        tracing::error!("{:?}", e);
-      })
-      .unwrap_or_default();
-
-    let app_database = app_databases.get(0);
+    let app_database =
+      database::get_database_with_app_id(pool, workspace_id, &app.id)
+        .await
+        .map_err(|e| {
+          tracing::error!("{:?}", e);
+        })
+        .unwrap_or_default();
     let database_cluster = match app_database {
-      Some(db) if db.cluster_id.is_some() => {
-        let clusters = database_clusters::table
-          .filter(
-            database_clusters::id
-              .eq(db.cluster_id.as_ref().unwrap().to_string()),
-          )
-          .load::<DatabaseCluster>(connection)
-          .map_err(|e| {
-            tracing::error!("{:?}", e);
-          })
-          .unwrap_or_default();
-        clusters.get(0).cloned()
+      Some(ref db) if db.cluster_id.is_some() => {
+        database::get_database_cluster_with_id(
+          pool,
+          db.cluster_id.as_ref().unwrap(),
+        )
+        .await
+        .map_err(|e| {
+          tracing::error!("{:?}", e);
+        })
+        .unwrap_or_default()
       }
       _ => None,
     };
@@ -109,7 +87,7 @@ impl ArenaRuntimeState {
       })
       .collect::<HashMap<String, EnvVar>>();
 
-    if let Some(db) = app_database {
+    if let Some(ref db) = app_database {
       let db_name_id = Uuid::new_v4().to_string();
       resources.insert(
         db_name_id.clone(),

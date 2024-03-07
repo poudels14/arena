@@ -15,7 +15,6 @@ use cloud::pubsub::EventSink;
 use cloud::pubsub::Subscriber;
 use colored::Colorize;
 use common::axum::logger;
-use diesel::prelude::*;
 use http::StatusCode;
 use http::{Method, Request};
 use hyper::Body;
@@ -25,6 +24,7 @@ use runtime::extensions::server::response::ParsedHttpResponse;
 use runtime::extensions::server::{errors, HttpRequest};
 use serde::Deserialize;
 use serde_json::{json, Value};
+use tokio::sync::broadcast;
 use tokio::sync::oneshot;
 use tokio::sync::Mutex;
 use tower::ServiceBuilder;
@@ -41,15 +41,16 @@ use crate::arena::workflow::PluginWorkflow;
 use crate::arena::workflow::WorkflowTemplate;
 use crate::arena::MainModule;
 use crate::cluster::server::DqsServerStatus;
-use crate::db::workflow::workflow_runs;
 use crate::db::workflow::WorkflowRun;
 use crate::runtime::Command;
 
 impl DqsCluster {
   #[allow(dead_code)]
-  pub(crate) async fn start_server(
+  pub async fn start_server(
     &self,
-    shutdown_signal: oneshot::Receiver<()>,
+    // additional router
+    router: Option<Router>,
+    mut shutdown_signal: broadcast::Receiver<()>,
   ) -> Result<()> {
     let compression_predicate = DefaultPredicate::new()
       .and(NotForContentType::new(mime::TEXT_EVENT_STREAM.as_ref()));
@@ -89,6 +90,11 @@ impl DqsCluster {
       )
       .with_state(self.clone());
 
+    let app = match router {
+      Some(router) => app.nest("/", router),
+      None => app,
+    };
+
     // TODO(sagar): listen on multiple ports so that a lot more traffic
     // can be served from single cluster
     let addr: SocketAddr = (
@@ -103,16 +109,16 @@ impl DqsCluster {
         .yellow()
         .bold()
     );
-    self.mark_node_as_online()?;
+    self.mark_node_as_online().await?;
     axum::Server::bind(&addr)
       .serve(app.into_make_service())
       .with_graceful_shutdown(async {
-        shutdown_signal.await.ok();
+        shutdown_signal.recv().await.ok();
         let _ = self.mark_node_as_terminating();
       })
       .await?;
 
-    self.mark_node_as_terminated()?;
+    self.mark_node_as_terminated().await?;
 
     // Terminate all server threads
     for server in self.servers.iter_mut() {
@@ -209,6 +215,18 @@ pub async fn pipe_app_request(
   )
   .await?;
 
+  let egress_headers = vec![
+    (
+      "x-portal-user".to_owned(),
+      identity
+        .to_user_json()
+        .expect("Error converting identity to JSON"),
+    ),
+    (
+      "x-portal-app".to_owned(),
+      serde_json::to_string(&app).unwrap(),
+    ),
+  ];
   let dqs_server = cluster
     .get_or_spawn_dqs_server(DqsServerOptions {
       id: format!("app/{}", app_id),
@@ -241,12 +259,7 @@ pub async fn pipe_app_request(
     url: url.as_str().to_owned(),
     // don't pass in headers like `Cookie` that might contain
     // user auth credentials
-    headers: vec![(
-      "x-portal-user".to_owned(),
-      identity
-        .to_user_json()
-        .expect("Error converting identity to JSON"),
-    )],
+    headers: egress_headers,
     body,
   };
 
@@ -345,17 +358,13 @@ pub async fn pipe_plugin_workflow_request(
   let identity = parse_identity_from_header(jwt_secret()?.as_str(), &req)
     .map_err(|_| errors::Error::NotFound)?;
 
-  let mut connection = cluster
-    .db_pool
-    .get()
-    .map_err(|_| anyhow!("Database connection error"))?;
-
-  let wf_run: WorkflowRun = workflow_runs::table
-    .filter(workflow_runs::id.eq(&workflow_id))
-    .first::<WorkflowRun>(&mut connection)
-    .optional()
-    .map_err(|e| anyhow!("Failed to load Workflow run from db: {}", e))?
-    .ok_or(Error::NotFound)?;
+  let wf_run: WorkflowRun =
+    sqlx::query_as("SELECT * FROM workflow_runs WHERE id = $1")
+      .bind(&workflow_id)
+      .fetch_optional(&cluster.db_pool)
+      .await
+      .map_err(|e| anyhow!("Failed to load Workflow run from db: {}", e))?
+      .ok_or(Error::NotFound)?;
 
   let Json(body): Json<Value> = req
     .extract()

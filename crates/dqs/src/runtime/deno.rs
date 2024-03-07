@@ -9,12 +9,11 @@ use cloud::rowacl::RowAclChecker;
 use cloud::CloudExtensionProvider;
 use deno_core::{v8, JsRuntime};
 use derivative::Derivative;
-use diesel::r2d2::{ConnectionManager, Pool};
-use diesel::PgConnection;
 use parking_lot::RwLock;
 use runtime::extensions::server::HttpServerConfig;
 use runtime::extensions::BuiltinModule;
 use runtime::permissions::PermissionsContainer;
+use sqlx::{Pool, Postgres};
 
 use super::core;
 use crate::arena::{self, ArenaRuntimeState};
@@ -26,7 +25,7 @@ use crate::loaders::template::TemplateLoader;
 pub struct RuntimeOptions {
   /// Runtime id
   pub id: String,
-  pub db_pool: Option<Pool<ConnectionManager<PgConnection>>>,
+  pub db_pool: Option<Pool<Postgres>>,
   pub v8_platform: v8::SharedRef<v8::Platform>,
   pub server_config: HttpServerConfig,
   pub exchange: Option<Exchange>,

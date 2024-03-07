@@ -7,23 +7,21 @@ use deno_core::{
   ResolutionKind,
 };
 use deno_core::{ModuleSource, ModuleType};
-use diesel::prelude::*;
-use diesel::r2d2::{ConnectionManager, Pool};
-use diesel::PgConnection;
 use loaders::ResourceLoader;
+use sqlx::{Pool, Postgres};
 use tracing::info;
 use url::Url;
 
 use super::template::TemplateLoader;
 use crate::config::{DataConfig, SourceConfig, WidgetConfig};
-use crate::db::widget::{self, widgets};
+use crate::db::widget;
 use crate::loaders;
 use crate::specifier::{ParsedSpecifier, WidgetQuerySpecifier};
 
 #[derive(Clone)]
 pub struct AppkitModuleLoader {
   pub workspace_id: String,
-  pub pool: Option<Pool<ConnectionManager<PgConnection>>>,
+  pub pool: Option<Pool<Postgres>>,
   pub template_loader: Arc<dyn TemplateLoader>,
 }
 
@@ -181,14 +179,16 @@ impl AppkitModuleLoader {
   ) -> Result<String> {
     // TODO(sagar): instead of loading widget query from db directly,
     // use registry
-    let connection = &mut self
+    let pool = self
       .pool
       .clone()
-      .ok_or(anyhow!("Database not initialized"))?
-      .get()?;
-    let widget = widgets::table
-      .filter(widgets::id.eq(specifier.widget_id.to_string()))
-      .first::<widget::Widget>(connection);
+      .ok_or(anyhow!("Database not initialized"))?;
+
+    let widget: Result<widget::Widget, sqlx::Error> =
+      sqlx::query_as("SELECT * FROM widgets WHERE id = $1")
+        .bind(&specifier.widget_id)
+        .fetch_one(&pool)
+        .await;
 
     return match widget {
       Ok(w) => {

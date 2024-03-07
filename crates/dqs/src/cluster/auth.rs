@@ -29,6 +29,7 @@ pub async fn authenticate_user_using_headers(
 }
 
 /// Returns App if authorization succeeds
+#[tracing::instrument(skip_all, err, level = "trace")]
 pub async fn authenticate_user(
   cache: &Cache,
   app_id: &str,

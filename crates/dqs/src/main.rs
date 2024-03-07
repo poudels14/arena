@@ -108,10 +108,13 @@ fn main() -> Result<()> {
     .build()?;
 
   let (shutdown_signal_tx, shutdown_signal_rx) =
-    tokio::sync::oneshot::channel::<()>();
+    tokio::sync::broadcast::channel::<()>(10);
   let handle: tokio::task::JoinHandle<Result<(), anyhow::Error>> =
     rt.spawn(async move {
-      dqs_cluster.start_server(shutdown_signal_rx).await.unwrap();
+      dqs_cluster
+        .start_server(None, shutdown_signal_rx)
+        .await
+        .unwrap();
       Ok(())
     });
 

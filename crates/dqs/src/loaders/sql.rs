@@ -1,5 +1,3 @@
-use super::ResourceLoader;
-use crate::config::PostgresSourceConfig;
 use anyhow::{anyhow, bail, Result};
 use handlebars::{no_escape, Handlebars};
 use nom::branch::alt;
@@ -11,6 +9,9 @@ use nom::sequence::tuple;
 use nom::IResult;
 use once_cell::sync::Lazy;
 use serde_json::json;
+
+use super::ResourceLoader;
+use crate::config::PostgresSourceConfig;
 
 static TEMPLATE: Lazy<Result<Handlebars>> = Lazy::new(|| {
   let mut reg = Handlebars::new();

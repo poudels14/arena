@@ -13,9 +13,6 @@ use cloud::pubsub::exchange::Exchange;
 use cloud::rowacl::RowAclChecker;
 use common::beam;
 use deno_core::v8;
-use diesel::prelude::*;
-use diesel::r2d2::{ConnectionManager, Pool};
-use diesel::PgConnection;
 use jsonwebtoken::{Algorithm, EncodingKey, Header};
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
@@ -24,13 +21,14 @@ use runtime::extensions::server::response::ParsedHttpResponse;
 use runtime::extensions::server::{HttpRequest, HttpServerConfig};
 use runtime::permissions::PermissionsContainer;
 use serde_json::Value;
+use sqlx::types::chrono::Utc;
+use sqlx::{Pool, Postgres};
 use tokio::sync::{mpsc, oneshot, watch, Mutex};
 
 use crate::arena::{ArenaRuntimeState, MainModule};
 use crate::config::workspace::WorkspaceConfig;
-use crate::db;
-use crate::db::deployment::{app_deployments, Deployment};
-use crate::db::workspace::workspaces;
+use crate::db::deployment::Deployment;
+use crate::db::{self, deployment};
 use crate::loaders::registry::Registry;
 use crate::loaders::RegistryTemplateLoader;
 use crate::runtime::Command;
@@ -52,7 +50,7 @@ pub struct DqsServerOptions {
   pub dqs_egress_addr: Option<IpAddr>,
   /// Registry to be used to fetch bundled JS from
   pub registry: Registry,
-  pub db_pool: Pool<ConnectionManager<PgConnection>>,
+  pub db_pool: Pool<Postgres>,
 }
 
 #[derive(Debug, Clone)]
@@ -80,7 +78,7 @@ impl DqsServer {
   ) -> Result<(DqsServer, watch::Receiver<ServerEvents>)> {
     let (http_requests_tx, http_requests_rx) = mpsc::channel(200);
     let (events_tx, mut receiver) = watch::channel(ServerEvents::Init);
-    let workspace_config = Self::load_workspace_config(&options)?;
+    let workspace_config = Self::load_workspace_config(&options).await?;
     let permissions = PermissionsContainer {
       net: workspace_config.runtime.net_permissions,
       ..Default::default()
@@ -93,15 +91,18 @@ impl DqsServer {
     ));
     let options_clone = options.clone();
     let thread_handle = thread.spawn(move || {
-      let env_variables = match options.module.as_app() {
-        Some(app) => ArenaRuntimeState::load_app_env_variables(
-          &options.workspace_id,
-          app,
-          &mut options.db_pool.get()?,
-        )
-        .unwrap_or_default(),
-        _ => EnvironmentVariableStore::new(HashMap::new()),
-      };
+      let env_variables = futures::executor::block_on(async {
+        match options.module.as_app() {
+          Some(app) => ArenaRuntimeState::load_app_env_variables(
+            &options.workspace_id,
+            app,
+            &options.db_pool,
+          )
+          .await
+          .unwrap_or_default(),
+          _ => EnvironmentVariableStore::new(HashMap::new()),
+        }
+      });
 
       let state = ArenaRuntimeState {
         workspace_id: options.workspace_id.clone(),
@@ -219,18 +220,12 @@ impl DqsServer {
   }
 
   #[tracing::instrument(skip_all, level = "trace")]
+  #[inline]
   pub async fn get_server_deployment(
     &self,
     id: &str,
   ) -> Result<Option<Deployment>> {
-    let connection = &mut self.options.db_pool.get()?;
-    let deployment = db::deployment::table
-      .filter(app_deployments::id.eq(id.to_string()))
-      .first::<Deployment>(connection)
-      .optional()
-      .map_err(|e| anyhow!("Failed to load DQS deployment from db: {}", e))?;
-
-    Ok(deployment)
+    deployment::get_deployment_with_id(&self.options.db_pool, id).await
   }
 
   #[tracing::instrument(skip_all, level = "trace")]
@@ -242,28 +237,24 @@ impl DqsServer {
       workspace_id: self.options.workspace_id.clone(),
       app_id: app.map(|a| a.id.clone()),
       app_template_id: app.map(|a| a.template.id.clone()),
-      started_at: SystemTime::now(),
+      started_at: Utc::now().naive_utc(),
       last_heartbeat_at: None,
       reboot_triggered_at: None,
     };
 
-    let connection = &mut self.options.db_pool.get()?;
-
     // Since arenasql doesn't support ON CONFLICT, delete existing deployment
     // first
-    diesel::delete(app_deployments::dsl::app_deployments)
-      .filter(app_deployments::id.eq(deployment.id.to_string()))
-      .execute(connection)?;
-    diesel::insert_into(app_deployments::dsl::app_deployments)
-      .values(&deployment)
-      .execute(connection)
-      .map_err(|e| anyhow!("Failed to update DQS deployment: {}", e))?;
-
+    deployment::delete_deployment_with_id(
+      &self.options.db_pool,
+      &deployment.id,
+    )
+    .await?;
+    deployment::insert_deployment(&self.options.db_pool, &deployment).await?;
     Ok(())
   }
 
   #[tracing::instrument(skip_all, err, level = "debug")]
-  fn load_workspace_config(
+  async fn load_workspace_config(
     options: &DqsServerOptions,
   ) -> Result<WorkspaceConfig> {
     let app = options.module.as_app();
@@ -271,14 +262,12 @@ impl DqsServer {
       return Ok(WorkspaceConfig::default());
     }
 
-    let connection =
-      &mut options.db_pool.get().map_err(|e| anyhow!("{}", e))?;
-
-    let workspace = db::workspace::table
-      .filter(workspaces::id.eq(options.workspace_id.to_string()))
-      .filter(workspaces::archived_at.is_null())
-      .first::<db::workspace::Workspace>(connection)
-      .map_err(|e| anyhow!("Failed to load workspace from db: {}", e))?;
+    let workspace: db::workspace::Workspace = sqlx::query_as(
+      "SELECT * FROM workspaces WHERE id = $1 AND archived_at IS NULL",
+    )
+    .bind(&options.workspace_id)
+    .fetch_one(&options.db_pool)
+    .await?;
 
     serde_json::from_value::<WorkspaceConfig>(workspace.config)
       .map_err(|e| anyhow!("{}", e))

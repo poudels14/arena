@@ -1,24 +1,12 @@
-#[allow(unused)]
-pub use apps::table;
-pub use diesel::prelude::*;
 use serde_json::Value;
-use std::time::SystemTime;
+use sqlx::types::chrono::NaiveDate;
+use sqlx::FromRow;
 
-#[derive(Queryable, Debug, Clone)]
+#[derive(FromRow, Debug, Clone)]
 pub struct App {
   pub id: String,
   pub workspace_id: String,
   pub template: Option<Value>,
   pub owner_id: Option<String>,
-  pub archived_at: Option<SystemTime>,
-}
-
-diesel::table! {
-  apps (id) {
-    id -> Varchar,
-    workspace_id -> Varchar,
-    template -> Nullable<Jsonb>,
-    owner_id -> Nullable<Varchar>,
-    archived_at -> Nullable<Timestamp>,
-  }
+  pub archived_at: Option<NaiveDate>,
 }

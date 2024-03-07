@@ -1,17 +1,9 @@
-use diesel::prelude::*;
 use serde_json::Value;
+use sqlx::FromRow;
 
-#[derive(Queryable, Debug)]
+#[derive(FromRow, Debug)]
 pub struct Widget {
   pub id: String,
   pub name: String,
   pub config: Value,
-}
-
-diesel::table! {
-  widgets (id) {
-    id -> Varchar,
-    name -> Varchar,
-    config -> Jsonb,
-  }
 }

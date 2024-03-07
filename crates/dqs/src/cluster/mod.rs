@@ -3,9 +3,7 @@ use cloud::pubsub::exchange::Exchange;
 use colored::Colorize;
 use dashmap::DashMap;
 use deno_core::v8;
-use diesel::prelude::*;
-use diesel::r2d2::{ConnectionManager, Pool};
-use diesel::PgConnection;
+use sqlx::{Pool, Postgres};
 use std::net::IpAddr;
 use std::sync::Arc;
 use tokio::sync::{watch, Mutex};
@@ -18,9 +16,7 @@ pub(crate) mod server;
 
 use self::cache::Cache;
 use self::server::{DqsServer, DqsServerOptions, DqsServerStatus};
-use crate::db;
-use crate::db::deployment::app_deployments;
-use crate::db::nodes::app_clusters;
+use crate::db::{self, nodes};
 use crate::loaders::registry::Registry;
 use crate::runtime::server::ServerEvents;
 use crate::runtime::Command;
@@ -50,13 +46,15 @@ pub struct DqsCluster {
   /// global lock to make sure only one DQS server is spawned at a time
   pub spawn_lock: Arc<Mutex<usize>>,
   pub exchanges: Arc<DashMap<String, Exchange>>,
-  pub db_pool: Pool<ConnectionManager<PgConnection>>,
+  pub db_pool: Pool<Postgres>,
   pub cache: Cache,
 }
 
 impl DqsCluster {
-  pub fn new(options: DqsClusterOptions) -> Result<Self> {
-    let db_pool = db::create_connection_pool()?;
+  pub fn new(
+    options: DqsClusterOptions,
+    db_pool: Pool<Postgres>,
+  ) -> Result<Self> {
     let v8_platform = v8::new_default_platform(0, false).make_shared();
     Ok(Self {
       options: options.clone(),
@@ -125,11 +123,7 @@ impl DqsCluster {
           let deployment = s.get_server_deployment(id).await?;
           let reboot_triggered_after_deployment = deployment
             .map(|d| match d.reboot_triggered_at {
-              Some(triggered_at) => {
-                // Note(sagar): if duration_since returs err, it means
-                // triggered_at is before d.started_at
-                triggered_at.duration_since(d.started_at).is_ok()
-              }
+              Some(triggered_at) => triggered_at > d.started_at,
               None => false,
             })
             .unwrap_or(false);
@@ -247,8 +241,7 @@ impl DqsCluster {
   }
 
   #[tracing::instrument(skip_all, level = "debug")]
-  pub fn mark_node_as_online(&self) -> Result<()> {
-    let connection = &mut self.db_pool.get()?;
+  pub async fn mark_node_as_online(&self) -> Result<()> {
     let node = db::nodes::DqsNode {
       id: self.node_id.to_string(),
       host: self.options.address.clone(),
@@ -258,28 +251,25 @@ impl DqsCluster {
 
     // Since arenasql doesn't support ON CONFLICT, delete existing app_clusters
     // first
-    diesel::delete(app_clusters::dsl::app_clusters)
-      .filter(app_clusters::id.eq(node.id.to_string()))
-      .execute(connection)?;
-    diesel::insert_into(app_clusters::dsl::app_clusters)
-      .values(&node)
-      .execute(connection)
+    nodes::delete_dqs_node_with_id(&self.db_pool, &node.id).await?;
+    nodes::insert_dqs_node(&self.db_pool, &node)
+      .await
       .map_err(|e| anyhow!("Failed to mark node as online: {}", e))?;
     Ok(())
   }
 
   #[tracing::instrument(skip_all, level = "debug")]
-  pub fn mark_node_as_terminating(&self) -> Result<()> {
-    let connection = &mut self.db_pool.get()?;
-    diesel::update(app_clusters::dsl::app_clusters)
-      .set(app_clusters::status.eq("TERMINATING".to_string()))
-      .filter(app_clusters::id.eq(self.node_id.clone()))
-      .execute(connection)
-      .map_err(|e| anyhow!("Failed to mark node as offline: {}", e))?;
+  pub async fn mark_node_as_terminating(&self) -> Result<()> {
+    nodes::update_dqs_node_status_with_id(
+      &self.db_pool,
+      &self.node_id,
+      "TERMINATING",
+    )
+    .await
+    .map_err(|e| anyhow!("Failed to mark node as offline: {}", e))?;
 
-    diesel::delete(app_deployments::dsl::app_deployments)
-      .filter(app_deployments::node_id.eq(self.node_id.clone()))
-      .execute(connection)
+    nodes::delete_dqs_node_with_id(&self.db_pool, &self.node_id)
+      .await
       .map_err(|e| {
         anyhow!(
           "Failed to remove DQS deployments from terminating node: {}",
@@ -290,11 +280,9 @@ impl DqsCluster {
     Ok(())
   }
 
-  pub fn mark_node_as_terminated(&self) -> Result<()> {
-    let connection = &mut self.db_pool.get()?;
-    diesel::delete(app_clusters::dsl::app_clusters)
-      .filter(app_clusters::id.eq(self.node_id.to_string()))
-      .execute(connection)
+  pub async fn mark_node_as_terminated(&self) -> Result<()> {
+    nodes::delete_dqs_node_with_id(&self.db_pool, &self.node_id)
+      .await
       .map_err(|e| anyhow!("Failed to mark node as terminated: {}", e))?;
     Ok(())
   }

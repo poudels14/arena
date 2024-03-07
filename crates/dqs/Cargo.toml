@@ -22,7 +22,6 @@ nom.workspace = true
 hyper.workspace = true
 bytes.workspace = true
 http.workspace = true
-diesel.workspace = true
 handlebars.workspace = true
 uuid.workspace = true
 once_cell.workspace = true
@@ -43,6 +42,7 @@ dashmap.workspace = true
 num_cpus.workspace = true
 signal-hook.workspace = true
 async-trait.workspace = true
+sqlx.workspace = true
 
 deno_core = "=0.238.0"
 deno_webidl = "=0.128.0"
@@ -57,6 +57,7 @@ common = { path = "../common", features = ["dotenv"] }
 runtime = { path = "../runtime", features = [], default-features = false }
 cloud = { path = "../cloud", features = [], default-features = false }
 parking_lot = "0.12.1"
+futures.workspace = true
 
 [build-dependencies]
 common = { path = "../common", features = [] }
