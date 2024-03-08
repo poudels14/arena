@@ -288,10 +288,7 @@ pub async fn pipe_app_request(
   if let Some(app) = app {
     headers.push((
       "x-portal-app".to_owned(),
-      format!(
-        r#"{{"id": "{}", "template": {{"id": "{}"}}}}"#,
-        app.id, app.template.id
-      ),
+      serde_json::to_string(&app).unwrap(),
     ));
   }
 

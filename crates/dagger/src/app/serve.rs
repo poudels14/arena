@@ -65,7 +65,6 @@ impl Command {
       .canonicalize()
       .expect("Error canonicalizing app dir");
 
-    let config = ArenaConfig::load(&cwd.join(&app_dir).canonicalize()?)?;
     let server_entry = match self.s3bucket {
       Some(_) => self.entry.clone(),
       _ => {
@@ -108,6 +107,7 @@ impl Command {
           },
         })))
       } else {
+        let config = ArenaConfig::load(&cwd.join(&app_dir).canonicalize()?)?;
         Some(Rc::new(FileModuleLoader::new(
           Rc::new(FilePathResolver::new(
             app_dir.clone(),
