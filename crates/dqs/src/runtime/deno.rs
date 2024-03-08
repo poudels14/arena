@@ -27,7 +27,7 @@ pub struct RuntimeOptions {
   pub id: String,
   pub db_pool: Option<Pool<Postgres>>,
   pub v8_platform: v8::SharedRef<v8::Platform>,
-  pub server_config: HttpServerConfig,
+  pub server_config: Option<HttpServerConfig>,
   pub exchange: Option<Exchange>,
   pub acl_checker: Option<Arc<RwLock<RowAclChecker>>>,
   pub permissions: PermissionsContainer,
@@ -55,16 +55,19 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
     None
   };
 
+  let mut modules = vec![
+    BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider {
+      publisher,
+      acl_checker: config.acl_checker,
+    })),
+    BuiltinModule::Custom(Rc::new(arena::extension)),
+  ];
+  if let Some(server_config) = config.server_config {
+    modules.push(BuiltinModule::HttpServer(server_config));
+  }
   core::create_new(core::RuntimeOptions {
     id: config.id,
-    modules: vec![
-      BuiltinModule::HttpServer(config.server_config),
-      BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider {
-        publisher,
-        acl_checker: config.acl_checker,
-      })),
-      BuiltinModule::Custom(Rc::new(arena::extension)),
-    ],
+    modules,
     egress_address: config.egress_address,
     egress_headers: config.egress_headers,
     heap_limits: config.heap_limits,

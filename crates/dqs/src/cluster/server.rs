@@ -150,9 +150,9 @@ impl DqsServer {
           id: options.id,
           db_pool: options.db_pool.into(),
           v8_platform,
-          server_config: HttpServerConfig::Stream(Arc::new(
+          server_config: Some(HttpServerConfig::Stream(Arc::new(
             std::sync::Mutex::new(Some(http_requests_rx)),
-          )),
+          ))),
           egress_address: options.dqs_egress_addr,
           egress_headers,
           heap_limits: workspace_config

@@ -92,16 +92,6 @@ fn main() -> Result<()> {
   let _ = required_env!("DATABASE_URL");
   let _ = required_env!("JWT_SIGNING_SECRET");
 
-  let dqs_cluster = DqsCluster::new(DqsClusterOptions {
-    address: host,
-    port,
-    dqs_egress_addr,
-    registry: Registry {
-      host: registry_host,
-      api_key: registry_api_key,
-    },
-  })?;
-
   let rt = tokio::runtime::Builder::new_multi_thread()
     .worker_threads(num_cpus::get())
     .enable_all()
@@ -111,6 +101,20 @@ fn main() -> Result<()> {
     tokio::sync::broadcast::channel::<()>(10);
   let handle: tokio::task::JoinHandle<Result<(), anyhow::Error>> =
     rt.spawn(async move {
+      let db_pool = db::create_connection_pool().await?;
+      let dqs_cluster = DqsCluster::new(
+        DqsClusterOptions {
+          address: host,
+          port,
+          dqs_egress_addr,
+          registry: Registry {
+            host: registry_host,
+            api_key: registry_api_key,
+          },
+        },
+        db_pool,
+      )?;
+
       dqs_cluster
         .start_server(None, shutdown_signal_rx)
         .await

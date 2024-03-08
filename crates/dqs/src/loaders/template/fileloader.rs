@@ -2,12 +2,9 @@ use anyhow::Result;
 use async_trait::async_trait;
 
 use super::TemplateLoader;
-use crate::arena::MainModule;
 
 #[derive(Clone)]
-pub struct FileTemplateLoader {
-  pub module: MainModule,
-}
+pub struct FileTemplateLoader {}
 
 #[async_trait]
 impl TemplateLoader for FileTemplateLoader {

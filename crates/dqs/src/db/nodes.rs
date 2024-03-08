@@ -1,4 +1,5 @@
 use anyhow::Result;
+use sqlx::types::chrono::{NaiveDateTime, Utc};
 use sqlx::{FromRow, Pool, Postgres};
 
 /// Dqs node
@@ -34,6 +35,7 @@ pub async fn update_dqs_node_status_with_id(
   Ok(())
 }
 
+#[allow(dead_code)]
 pub async fn get_dqs_node_with_id(
   pool: &Pool<Postgres>,
   id: &str,
@@ -51,14 +53,15 @@ pub async fn insert_dqs_node(
 ) -> Result<()> {
   sqlx::query(
     r#"INSERT INTO app_clusters
-    (id, host, port, status)
-    VALUES ($1, $2, $3, $4)
+    (id, host, port, status, started_at)
+    VALUES ($1, $2, $3, $4, $5)
     "#,
   )
   .bind(&node.id)
   .bind(&node.host)
   .bind(&node.port)
   .bind(&node.status)
+  .bind(&Utc::now())
   .execute(pool)
   .await?;
   Ok(())
