@@ -1,17 +1,20 @@
+mod workspace;
+
 use anyhow::Result;
 use arenasql::execution::Privilege;
 use arenasql_cluster::schema::{ClusterManifest, User, ADMIN_USERNAME};
-use axum::Router;
 use clap::Parser;
 use common::required_env;
 use dqs::cluster::{DqsCluster, DqsClusterOptions};
 use dqs::db;
 use dqs::loaders::Registry;
-use tokio::sync::{broadcast, oneshot};
+use tokio::sync::{broadcast, mpsc, oneshot};
 
 use crate::config::WorkspaceConfig;
 use crate::database::ArenasqlDatabase;
 use crate::workspace::Workspace;
+
+use self::workspace::WorkspaceRouter;
 
 #[derive(Parser, Debug)]
 pub struct Command {
@@ -99,11 +102,36 @@ impl Command {
       db_pool,
     )?;
 
+    let (stream_tx, stream_rx) = mpsc::channel(10);
+    tokio::spawn(async {
+      rayon::scope(|_| {
+        let rt = tokio::runtime::Builder::new_current_thread()
+          .worker_threads(2)
+          .enable_all()
+          .build()
+          .expect("error setting up tokio runtime");
+
+        let local = tokio::task::LocalSet::new();
+        let _ = local.block_on(&rt, async {
+          workspace::start_workspace_server(workspace, stream_rx)
+            .await
+            .expect("Error running workspace server");
+        });
+      });
+    });
+
     let shutdown_signal_rx = shutdown_signal.subscribe();
     tokio::spawn(async move {
-      let portal_routes = Router::new();
+      let workspace_router = WorkspaceRouter::new(stream_tx);
       dqs_cluster
-        .start_server(Some(portal_routes), shutdown_signal_rx)
+        .start_server(
+          Some(
+            workspace_router
+              .axum_router()
+              .expect("creating workspace routes"),
+          ),
+          shutdown_signal_rx,
+        )
         .await
         .unwrap();
     });

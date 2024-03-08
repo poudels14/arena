@@ -1,6 +1,7 @@
 mod config;
 mod database;
 mod server;
+mod utils;
 mod workspace;
 
 use anyhow::bail;

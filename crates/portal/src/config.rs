@@ -38,8 +38,13 @@ impl WorkspaceConfig {
     Self::data_dir().join("common").join("config.toml")
   }
 
+  #[allow(unused)]
   pub fn get_app_templates_dir(&self) -> PathBuf {
     Self::data_dir().join("common").join("app_templates")
+  }
+
+  pub fn get_workspace_root_dir(&self) -> PathBuf {
+    Self::data_dir().join("runtime").join("workspace")
   }
 
   pub fn get_catalogs_dir(&self) -> PathBuf {

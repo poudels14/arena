@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::fs;
+use std::io::{Cursor, Read};
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -14,6 +16,7 @@ use runtime::permissions::PermissionsContainer;
 use serde_json::Value;
 use sqlx::migrate::MigrateDatabase;
 use sqlx::Postgres;
+use tar::Archive;
 use url::Url;
 
 use crate::config::WorkspaceConfig;
@@ -41,6 +44,7 @@ impl Workspace {
   pub async fn setup(&self) -> Result<()> {
     self.create_portal_database().await?;
     self.run_workspace_db_migrations().await?;
+    self.extract_javascript_modules()?;
     Ok(())
   }
 
@@ -51,7 +55,6 @@ impl Workspace {
 
   async fn run_workspace_db_migrations(&self) -> Result<()> {
     let v8_platform = v8::new_default_platform(0, false).make_shared();
-
     rayon::scope(|_| {
       let rt = tokio::runtime::Builder::new_current_thread()
         .enable_io()
@@ -111,6 +114,31 @@ impl Workspace {
         rx.await
       })
     })?;
+
+    Ok(())
+  }
+
+  fn extract_javascript_modules(&self) -> Result<()> {
+    let cursor = Cursor::new(include_bytes!(concat!(
+      env!("OUT_DIR"),
+      "/frontend-bundle.tar",
+    )));
+    let mut archive = Archive::new(cursor);
+    let templates_dir = self.config.get_app_templates_dir();
+    for file in archive.entries().unwrap() {
+      let file = file.unwrap();
+      let file_path = templates_dir.join(file.header().path().unwrap());
+      fs::create_dir_all(file_path.parent().unwrap())
+        .expect("creating asset dir");
+      fs::write(
+        file_path,
+        file
+          .bytes()
+          .collect::<Result<Vec<u8>, std::io::Error>>()
+          .unwrap(),
+      )
+      .expect("error extracting assets");
+    }
 
     Ok(())
   }
