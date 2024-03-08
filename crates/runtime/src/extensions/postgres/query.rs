@@ -236,9 +236,13 @@ impl ToSql for Param {
           out.put_f64(v.as_f64().unwrap());
           Ok(IsNull::No)
         }
-        _ => {
-          Err(anyhow!("to_sql: unsupported number type - [ {} ]", ty).into())
-        }
+        _ => Err(
+          anyhow!(
+            "to_sql: unsupported conversion from number to type [{}]",
+            ty
+          )
+          .into(),
+        ),
       },
       Value::Object(v) => json!(v).to_sql(ty, out),
       Value::Array(v) => json!(v).to_sql(ty, out),
@@ -262,9 +266,18 @@ impl ToSql for Param {
           out.write_str(&v)?;
           Ok(IsNull::No)
         }
-        _ => Err(format!("to_sql: unsupported type - [ {} ]", ty).into()),
+        _ => Err(
+          format!(
+            "to_sql: unsupported conversion from string to type [{}]",
+            ty
+          )
+          .into(),
+        ),
       },
-      _ => Err(format!("to_sql: unsupported type - [ {} ]", ty).into()),
+      t => Err(
+        format!("to_sql: unsupported conversion from [{}] to [{}]", t, ty)
+          .into(),
+      ),
     }
   }
 
