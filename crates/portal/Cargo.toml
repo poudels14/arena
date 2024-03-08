@@ -33,6 +33,8 @@ common = { path = "../common", features = ["dotenv"] }
 cloud = { path = "../cloud" }
 dqs = { path = "../dqs" }
 tower-http = { version = "0.3.5", features = ["fs"] }
+bytes.workspace = true
+hyper.workspace = true
 
 [build-dependencies]
 pathdiff.workspace = true

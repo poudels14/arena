@@ -1,7 +1,7 @@
 use anyhow::Result;
 use axum::body::Body;
 use axum::extract::{Path, Query, State};
-use axum::http::Request;
+use axum::http::{Request, StatusCode};
 use axum::middleware;
 use axum::response::{IntoResponse, Response};
 use axum::routing::MethodFilter;
@@ -10,6 +10,7 @@ use cloud::identity::Identity;
 use cloud::CloudExtensionProvider;
 use common::axum::logger;
 use dqs::runtime::DQS_SNAPSHOT;
+use hyper::Body as HyperBody;
 use runtime::config::RuntimeConfig;
 use runtime::deno::core::Snapshot;
 use runtime::extensions::server::request::read_http_body_to_buffer;
@@ -28,10 +29,9 @@ use tokio::sync::mpsc::Receiver;
 use tokio::sync::oneshot::Sender;
 use tokio::sync::{mpsc, oneshot};
 use tower::ServiceBuilder;
-use tower::ServiceExt;
-use tower_http::services::ServeFile;
 use url::Url;
 
+use crate::utils::assets::PortalAppModules;
 use crate::utils::moduleloader::{
   PortalModuleLoaderOptions, PortalModulerLoader,
 };
@@ -116,22 +116,17 @@ pub async fn start_workspace_server(
 
 #[derive(Clone)]
 pub struct WorkspaceRouter {
-  app_template_dir: String,
+  assets: Arc<PortalAppModules>,
   stream: mpsc::Sender<(HttpRequest, oneshot::Sender<ParsedHttpResponse>)>,
 }
 
 impl WorkspaceRouter {
   pub fn new(
-    workspace: &Workspace,
+    _workspace: &Workspace,
     stream: mpsc::Sender<(HttpRequest, oneshot::Sender<ParsedHttpResponse>)>,
   ) -> Self {
     Self {
-      app_template_dir: workspace
-        .config
-        .get_app_templates_dir()
-        .to_str()
-        .expect("getting app template dir")
-        .to_owned(),
+      assets: Arc::new(PortalAppModules::new()),
       stream,
     }
   }
@@ -139,7 +134,10 @@ impl WorkspaceRouter {
   pub fn axum_router(self) -> Result<Router> {
     let app = Router::new()
       .route("/", routing::on(MethodFilter::all(), handle_app_index))
-      .route("/assets/app/*path", routing::get(handle_asset_route))
+      .route(
+        "/assets/app/:templateId/:version/static/*path",
+        routing::get(handle_static_asset_route),
+      )
       .route(
         "/*path",
         routing::on(MethodFilter::all(), handle_app_routes),
@@ -152,15 +150,25 @@ impl WorkspaceRouter {
   }
 }
 
-pub async fn handle_asset_route(
-  Path(path): Path<String>,
+pub async fn handle_static_asset_route(
+  Path((template_id, version, path)): Path<(String, String, String)>,
   State(server): State<WorkspaceRouter>,
-  req: Request<Body>,
 ) -> impl IntoResponse {
-  return ServeFile::new(format!("{}/{}", server.app_template_dir, path))
-    .oneshot(req)
-    .await
-    .map_err(|_| errors::Error::ResponseBuilder);
+  let asset = server
+    .assets
+    .get_asset(&format!("{}/{}/static/{}", template_id, version, path))
+    .map_err(|_| errors::Error::ResponseBuilder)?;
+
+  match asset {
+    Some(asset) => {
+      return Ok(
+        Response::builder()
+          .status(StatusCode::OK)
+          .body(HyperBody::from(asset))?,
+      )
+    }
+    None => Err(errors::Error::ResponseBuilder),
+  }
 }
 
 pub async fn handle_app_routes(
