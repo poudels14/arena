@@ -35,6 +35,8 @@ dqs = { path = "../dqs" }
 tower-http = { version = "0.3.5", features = ["fs"] }
 bytes.workspace = true
 hyper.workspace = true
+async-trait = "0.1.77"
+mime_guess = "2.0.4"
 
 [build-dependencies]
 pathdiff.workspace = true

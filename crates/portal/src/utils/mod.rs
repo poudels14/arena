@@ -1,2 +1,2 @@
 pub mod assets;
-pub mod moduleloader;
+pub mod templateloader;

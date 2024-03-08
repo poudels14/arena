@@ -62,7 +62,12 @@ fn main() -> Result<()> {
   let res = local.block_on(&rt, async {
     async {
       match args.command {
-        Commands::Start(cmd) => cmd.execute(shutdown_signal_tx.clone()).await?,
+        Commands::Start(cmd) => {
+          cmd.execute(shutdown_signal_tx.clone()).await.map_err(|e| {
+            let _ = shutdown_signal_tx.send(());
+            e
+          })?;
+        }
       };
       Ok::<(), anyhow::Error>(())
     }

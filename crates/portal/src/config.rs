@@ -9,13 +9,17 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct WorkspaceConfig {
   pub workspace_db_password: Option<String>,
+  pub user_id: String,
 }
 
 impl WorkspaceConfig {
   pub fn load() -> Result<Self> {
     let config = match fs::read_to_string(Self::get_config_path()) {
       Ok(config_str) => toml::from_str(&config_str)?,
-      _ => Self::default(),
+      _ => Self {
+        user_id: format!("u-desktop-{}", nanoid::nanoid!()),
+        ..Default::default()
+      },
     };
     Ok(config)
   }
@@ -36,11 +40,6 @@ impl WorkspaceConfig {
 
   pub fn get_config_path() -> PathBuf {
     Self::data_dir().join("common").join("config.toml")
-  }
-
-  #[allow(unused)]
-  pub fn get_app_templates_dir(&self) -> PathBuf {
-    Self::data_dir().join("common").join("app_templates")
   }
 
   pub fn get_workspace_root_dir(&self) -> PathBuf {

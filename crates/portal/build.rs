@@ -13,18 +13,18 @@ fn main() {
       "PORTAL_DESKTOP_WORKSPACE_VERSION",
       "../../js/workspace-cluster/dist/workspace-desktop",
     ),
-    // (
-    //   "atlasai",
-    //   "0.0.2",
-    //   "PORTAL_DESKTOP_ATLAS_VERSION",
-    //   "../../js/workspace-cluster/dist/workspace-desktop",
-    // ),
-    // (
-    //   "portal-drive",
-    //   "0.0.2",
-    //   "PORTAL_DESKTOP_DRIVE_VERSION",
-    //   "../../js/workspace-cluster/dist/workspace-desktop",
-    // ),
+    (
+      "atlasai",
+      "0.0.2",
+      "PORTAL_DESKTOP_ATLAS_VERSION",
+      "../../js/workspace-cluster/dist/workspace-desktop",
+    ),
+    (
+      "portal-drive",
+      "0.0.2",
+      "PORTAL_DESKTOP_DRIVE_VERSION",
+      "../../js/workspace-cluster/dist/workspace-desktop",
+    ),
   ];
 
   let archive_file = File::create(format!(
@@ -72,5 +72,6 @@ fn add_directory_to_archive(
         &mut File::open(entry.path()).unwrap(),
       )
       .unwrap();
+    println!("cargo:rerun-if-changed={}", entry.path().display());
   }
 }

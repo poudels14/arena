@@ -2,18 +2,20 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::Result;
+use arenasql::chrono::Utc;
 use arenasql_cluster::schema::ADMIN_USERNAME;
 use cloud::identity::Identity;
 use dqs::arena::{ArenaRuntimeState, MainModule};
-use dqs::loaders::{FileTemplateLoader, Registry};
+use dqs::db::create_connection_pool;
+use dqs::loaders::FileTemplateLoader;
 use dqs::runtime::deno::RuntimeOptions;
 use runtime::deno::core::v8;
 use runtime::deno::core::ModuleCode;
 use runtime::env::{EnvVar, EnvironmentVariableStore};
 use runtime::permissions::PermissionsContainer;
-use serde_json::Value;
+use serde_json::{json, Value};
 use sqlx::migrate::MigrateDatabase;
-use sqlx::Postgres;
+use sqlx::{Pool, Postgres};
 use url::Url;
 
 use crate::config::WorkspaceConfig;
@@ -41,6 +43,12 @@ impl Workspace {
   pub async fn setup(&self) -> Result<()> {
     self.create_portal_database().await?;
     self.run_workspace_db_migrations().await?;
+
+    std::env::set_var("DATABASE_URL", self.database_url());
+    let pool = create_connection_pool().await?;
+    self.add_user(&pool).await?;
+    self.add_database_cluster(&pool).await?;
+    self.add_default_app_templates(&pool).await?;
     Ok(())
   }
 
@@ -73,10 +81,6 @@ impl Workspace {
           acl_checker: None,
           state: ArenaRuntimeState {
             workspace_id: "workspace-1".to_owned(),
-            registry: Registry {
-              host: "n/a".to_owned(),
-              api_key: "n/a".to_owned(),
-            },
             module: MainModule::Inline {
               code: "".to_owned(),
             },
@@ -110,6 +114,79 @@ impl Workspace {
         rx.await
       })
     })?;
+
+    Ok(())
+  }
+
+  async fn add_user(&self, pool: &Pool<Postgres>) -> Result<()> {
+    sqlx::query(
+      r#"INSERT INTO users
+    (id, config, created_at)
+    VALUES ($1, $2, $3)
+    "#,
+    )
+    .bind(&self.config.user_id)
+    .bind(json!({}))
+    .bind(&Utc::now().naive_utc())
+    .execute(pool)
+    .await?;
+
+    Ok(())
+  }
+
+  async fn add_default_app_templates(
+    &self,
+    pool: &Pool<Postgres>,
+  ) -> Result<()> {
+    sqlx::query(
+      r#"INSERT INTO app_templates
+    (id, name, default_version, owner_id, created_at)
+    VALUES ($1, $2, $3, $4, $5)
+    "#,
+    )
+    .bind("atlasai")
+    .bind("Atlas AI")
+    .bind(env!("PORTAL_DESKTOP_ATLAS_VERSION"))
+    .bind(&self.config.user_id)
+    .bind(&Utc::now().naive_utc())
+    .execute(pool)
+    .await?;
+
+    sqlx::query(
+      r#"INSERT INTO app_templates
+    (id, name, default_version, owner_id, created_at)
+    VALUES ($1, $2, $3, $4, $5)
+    "#,
+    )
+    .bind("portal-drive")
+    .bind("Drive")
+    .bind(env!("PORTAL_DESKTOP_DRIVE_VERSION"))
+    .bind(&self.config.user_id)
+    .bind(&Utc::now().naive_utc())
+    .execute(pool)
+    .await?;
+
+    Ok(())
+  }
+
+  async fn add_database_cluster(&self, pool: &Pool<Postgres>) -> Result<()> {
+    sqlx::query(
+      r#"INSERT INTO database_clusters
+    (id, host, port, capacity, usage, credentials)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    "#,
+    )
+    .bind(nanoid::nanoid!())
+    .bind("localhost")
+    .bind(self.db_port as i32)
+    .bind(100)
+    .bind(1)
+    .bind(json!({
+        "adminUser": ADMIN_USERNAME,
+        "adminPassword": &self.config.workspace_db_password.as_ref().unwrap()
+    }))
+    .execute(pool)
+    .await?;
 
     Ok(())
   }

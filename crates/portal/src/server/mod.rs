@@ -1,5 +1,7 @@
 mod workspace;
 
+use std::sync::Arc;
+
 use anyhow::Result;
 use arenasql::execution::Privilege;
 use arenasql_cluster::schema::{ClusterManifest, User, ADMIN_USERNAME};
@@ -7,7 +9,8 @@ use clap::Parser;
 use common::required_env;
 use dqs::cluster::{DqsCluster, DqsClusterOptions};
 use dqs::db;
-use dqs::loaders::Registry;
+use dqs::loaders::{Registry, RegistryTemplateLoader};
+use runtime::deno::core::v8;
 use tokio::sync::{broadcast, mpsc, oneshot};
 
 use crate::config::WorkspaceConfig;
@@ -47,6 +50,9 @@ impl Command {
 
     let workspace_database_password_clone = workspace_database_password.clone();
     let catalogs_dir = workspace_config.get_catalogs_dir();
+
+    let v8_platform = v8::new_default_platform(0, false).make_shared();
+    let v8_platform_clone = v8_platform.clone();
     tokio::spawn(async move {
       let db = ArenasqlDatabase {};
 
@@ -91,13 +97,19 @@ impl Command {
     let db_pool = db::create_connection_pool().await?;
     let dqs_cluster = DqsCluster::new(
       DqsClusterOptions {
+        v8_platform: v8_platform_clone,
         address: "127.0.0.1".to_owned(),
         port: self.port,
         dqs_egress_addr: None,
-        registry: Registry {
-          host: registry_host,
-          api_key: registry_api_key,
-        },
+        template_loader: Arc::new(RegistryTemplateLoader {
+          registry: Registry {
+            host: registry_host,
+            api_key: registry_api_key,
+          },
+          module: dqs::arena::MainModule::Inline {
+            code: "".to_owned(),
+          },
+        }),
       },
       db_pool,
     )?;
@@ -114,9 +126,13 @@ impl Command {
 
         let local = tokio::task::LocalSet::new();
         let _ = local.block_on(&rt, async {
-          workspace::start_workspace_server(workspace_clone, stream_rx)
-            .await
-            .expect("Error running workspace server");
+          workspace::start_workspace_server(
+            v8_platform,
+            workspace_clone,
+            stream_rx,
+          )
+          .await
+          .expect("Error running workspace server");
         });
       });
     });
