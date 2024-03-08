@@ -21,7 +21,7 @@ use url::Url;
 
 use crate::config::WorkspaceConfig;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Workspace {
   pub config: WorkspaceConfig,
   pub db_port: u16,

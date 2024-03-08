@@ -103,6 +103,7 @@ impl Command {
     )?;
 
     let (stream_tx, stream_rx) = mpsc::channel(10);
+    let workspace_clone = workspace.clone();
     tokio::spawn(async {
       rayon::scope(|_| {
         let rt = tokio::runtime::Builder::new_current_thread()
@@ -113,7 +114,7 @@ impl Command {
 
         let local = tokio::task::LocalSet::new();
         let _ = local.block_on(&rt, async {
-          workspace::start_workspace_server(workspace, stream_rx)
+          workspace::start_workspace_server(workspace_clone, stream_rx)
             .await
             .expect("Error running workspace server");
         });
@@ -122,7 +123,7 @@ impl Command {
 
     let shutdown_signal_rx = shutdown_signal.subscribe();
     tokio::spawn(async move {
-      let workspace_router = WorkspaceRouter::new(stream_tx);
+      let workspace_router = WorkspaceRouter::new(&workspace, stream_tx);
       dqs_cluster
         .start_server(
           Some(

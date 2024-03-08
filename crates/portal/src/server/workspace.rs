@@ -28,6 +28,8 @@ use tokio::sync::mpsc::Receiver;
 use tokio::sync::oneshot::Sender;
 use tokio::sync::{mpsc, oneshot};
 use tower::ServiceBuilder;
+use tower::ServiceExt;
+use tower_http::services::ServeFile;
 use url::Url;
 
 use crate::utils::moduleloader::{
@@ -114,19 +116,30 @@ pub async fn start_workspace_server(
 
 #[derive(Clone)]
 pub struct WorkspaceRouter {
+  app_template_dir: String,
   stream: mpsc::Sender<(HttpRequest, oneshot::Sender<ParsedHttpResponse>)>,
 }
 
 impl WorkspaceRouter {
   pub fn new(
+    workspace: &Workspace,
     stream: mpsc::Sender<(HttpRequest, oneshot::Sender<ParsedHttpResponse>)>,
   ) -> Self {
-    Self { stream }
+    Self {
+      app_template_dir: workspace
+        .config
+        .get_app_templates_dir()
+        .to_str()
+        .expect("getting app template dir")
+        .to_owned(),
+      stream,
+    }
   }
 
   pub fn axum_router(self) -> Result<Router> {
     let app = Router::new()
       .route("/", routing::on(MethodFilter::all(), handle_app_index))
+      .route("/assets/app/*path", routing::get(handle_asset_route))
       .route(
         "/*path",
         routing::on(MethodFilter::all(), handle_app_routes),
@@ -137,6 +150,17 @@ impl WorkspaceRouter {
       .with_state(self.clone());
     Ok(app)
   }
+}
+
+pub async fn handle_asset_route(
+  Path(path): Path<String>,
+  State(server): State<WorkspaceRouter>,
+  req: Request<Body>,
+) -> impl IntoResponse {
+  return ServeFile::new(format!("{}/{}", server.app_template_dir, path))
+    .oneshot(req)
+    .await
+    .map_err(|_| errors::Error::ResponseBuilder);
 }
 
 pub async fn handle_app_routes(
