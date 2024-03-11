@@ -42,13 +42,16 @@ const getThread = p.query(async ({ req, ctx, params, errors, ...args }) => {
   };
 });
 
-const deleteThread = p.mutate(async ({ req, ctx, params, errors, ...args }) => {
+const deleteThread = p.mutate(async ({ req, ctx, params, errors }) => {
   const { threadId } = params;
   const thread = await ctx.repo.chatThreads.getById(threadId);
   if (!thread) {
     return errors.notFound();
   }
 
+  await ctx.repo.chatMessages.deleteByThreadId({ threadId: thread.id });
+  await ctx.repo.artifacts.deleteByThreadId({ threadId: thread.id });
+  await ctx.repo.taskExecutions.deleteByThreadId({ threadId: thread.id });
   await ctx.repo.chatThreads.deleteById(thread.id);
   return thread;
 });
@@ -70,9 +73,7 @@ const listMessages = p.query(async ({ ctx, params }) => {
         "model",
         "createdAt"
       ),
-      metadata: {
-        searchResults: m.metadata?.searchResults,
-      },
+      metadata: pick(m.metadata, "error", "searchResults"),
     };
   });
 });
@@ -179,7 +180,7 @@ const sendMessage = p
     );
 
     if (!existingThread) {
-      const title = await generateQueryTitle(body.message.content);
+      const title = await generateQueryTitle(model, body.message.content);
       await ctx.repo.chatThreads.update({
         id: thread.id,
         title,

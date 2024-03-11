@@ -29,6 +29,7 @@ type ChatQueryContext = NonNullable<
 type ChatContext = {
   state: ChatState;
   getActiveChatThread: () => Store<ChatThread>;
+  refreshThreadsById: () => void;
   sendNewMessage: MutationQuery<
     {
       id: string;
@@ -59,12 +60,10 @@ const ChatContextProvider = (props: {
         threadsById: (query, prev: any) => {
           const threads = query.data();
           if (threads) {
-            const theadsById = { ...prev };
+            const theadsById: Record<string, Chat.Thread> = {};
             // TODO(sagar): reconcile
             threads.forEach((thread: Chat.Thread) => {
-              if (!theadsById[thread.id]) {
-                theadsById[thread.id] = thread;
-              }
+              theadsById[thread.id] = thread;
             });
             return theadsById;
           }
@@ -210,6 +209,9 @@ const ChatContextProvider = (props: {
               "threadsById"
             );
           },
+        },
+        refreshThreadsById() {
+          threadsRoute.refresh();
         },
         getActiveChatThread() {
           if (!props.activeThreadId) {

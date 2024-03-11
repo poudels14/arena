@@ -30,6 +30,7 @@ export type Message = {
   createdAt: Date;
   userId: string | null;
   metadata: {
+    error?: string;
     documents?: { documentId: string; score: number }[];
   } | null;
 };

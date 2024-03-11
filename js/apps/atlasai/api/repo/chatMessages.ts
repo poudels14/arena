@@ -27,12 +27,16 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
     },
     async list(filter: { threadId: string }): Promise<ChatMessage[]> {
       const rows = await db
-        .with()
         .select()
         .from(chatMessages)
         .where(eq(chatMessages.threadId, filter.threadId))
         .orderBy(chatMessages.createdAt);
       return rows as ChatMessage[];
+    },
+    async deleteByThreadId(filter: { threadId: string }) {
+      await db
+        .delete(chatMessages)
+        .where(eq(chatMessages.threadId, filter.threadId));
     },
   };
 };

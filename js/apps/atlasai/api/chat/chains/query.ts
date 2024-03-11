@@ -1,5 +1,3 @@
-import { ChatOpenAI } from "@langchain/openai";
-import { ChatGroq } from "@langchain/groq";
 import {
   ChatPromptTemplate,
   MessagesPlaceholder,
@@ -14,6 +12,7 @@ import { StringOutputParser } from "@langchain/core/output_parsers";
 import { formatDocumentsAsString } from "langchain/util/document";
 import { ProcedureRequest } from "@portal/server-core/router";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
+import { Workspace } from "@portal/workspace-sdk";
 
 import { Context } from "../../procedure";
 import { ThreadOperationsStream } from "../../../chatsdk";
@@ -21,7 +20,7 @@ import { ChatThread } from "../types";
 import { ChatMessage } from "../../repo/chatMessages";
 import { AtalasChatMessageHistory } from "./history";
 import { AtalasDriveSearch } from "./drive";
-import { Workspace } from "@portal/workspace-sdk";
+import { getLLMModel } from "./modelSelector";
 
 async function generateLLMResponseStream(
   { ctx }: Pick<ProcedureRequest<Context, any>, "ctx" | "errors">,
@@ -61,6 +60,8 @@ async function generateLLMResponseStream(
       "system",
       "You are a helpful assistant. Answer all questions to the best of your ability.",
     ],
+    // TODO: anthropic fails with seconds message since it expects all system messages to
+    // be in the first message
     [
       "system",
       `Use the following pieces of context to answer the question at the end.
@@ -72,28 +73,8 @@ async function generateLLMResponseStream(
     ["human", "{input}"],
   ]);
 
-  let chainModel;
-  switch (model.family) {
-    case "groq": {
-      chainModel = new ChatGroq({
-        apiKey: process.env.GROQ_API_KEY,
-        modelName: "mixtral-8x7b-32768",
-      });
-      break;
-    }
-    case "openai": {
-      chainModel = new ChatOpenAI({
-        // openAIApiKey: "",
-        // modelName: "",
-      });
-      break;
-    }
-    default:
-      throw new Error("Unsupported model family");
-  }
-
+  const chainModel = getLLMModel(model);
   const outputParser = new StringOutputParser();
-
   const chain = prompt.pipe(chainModel).pipe(outputParser);
   const chainWithHistory = new RunnableWithMessageHistory({
     runnable: chain,
@@ -112,44 +93,63 @@ async function generateLLMResponseStream(
     chainWithHistory,
   ]);
 
-  const stream = await chatWithDocuments.stream(message.message.content!, {
-    configurable: { sessionId: "sessionId" },
-    // callbacks: [new ConsoleCallbackHandler()],
-  });
+  try {
+    const stream = await chatWithDocuments.stream(message.message.content!, {
+      configurable: { sessionId: "sessionId" },
+      callbacks: [new ConsoleCallbackHandler()],
+    });
 
-  const aiResponseTime = new Date();
-  const aiMessageId = uniqueId(19);
-  opsStream.sendNewMessage({
-    id: aiMessageId,
-    threadId: thread.id,
-    parentId: message.id,
-    role: "ai",
-    message: {},
-    userId: null,
-    createdAt: aiResponseTime,
-    metadata: {},
-  });
+    const aiResponseTime = new Date();
+    const aiMessageId = uniqueId(19);
+    opsStream.sendNewMessage({
+      id: aiMessageId,
+      threadId: thread.id,
+      parentId: message.id,
+      role: "ai",
+      message: {},
+      userId: null,
+      createdAt: aiResponseTime,
+      metadata: {},
+    });
 
-  let allChunk = "";
-  for await (const chunk of stream) {
-    allChunk += chunk;
-    opsStream.sendMessageChunk(aiMessageId, chunk);
+    let allChunk = "";
+    for await (const chunk of stream) {
+      allChunk += chunk;
+      opsStream.sendMessageChunk(aiMessageId, chunk);
+    }
+
+    await ctx.repo.chatMessages.insert({
+      id: aiMessageId,
+      threadId: thread.id,
+      parentId: message.id,
+      role: "ai",
+      message: {
+        content: allChunk,
+      },
+      userId: null,
+      createdAt: aiResponseTime,
+      metadata: {},
+    });
+  } catch (e: any) {
+    const errorMessage = {
+      id: uniqueId(19),
+      threadId: thread.id,
+      parentId: message.id,
+      role: "system",
+      message: {
+        content: "",
+      },
+      userId: null,
+      createdAt: new Date(),
+      metadata: {
+        error: e.message ? e.message : e,
+      },
+    };
+    opsStream.sendNewMessage(errorMessage);
+    await ctx.repo.chatMessages.insert(errorMessage);
+  } finally {
+    opsStream.close();
   }
-
-  await ctx.repo.chatMessages.insert({
-    id: aiMessageId,
-    threadId: thread.id,
-    parentId: message.id,
-    role: "ai",
-    message: {
-      content: allChunk,
-    },
-    userId: null,
-    createdAt: aiResponseTime,
-    metadata: {},
-  });
-
-  opsStream.close();
 }
 
 export { generateLLMResponseStream };

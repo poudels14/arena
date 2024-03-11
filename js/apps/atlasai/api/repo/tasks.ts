@@ -70,6 +70,11 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
         .orderBy(desc(taskExecutions.startedAt));
       return rows as DbTaskExecution[];
     },
+    async deleteByThreadId(filter: { threadId: string }) {
+      await db
+        .delete(taskExecutions)
+        .where(eq(taskExecutions.threadId, filter.threadId));
+    },
   };
 };
 

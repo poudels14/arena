@@ -2,10 +2,11 @@ import { For, createMemo, createSelector, lazy, useContext } from "solid-js";
 import { Route, useNavigate, useMatcher } from "@portal/solid-router";
 import { Sidebar as PortalSidebar, SidebarTab } from "@portal/solid-ui/sidebar";
 import {
-  HiOutlineCog6Tooth,
+  HiOutlineTrash,
   HiOutlineChatBubbleBottomCenter,
 } from "solid-icons/hi";
 import { ChatContext, ChatContextProvider } from "./chat/ChatContext.tsx";
+import { createMutationQuery } from "@portal/solid-query";
 
 const Chat = lazy(() => import("./chat/index.tsx"));
 // const Settings = lazy(() => import("./settings/index.tsx"));
@@ -40,7 +41,7 @@ const Sidebar = () => {
   const navigate = useNavigate();
   const tabMatcher = useMatcher(() => "/:tab/*");
   const isTabActive = createSelector(() => tabMatcher()?.params?.tab || "chat");
-  const { state } = useContext(ChatContext)!;
+  const { state, refreshThreadsById } = useContext(ChatContext)!;
 
   const threadIds = createMemo(() => {
     const threads = Object.values(state.threadsById() || {});
@@ -53,6 +54,15 @@ const Sidebar = () => {
       return sortedThreadIds;
     }
     return [];
+  });
+
+  const deleteThread = createMutationQuery<{ id: string }>((input) => {
+    return {
+      url: `/chat/threads/${input.id}/delete`,
+      request: {
+        method: "POST",
+      },
+    };
   });
 
   const isThreadActive = createSelector(() => state.activeThreadId());
@@ -78,14 +88,39 @@ const Sidebar = () => {
       </SidebarTab>
       <PortalSidebar class="tab:pl-6 tab:py-2 tab-active:bg-gray-100 tab-hover:bg-gray-100">
         <For each={threadIds()}>
-          {(threadId) => {
+          {(threadId, index) => {
             return (
               <SidebarTab
                 active={isThreadActive(threadId)}
                 onClick={() => navigate(`/t/${threadId}`)}
+                class="group"
               >
-                <div class="overflow-hidden text-ellipsis text-nowrap">
-                  {state.threadsById[threadId].title() || "Untitled"}
+                <div class="flex-1 flex justify-start overflow-hidden">
+                  <div class="flex-1 overflow-hidden text-ellipsis text-nowrap">
+                    {state.threadsById[threadId].title() || "Untitled"}
+                  </div>
+
+                  <div
+                    class="pl-2 hidden group-hover:block"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const currentThreadActive = isThreadActive(threadId);
+                      deleteThread.mutate({ id: threadId }).then(() => {
+                        refreshThreadsById();
+                        if (currentThreadActive) {
+                          const ids = threadIds();
+                          const prevThreadIdx = index() - 1;
+                          if (prevThreadIdx >= 0) {
+                            navigate(`/t/${ids[prevThreadIdx]}`);
+                          } else {
+                            navigate(`/`);
+                          }
+                        }
+                      });
+                    }}
+                  >
+                    <HiOutlineTrash size={14} />
+                  </div>
                 </div>
               </SidebarTab>
             );

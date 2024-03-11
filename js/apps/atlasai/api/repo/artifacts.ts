@@ -66,6 +66,9 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
         .limit(options.limit);
       return rows as Artifact[];
     },
+    async deleteByThreadId(filter: { threadId: string }) {
+      await db.delete(artifacts).where(eq(artifacts.threadId, filter.threadId));
+    },
   };
 };
 

@@ -58,6 +58,7 @@ export namespace Chat {
     createdAt: string;
     userId: string | null;
     metadata: {
+      error?: string;
       searchResults?: SearchResult[];
       documents?: { documentId: string; score: number }[];
       workflow?: {

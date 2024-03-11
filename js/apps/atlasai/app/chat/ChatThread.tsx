@@ -270,6 +270,12 @@ const ChatMessage = (props: {
             searchResults={props.message.metadata.searchResults!()!}
           />
         </Show>
+        <Show when={props.message.metadata.error!()}>
+          <div class="py-2 text-red-700">
+            <b>Error: </b>
+            {props.message.metadata.error!()}
+          </div>
+        </Show>
         <Show when={uniqueDocuments().length > 0}>
           <div class="matched-documents px-2 space-y-2">
             <div class="font-medium">Documents</div>
@@ -369,47 +375,49 @@ const SearchResults = (props: { searchResults: Chat.SearchResult[] }) => {
   );
 };
 
-const Timer = lazy(() => import("../../extensions/clock/Timer"));
-const CodeInterpreter = lazy(
-  () => import("../../extensions/interpreter/Interpreter")
-);
-const Table = lazy(() => import("@portal/solid-ui/table/DefaultTable"));
+// const Timer = lazy(() => import("../../extensions/clock/Timer"));
+// const CodeInterpreter = lazy(
+//   () => import("../../extensions/interpreter/Interpreter")
+// );
+// const Table = lazy(() => import("@portal/solid-ui/table/DefaultTable"));
 const TaskExecution = (props: { task: Store<Chat.TaskExecution> }) => {
   const state = createMemo(() => {
     return props.task.state();
   });
 
-  return (
-    <>
-      <Switch>
-        <Match when={props.task.taskId() == "start_timer"}>
-          <WigetContainer
-            Widget={Timer}
-            metadata={props.task.metadata()}
-            state={state()}
-            UI={{
-              Markdown,
-              Table,
-            }}
-          />
-        </Match>
-        <Match when={props.task.taskId() == "portal_code_interpreter"}>
-          <WigetContainer
-            Widget={CodeInterpreter}
-            metadata={props.task.metadata()}
-            state={state()}
-            UI={{
-              Markdown,
-              Table,
-            }}
-          />
-        </Match>
-        <Match when={true}>
-          <div>Unsupported task</div>
-        </Match>
-      </Switch>
-    </>
-  );
+  return <div>Not supported yet</div>;
+
+  // return (
+  //   <>
+  //     <Switch>
+  //       <Match when={props.task.taskId() == "start_timer"}>
+  //         <WigetContainer
+  //           Widget={Timer}
+  //           metadata={props.task.metadata()}
+  //           state={state()}
+  //           UI={{
+  //             Markdown,
+  //             Table,
+  //           }}
+  //         />
+  //       </Match>
+  //       <Match when={props.task.taskId() == "portal_code_interpreter"}>
+  //         <WigetContainer
+  //           Widget={CodeInterpreter}
+  //           metadata={props.task.metadata()}
+  //           state={state()}
+  //           UI={{
+  //             Markdown,
+  //             Table,
+  //           }}
+  //         />
+  //       </Match>
+  //       <Match when={true}>
+  //         <div>Unsupported task</div>
+  //       </Match>
+  //     </Switch>
+  //   </>
+  // );
 };
 
 const InProgressBar = () => {

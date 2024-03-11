@@ -31,6 +31,7 @@
   "dependencies": {
     "@arena/cloud": "workspace:^",
     "@arena/runtime": "workspace:^",
+    "@langchain/anthropic": "^0.1.4",
     "@langchain/core": "^0.1.40",
     "@langchain/groq": "^0.0.2",
     "@langchain/openai": "^0.0.15",
@@ -59,10 +60,10 @@
     "lodash-es": "^4.17.21",
     "marked": "^11.1.0",
     "mime": "^4.0.1",
+    "ollama": "link:@langchain/community/chat_models/ollama",
     "papaparse": "^5.4.1",
     "redaxios": "^0.5.1",
     "rxjs": "^7.8.1",
-    "serialize-error": "^11.0.2",
     "solid-icons": "^1.1.0",
     "solid-js": "^1.8.8",
     "zod": "^3.22.4"
