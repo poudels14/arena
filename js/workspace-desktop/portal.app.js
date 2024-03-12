@@ -44,7 +44,7 @@ module.exports = {
     },
   },
   server: {
-    input: "./entry-server-desktop.tsx",
+    input: "./entry-server.tsx",
     minify: true,
     resolve: {
       conditions: ["node"],

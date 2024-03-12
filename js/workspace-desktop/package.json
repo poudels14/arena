@@ -1,0 +1,59 @@
+{
+  "name": "@portal/workspace-desktop",
+  "version": "0.5.0",
+  "description": "Portal Desktop",
+  "scripts": {
+    "build": "pnpm node ./build.mjs && bun run node_modules/@portal/cli/bin/cli.ts app bundle"
+  },
+  "keywords": [],
+  "author": {
+    "name": "Sagar",
+    "email": "poudels14@gmail.com"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@arena/runtime": "workspace:^",
+    "@kobalte/core": "^0.12.1",
+    "@portal-apps/assistant": "workspace:^",
+    "@portal-apps/drive": "workspace:^",
+    "@portal/cli": "workspace:^",
+    "@portal/deploy": "workspace:^",
+    "@portal/server-core": "workspace:^",
+    "@portal/server-dev": "workspace:^",
+    "@portal/solid-dnd": "workspace:^",
+    "@portal/solid-query": "workspace:^",
+    "@portal/solid-router": "workspace:^",
+    "@portal/solid-store": "workspace:^",
+    "@portal/solid-ui": "workspace:^",
+    "@portal/solidjs": "workspace:^",
+    "@portal/workspace": "workspace:^",
+    "@portal/workspace-cluster": "workspace:^",
+    "@portal/workspace-sdk": "workspace:^",
+    "@solidjs/meta": "^0.29.3",
+    "@solidjs/router": "^0.13.0",
+    "solid-js": "^1.8.15"
+  },
+  "arena": {
+    "server": {
+      "entry": "entry-server-dev.tsx"
+    },
+    "javascript": {
+      "resolve": {
+        "alias": {
+          "~/app": "./app",
+          "@portal/server/plugins/resolver": "@arena/runtime/resolver",
+          "@portal/server/plugins/transpiler": "@arena/runtime/transpiler"
+        },
+        "dedupe": [
+          "solid-js"
+        ],
+        "conditions": [
+          "solid",
+          "server",
+          "deno",
+          "node"
+        ]
+      }
+    }
+  }
+}
