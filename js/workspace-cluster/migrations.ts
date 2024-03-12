@@ -193,7 +193,6 @@ const migrations: PostgresDatabaseConfig = {
             id VARCHAR(50) UNIQUE,
             workspace_id VARCHAR(50) NOT NULL,
             user_id VARCHAR(50) NOT NULL,
-            access VARCHAR(100) NOT NULL,
             -- if a single sharing action requires multiple acl rows,
             -- putting them under a same access_group makes it easier
             -- to remove access, check for duplicates, etc

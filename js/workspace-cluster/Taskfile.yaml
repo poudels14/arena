@@ -4,3 +4,9 @@ tasks:
   dev:
     cmds:
       - dagger-prod app dev --port 9001 --heap-limit-mb 3036
+  bundle:
+    cmds:
+      - bun run node_modules/@portal/cli/bin/cli.ts app bundle
+  bundle-desktop:
+    cmds:
+      - bun run node_modules/@portal/cli/bin/cli.ts app bundle -c portal-desktop.app.js

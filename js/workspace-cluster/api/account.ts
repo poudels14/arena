@@ -163,7 +163,7 @@ const magicLinkLogin = p.query(
       // if there's no workspace for the user, create one
       if (workspaces.length == 0) {
         const workspace = await ctx.repo.workspaces.createWorkspace({
-          id: uniqueId(14),
+          id: uniqueId(19),
           ownerId: user.id,
           config: {
             runtime: {

@@ -1,10 +1,11 @@
 import z from "zod";
-import { protectedProcedure } from "./procedure";
+import { Context, protectedProcedure } from "./procedure";
 import { addDatabase } from "./utils/database";
 import slugify from "@sindresorhus/slugify";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
 import { pick } from "lodash-es";
 import { listModels } from "./llm";
+import { addApp } from "./utils/app";
 
 const add = protectedProcedure
   .input(
@@ -49,9 +50,17 @@ const add = protectedProcedure
   });
 
 const list = protectedProcedure.query(async ({ ctx }) => {
-  const workspaces = await ctx.repo.workspaces.listWorkspaces({
+  let workspaces = await ctx.repo.workspaces.listWorkspaces({
     userId: ctx.user!.id,
   });
+
+  if (workspaces.length == 0) {
+    await createNewWorkspace(ctx);
+    workspaces = await ctx.repo.workspaces.listWorkspaces({
+      userId: ctx.user!.id,
+    });
+  }
+
   return workspaces.map((workspace) => {
     return pick(workspace, "id", "name", "access");
   });
@@ -99,6 +108,8 @@ const get = protectedProcedure.query(async ({ req, ctx, params, errors }) => {
         m,
         "id",
         "name",
+        "provider",
+        "type",
         "modalities",
         "custom",
         "disabled",
@@ -107,5 +118,63 @@ const get = protectedProcedure.query(async ({ req, ctx, params, errors }) => {
     ),
   };
 });
+
+const createNewWorkspace = async (ctx: Context) => {
+  const userId = ctx.user.id;
+  const workspace = await ctx.repo.workspaces.createWorkspace({
+    id: uniqueId(19),
+    ownerId: userId,
+    config: {
+      runtime: {
+        netPermissions: {
+          // No restrictions by default
+          restrictedUrls: [],
+        },
+      },
+    },
+  });
+
+  const repo = await ctx.repo.transaction();
+  try {
+    const atlasAi = await ctx.repo.appTemplates.fetchById("atlasai");
+    console.log("atlasAi template =", atlasAi);
+    if (atlasAi) {
+      await addApp(
+        repo,
+        { id: userId },
+        {
+          id: uniqueId(19),
+          workspaceId: workspace.id,
+          name: "Atlas AI",
+          description: "An AI Assistant",
+          template: {
+            id: atlasAi.id,
+            version: atlasAi.defaultVersion || "0.0.1",
+          },
+        }
+      );
+    }
+    const portalDrive = await ctx.repo.appTemplates.fetchById("portal-drive");
+    if (portalDrive) {
+      await addApp(
+        repo,
+        { id: userId },
+        {
+          id: uniqueId(19),
+          workspaceId: workspace.id,
+          name: "Portal Drive",
+          description: "Portal Drive",
+          template: {
+            id: portalDrive.id,
+            version: portalDrive.defaultVersion || "0.0.1",
+          },
+        }
+      );
+    }
+    await repo.commit();
+  } finally {
+    await repo.release();
+  }
+};
 
 export { add, list, get };

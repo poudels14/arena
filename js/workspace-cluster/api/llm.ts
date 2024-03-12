@@ -3,50 +3,128 @@ import { merge, pick } from "lodash-es";
 import { protectedProcedure } from "./procedure";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
 
-const llmModelSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  // true if it's a custom model
-  custom: z.boolean(),
+const baseModelSchema = z.object({
+  name: z.string().min(3),
   disabled: z.boolean().optional(),
-  requiresSubscription: z.boolean(),
   modalities: z.array(z.enum(["text", "image", "video"])),
   type: z.enum([
     // llm is non chat model
-    "llm",
+    // "llm", // TODO
     "chat",
+    // "image",
   ]),
-  // TODO: until there's an universal interface, require the model family
-  family: z.enum([
-    "openai",
-    "anthropic",
-    "cohere",
-    "gemini",
-    "perplexity",
-    "ollama",
-    "togetherai",
-    "mistral",
-    "groq",
-    "fireworks",
-  ]),
-  config: z.object({
-    http: z.object({
-      method: z.enum(["POST", "GET"]),
-      endpoint: z.string().url(),
-      headers: z.record(z.string()),
-    }),
-    // config specific to the model provider
-    model: z.any(),
-  }),
-  quota: z.object({
-    requests: z
-      .object({
-        // number of API request remaining
-        remaining: z.number(),
-      })
-      .optional(),
-  }),
 });
+
+const ollamaModelSchema = baseModelSchema.merge(
+  z.object({
+    provider: z.literal("ollama"),
+    config: z.object({
+      http: z.object({
+        endpoint: z.string().url(),
+      }),
+      model: z.object({
+        name: z.string().min(1),
+      }),
+    }),
+  })
+);
+
+const lmStudioModelSchema = baseModelSchema.merge(
+  z.object({
+    provider: z.literal("lmstudio"),
+    config: z.object({
+      http: z.object({
+        endpoint: z.string().url(),
+      }),
+    }),
+  })
+);
+
+const openAIModelSchema = baseModelSchema.merge(
+  z.object({
+    provider: z.literal("openai"),
+    config: z.object({
+      http: z.object({
+        apiKey: z.string().min(1),
+      }),
+      model: z.object({
+        name: z.enum([
+          "gpt-4-0125-preview",
+          "gpt-4-turbo-preview",
+          "gpt-4-1106-preview",
+          "gpt-4-vision-preview",
+          "gpt-4-1106-vision-preview",
+          "gpt-4",
+          "gpt-4-0613",
+          "gpt-4-32k",
+          "gpt-4-32k-0613",
+          "gpt-3.5-turbo-0125",
+          "gpt-3.5-turbo",
+          "gpt-3.5-turbo-1106",
+        ]),
+      }),
+    }),
+  })
+);
+
+const anthropicModelSchema = baseModelSchema.merge(
+  z.object({
+    provider: z.literal("anthropic"),
+    config: z.object({
+      http: z.object({
+        apiKey: z.string().min(1),
+      }),
+      model: z.object({
+        name: z.enum([
+          "claude-3-opus-20240229",
+          "claude-3-sonnet-20240229",
+          "claude-2.1",
+          "claude-2.0",
+          "claude-instant-1.2",
+        ]),
+      }),
+    }),
+  })
+);
+
+const groqModelSchema = baseModelSchema.merge(
+  z.object({
+    provider: z.literal("groq"),
+    config: z.object({
+      http: z.object({
+        apiKey: z.string().min(1),
+      }),
+      model: z.object({
+        name: z.string().min(1),
+      }),
+    }),
+  })
+);
+
+const customLLMModelSchema = z.union([
+  ollamaModelSchema,
+  lmStudioModelSchema,
+  openAIModelSchema,
+  anthropicModelSchema,
+  groqModelSchema,
+]);
+
+const llmModelSchema = z
+  .object({
+    id: z.string(),
+    // true if it's a custom model
+    custom: z.boolean(),
+    requiresSubscription: z.boolean(),
+    quota: z.object({
+      requests: z
+        .object({
+          // number of API request remaining
+          remaining: z.number(),
+        })
+        .optional(),
+    }),
+  })
+  .and(customLLMModelSchema);
 
 type LLMModelSchema = z.infer<typeof llmModelSchema>;
 
@@ -54,12 +132,7 @@ const addCustomModel = protectedProcedure
   .input(
     z.object({
       workspaceId: z.string(),
-      model: llmModelSchema.omit({
-        id: true,
-        custom: true,
-        requiresSubscription: true,
-        quota: true,
-      }),
+      model: customLLMModelSchema,
     })
   )
   .mutate(async ({ ctx, body, errors }) => {
@@ -109,7 +182,7 @@ const listModels = protectedProcedure.query(
           "disabled",
           "modalities",
           "type",
-          "family",
+          "provider",
           "config"
         )
       ) as LLMModelSchema;
@@ -131,7 +204,7 @@ const listModels = protectedProcedure.query(
           disabled: false,
           modalities: ["text"],
           type: "chat",
-          family: "openai",
+          provider: "openai",
           quota: {},
           config: {
             http: {
@@ -152,7 +225,7 @@ const listModels = protectedProcedure.query(
           requiresSubscription: true,
           modalities: ["text"],
           type: "chat",
-          family: "openai",
+          provider: "openai",
           config: {
             http: {
               method: "POST",

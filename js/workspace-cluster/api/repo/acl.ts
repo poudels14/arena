@@ -95,11 +95,12 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
           Pick<Acl, "appId" | "appTemplateId" | "metadata" | "resourceId">
         >
     ): Promise<Pick<Acl, "id" | "createdAt">> {
-      const rows = await db.insert(acls).values(acl).returning({
-        id: acls.id,
-        createdAt: acls.createdAt,
+      const createdAt = new Date();
+      await db.insert(acls).values({
+        ...acl,
+        createdAt,
       });
-      return rows[0] as Pick<Acl, "id" | "createdAt">;
+      return { ...acl, createdAt } as Pick<Acl, "id" | "createdAt">;
     },
     async archiveAccess(id: string) {
       await db
