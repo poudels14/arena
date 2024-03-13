@@ -13,6 +13,7 @@ use tracing::info;
 use url::Url;
 
 use super::template::TemplateLoader;
+use crate::arena::MainModule;
 use crate::config::{DataConfig, SourceConfig, WidgetConfig};
 use crate::db::widget;
 use crate::loaders;
@@ -21,6 +22,7 @@ use crate::specifier::{ParsedSpecifier, WidgetQuerySpecifier};
 #[derive(Clone)]
 pub struct AppkitModuleLoader {
   pub workspace_id: String,
+  pub module: MainModule,
   pub pool: Option<Pool<Postgres>>,
   pub template_loader: Arc<dyn TemplateLoader>,
 }
@@ -115,14 +117,22 @@ impl ModuleLoader for AppkitModuleLoader {
           "/@dqs/template/app" => {
             return Ok::<ModuleSource, anyhow::Error>(ModuleSource::new(
               ModuleType::JavaScript,
-              loader.template_loader.load_app_template().await?.into(),
+              loader
+                .template_loader
+                .load_app_template(&loader.module)
+                .await?
+                .into(),
               &specifier,
             ))
           }
           "/@dqs/template/plugin" => {
             return Ok::<ModuleSource, anyhow::Error>(ModuleSource::new(
               ModuleType::JavaScript,
-              loader.template_loader.load_plugin_template().await?.into(),
+              loader
+                .template_loader
+                .load_plugin_template(&loader.module)
+                .await?
+                .into(),
               &specifier,
             ))
           }

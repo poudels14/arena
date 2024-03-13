@@ -33,7 +33,7 @@ pub async fn authenticate_user_using_headers(
 pub async fn authenticate_user(
   cache: &Cache,
   app_id: &str,
-  identity: &Identity,
+  #[allow(unused)] identity: &Identity,
 ) -> Result<App, errors::Error> {
   let app = cache
     .get_app(app_id)
@@ -45,24 +45,26 @@ pub async fn authenticate_user(
     .ok_or(errors::Error::NotFound)?;
   tracing::trace!("app = {:?}", app);
 
-  let acl_checker =
-    cache.get_app_acl_checker(&app.id).await.unwrap_or_default();
+  #[cfg(not(feature = "disable-auth"))]
+  {
+    let acl_checker =
+      cache.get_app_acl_checker(&app.id).await.unwrap_or_default();
+    let has_access = match identity {
+      Identity::User { ref id, .. } => acl_checker.read().has_any_access(&id),
+      Identity::App { id, .. } => cache
+        .get_app(id)
+        .await?
+        .and_then(|app| app.owner_id)
+        .map(|owner_id| acl_checker.read().has_any_access(&owner_id))
+        .unwrap_or(false),
+      Identity::Unknown => acl_checker.read().has_any_access("public"),
+      _ => false,
+    };
 
-  let has_access = match identity {
-    Identity::User { ref id, .. } => acl_checker.read().has_any_access(&id),
-    Identity::App { id, .. } => cache
-      .get_app(id)
-      .await?
-      .and_then(|app| app.owner_id)
-      .map(|owner_id| acl_checker.read().has_any_access(&owner_id))
-      .unwrap_or(false),
-    Identity::Unknown => acl_checker.read().has_any_access("public"),
-    _ => false,
-  };
-
-  if !has_access {
-    tracing::trace!("doesn't have access");
-    return Err(errors::Error::Forbidden);
+    if !has_access {
+      tracing::trace!("doesn't have access");
+      return Err(errors::Error::Forbidden);
+    }
   }
   Ok(app)
 }

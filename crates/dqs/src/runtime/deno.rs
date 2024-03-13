@@ -16,7 +16,7 @@ use runtime::permissions::PermissionsContainer;
 use sqlx::{Pool, Postgres};
 
 use super::core;
-use crate::arena::{self, ArenaRuntimeState};
+use crate::arena::{self, ArenaRuntimeState, MainModule};
 use crate::loaders::moduleloader::AppkitModuleLoader;
 use crate::loaders::template::TemplateLoader;
 
@@ -39,6 +39,8 @@ pub struct RuntimeOptions {
   pub egress_address: Option<IpAddr>,
   /// Default egress headers
   pub egress_headers: Option<Vec<(String, String)>>,
+
+  pub module: MainModule,
 
   #[derivative(Debug = "ignore")]
   pub template_loader: Arc<dyn TemplateLoader>,
@@ -73,6 +75,7 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
     heap_limits: config.heap_limits,
     module_loader: Some(Rc::new(AppkitModuleLoader {
       workspace_id: config.state.workspace_id.clone(),
+      module: config.module.clone(),
       pool: config.db_pool.clone(),
       template_loader: config.template_loader,
     })),

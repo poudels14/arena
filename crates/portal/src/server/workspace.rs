@@ -9,7 +9,7 @@ use axum::routing::MethodFilter;
 use axum::{routing, Router};
 use cloud::identity::Identity;
 use common::axum::logger;
-use dqs::arena::{ArenaRuntimeState, MainModule};
+use dqs::arena::{App, ArenaRuntimeState, MainModule, Template};
 use dqs::runtime::deno::RuntimeOptions;
 use hyper::Body as HyperBody;
 use runtime::deno::core::{v8, ModuleCode};
@@ -36,6 +36,17 @@ pub async fn start_workspace_server(
   workspace: Workspace,
   request_stream_rx: Receiver<(HttpRequest, Sender<ParsedHttpResponse>)>,
 ) -> Result<()> {
+  let module = MainModule::App {
+    app: App {
+      id: nanoid::nanoid!(),
+      owner_id: None,
+      template: Template {
+        id: "workspace-desktop".to_owned(),
+        version: env!("PORTAL_DESKTOP_WORKSPACE_VERSION").to_owned(),
+      },
+      workspace_id: "workspace-desktop".to_owned(),
+    },
+  };
   let mut runtime = dqs::runtime::deno::new(RuntimeOptions {
     id: nanoid::nanoid!(),
     db_pool: None,
@@ -51,9 +62,7 @@ pub async fn start_workspace_server(
     acl_checker: None,
     state: ArenaRuntimeState {
       workspace_id: "workspace-1".to_owned(),
-      module: MainModule::Inline {
-        code: "".to_owned(),
-      },
+      module: module.clone(),
       env_variables: EnvironmentVariableStore::new(HashMap::from([
         env_var("DATABASE_URL", &workspace.database_url()),
         env_var("HOST", "http://localhost:4200"),
@@ -76,6 +85,7 @@ pub async fn start_workspace_server(
       ])),
     },
     identity: Identity::Unknown,
+    module,
     template_loader: Arc::new(PortalTemplateLoader {}),
   })
   .await?;

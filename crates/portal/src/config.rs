@@ -42,10 +42,6 @@ impl WorkspaceConfig {
     Self::data_dir().join("common").join("config.toml")
   }
 
-  pub fn get_workspace_root_dir(&self) -> PathBuf {
-    Self::data_dir().join("runtime").join("workspace")
-  }
-
   pub fn get_catalogs_dir(&self) -> PathBuf {
     // "/catalogs" suffix is added later
     Self::data_dir().join("common")

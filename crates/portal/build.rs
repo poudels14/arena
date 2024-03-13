@@ -11,19 +11,19 @@ fn main() {
       "workspace-desktop",
       "0.0.2",
       "PORTAL_DESKTOP_WORKSPACE_VERSION",
-      "../../js/workspace-cluster/dist/workspace-desktop",
+      "../../js/workspace-desktop/dist/workspace-desktop",
     ),
     (
       "atlasai",
       "0.0.2",
       "PORTAL_DESKTOP_ATLAS_VERSION",
-      "../../js/workspace-cluster/dist/workspace-desktop",
+      "../../js/apps/atlasai/dist/atlasai",
     ),
     (
       "portal-drive",
       "0.0.2",
       "PORTAL_DESKTOP_DRIVE_VERSION",
-      "../../js/workspace-cluster/dist/workspace-desktop",
+      "../../js/apps/drive/dist/portal-drive",
     ),
   ];
 

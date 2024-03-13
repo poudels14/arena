@@ -8,7 +8,6 @@ use crate::loaders::Registry;
 #[derive(Clone)]
 pub struct RegistryTemplateLoader {
   pub registry: Registry,
-  pub module: MainModule,
 }
 
 #[async_trait]
@@ -18,8 +17,8 @@ impl TemplateLoader for RegistryTemplateLoader {
     skip(self),
     level = "trace"
   )]
-  async fn load_app_template(&self) -> Result<String> {
-    if let MainModule::App { app } = &self.module {
+  async fn load_app_template(&self, module: &MainModule) -> Result<String> {
+    if let MainModule::App { app } = module {
       return self
         .registry
         .fetch_app_template(&app.template.id, &app.template.version)
@@ -33,8 +32,8 @@ impl TemplateLoader for RegistryTemplateLoader {
     skip(self),
     level = "trace"
   )]
-  async fn load_plugin_template(&self) -> Result<String> {
-    if let MainModule::PluginWorkflowRun { workflow } = &self.module {
+  async fn load_plugin_template(&self, module: &MainModule) -> Result<String> {
+    if let MainModule::PluginWorkflowRun { workflow } = module {
       return self
         .registry
         .fetch_plugin(&workflow.plugin.id, &workflow.plugin.version)

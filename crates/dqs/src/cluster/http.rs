@@ -236,10 +236,13 @@ pub async fn pipe_app_request(
       module: MainModule::App { app },
       db_pool: cluster.db_pool.clone(),
       dqs_egress_addr: cluster.options.dqs_egress_addr,
-      registry: cluster.options.registry.clone(),
+      template_loader: cluster.options.template_loader.clone(),
     })
     .await
-    .map_err(|_| errors::Error::ServiceUnavailable)?;
+    .map_err(|e| {
+      tracing::warn!("{:?}", e);
+      errors::Error::ServiceUnavailable
+    })?;
 
   let url = {
     let mut url = Url::parse(&format!("http://0.0.0.0/")).unwrap();
@@ -268,7 +271,10 @@ pub async fn pipe_app_request(
     .http_channel
     .send((request, tx))
     .await
-    .map_err(|_| errors::Error::ServiceUnavailable)?;
+    .map_err(|e| {
+      tracing::warn!("{:?}", e);
+      errors::Error::ServiceUnavailable
+    })?;
 
   let res = rx.await.map_err(|_| errors::Error::ResponseBuilder)?;
   res.into_response().await
@@ -334,16 +340,22 @@ pub async fn pipe_widget_query_request(
       module: MainModule::WidgetQuery,
       db_pool: cluster.db_pool.clone(),
       dqs_egress_addr: cluster.options.dqs_egress_addr,
-      registry: cluster.options.registry.clone(),
+      template_loader: cluster.options.template_loader.clone(),
     })
     .await
-    .map_err(|_| errors::Error::ServiceUnavailable)?;
+    .map_err(|e| {
+      tracing::warn!("{:?}", e);
+      errors::Error::ServiceUnavailable
+    })?;
 
   dqs_server
     .http_channel
     .send((request, tx))
     .await
-    .map_err(|_| errors::Error::ServiceUnavailable)?;
+    .map_err(|e| {
+      tracing::warn!("{:?}", e);
+      errors::Error::ServiceUnavailable
+    })?;
 
   let res = rx.await.map_err(|_| errors::Error::ResponseBuilder)?;
   res.into_response().await
@@ -418,7 +430,7 @@ pub async fn pipe_plugin_workflow_request(
       module,
       db_pool: cluster.db_pool.clone(),
       dqs_egress_addr: cluster.options.dqs_egress_addr,
-      registry: cluster.options.registry.clone(),
+      template_loader: cluster.options.template_loader.clone(),
     })
     .await?;
 

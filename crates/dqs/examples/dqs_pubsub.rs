@@ -7,13 +7,18 @@ use anyhow::Result;
 use cloud::identity::Identity;
 use cloud::pubsub::exchange::Exchange;
 use cloud::pubsub::{EventSink, OutgoingEvent, Subscriber};
+use deno_core::v8;
 use dqs::arena::{ArenaRuntimeState, MainModule};
 use dqs::loaders::{FileTemplateLoader, Registry};
 use dqs::runtime::deno;
 use runtime::extensions::server::HttpServerConfig;
+use runtime::permissions::{
+  FileSystemPermissions, NetPermissions, PermissionsContainer, TimerPermissions,
+};
 use tokio::sync::mpsc;
 
 fn main() -> Result<()> {
+  let v8_platform = v8::new_default_platform(0, false).make_shared();
   let start = Instant::now();
 
   let rt = tokio::runtime::Builder::new_multi_thread()
@@ -36,15 +41,16 @@ fn main() -> Result<()> {
       import { publish, subscribe } from "@arena/cloud/pubsub";
       console.log("starting dqs...");
 
-      subscribe((event) => {
-        console.log("RECIVED: ", event);
-      });
+      // subscribe((event) => {
+      //   console.log("RECIVED: ", event);
+      // });
 
       setInterval(async () => {
         let result = await publish({
           message: "Hello world!",
         });
-        console.log("Published = ", result);
+        // console.log("Published = ", result);
+        console.log("UO!")
       }, 1_000);
       "#
       .to_owned(),
@@ -70,21 +76,21 @@ fn main() -> Result<()> {
         http_requests_rx,
       ))),
       permissions: Default::default(),
+      // permissions: PermissionsContainer {
+      //   fs: Some(FileSystemPermissions::allow_all("/".into())),
+      //   net: Some(NetPermissions::allow_all()),
+      //   timer: Some(TimerPermissions::allow_hrtime()),
+      // },
       heap_limits: None,
       egress_address: None,
+      v8_platform,
       exchange: Some(exchange.clone()),
       state: ArenaRuntimeState {
         workspace_id: "test_workspace".to_string(),
-        registry: Registry {
-          host: "".to_string(),
-          api_key: "".to_string(),
-        },
         module: main_module.clone(),
         env_variables: Default::default(),
       },
-      template_loader: Arc::new(FileTemplateLoader {
-        module: MainModule::WidgetQuery,
-      }),
+      template_loader: Arc::new(FileTemplateLoader {}),
     })
     .await?;
 

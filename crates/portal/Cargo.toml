@@ -8,7 +8,7 @@ anyhow.workspace = true
 axum.workspace = true
 clap.workspace = true
 tokio.workspace = true
-tracing.workspace = true
+tracing = { workspace = true, features = ["release_max_level_error"] }
 colored.workspace = true
 jsonwebtoken.workspace = true
 serde_json.workspace = true
@@ -31,7 +31,7 @@ arenasql-cluster = { path = "../arenasql-cluster" }
 runtime = { path = "../runtime" }
 common = { path = "../common", features = ["dotenv"] }
 cloud = { path = "../cloud" }
-dqs = { path = "../dqs" }
+dqs = { path = "../dqs", features = ["disable-auth"] }
 tower-http = { version = "0.3.5", features = ["fs"] }
 bytes.workspace = true
 hyper.workspace = true

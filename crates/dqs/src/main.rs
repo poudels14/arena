@@ -4,8 +4,11 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
+use arena::MainModule;
 use common::{dotenv, required_env};
+use deno_core::v8;
 use loaders::registry::Registry;
+use loaders::RegistryTemplateLoader;
 use signal_hook::consts::TERM_SIGNALS;
 use signal_hook::flag;
 use signal_hook::iterator::exfiltrator::SignalOnly;
@@ -99,18 +102,22 @@ fn main() -> Result<()> {
 
   let (shutdown_signal_tx, shutdown_signal_rx) =
     tokio::sync::broadcast::channel::<()>(10);
+  let v8_platform = v8::new_default_platform(0, false).make_shared();
   let handle: tokio::task::JoinHandle<Result<(), anyhow::Error>> =
     rt.spawn(async move {
       let db_pool = db::create_connection_pool().await?;
       let dqs_cluster = DqsCluster::new(
         DqsClusterOptions {
+          v8_platform,
           address: host,
           port,
           dqs_egress_addr,
-          registry: Registry {
-            host: registry_host,
-            api_key: registry_api_key,
-          },
+          template_loader: Arc::new(RegistryTemplateLoader {
+            registry: Registry {
+              host: registry_host,
+              api_key: registry_api_key,
+            },
+          }),
         },
         db_pool,
       )?;

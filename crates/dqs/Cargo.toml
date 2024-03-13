@@ -7,6 +7,10 @@ edition = "2021"
 name = "app-cluster"
 path = "src/main.rs"
 
+[features]
+default = []
+disable-auth = []
+
 [dependencies]
 anyhow.workspace = true
 serde.workspace = true

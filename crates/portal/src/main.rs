@@ -8,6 +8,7 @@ use anyhow::bail;
 use anyhow::Result;
 use clap::Parser;
 use colored::*;
+use runtime::deno::core::v8;
 use signal_hook::consts::TERM_SIGNALS;
 use signal_hook::flag;
 use signal_hook::iterator::exfiltrator::SignalOnly;
@@ -51,41 +52,49 @@ fn main() -> Result<()> {
   tracing::subscriber::set_global_default(subscriber).unwrap();
 
   let args = Args::parse();
+
+  // Note: v8 platform has to be created before creating tokio runtime
+  // spent days debugging why v8 runtime segfaulted :(
+  let v8_platform = v8::new_default_platform(0, false).make_shared();
   let rt = tokio::runtime::Builder::new_multi_thread()
-    .worker_threads(num_cpus::get())
     .enable_all()
     .build()?;
 
-  let (shutdown_signal_tx, _) = broadcast::channel::<()>(10);
-
-  let local = tokio::task::LocalSet::new();
-  let res = local.block_on(&rt, async {
-    async {
-      match args.command {
-        Commands::Start(cmd) => {
-          cmd.execute(shutdown_signal_tx.clone()).await.map_err(|e| {
-            let _ = shutdown_signal_tx.send(());
-            e
-          })?;
-        }
-      };
-      Ok::<(), anyhow::Error>(())
-    }
-    .await
-  });
+  let _ = rayon::ThreadPoolBuilder::new()
+    .num_threads(3)
+    .build()
+    .unwrap();
 
   let term_now = Arc::new(AtomicBool::new(false));
   for sig in TERM_SIGNALS {
     flag::register_conditional_shutdown(*sig, 1, Arc::clone(&term_now))?;
     flag::register(*sig, Arc::clone(&term_now))?;
   }
+
   let mut signals = SignalsInfo::<SignalOnly>::new(TERM_SIGNALS)?;
+  let signals_handle = signals.handle();
+
+  let (shutdown_signal_tx, _) = broadcast::channel::<()>(10);
+  let shutdown_signal_tx_clone = shutdown_signal_tx.clone();
+  let handle = rt.spawn(async move {
+    match args.command {
+      Commands::Start(cmd) => {
+        let res = cmd
+          .execute(v8_platform.clone(), shutdown_signal_tx_clone.clone())
+          .await;
+        signals_handle.close();
+        res?;
+      }
+    };
+    Ok::<(), anyhow::Error>(())
+  });
 
   for _ in &mut signals {
     let _ = shutdown_signal_tx.send(());
     break;
   }
 
+  let res = rt.block_on(handle).unwrap();
   match res {
     Err(e) => {
       if !e.to_string().contains("execution terminated") {

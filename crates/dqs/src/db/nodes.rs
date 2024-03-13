@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sqlx::types::chrono::{NaiveDateTime, Utc};
+use sqlx::types::chrono::Utc;
 use sqlx::{FromRow, Pool, Postgres};
 
 /// Dqs node

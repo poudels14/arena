@@ -37,18 +37,11 @@ fn op_arena_load_env(state: &mut OpState) -> Result<serde_json::Value> {
   let mut variables = state.env_variables.to_vec();
 
   let default_vars = match &state.module {
-    MainModule::App { app } => {
+    MainModule::App { .. } => {
       // Note(sagar): add default app related env variables
       vec![
         ("MODE", "production".to_owned()),
         ("SSR", "true".to_owned()),
-        (
-          "ARENA_PUBLISHED_ENTRY_CLIENT",
-          format!(
-            "{}/static/templates/apps/{}/{}.js",
-            state.registry.host, app.template.id, app.template.version
-          ),
-        ),
       ]
     }
     _ => vec![],

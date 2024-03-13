@@ -15,7 +15,7 @@ pub async fn create_connection_pool() -> Result<Pool<Postgres>> {
       s.parse::<u32>()
         .context("Error parsing env variable: DATABASE_POOL_SIZE")
     })
-    .unwrap_or(10);
+    .unwrap_or(20);
 
   tracing::debug!("Connecting to database $DATABASE_URL");
   Ok(

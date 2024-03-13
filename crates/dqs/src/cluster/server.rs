@@ -13,6 +13,7 @@ use cloud::pubsub::exchange::Exchange;
 use cloud::rowacl::RowAclChecker;
 use common::beam;
 use deno_core::v8;
+use derivative::Derivative;
 use jsonwebtoken::{Algorithm, EncodingKey, Header};
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
@@ -29,15 +30,15 @@ use crate::arena::{ArenaRuntimeState, MainModule};
 use crate::config::workspace::WorkspaceConfig;
 use crate::db::deployment::Deployment;
 use crate::db::{self, deployment};
-use crate::loaders::registry::Registry;
-use crate::loaders::RegistryTemplateLoader;
+use crate::loaders::TemplateLoader;
 use crate::runtime::Command;
 use crate::runtime::{deno::RuntimeOptions, ServerEvents};
 
 static RUNTIME_COUNTER: Lazy<Arc<AtomicUsize>> =
   Lazy::new(|| Arc::new(AtomicUsize::new(1)));
 
-#[derive(Debug, Clone)]
+#[derive(Derivative)]
+#[derivative(Debug, Clone)]
 pub struct DqsServerOptions {
   pub id: String,
   /// App version or any other version
@@ -48,8 +49,9 @@ pub struct DqsServerOptions {
   /// The IP address that DQS should use for outgoing network requests
   /// from DQS JS runtime
   pub dqs_egress_addr: Option<IpAddr>,
-  /// Registry to be used to fetch bundled JS from
-  pub registry: Registry,
+
+  #[derivative(Debug = "ignore")]
+  pub template_loader: Arc<dyn TemplateLoader>,
   pub db_pool: Pool<Postgres>,
 }
 
@@ -90,25 +92,22 @@ impl DqsServer {
       RUNTIME_COUNTER.fetch_add(1, Ordering::AcqRel)
     ));
     let options_clone = options.clone();
-    let thread_handle = thread.spawn(move || {
-      let env_variables = futures::executor::block_on(async {
-        match options.module.as_app() {
-          Some(app) => ArenaRuntimeState::load_app_env_variables(
-            &options.workspace_id,
-            app,
-            &options.db_pool,
-          )
-          .await
-          .unwrap_or_default(),
-          _ => EnvironmentVariableStore::new(HashMap::new()),
-        }
-      });
 
+    let env_vars = match options.module.as_app() {
+      Some(app) => ArenaRuntimeState::load_app_env_variables(
+        &options.workspace_id,
+        app,
+        &options.db_pool,
+      )
+      .await
+      .unwrap_or_default(),
+      _ => HashMap::new(),
+    };
+    let thread_handle = thread.spawn(move || {
       let state = ArenaRuntimeState {
         workspace_id: options.workspace_id.clone(),
-        env_variables,
+        env_variables: EnvironmentVariableStore::new(env_vars),
         module: options.module.clone(),
-        registry: options.registry.clone(),
       };
 
       let identity = match &state.module {
@@ -164,10 +163,8 @@ impl DqsServer {
           acl_checker,
           state,
           identity,
-          template_loader: Arc::new(RegistryTemplateLoader {
-            registry: options.registry,
-            module: options.module,
-          }),
+          module: options.module.clone(),
+          template_loader: options.template_loader,
         },
         events_tx,
       )
@@ -219,7 +216,7 @@ impl DqsServer {
     Ok(())
   }
 
-  #[tracing::instrument(skip_all, level = "trace")]
+  #[tracing::instrument(skip(self), level = "trace")]
   #[inline]
   pub async fn get_server_deployment(
     &self,

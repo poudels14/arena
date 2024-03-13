@@ -23,6 +23,7 @@ use crate::config::WorkspaceConfig;
 #[derive(Debug, Clone)]
 pub struct Workspace {
   pub config: WorkspaceConfig,
+  pub port: u16,
   pub db_port: u16,
 }
 
@@ -40,14 +41,16 @@ impl Workspace {
     )
   }
 
-  pub async fn setup(&self) -> Result<()> {
+  pub async fn setup(
+    &self,
+    v8_platform: v8::SharedRef<v8::Platform>,
+  ) -> Result<()> {
     self.create_portal_database().await?;
-    self.run_workspace_db_migrations().await?;
+    self.run_workspace_db_migrations(v8_platform).await?;
 
     std::env::set_var("DATABASE_URL", self.database_url());
     let pool = create_connection_pool().await?;
     self.add_user(&pool).await?;
-    self.add_database_cluster(&pool).await?;
     self.add_default_app_templates(&pool).await?;
     Ok(())
   }
@@ -57,13 +60,17 @@ impl Workspace {
     Ok(())
   }
 
-  async fn run_workspace_db_migrations(&self) -> Result<()> {
-    let v8_platform = v8::new_default_platform(0, false).make_shared();
-    rayon::scope(|_| {
+  async fn run_workspace_db_migrations(
+    &self,
+    v8_platform: v8::SharedRef<v8::Platform>,
+  ) -> Result<()> {
+    let database_url = self.database_url();
+    let _ = rayon::scope(|_| {
       let rt = tokio::runtime::Builder::new_current_thread()
+        .thread_name("workspace-migration")
         .enable_io()
         .enable_time()
-        .worker_threads(1)
+        .worker_threads(2)
         .build()?;
 
       let local = tokio::task::LocalSet::new();
@@ -89,12 +96,15 @@ impl Workspace {
               EnvVar {
                 id: nanoid::nanoid!(),
                 key: "DATABASE_URL".to_owned(),
-                value: Value::String(self.database_url()),
+                value: Value::String(database_url),
                 is_secret: false,
               },
             )])),
           },
           identity: Identity::Unknown,
+          module: MainModule::Inline {
+            code: "".to_owned(),
+          },
           template_loader: Arc::new(FileTemplateLoader {}),
         })
         .await?;
@@ -113,8 +123,7 @@ impl Workspace {
         runtime.run_event_loop(Default::default()).await?;
         rx.await
       })
-    })?;
-
+    });
     Ok(())
   }
 
@@ -127,6 +136,20 @@ impl Workspace {
     )
     .bind(&self.config.user_id)
     .bind(json!({}))
+    .bind(&Utc::now().naive_utc())
+    .execute(pool)
+    .await?;
+
+    sqlx::query(
+      r#"INSERT INTO environment_variables
+    (id, name, key, value, created_at, updated_at)
+    VALUES ($1, $2, $3, $4, $5, $5)
+    "#,
+    )
+    .bind("1")
+    .bind("Workspace Host")
+    .bind("PORTAL_WORKSPACE_HOST")
+    .bind(format!("http://localhost:{}/", self.port))
     .bind(&Utc::now().naive_utc())
     .execute(pool)
     .await?;
@@ -169,14 +192,23 @@ impl Workspace {
     Ok(())
   }
 
-  async fn add_database_cluster(&self, pool: &Pool<Postgres>) -> Result<()> {
+  pub async fn reset_database_cluster(
+    &self,
+    pool: &Pool<Postgres>,
+  ) -> Result<()> {
+    sqlx::query("DELETE FROM database_clusters WHERE 1=1")
+      .execute(pool)
+      .await?;
+
     sqlx::query(
       r#"INSERT INTO database_clusters
     (id, host, port, capacity, usage, credentials)
     VALUES ($1, $2, $3, $4, $5, $6)
     "#,
     )
-    .bind(nanoid::nanoid!())
+    // Note: this has to be constant since dbs created for apps
+    // will linked with the id of the cluster
+    .bind("default-cluster")
     .bind("localhost")
     .bind(self.db_port as i32)
     .bind(100)

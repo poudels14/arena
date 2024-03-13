@@ -11,18 +11,19 @@ use uuid::Uuid;
 
 pub mod auth;
 pub mod cache;
-pub(crate) mod http;
+pub mod http;
 pub(crate) mod server;
 
 use self::cache::Cache;
 use self::server::{DqsServer, DqsServerOptions, DqsServerStatus};
 use crate::db::{self, nodes};
-use crate::loaders::registry::Registry;
+use crate::loaders::TemplateLoader;
 use crate::runtime::server::ServerEvents;
 use crate::runtime::Command;
 
 #[derive(Clone)]
 pub struct DqsClusterOptions {
+  pub v8_platform: v8::SharedRef<v8::Platform>,
   /// Cluster address
   pub address: String,
   /// Cluster port
@@ -30,8 +31,8 @@ pub struct DqsClusterOptions {
   /// The IP address that DQS should use for outgoing network requests
   /// from DQS JS runtime
   pub dqs_egress_addr: Option<IpAddr>,
-  /// Registry to be used to fetch bundled JS from
-  pub registry: Registry,
+
+  pub template_loader: Arc<dyn TemplateLoader>,
 }
 
 #[derive(Clone)]
@@ -55,11 +56,10 @@ impl DqsCluster {
     options: DqsClusterOptions,
     db_pool: Pool<Postgres>,
   ) -> Result<Self> {
-    let v8_platform = v8::new_default_platform(0, false).make_shared();
     Ok(Self {
       options: options.clone(),
       node_id: Uuid::new_v4().to_string(),
-      v8_platform,
+      v8_platform: options.v8_platform,
       servers: Arc::new(DashMap::with_shard_amount(32)),
       spawn_lock: Arc::new(Mutex::new(0)),
       exchanges: Arc::new(DashMap::with_shard_amount(32)),

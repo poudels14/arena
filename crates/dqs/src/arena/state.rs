@@ -11,13 +11,11 @@ use super::app::App;
 use super::MainModule;
 use crate::db::database;
 use crate::db::resource;
-use crate::loaders::registry::Registry;
 
 #[derive(Derivative)]
 #[derivative(Debug, Clone)]
 pub struct ArenaRuntimeState {
   pub workspace_id: String,
-  pub registry: Registry,
   pub module: MainModule,
   pub env_variables: EnvironmentVariableStore,
 }
@@ -28,7 +26,7 @@ impl ArenaRuntimeState {
     workspace_id: &str,
     app: &App,
     pool: &Pool<Postgres>,
-  ) -> Result<EnvironmentVariableStore> {
+  ) -> Result<HashMap<String, EnvVar>> {
     let env_vars: Vec<resource::EnvVar> = sqlx::query_as(
       r#"SELECT * FROM environment_variables
     WHERE
@@ -150,6 +148,6 @@ impl ArenaRuntimeState {
       );
     }
 
-    Ok(EnvironmentVariableStore::new(resources))
+    Ok(resources)
   }
 }
