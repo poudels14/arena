@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -13,7 +13,6 @@ use jsonwebtoken::{Algorithm, DecodingKey, Validation};
 use uuid::Uuid;
 
 use super::storage::{ClusterStorageFactory, StorageOption};
-use super::ClusterOptions;
 use crate::auth::{
   AuthHeader, AuthenticatedSession, AuthenticatedSessionBuilder,
   AuthenticatedSessionStore,
@@ -21,7 +20,7 @@ use crate::auth::{
 use crate::error::{ArenaClusterError, ArenaClusterResult};
 use crate::extension::admin_exetension;
 use crate::schema::{
-  self, ClusterConfig, ADMIN_USERNAME, APPS_USERNAME, SYSTEM_SCHEMA_NAME,
+  self, ClusterManifest, ADMIN_USERNAME, APPS_USERNAME, SYSTEM_SCHEMA_NAME,
 };
 use crate::system::{
   ArenaClusterCatalogListProvider, CatalogListOptionsBuilder,
@@ -29,7 +28,7 @@ use crate::system::{
 
 #[allow(unused)]
 pub struct ArenaSqlCluster {
-  pub(crate) manifest: Arc<schema::ClusterConfig>,
+  pub(crate) manifest: Arc<schema::ClusterManifest>,
   pub(crate) runtime: Arc<RuntimeEnv>,
   pub(crate) session_store: Arc<AuthenticatedSessionStore>,
   pub(crate) storage: Arc<ClusterStorageFactory>,
@@ -38,11 +37,7 @@ pub struct ArenaSqlCluster {
 }
 
 impl ArenaSqlCluster {
-  pub fn load(options: &ClusterOptions) -> Result<Self> {
-    let manifest = std::fs::read_to_string(Path::new(&options.config))
-      .context("Error reading cluster manifest")?;
-    let manifest: ClusterConfig = toml::from_str(&manifest)?;
-
+  pub fn load(manifest: ClusterManifest) -> Result<Self> {
     let backup_dir = manifest
       .backup_dir
       .as_ref()
@@ -193,9 +188,11 @@ impl ArenaSqlCluster {
     user: &str,
     privilege: Privilege,
   ) -> ArenaSqlResult<SessionContext> {
-    let storage_factory = cluster_storage_factory
-      .get_catalog(&catalog)?
-      .ok_or_else(|| ArenaSqlError::DatabaseDoesntExist(catalog.to_owned()))?;
+    let storage_factory = rayon::scope(|_| {
+      cluster_storage_factory
+        .get_catalog(&catalog)?
+        .ok_or_else(|| ArenaSqlError::DatabaseDoesntExist(catalog.to_owned()))
+    })?;
 
     let catalog_list_provider =
       Arc::new(ArenaClusterCatalogListProvider::with_options(

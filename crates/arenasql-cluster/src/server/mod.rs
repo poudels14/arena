@@ -1,4 +1,5 @@
 use std::net::{Ipv4Addr, SocketAddr};
+use std::path::Path;
 use std::process;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -14,6 +15,7 @@ mod execution;
 pub(crate) mod storage;
 
 use crate::pgwire::auth::ArenaSqlClusterAuthenticator;
+use crate::schema::ClusterManifest;
 pub use cluster::ArenaSqlCluster;
 
 #[derive(clap::Parser, Debug, Clone)]
@@ -33,11 +35,16 @@ pub struct ClusterOptions {
 }
 
 impl ClusterOptions {
+  #[allow(dead_code)]
   pub async fn execute(
     self,
     mut shutdown_signal: oneshot::Receiver<()>,
   ) -> Result<()> {
-    let cluster = Arc::new(ArenaSqlCluster::load(&self)?);
+    let manifest = std::fs::read_to_string(Path::new(&self.config))
+      .context("Error reading cluster manifest")?;
+    let manifest: ClusterManifest = toml::from_str(&manifest)?;
+
+    let cluster = Arc::new(ArenaSqlCluster::load(manifest)?);
     let processor = Arc::new(StatelessMakeHandler::new(cluster.clone()));
     let authenticator = ArenaSqlClusterAuthenticator::new(cluster.clone());
 

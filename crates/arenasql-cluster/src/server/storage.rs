@@ -13,6 +13,7 @@ use arenasql::Result;
 use dashmap::DashMap;
 use futures::future::join_all;
 use getset::{Getters, Setters};
+use parking_lot::Mutex;
 use tokio::task::JoinHandle;
 use tracing::info;
 
@@ -23,6 +24,7 @@ use crate::schema::SYSTEM_CATALOG_NAME;
 pub struct ClusterStorageFactory {
   #[getset(get = "pub")]
   options: StorageOption,
+  storage_lock: Arc<Mutex<()>>,
   storages: DashMap<String, Arc<StorageFactory>>,
 }
 
@@ -56,10 +58,12 @@ impl ClusterStorageFactory {
     }
     Self {
       options,
+      storage_lock: Arc::new(Mutex::new(())),
       storages: DashMap::new(),
     }
   }
 
+  // Note: call this from different thread to avoid deadlock
   pub fn get_catalog(
     &self,
     db_name: &str,
@@ -68,6 +72,16 @@ impl ClusterStorageFactory {
     match storage {
       Some(storage) => Ok(Some(storage.value().clone())),
       None => {
+        // need to use a lock here to make sure there's no race condition
+        // when opening rocksdb
+        // TODO: need db level lock?
+        let lock = self.storage_lock.lock();
+        // check if the storage is initialzied after acquiring the lock
+        let db_storage_mut = self.storages.get(db_name);
+        if let Some(storage) = db_storage_mut {
+          return Ok(Some(storage.value().clone()));
+        }
+
         let key_vaue = match db_name == SYSTEM_CATALOG_NAME {
           true => Some(Arc::new(MemoryKeyValueStoreProvider {})
             as Arc<dyn KeyValueStoreProvider>),
@@ -82,6 +96,7 @@ impl ClusterStorageFactory {
               db_dir.to_str(),
               db_name
             );
+
             let rocks_storage = match db_dir.exists() {
               false => {
                 if let Some(checkpoint_dir) = &self.options.checkpoint_dir {
@@ -131,6 +146,7 @@ impl ClusterStorageFactory {
               }
               true => Some(RocksStorage::new_with_cache(db_dir, cache)?),
             };
+
             rocks_storage.map(|storage| {
               Arc::new(storage) as Arc<dyn KeyValueStoreProvider>
             })
@@ -146,8 +162,8 @@ impl ClusterStorageFactory {
               .build()
               .unwrap(),
           );
-
           self.storages.insert(db_name.to_string(), factory.clone());
+          drop(lock);
           factory
         }))
       }

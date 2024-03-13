@@ -8,7 +8,7 @@ pub static SYSTEM_CATALOG_NAME: &'static str = "postgres";
 pub static SYSTEM_SCHEMA_NAME: &'static str = "arena_schema";
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder)]
-pub struct ClusterConfig {
+pub struct ClusterManifest {
   /// Path to the directory where database data is stored
   pub catalogs_dir: String,
 
@@ -40,7 +40,7 @@ pub struct ClusterConfig {
   pub checkpoint_dir: Option<String>,
 }
 
-impl ClusterConfig {
+impl ClusterManifest {
   #[inline]
   pub fn get_user(&self, name: &str) -> Option<&User> {
     self.users.iter().find(|u| u.name == name)

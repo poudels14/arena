@@ -5,7 +5,7 @@ use anyhow::{bail, Context, Result};
 use arenasql::execution::Privilege;
 
 use crate::schema::{
-  ClusterConfigBuilder, UserBuilder, ADMIN_USERNAME, APPS_USERNAME,
+  ClusterManifestBuilder, UserBuilder, ADMIN_USERNAME, APPS_USERNAME,
 };
 
 #[derive(clap::Parser, Debug, Clone)]
@@ -43,7 +43,7 @@ impl InitCluster {
       fs::create_dir_all(catalog_dir)?;
     }
 
-    let mut config = ClusterConfigBuilder::default()
+    let mut config = ClusterManifestBuilder::default()
       .catalogs_dir(catalog_dir.canonicalize()?.to_str().unwrap().to_owned())
       .build()
       .unwrap();
