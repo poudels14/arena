@@ -126,7 +126,7 @@ impl Error {
       | Self::InvalidTransactionState(msg) => msg.to_owned(),
       Self::InsufficientPrivilege => format!("permission denied"),
       Self::InternalError(msg) => {
-        eprintln!("Internal error: {:?}", msg);
+        tracing::warn!("Internal error: {:?}", msg);
         format!("Internal error")
       }
       Self::UniqueConstaintViolated { constraint, .. } => format!(
@@ -162,7 +162,7 @@ impl Error {
       | Self::SerdeError(_)
       | Self::DecodingError(_)
       | Self::EncodingError(_) => {
-        eprintln!("Error: {:?}", self);
+        tracing::warn!("Error: {:?}", self);
         format!("IO error")
       }
       Self::DataFusionError(df_err) => match df_err.as_ref() {
@@ -170,7 +170,7 @@ impl Error {
           if let Some(arena_err) = err.downcast_ref::<Error>() {
             arena_err.message()
           } else {
-            eprintln!("Error: {:?}", err);
+            tracing::warn!("Error: {:?}", err);
             format!("Internal error")
           }
         }
@@ -179,12 +179,22 @@ impl Error {
             if let Some(arena_err) = err.downcast_ref::<Error>() {
               arena_err.message()
             } else {
-              eprintln!("Unknown error at {}:{}: {:?}", file!(), line!(), err);
+              tracing::warn!(
+                "Unknown error at {}:{}: {:?}",
+                file!(),
+                line!(),
+                err
+              );
               format!("Internal error")
             }
           }
           err => {
-            eprintln!("Unknown error at {}:{}: {:?}", file!(), line!(), err);
+            tracing::warn!(
+              "Unknown error at {}:{}: {:?}",
+              file!(),
+              line!(),
+              err
+            );
             format!("Internal error")
           }
         },
@@ -194,7 +204,7 @@ impl Error {
           }
           if msg.contains("not yet supported") || msg.contains("not supported")
           {
-            eprintln!(
+            tracing::warn!(
               "Unsupported query error: {}:{}: {:?}",
               file!(),
               line!(),
@@ -206,7 +216,7 @@ impl Error {
           else if msg.contains("table") && msg.contains("not found") {
             msg.to_owned()
           } else {
-            eprintln!(
+            tracing::warn!(
               "Unknown query error: {}:{}: {:?}",
               file!(),
               line!(),
@@ -216,7 +226,7 @@ impl Error {
           }
         }
         err => {
-          eprintln!("Unknown error at {}:{}: {:?}", file!(), line!(), err);
+          tracing::warn!("Unknown error at {}:{}: {:?}", file!(), line!(), err);
           format!("Internal error")
         }
       },
@@ -266,7 +276,7 @@ impl From<parser::ParserError> for Error {
 
 impl From<rocksdb::Error> for Error {
   fn from(e: rocksdb::Error) -> Self {
-    eprint!("Rocks db error: {:?}", e);
+    tracing::warn!("Rocks db error: {:?}", e);
     Self::IOError(e.into())
   }
 }

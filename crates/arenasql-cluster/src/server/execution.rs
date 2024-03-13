@@ -25,7 +25,7 @@ impl ArenaSqlCluster {
     let stmt_type = StatementType::from(stmt.as_ref());
     let session_context = session.context().clone();
     let response = session_context
-      .execute_statement(stmt, logical_plan, params)
+      .execute_statement_with_retry(stmt, logical_plan, params)
       .await?;
 
     match stmt_type {

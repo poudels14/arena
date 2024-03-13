@@ -139,7 +139,7 @@ impl Transaction {
     self.execute(stmts.pop().unwrap().into()).await
   }
 
-  #[tracing::instrument(skip_all, err, level = "TRACE")]
+  #[tracing::instrument(skip_all, level = "TRACE")]
   #[inline]
   pub async fn create_verified_logical_plan(
     &self,
