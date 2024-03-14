@@ -30,7 +30,7 @@ arenasql = { path = "../arenasql" }
 arenasql-cluster = { path = "../arenasql-cluster" }
 runtime = { path = "../runtime" }
 common = { path = "../common", features = ["dotenv"] }
-cloud = { path = "../cloud" }
+cloud = { path = "../cloud", features = ["disable-auth"] }
 dqs = { path = "../dqs", features = ["disable-auth"] }
 tower-http = { version = "0.3.5", features = ["fs"] }
 bytes.workspace = true

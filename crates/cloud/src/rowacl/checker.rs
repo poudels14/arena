@@ -67,12 +67,14 @@ impl RowAclChecker {
     self.acls_by_user_id.clear();
     acls
       .iter()
+      .sorted_by(|u1, u2| Ord::cmp(&u1.user_id, &u2.user_id))
       .group_by(|acl| acl.user_id.clone())
       .into_iter()
       .for_each(|(user_id, user_acls)| {
         let acls_by_table = user_acls
           .group_by(|acl| acl.table.clone())
           .into_iter()
+          .sorted_by(|(t1, _), (t2, _)| Ord::cmp(&t1, &t2))
           .map(|(table, table_acls)| {
             let acls: BTreeMap<AclType, Vec<Expr>> = table_acls
               .group_by(|acl| acl.r#type.clone())
@@ -80,17 +82,18 @@ impl RowAclChecker {
               .map(|(r#type, query_acls)| {
                 let exprs = query_acls
                   .into_iter()
-                  .filter_map(|acl| {
+                  .map(|acl| {
                     if acl.filter == "*" {
-                      None
+                      vec![]
                     } else {
                       let mut expr_parser = Parser::new(&PostgreSqlDialect {})
                         .try_with_sql(&acl.filter)
                         .unwrap();
                       let filter_expr = expr_parser.parse_expr().unwrap();
-                      Some(filter_expr)
+                      vec![filter_expr]
                     }
                   })
+                  .flatten()
                   .collect();
                 (r#type, exprs)
               })
@@ -135,7 +138,12 @@ impl RowAclChecker {
   }
 
   // returns none if the user doesn't have access
+  #[tracing::instrument(skip(self), level = "TRACE")]
   pub fn apply_sql_filter(&self, user_id: &str, query: &str) -> Result<String> {
+    #[cfg(feature = "disable-auth")]
+    {
+      return Ok(query.to_string());
+    }
     let acls = self.acls_by_user_id.get(user_id);
     match acls {
       Some(acls) => apply_filter(acls, query),
@@ -186,7 +194,10 @@ fn apply_filter(
         acls_by_table.get("*").and_then(|acls| acls.get(acl_type));
 
       if table_acls.is_none() && wildcard_table_acls.is_none() {
-        bail!(format!("Doesn't have {:?} access", acl_type));
+        bail!(format!(
+          "Doesn't have {:?} access [table = {}]",
+          acl_type, table
+        ));
       }
 
       // Note: wildcard tables shouldn't have filters, so dont use it here
@@ -461,6 +472,22 @@ mod tests {
       r#type,
       filter: filter.to_owned(),
     }
+  }
+
+  // itertools group_by doesnt group accurately if the vec isn't sorted
+  // so, test that vec with non-sorted users and tables are grouped
+  // properly
+  #[test]
+  fn test_rowacl_set_acls_for_multiple_tables_random_order() {
+    let mut checker = RowAclChecker::from(vec![]).unwrap();
+    checker.set_acls(vec![
+      acl("user_1", "table_2", AclType::Select, "*"),
+      acl("user_1", "table_1", AclType::Select, "id = 1"),
+      acl("user_2", "table_3", AclType::Select, "*"),
+      acl("user_1", "table_1", AclType::Update, "*"),
+    ]);
+    assert_eq!(checker.acls_by_user_id.get("user_1").unwrap().len(), 2);
+    assert_eq!(checker.acls_by_user_id.get("user_2").unwrap().len(), 1);
   }
 
   #[test]

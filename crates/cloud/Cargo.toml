@@ -9,6 +9,7 @@ default = ["include-in-binary", "include-pyodide-archive"]
 # turn off the feature if using snapshot with modules
 include-in-binary = []
 include-pyodide-archive = []
+disable-auth = []
 
 [dependencies]
 anyhow.workspace = true
