@@ -64,6 +64,7 @@ impl Command {
 
     let workspace_database_url = workspace.database_url();
     std::env::set_var("DATABASE_URL", workspace_database_url.clone());
+    std::env::set_var("JWT_SIGNING_SECRET", "portal-desktop-jwt-secret");
 
     let db_pool = db::create_connection_pool().await?;
     workspace.reset_database_cluster(&db_pool).await?;
