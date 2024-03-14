@@ -17,6 +17,8 @@ url.workspace = true
 num_cpus.workspace = true
 nanoid.workspace = true
 serde.workspace = true
+bytes.workspace = true
+hyper.workspace = true
 tracing-tree = "0.3.0"
 tracing-subscriber = "0.3.18"
 directories = "5.0.1"
@@ -33,12 +35,13 @@ common = { path = "../common", features = ["dotenv"] }
 cloud = { path = "../cloud", features = ["disable-auth"] }
 dqs = { path = "../dqs", features = ["disable-auth"] }
 tower-http = { version = "0.3.5", features = ["fs"] }
-bytes.workspace = true
-hyper.workspace = true
 async-trait = "0.1.77"
 mime_guess = "2.0.4"
+ring = "0.16.20"
 
 [build-dependencies]
 pathdiff.workspace = true
+nanoid.workspace = true
 tar = "0.4.40"
 walkdir = "2.5.0"
+ring = "0.16.20"
