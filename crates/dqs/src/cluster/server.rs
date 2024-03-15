@@ -147,7 +147,6 @@ impl DqsServer {
       crate::runtime::server::start(
         RuntimeOptions {
           id: options.id,
-          db_pool: options.db_pool.into(),
           v8_platform,
           server_config: Some(HttpServerConfig::Stream(Arc::new(
             std::sync::Mutex::new(Some(http_requests_rx)),

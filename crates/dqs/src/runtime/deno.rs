@@ -13,7 +13,6 @@ use parking_lot::RwLock;
 use runtime::extensions::server::HttpServerConfig;
 use runtime::extensions::BuiltinModule;
 use runtime::permissions::PermissionsContainer;
-use sqlx::{Pool, Postgres};
 
 use super::core;
 use crate::arena::{self, ArenaRuntimeState, MainModule};
@@ -25,7 +24,6 @@ use crate::loaders::template::TemplateLoader;
 pub struct RuntimeOptions {
   /// Runtime id
   pub id: String,
-  pub db_pool: Option<Pool<Postgres>>,
   pub v8_platform: v8::SharedRef<v8::Platform>,
   pub server_config: Option<HttpServerConfig>,
   pub exchange: Option<Exchange>,
@@ -76,7 +74,6 @@ pub async fn new(config: RuntimeOptions) -> Result<JsRuntime> {
     module_loader: Some(Rc::new(AppkitModuleLoader {
       workspace_id: config.state.workspace_id.clone(),
       module: config.module.clone(),
-      pool: config.db_pool.clone(),
       template_loader: config.template_loader,
     })),
     permissions: config.permissions,

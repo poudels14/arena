@@ -1,5 +1,4 @@
 pub(crate) mod config;
-pub(crate) mod specifier;
 
 pub mod arena;
 pub mod cluster;

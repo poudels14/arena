@@ -4,7 +4,8 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use arena::MainModule;
+use clap::Parser;
+use cluster::{DqsCluster, DqsClusterOptions};
 use common::{dotenv, required_env};
 use deno_core::v8;
 use loaders::registry::Registry;
@@ -23,9 +24,6 @@ mod config;
 mod db;
 mod loaders;
 mod runtime;
-mod specifier;
-use clap::Parser;
-use cluster::{DqsCluster, DqsClusterOptions};
 
 #[derive(Parser, Debug)]
 #[command(version)]

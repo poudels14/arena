@@ -7,23 +7,16 @@ use deno_core::{
   ResolutionKind,
 };
 use deno_core::{ModuleSource, ModuleType};
-use loaders::ResourceLoader;
-use sqlx::{Pool, Postgres};
 use tracing::info;
 use url::Url;
 
 use super::template::TemplateLoader;
 use crate::arena::MainModule;
-use crate::config::{DataConfig, SourceConfig, WidgetConfig};
-use crate::db::widget;
-use crate::loaders;
-use crate::specifier::{ParsedSpecifier, WidgetQuerySpecifier};
 
 #[derive(Clone)]
 pub struct AppkitModuleLoader {
   pub workspace_id: String,
   pub module: MainModule,
-  pub pool: Option<Pool<Postgres>>,
   pub template_loader: Arc<dyn TemplateLoader>,
 }
 
@@ -107,10 +100,8 @@ impl ModuleLoader for AppkitModuleLoader {
     maybe_referrer: Option<&ModuleSpecifier>,
     is_dynamic: bool,
   ) -> Pin<Box<ModuleSourceFuture>> {
-    let mut loader = self.clone();
+    let loader = self.clone();
     let specifier = module_specifier.clone();
-    let maybe_referrer = maybe_referrer.cloned();
-
     async move {
       if specifier.scheme() == "dqs" {
         match specifier.path() {
@@ -136,94 +127,16 @@ impl ModuleLoader for AppkitModuleLoader {
               &specifier,
             ))
           }
-          _ => {}
+          _ => unimplemented!(),
         }
       }
-
-      let parsed_specifier = ParsedSpecifier::from(&specifier.to_string())?;
-      let code = match parsed_specifier {
-        // TODO(sagar): remove this since all envs are populated in process.env
-        ParsedSpecifier::Env { app_id, widget_id } => {
-          match maybe_referrer {
-            Some(referrer) => {
-              let referrer = referrer.as_str();
-              // make sure the referrer that's requesting the env variables is
-              // same app and widget or the main module which has the privilege
-              if referrer == "builtin:///@arena/dqs/widget-server" {
-              } else {
-                let parsed_referrer = ParsedSpecifier::from(&referrer)?;
-                match parsed_referrer {
-                  ParsedSpecifier::WidgetQuery(src) => {
-                    if src.app_id != app_id || src.widget_id != widget_id {
-                      bail!("Environment variable access denied")
-                    }
-                  }
-                  _ => unreachable!(),
-                }
-              }
-            }
-            _ => bail!("Environment variable access denied"),
-          }
-          loader.load_env_variable_module(&app_id, &widget_id).await?
-        }
-        ParsedSpecifier::WidgetQuery(src) => {
-          loader.load_widget_query_module(&src).await?
-        }
-        _ => bail!("Unsupported module: {}", specifier),
-      };
-
-      Ok(ModuleSource::new(
-        ModuleType::JavaScript,
-        code.into(),
-        &specifier,
-      ))
+      bail!("Unsupported module: {}", specifier);
     }
     .boxed_local()
   }
 }
 
 impl AppkitModuleLoader {
-  async fn load_widget_query_module(
-    &mut self,
-    specifier: &WidgetQuerySpecifier,
-  ) -> Result<String> {
-    // TODO(sagar): instead of loading widget query from db directly,
-    // use registry
-    let pool = self
-      .pool
-      .clone()
-      .ok_or(anyhow!("Database not initialized"))?;
-
-    let widget: Result<widget::Widget, sqlx::Error> =
-      sqlx::query_as("SELECT * FROM widgets WHERE id = $1")
-        .bind(&specifier.widget_id)
-        .fetch_one(&pool)
-        .await;
-
-    return match widget {
-      Ok(w) => {
-        let config: WidgetConfig = serde_json::from_value(w.config)?;
-        let data_config = config
-          .data
-          .get(&specifier.field_name)
-          .ok_or(anyhow!("field config not found"))?;
-
-        match &data_config {
-          DataConfig::Dynamic { config } | DataConfig::Template { config } => {
-            match config {
-              SourceConfig::Postgres(sql_config) => sql_config.to_dqs_module(),
-              SourceConfig::JavaScript(js_config) => js_config.to_dqs_module(),
-            }
-          }
-          _ => unreachable!(
-            "Only Postgres/Javascript Dynamic data source supported"
-          ),
-        }
-      }
-      Err(e) => Err(e.into()),
-    };
-  }
-
   #[tracing::instrument(
     name = "AppkitModuleLoader::load_env_variable_module",
     skip_all,
