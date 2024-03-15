@@ -61,19 +61,21 @@ async function generateLLMResponseStream(
   );
 
   const prompt = ChatPromptTemplate.fromMessages([
-    [
-      "system",
-      "You are a helpful assistant. Answer all questions to the best of your ability.",
-    ],
-    // TODO: anthropic fails with seconds message since it expects all system messages to
-    // be in the first message
-    [
-      "system",
-      `Use the following pieces of context to answer the question at the end.
+    options.context?.length! > 0
+      ? [
+          // TODO: anthropic fails with seconds message since it expects all system messages to
+          // be in the first message. So, this conditional is a hack
+          "system",
+          `Use the following pieces of context to answer the question at the end.
     If you don't know the answer, just say that you don't know, don't try to make up an answer.
     ----------------
     {context}`,
-    ],
+        ]
+      : [
+          "system",
+          "You are a helpful assistant. Answer all questions to the best of your ability.",
+        ],
+
     new MessagesPlaceholder("chat_history"),
     ["human", "{input}"],
   ]);
