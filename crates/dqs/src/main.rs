@@ -22,8 +22,8 @@ mod arena;
 mod cluster;
 mod config;
 mod db;
+mod jsruntime;
 mod loaders;
-mod runtime;
 
 #[derive(Parser, Debug)]
 #[command(version)]

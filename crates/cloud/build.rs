@@ -77,7 +77,6 @@ fn generate_prod_snapshot(path: &Path) {
       port: 0,
       serve_dir: None,
     }),
-    BuiltinModule::Custom(Rc::new(|| cloud::extension(Default::default()))),
     BuiltinModule::Custom(Rc::new(|| {
       BuiltinExtension::new(
         None,
@@ -127,13 +126,13 @@ fn get_basic_runtime() -> JsRuntimeForSnapshot {
       ExtensionFileSource {
         specifier: "ext:runtime/setup.js",
         code: deno_core::ExtensionFileSourceCode::IncludedInBinary(
-          include_str!("./src/runtime/setup.js"),
+          include_str!("./src/dqs_runtime/setup.js"),
         ),
       },
       ExtensionFileSource {
         specifier: "ext:runtime/main.js",
         code: deno_core::ExtensionFileSourceCode::IncludedInBinary(
-          include_str!("./src/runtime/main.js"),
+          include_str!("./src/dqs_runtime/main.js"),
         ),
       },
     ]

@@ -1,13 +1,25 @@
+use std::net::IpAddr;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
+use cloud::identity::Identity;
+use cloud::pubsub::exchange::Exchange;
+use cloud::rowacl::RowAclChecker;
+use cloud::{dqs_runtime, CloudExtensionProvider};
 use common::beam;
-use deno_core::{JsRuntime, ModuleCode, ModuleSpecifier};
+use deno_core::{v8, JsRuntime, ModuleCode, ModuleLoader, ModuleSpecifier};
 use serde_json::Value;
 use tokio::sync::{oneshot, watch};
 use tracing::{debug, info};
 
-use super::deno::{self, RuntimeOptions};
+use derivative::Derivative;
+use parking_lot::RwLock;
+use runtime::extensions::server::HttpServerConfig;
+use runtime::extensions::BuiltinModule;
+use runtime::permissions::PermissionsContainer;
+
+use crate::arena::ArenaRuntimeState;
 
 #[derive(Debug, Clone)]
 pub enum ServerEvents {
@@ -24,8 +36,8 @@ pub enum Command {
 }
 
 #[tracing::instrument(skip_all, level = "trace")]
-pub(crate) fn start(
-  config: RuntimeOptions,
+pub(crate) fn start_runtime_server(
+  config: RuntimeOptions<ArenaRuntimeState>,
   events_tx: watch::Sender<ServerEvents>,
 ) -> Result<()> {
   let rt = tokio::runtime::Builder::new_current_thread()
@@ -45,7 +57,7 @@ pub(crate) fn start(
 
   let local = tokio::task::LocalSet::new();
   let r = local.block_on(&rt, async {
-    let runtime = deno::new(config.clone()).await?;
+    let runtime = new_runtime(config.clone()).await?;
     let (sender, receiver) = beam::channel(10);
     let (terminate_tx, terminate_rx) = oneshot::channel::<()>();
 
@@ -60,7 +72,7 @@ pub(crate) fn start(
     info!("Config = {:#?}", config);
     info!("-------------------------------------------------------");
 
-    let entry_module = config.state.module.get_entry_module()?;
+    let entry_module = config.state.unwrap().module.get_entry_module()?;
     let res = tokio::select! {
       res = terminate_rx => {
         res.map(|_| "Terminated by a termination command".to_owned()).map_err(|e| anyhow!("{}", e))
@@ -130,4 +142,66 @@ async fn listen_to_commands(
   }
 
   Ok(())
+}
+
+#[derive(Clone, Derivative)]
+#[derivative(Debug)]
+pub struct RuntimeOptions<State: Clone> {
+  /// Runtime id
+  pub id: String,
+  pub v8_platform: v8::SharedRef<v8::Platform>,
+  pub server_config: Option<HttpServerConfig>,
+  pub exchange: Option<Exchange>,
+  pub acl_checker: Option<Arc<RwLock<RowAclChecker>>>,
+  pub permissions: PermissionsContainer,
+  /// Heap limit tuple: (initial size, max hard limit) in bytes
+  pub heap_limits: Option<(usize, usize)>,
+  /// The local address to use for outgoing network request
+  /// This is useful if we need to restrict the outgoing network
+  /// request to a specific network device/address
+  pub egress_address: Option<IpAddr>,
+  /// Default egress headers
+  pub egress_headers: Option<Vec<(String, String)>>,
+
+  #[derivative(Debug = "ignore")]
+  pub module_loader: Option<Rc<dyn ModuleLoader>>,
+
+  pub state: Option<State>,
+  /// Identity of the app server
+  pub identity: Identity,
+}
+
+pub async fn new_runtime<S>(config: RuntimeOptions<S>) -> Result<JsRuntime>
+where
+  S: Clone + 'static,
+{
+  let publisher = if let Some(exchange) = &config.exchange {
+    Some(exchange.new_publisher(config.identity).await)
+  } else {
+    None
+  };
+
+  let mut modules = vec![
+    BuiltinModule::UsingProvider(Rc::new(CloudExtensionProvider {
+      publisher,
+      acl_checker: config.acl_checker,
+    })),
+    BuiltinModule::Custom(Rc::new(crate::arena::extension)),
+  ];
+  if let Some(server_config) = config.server_config {
+    modules.push(BuiltinModule::HttpServer(server_config));
+  }
+
+  dqs_runtime::create_new(dqs_runtime::RuntimeOptions {
+    id: config.id,
+    modules,
+    egress_address: config.egress_address,
+    egress_headers: config.egress_headers,
+    heap_limits: config.heap_limits,
+    module_loader: config.module_loader,
+    permissions: config.permissions,
+    state: config.state,
+    v8_platform: config.v8_platform,
+  })
+  .await
 }

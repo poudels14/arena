@@ -4,7 +4,7 @@ mod llm;
 mod s3;
 mod transpile;
 
-pub mod dqs;
+pub mod dqs_runtime;
 pub mod html;
 pub mod pdf;
 

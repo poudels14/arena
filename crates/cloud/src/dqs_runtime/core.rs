@@ -26,7 +26,6 @@ pub struct RuntimeOptions<State> {
   /// Runtime id
   pub id: String,
   pub v8_platform: v8::SharedRef<v8::Platform>,
-  // pub server_config: HttpServerConfig,
   pub permissions: PermissionsContainer,
   /// Heap limit tuple: (initial size, max hard limit) in bytes
   pub heap_limits: Option<(usize, usize)>,

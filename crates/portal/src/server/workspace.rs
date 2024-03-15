@@ -10,7 +10,8 @@ use axum::{routing, Router};
 use cloud::identity::Identity;
 use common::axum::logger;
 use dqs::arena::{App, ArenaRuntimeState, MainModule, Template};
-use dqs::runtime::deno::RuntimeOptions;
+use dqs::jsruntime::RuntimeOptions;
+use dqs::loaders::AppkitModuleLoader;
 use hyper::Body as HyperBody;
 use runtime::deno::core::{v8, ModuleCode};
 use runtime::env::{EnvVar, EnvironmentVariableStore};
@@ -20,6 +21,7 @@ use runtime::extensions::server::{errors, HttpRequest, HttpServerConfig};
 use runtime::permissions::PermissionsContainer;
 use serde_json::Value;
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::oneshot::Sender;
@@ -36,6 +38,7 @@ pub async fn start_workspace_server(
   workspace: Workspace,
   request_stream_rx: Receiver<(HttpRequest, Sender<ParsedHttpResponse>)>,
 ) -> Result<()> {
+  let workspace_id = "workspace-desktop";
   let module = MainModule::App {
     app: App {
       id: nanoid::nanoid!(),
@@ -44,12 +47,11 @@ pub async fn start_workspace_server(
         id: "workspace-desktop".to_owned(),
         version: env!("PORTAL_DESKTOP_WORKSPACE_VERSION").to_owned(),
       },
-      workspace_id: "workspace-desktop".to_owned(),
+      workspace_id: workspace_id.to_owned(),
     },
   };
-  let mut runtime = dqs::runtime::deno::new(RuntimeOptions {
+  let mut runtime = dqs::jsruntime::new_runtime(RuntimeOptions {
     id: nanoid::nanoid!(),
-    db_pool: None,
     v8_platform,
     server_config: Some(HttpServerConfig::Stream(Arc::new(Mutex::new(Some(
       request_stream_rx,
@@ -60,8 +62,8 @@ pub async fn start_workspace_server(
     permissions: PermissionsContainer::default(),
     exchange: None,
     acl_checker: None,
-    state: ArenaRuntimeState {
-      workspace_id: "workspace-1".to_owned(),
+    state: Some(ArenaRuntimeState {
+      workspace_id: workspace_id.to_owned(),
       module: module.clone(),
       env_variables: EnvironmentVariableStore::new(HashMap::from([
         env_var("DATABASE_URL", &workspace.database_url()),
@@ -83,10 +85,13 @@ pub async fn start_workspace_server(
         env_var("LOGIN_EMAIL_SENDER", "invalid@desktop.sidecar.so"),
         env_var("RESEND_API_KEY", ""),
       ])),
-    },
+    }),
     identity: Identity::Unknown,
-    module,
-    template_loader: Arc::new(PortalTemplateLoader {}),
+    module_loader: Some(Rc::new(AppkitModuleLoader {
+      workspace_id: workspace_id.to_owned(),
+      module,
+      template_loader: Arc::new(PortalTemplateLoader {}),
+    })),
   })
   .await?;
 

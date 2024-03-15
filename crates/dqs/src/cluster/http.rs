@@ -42,7 +42,7 @@ use crate::arena::workflow::WorkflowTemplate;
 use crate::arena::MainModule;
 use crate::cluster::server::DqsServerStatus;
 use crate::db::workflow::WorkflowRun;
-use crate::runtime::Command;
+use crate::jsruntime::Command;
 
 impl DqsCluster {
   #[allow(dead_code)]

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -7,8 +8,8 @@ use arenasql_cluster::schema::ADMIN_USERNAME;
 use cloud::identity::Identity;
 use dqs::arena::{ArenaRuntimeState, MainModule};
 use dqs::db::create_connection_pool;
-use dqs::loaders::FileTemplateLoader;
-use dqs::runtime::deno::RuntimeOptions;
+use dqs::jsruntime::{self, RuntimeOptions};
+use dqs::loaders::{AppkitModuleLoader, FileTemplateLoader};
 use runtime::deno::core::v8;
 use runtime::deno::core::ModuleCode;
 use runtime::env::{EnvVar, EnvironmentVariableStore};
@@ -64,6 +65,7 @@ impl Workspace {
     &self,
     v8_platform: v8::SharedRef<v8::Platform>,
   ) -> Result<()> {
+    let workspace_id = "workspace-desktop";
     let database_url = self.database_url();
     let _ = rayon::scope(|_| {
       let rt = tokio::runtime::Builder::new_current_thread()
@@ -75,9 +77,8 @@ impl Workspace {
 
       let local = tokio::task::LocalSet::new();
       local.block_on(&rt, async {
-        let mut runtime = dqs::runtime::deno::new(RuntimeOptions {
+        let mut runtime = jsruntime::new_runtime(RuntimeOptions {
           id: nanoid::nanoid!(),
-          db_pool: None,
           v8_platform,
           server_config: None,
           egress_address: None,
@@ -86,8 +87,8 @@ impl Workspace {
           permissions: PermissionsContainer::default(),
           exchange: None,
           acl_checker: None,
-          state: ArenaRuntimeState {
-            workspace_id: "workspace-1".to_owned(),
+          state: Some(ArenaRuntimeState {
+            workspace_id: workspace_id.to_owned(),
             module: MainModule::Inline {
               code: "".to_owned(),
             },
@@ -100,12 +101,15 @@ impl Workspace {
                 is_secret: false,
               },
             )])),
-          },
+          }),
           identity: Identity::Unknown,
-          module: MainModule::Inline {
-            code: "".to_owned(),
-          },
-          template_loader: Arc::new(FileTemplateLoader {}),
+          module_loader: Some(Rc::new(AppkitModuleLoader {
+            workspace_id: workspace_id.to_owned(),
+            module: MainModule::Inline {
+              code: "".to_owned(),
+            },
+            template_loader: Arc::new(FileTemplateLoader {}),
+          })),
         })
         .await?;
 

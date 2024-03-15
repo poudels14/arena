@@ -2,6 +2,5 @@ version: "3"
 
 tasks:
   dev:
-    dotenv: ["app-cluster/.env"]
     cmds:
-      - REGISTRY_API_KEY=test REGISTRY_HOST=http://localhost:9000 DATABASE_URL=ast JWT_SIGNING_SECRET=secret cargo run start
+      - cargo run start

@@ -7,6 +7,8 @@ pub(crate) mod registry;
 pub(crate) mod sql;
 pub(crate) mod template;
 
+pub use moduleloader::AppkitModuleLoader;
+
 pub use registry::Registry;
 #[allow(unused)]
 pub use template::{

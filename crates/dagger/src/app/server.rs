@@ -15,6 +15,7 @@ use axum::middleware;
 use axum::response::{IntoResponse, Response};
 use axum::routing::MethodFilter;
 use axum::{routing, Router};
+use cloud::dqs_runtime::DQS_SNAPSHOT;
 use cloud::identity::Identity;
 use cloud::CloudExtensionProvider;
 use colored::Colorize;
@@ -23,7 +24,6 @@ use dqs::cluster::auth::{
   authenticate_user_using_headers, parse_identity_from_header,
 };
 use dqs::cluster::cache::Cache;
-use dqs::runtime::DQS_SNAPSHOT;
 use jsonwebtoken::{Algorithm, EncodingKey, Header};
 use runtime::config::RuntimeConfig;
 use runtime::deno::core::{ModuleLoader, Snapshot};
@@ -61,11 +61,10 @@ pub(super) async fn start_js_server(
 ) -> Result<()> {
   let (stream_tx, stream_rx) = mpsc::channel(10);
 
-  let db_pool = options
-    .app_id
-    .as_ref()
-    .map(|_| dqs::db::create_connection_pool())
-    .transpose()?;
+  let db_pool = match options.app_id.is_some() {
+    true => Some(dqs::db::create_connection_pool().await?),
+    false => None,
+  };
 
   let cache = Cache::new(db_pool);
   let server = AxumServer {

@@ -9,17 +9,17 @@ use std::sync::Arc;
 use tokio::sync::{watch, Mutex};
 use uuid::Uuid;
 
+pub(crate) mod server;
+
 pub mod auth;
 pub mod cache;
 pub mod http;
-pub(crate) mod server;
 
 use self::cache::Cache;
 use self::server::{DqsServer, DqsServerOptions, DqsServerStatus};
 use crate::db::{self, nodes};
+use crate::jsruntime::{Command, ServerEvents};
 use crate::loaders::TemplateLoader;
-use crate::runtime::server::ServerEvents;
-use crate::runtime::Command;
 
 #[derive(Clone)]
 pub struct DqsClusterOptions {
