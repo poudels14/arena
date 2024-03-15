@@ -6,7 +6,6 @@ import {
   createEffect,
   createMemo,
   createSignal,
-  lazy,
   onCleanup,
   useContext,
 } from "solid-js";
@@ -16,6 +15,9 @@ import {
   HiSolidChevronDown,
   HiSolidChevronUp,
   HiOutlinePaperClip,
+  HiOutlineArrowPath,
+  HiSolidChevronRight,
+  HiSolidChevronLeft,
 } from "solid-icons/hi";
 
 import { EmptyThread } from "./EmptyThread";
@@ -34,17 +36,16 @@ const ChatThread = (props: {
 }) => {
   let chatMessagesContainerRef: any;
   let chatMessagesRef: any;
-  const { state, sendNewMessage, getActiveChatThread } =
-    useContext(ChatContext)!;
-
-  const sortedMessageIds = createMemo(() => {
-    const messages = Object.values(getActiveChatThread().messages() || []);
-    messages.sort(
-      (a, b) =>
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    );
-    return messages.map((m) => m.id);
-  });
+  const {
+    state,
+    sortedMessageIds,
+    messageIdsByParentId,
+    selectedMessageVersionByParentId,
+    selectMessageVersion,
+    sendNewMessage,
+    regenerateMessage,
+    getActiveChatThread,
+  } = useContext(ChatContext)!;
 
   const threadTaskCallIds = createMemo(
     () => {
@@ -132,10 +133,13 @@ const ChatThread = (props: {
         >
           <For each={sortedMessageIds()}>
             {(messageId, index) => {
+              const isLastMessage = createMemo(
+                () => index() == sortedMessageIds().length - 1
+              );
               // Note(sagar): use state directly to only update message
               // content element when streaming
               const message = getActiveChatThread().messages[messageId]!;
-              if (index() == sortedMessageIds().length - 1) {
+              if (isLastMessage()) {
                 createEffect(() => {
                   void message.message();
                   // Note(sagar): scroll to the bottom. Need to do it after
@@ -166,22 +170,39 @@ const ChatThread = (props: {
                       }
                       showDocument={props.showDocument}
                       showLoadingBar={
-                        sendNewMessage.isStreaming &&
-                        index() == sortedMessageIds().length - 1
+                        sendNewMessage.isStreaming && isLastMessage()
                       }
+                      showRegenerate={isLastMessage() && message.role() == "ai"}
+                      regenerateMessage={regenerateMessage}
+                      versions={
+                        messageIdsByParentId()[message.parentId()!] || []
+                      }
+                      selectedVersion={
+                        selectedMessageVersionByParentId()?.[
+                          message.parentId()!
+                        ]
+                      }
+                      selectVersion={selectMessageVersion}
                     />
                   </Match>
                 </Switch>
               );
             }}
           </For>
-          <Show when={sendNewMessage.isPending && !sendNewMessage.isIdle}>
+          <Show
+            when={
+              sendNewMessage.isPending &&
+              !sendNewMessage.isIdle &&
+              !sendNewMessage.input.regenerate()
+            }
+          >
             <div>
               <ChatMessage
                 state={state}
                 // @ts-expect-error
                 message={sendNewMessage.input}
                 showDocument={props.showDocument}
+                versions={[]}
               />
             </div>
           </Show>
@@ -198,11 +219,22 @@ const ChatThread = (props: {
 
 const ChatMessage = (props: {
   state: ChatState;
-  message: Store<Pick<Chat.Message, "id" | "message" | "metadata" | "role">>;
+  message: Store<
+    Pick<Chat.Message, "id" | "parentId" | "message" | "metadata" | "role">
+  >;
   task?: Store<Chat.TaskExecution | undefined>;
   showDocument(doc: any): void;
   showLoadingBar?: boolean;
+  showRegenerate?: boolean;
+  regenerateMessage: (opt: { id: string }) => void;
+  versions: string[];
+  selectedVersion?: string;
+  selectVersion: (parentId: string, id: string) => void;
 }) => {
+  const selectedVersionIndex = createMemo(() => {
+    const idx = props.versions.findIndex((v) => props.selectedVersion == v);
+    return idx < 0 ? props.versions.length - 1 : idx;
+  });
   const uniqueDocuments = createMemo(() => {
     // TODO:
     // const allDocs = props.state.documents() || [];
@@ -259,6 +291,49 @@ const ChatMessage = (props: {
             style={"letter-spacing: 0.1px; word-spacing: 1px"}
           >
             <Markdown markdown={props.message.message.content!()!} />
+            <div class="flex text-xs items-center space-x-2">
+              <Show when={props.versions.length > 1}>
+                <div class="flex text-[10px] items-center space-x-1">
+                  <HiSolidChevronLeft
+                    class="cursor-pointer"
+                    onClick={() => {
+                      if (selectedVersionIndex() > 0) {
+                        props.selectVersion(
+                          props.message.parentId()!,
+                          props.versions[selectedVersionIndex() - 1]
+                        );
+                      }
+                    }}
+                  />
+                  <div>{selectedVersionIndex() + 1}</div>
+                  <div>/</div>
+                  <div>{props.versions.length}</div>
+                  <HiSolidChevronRight
+                    class="cursor-pointer"
+                    onClick={() => {
+                      if (selectedVersionIndex() < props.versions.length - 1) {
+                        props.selectVersion(
+                          props.message.parentId()!,
+                          props.versions[selectedVersionIndex() + 1]
+                        );
+                      }
+                    }}
+                  />
+                </div>
+              </Show>
+              <Show when={props.showRegenerate}>
+                <div
+                  class="cursor-pointer text-gray-400 hover:text-gray-800"
+                  onClick={() => {
+                    props.regenerateMessage({
+                      id: props.message.id()!,
+                    });
+                  }}
+                >
+                  <HiOutlineArrowPath size={13} />
+                </div>
+              </Show>
+            </div>
           </div>
         </Show>
         <Show when={props.task && props.task()}>

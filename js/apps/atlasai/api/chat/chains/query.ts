@@ -30,29 +30,34 @@ async function generateLLMResponseStream(
     thread,
     message,
     previousMessages,
-    context,
+    options,
   }: {
     model: Workspace.Model;
+
     opsStream: ThreadOperationsStream;
     thread: ChatThread;
     message: ChatMessage;
     // old messages in the thread
     previousMessages: ChatMessage[];
-    context?: {
-      app: {
-        id: string;
-      };
-      breadcrumbs: {
-        id: string;
+    options: {
+      temperature: number;
+      context?: {
+        app: {
+          id: string;
+        };
+        breadcrumbs: {
+          id: string;
+        }[];
       }[];
-    }[];
+    };
   }
 ) {
   const driveSearch = new AtalasDriveSearch(
     ctx.env.PORTAL_WORKSPACE_HOST,
     ctx.repo,
     thread.id,
-    context || []
+    message.id,
+    options.context || []
   );
 
   const prompt = ChatPromptTemplate.fromMessages([
@@ -73,7 +78,9 @@ async function generateLLMResponseStream(
     ["human", "{input}"],
   ]);
 
-  const chainModel = getLLMModel(model);
+  const chainModel = getLLMModel(model, {
+    temperature: options.temperature,
+  });
   const outputParser = new StringOutputParser();
   const chain = prompt.pipe(chainModel).pipe(outputParser);
   const chainWithHistory = new RunnableWithMessageHistory({
@@ -96,7 +103,7 @@ async function generateLLMResponseStream(
   try {
     const stream = await chatWithDocuments.stream(message.message.content!, {
       configurable: { sessionId: "sessionId" },
-      callbacks: [new ConsoleCallbackHandler()],
+      // callbacks: [new ConsoleCallbackHandler()],
     });
 
     const aiResponseTime = new Date();

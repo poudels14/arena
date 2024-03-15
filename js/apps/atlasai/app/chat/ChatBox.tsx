@@ -30,6 +30,7 @@ const Chatbox = (props: {
     id: string;
     threadId: string;
     message: { content: string };
+    regenerate: boolean;
     context: ChatQueryContext;
     isNewThread: boolean;
   }) => void;
@@ -84,6 +85,7 @@ const Chatbox = (props: {
       message: {
         content: getMessage(),
       },
+      regenerate: false,
       context: props.context,
       isNewThread: !Boolean(props.threadId),
     });

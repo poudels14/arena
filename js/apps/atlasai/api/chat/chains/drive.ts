@@ -15,17 +15,20 @@ class AtalasDriveSearch extends BaseRetriever {
   workspaceHost: string;
   repo: Context["repo"];
   threadId: string;
+  queryMessageId: string;
   context: { app: { id: string }; breadcrumbs: { id: string }[] }[];
   constructor(
     workspaceHost: string,
     repo: Context["repo"],
     threadId: string,
+    queryMessageId: string,
     context: AtalasDriveSearch["context"]
   ) {
     super();
     this.workspaceHost = workspaceHost;
     this.repo = repo;
     this.threadId = threadId;
+    this.queryMessageId = queryMessageId;
     this.context = context;
   }
 
@@ -103,7 +106,7 @@ class AtalasDriveSearch extends BaseRetriever {
         metadata: {
           searchResults: clonedSearchResults,
         },
-        parentId: null,
+        parentId: this.queryMessageId,
       });
     }
 

@@ -1,4 +1,11 @@
-import { createContext, Accessor, createComputed } from "solid-js";
+import {
+  createContext,
+  Accessor,
+  createComputed,
+  createMemo,
+  createSignal,
+  Setter,
+} from "solid-js";
 import { Store, UNDEFINED_PROXY, createStore } from "@portal/solid-store";
 import {
   MutationQuery,
@@ -19,6 +26,12 @@ export type ChatState = {
 
 type ChatThread = {
   blockedBy: string | null;
+  metadata: {
+    model: {
+      id: string;
+      name: string;
+    };
+  };
   messages: Record<string, Chat.Message>;
 };
 
@@ -28,6 +41,10 @@ type ChatQueryContext = NonNullable<
 
 type ChatContext = {
   state: ChatState;
+  sortedMessageIds: () => string[];
+  messageIdsByParentId: () => Record<string, string[]>;
+  selectedMessageVersionByParentId: Accessor<Record<string, string>>;
+  selectMessageVersion: (parentId: string, id: string) => void;
   getActiveChatThread: () => Store<ChatThread>;
   refreshThreadsById: () => void;
   sendNewMessage: MutationQuery<
@@ -37,9 +54,12 @@ type ChatContext = {
       message: { content: string };
       context: ChatQueryContext;
       isNewThread: boolean;
+      regenerate: boolean;
+      idFilter?: string[];
     },
     any
   >;
+  regenerateMessage: (options: { id: string }) => void;
 };
 
 const ChatContext = createContext<ChatContext>();
@@ -75,6 +95,10 @@ const ChatContextProvider = (props: {
   const [chatThreadsById, setChatThreadsById] = createStore<
     Record<string, ChatThread>
   >({});
+  // stores parentId => selected message version id
+  const [selectedMessageVersion, setSelectedMessageVersion] = createSignal<
+    Record<string, string>
+  >({});
 
   const activeThreadRoute = createQuery<Chat.Thread>(() => {
     if (!props.activeThreadId) {
@@ -107,6 +131,7 @@ const ChatContextProvider = (props: {
     }
     const messages = data.messages || [];
     setChatThreadsById(data.id, "blockedBy", data.blockedBy || null);
+    setChatThreadsById(data.id, "metadata", data.metadata!);
     setChatThreadsById(data.id, "messages", (prev) => {
       return messages.reduce(
         (agg, message) => {
@@ -121,14 +146,83 @@ const ChatContextProvider = (props: {
     });
   });
 
+  const getActiveChatThread = () => {
+    if (!props.activeThreadId) {
+      return UNDEFINED_PROXY as Store<ChatThread>;
+    }
+    return chatThreadsById[props.activeThreadId!] as Store<ChatThread>;
+  };
+  const sortedMessageIds2 = createMemo(() => {
+    const messages = Object.values(getActiveChatThread().messages() || {});
+    messages.sort(
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+    return messages.map((m) => m.id);
+  });
+
+  const messagesByParentId = createMemo(() => {
+    const messages = Object.values(getActiveChatThread().messages() || []);
+    messages.sort(
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+    const messagesByParentId: Record<string, Chat.Message[]> = {};
+    messages.forEach((message) => {
+      if (!messagesByParentId[message.parentId!]) {
+        messagesByParentId[message.parentId!] = [];
+      }
+      messagesByParentId[message.parentId!].push(message);
+    });
+    return messagesByParentId;
+  });
+
+  const messageIdsByParentId = createMemo(() => {
+    return Object.fromEntries(
+      Object.entries(messagesByParentId()).map(([parentId, messages]) => [
+        parentId,
+        messages.map((m) => m.id),
+      ])
+    );
+  });
+
+  const sortedMessageIds = createMemo(() => {
+    const versionByParentId = selectedMessageVersion();
+    const childrenByParentId = messagesByParentId();
+    const chain: string[] = [];
+    let parentId: string = null!;
+    let children: Chat.Message[] = childrenByParentId[parentId!];
+    while (children) {
+      const selectedChildId =
+        versionByParentId[parentId] || children[children.length - 1].id;
+      children.forEach((child) => {
+        if (child.role == "system" || child.id == selectedChildId) {
+          chain.push(selectedChildId);
+        }
+      });
+      parentId = selectedChildId;
+      children = childrenByParentId[selectedChildId!];
+    }
+
+    return chain;
+  });
+
   const sendNewMessage = createMutationQuery<{
     id: string;
     threadId: string;
     message: { content: string };
+    regenerate: boolean;
     context: ChatQueryContext;
     isNewThread: boolean;
+    idFilter?: string[];
   }>((input) => {
     const chatConfig = getChatConfig();
+    const allMessages = getActiveChatThread().messages();
+    const lastAIMessageId = sortedMessageIds().findLast(
+      (id) => allMessages[id].role == "ai"
+    );
+    const activeThread = getActiveChatThread();
+    const selectedMessages = sortedMessageIds();
     // If it's a new thread, navigate to that thread first
     return {
       url: `/chat/threads/${input.threadId}/send`,
@@ -137,10 +231,14 @@ const ChatContextProvider = (props: {
           id: input.id,
           model: {
             id:
+              activeThread.metadata.model.id() ||
               chatConfig.model ||
               activeWorkspace.models().find((m) => !m.disabled)?.id,
           },
           message: input.message,
+          parentId: lastAIMessageId || null,
+          idFilter: input.idFilter || selectedMessages,
+          regenerate: input.regenerate,
           context: input.context,
         },
         headers: {
@@ -197,6 +295,31 @@ const ChatContextProvider = (props: {
     });
   });
 
+  // regenerate basicaly re-sends parent message sent by the user
+  const regenerateMessage = async (options: { id: string }) => {
+    const allMessages = getActiveChatThread().messages();
+    const message = allMessages[options.id];
+    const parentMessage = allMessages[message.parentId!];
+
+    const messageIds = sortedMessageIds();
+    const idFilter = messageIds.slice(
+      0,
+      messageIds.findIndex((id) => id == parentMessage.id)
+    );
+
+    await sendNewMessage.mutate({
+      id: parentMessage.id,
+      threadId: parentMessage.threadId!,
+      message: {
+        content: parentMessage.message.content!,
+      },
+      idFilter,
+      regenerate: true,
+      context: parentMessage.metadata?.context || [],
+      isNewThread: false,
+    });
+  };
+
   return (
     <ChatContext.Provider
       value={{
@@ -213,13 +336,20 @@ const ChatContextProvider = (props: {
         refreshThreadsById() {
           threadsRoute.refresh();
         },
-        getActiveChatThread() {
-          if (!props.activeThreadId) {
-            return UNDEFINED_PROXY;
-          }
-          return chatThreadsById[props.activeThreadId!];
+        getActiveChatThread,
+        sortedMessageIds,
+        messageIdsByParentId,
+        selectedMessageVersionByParentId: selectedMessageVersion,
+        selectMessageVersion(parentId, id) {
+          setSelectedMessageVersion((prev) => {
+            return {
+              ...prev,
+              [parentId]: id,
+            };
+          });
         },
         sendNewMessage,
+        regenerateMessage,
       }}
     >
       {props.children}

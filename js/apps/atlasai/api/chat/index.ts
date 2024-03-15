@@ -83,6 +83,7 @@ const sendMessage = p
     z.object({
       id: z.string().optional(),
       thread: z.any(),
+      parentId: z.string().nullable(),
       // one of the models provided by workspace /api/llm/models
       model: z.object({
         id: z.string(),
@@ -90,6 +91,10 @@ const sendMessage = p
       message: z.object({
         content: z.string(),
       }),
+      // this is used for branching feature
+      idFilter: z.array(z.string()).optional(),
+      regenerate: z.boolean().optional(),
+      temperature: z.number().optional(),
       // chat query context
       context: z.array(
         z.object({
@@ -149,6 +154,10 @@ const sendMessage = p
     const oldMessages = await ctx.repo.chatMessages.list({
       threadId: thread.id,
     });
+    const filteredOldMessages = oldMessages.filter(
+      (m) => !body.idFilter || body.idFilter.includes(m.id)
+    );
+
     const newMessage: ChatMessage = {
       id: body.id,
       message: body.message,
@@ -156,17 +165,24 @@ const sendMessage = p
       role: "user",
       userId: ctx.user?.id!,
       createdAt: now,
-      metadata: {},
-      parentId: null,
+      metadata: {
+        context: body.context,
+      },
+      parentId: body.parentId || null,
     };
-    await ctx.repo.chatMessages.insert(newMessage);
+
+    if (!body.regenerate) {
+      await ctx.repo.chatMessages.insert(newMessage);
+    }
 
     const replayStream = new ReplaySubject<any>();
     const opsStream = new ThreadOperationsStream(thread.id, replayStream);
     if (Boolean(!existingThread)) {
       opsStream.addNewThread(thread);
     }
-    opsStream.sendNewMessage(newMessage);
+    if (!body.regenerate) {
+      opsStream.sendNewMessage(newMessage);
+    }
     generateLLMResponseStream(
       { ctx, errors },
       {
@@ -174,8 +190,11 @@ const sendMessage = p
         opsStream,
         thread,
         message: newMessage,
-        previousMessages: oldMessages,
-        context: body.context,
+        previousMessages: filteredOldMessages,
+        options: {
+          temperature: body.temperature || 0.9,
+          context: body.context,
+        },
       }
     );
 

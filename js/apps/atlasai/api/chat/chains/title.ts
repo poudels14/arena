@@ -11,7 +11,9 @@ async function generateQueryTitle(model: Workspace.Model, query: string) {
     ],
   ]);
 
-  const chainModel = getLLMModel(model);
+  const chainModel = getLLMModel(model, {
+    temperature: 0.9,
+  });
   const outputParser = new StringOutputParser();
   const chain = prompt.pipe(chainModel).pipe(outputParser);
   const title = await chain.invoke({

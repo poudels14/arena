@@ -2,7 +2,9 @@
   "name": "@portal-apps/assistant",
   "version": "0.1.0",
   "description": "AI assistant",
-  "scripts": {},
+  "scripts": {
+    "build": "bun run node_modules/@portal/cli/bin/cli.ts app bundle"
+  },
   "keywords": [],
   "author": "Sagar Poudel",
   "arena": {

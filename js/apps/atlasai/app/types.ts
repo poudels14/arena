@@ -23,8 +23,9 @@ export namespace Chat {
      */
     blockedBy?: string | null;
     metadata: {
-      ai: {
-        model: string;
+      model: {
+        id: string;
+        name: string;
       };
       activeWorkflow?: {
         id: string;
@@ -43,6 +44,7 @@ export namespace Chat {
   export type Message = {
     id: string;
     threadId: string | null;
+    parentId: string | null;
     message: {
       content?: string;
       tool_calls: {
@@ -58,6 +60,7 @@ export namespace Chat {
     createdAt: string;
     userId: string | null;
     metadata: {
+      context?: any;
       error?: string;
       searchResults?: SearchResult[];
       documents?: { documentId: string; score: number }[];
