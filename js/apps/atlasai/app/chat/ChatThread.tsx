@@ -39,7 +39,7 @@ const ChatThread = (props: {
   const {
     state,
     sortedMessageIds,
-    messageIdsByParentId,
+    aiMessageIdsByParentId,
     selectedMessageVersionByParentId,
     selectMessageVersion,
     sendNewMessage,
@@ -175,7 +175,7 @@ const ChatThread = (props: {
                       showRegenerate={isLastMessage() && message.role() == "ai"}
                       regenerateMessage={regenerateMessage}
                       versions={
-                        messageIdsByParentId()[message.parentId()!] || []
+                        aiMessageIdsByParentId()[message.parentId()!] || []
                       }
                       selectedVersion={
                         selectedMessageVersionByParentId()?.[

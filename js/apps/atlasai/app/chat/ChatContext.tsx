@@ -42,7 +42,7 @@ type ChatQueryContext = NonNullable<
 type ChatContext = {
   state: ChatState;
   sortedMessageIds: () => string[];
-  messageIdsByParentId: () => Record<string, string[]>;
+  aiMessageIdsByParentId: () => Record<string, string[]>;
   selectedMessageVersionByParentId: Accessor<Record<string, string>>;
   selectMessageVersion: (parentId: string, id: string) => void;
   getActiveChatThread: () => Store<ChatThread>;
@@ -152,14 +152,6 @@ const ChatContextProvider = (props: {
     }
     return chatThreadsById[props.activeThreadId!] as Store<ChatThread>;
   };
-  const sortedMessageIds2 = createMemo(() => {
-    const messages = Object.values(getActiveChatThread().messages() || {});
-    messages.sort(
-      (a, b) =>
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    );
-    return messages.map((m) => m.id);
-  });
 
   const messagesByParentId = createMemo(() => {
     const messages = Object.values(getActiveChatThread().messages() || []);
@@ -177,11 +169,11 @@ const ChatContextProvider = (props: {
     return messagesByParentId;
   });
 
-  const messageIdsByParentId = createMemo(() => {
+  const aiMessageIdsByParentId = createMemo(() => {
     return Object.fromEntries(
       Object.entries(messagesByParentId()).map(([parentId, messages]) => [
         parentId,
-        messages.map((m) => m.id),
+        messages.filter((m) => m.role == "ai").map((m) => m.id),
       ])
     );
   });
@@ -197,13 +189,12 @@ const ChatContextProvider = (props: {
         versionByParentId[parentId] || children[children.length - 1].id;
       children.forEach((child) => {
         if (child.role == "system" || child.id == selectedChildId) {
-          chain.push(selectedChildId);
+          chain.push(child.id);
         }
       });
       parentId = selectedChildId;
       children = childrenByParentId[selectedChildId!];
     }
-
     return chain;
   });
 
@@ -338,7 +329,7 @@ const ChatContextProvider = (props: {
         },
         getActiveChatThread,
         sortedMessageIds,
-        messageIdsByParentId,
+        aiMessageIdsByParentId,
         selectedMessageVersionByParentId: selectedMessageVersion,
         selectMessageVersion(parentId, id) {
           setSelectedMessageVersion((prev) => {
