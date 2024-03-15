@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Instant;
 
-use anyhow::{anyhow, Error, Result};
+use anyhow::{anyhow, Context, Error, Result};
 use candle_core::{Device, Tensor};
 use candle_nn::VarBuilder;
 use candle_transformers::models::bert::{BertModel, Config, HiddenAct, DTYPE};
@@ -22,6 +22,14 @@ pub struct EmbeddingsModelOptions {
   use_pth: bool,
   #[serde(default)]
   approximate_gelu: bool,
+  tokenizer: Option<TokenizerOptions>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenizerOptions {
+  // pretrained model
+  model: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -69,17 +77,26 @@ pub fn op_cloud_llm_embeddings_load_model(
   let (config_filename, tokenizer_filename, weights_filename) = {
     let api = Api::new()?;
     let api = api.repo(repo);
-    let config = api.get("config.json")?;
-    let tokenizer = api.get("tokenizer.json")?;
+    let config = api.get("config.json").context("loading config.json")?;
+    let tokenizer = api
+      .get("tokenizer.json")
+      .context("loading tokenizer.json")?;
     let weights = if options.use_pth {
-      api.get("pytorch_model.bin")?
+      api
+        .get("pytorch_model.bin")
+        .context("loading pytorch_model.bin")?
     } else {
-      api.get("model.safetensors")?
+      api
+        .get("model.safetensors")
+        .context("loading model.safetensors")?
     };
     (config, tokenizer, weights)
   };
+
+  tracing::debug!("loading config: {:?}", config_filename);
   let config = std::fs::read_to_string(config_filename)?;
-  let mut config: Config = serde_json::from_str(&config)?;
+  let mut config: Config =
+    serde_json::from_str(&config).context("deserializing config")?;
 
   let vb = if options.use_pth {
     VarBuilder::from_pth(&weights_filename, DTYPE, &device)?
