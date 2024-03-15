@@ -141,17 +141,20 @@ impl RowAclChecker {
   #[tracing::instrument(skip(self), level = "TRACE")]
   pub fn apply_sql_filter(&self, user_id: &str, query: &str) -> Result<String> {
     #[cfg(feature = "disable-auth")]
+    return Ok(query.to_string());
+
+    #[cfg(not(feature = "disable-auth"))]
     {
-      return Ok(query.to_string());
-    }
-    let acls = self.acls_by_user_id.get(user_id);
-    match acls {
-      Some(acls) => apply_filter(acls, query),
-      None => bail!("Doesn't have any access"),
+      let acls = self.acls_by_user_id.get(user_id);
+      match acls {
+        Some(acls) => apply_filter(acls, query),
+        None => bail!("Doesn't have any access"),
+      }
     }
   }
 }
 
+#[allow(unused)]
 fn apply_filter(
   acls_by_table: &BTreeMap<
     // table id
