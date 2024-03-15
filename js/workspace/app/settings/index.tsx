@@ -1,10 +1,11 @@
-import { Show, For } from "solid-js";
+import { Show, For, createSignal } from "solid-js";
 import { createMutationQuery, createQuery } from "@portal/solid-query";
 import { useSharedWorkspaceContext, Workspace } from "@portal/workspace-sdk";
 import { HiOutlineTrash } from "solid-icons/hi";
+import { AddModel } from "./AddModel";
 
 const WorkspaceSettings = () => {
-  const { activeWorkspace } = useSharedWorkspaceContext();
+  const { activeWorkspace, refreshWorkspace } = useSharedWorkspaceContext();
   const settingsQuery = createQuery<{ models: Workspace.Model[] }>(
     () => `/api/workspaces/${activeWorkspace.id()}/settings`,
     {}
@@ -19,8 +20,12 @@ const WorkspaceSettings = () => {
         <div class="flex-1 p-4 max-w-[650px]">
           <Show when={settingsQuery.data()}>
             <AIModelsConfig
+              workspaceId={activeWorkspace.id()}
               models={settingsQuery.data.models()!}
-              refreshConfig={() => settingsQuery.refresh()}
+              refreshConfig={() => {
+                settingsQuery.refresh();
+                refreshWorkspace();
+              }}
             />
           </Show>
         </div>
@@ -30,9 +35,11 @@ const WorkspaceSettings = () => {
 };
 
 const AIModelsConfig = (props: {
+  workspaceId: string;
   models: Workspace.Model[];
   refreshConfig: () => void;
 }) => {
+  const [showAddModelDialog, setAddModelDialogVisibility] = createSignal(false);
   return (
     <ConfigSection title="AI Models">
       <div class="text-sm space-y-2">
@@ -47,11 +54,21 @@ const AIModelsConfig = (props: {
           <button
             type="button"
             class="px-4 py-1.5 max-w-[200px] rounded text-white bg-indigo-600 hover:bg-indigo-500"
+            onClick={() => setAddModelDialogVisibility(true)}
           >
             Add custom model
           </button>
         </div>
       </div>
+      <Show when={showAddModelDialog()}>
+        <AddModel
+          workspaceId={props.workspaceId}
+          closeDialog={() => {
+            props.refreshConfig();
+            setAddModelDialogVisibility(false);
+          }}
+        />
+      </Show>
     </ConfigSection>
   );
 };
@@ -59,7 +76,7 @@ const AIModelsConfig = (props: {
 const AIModelConfig = (
   props: Workspace.Model & { refreshConfig: () => void }
 ) => {
-  const { activeWorkspace, refreshWorkspace } = useSharedWorkspaceContext();
+  const { activeWorkspace } = useSharedWorkspaceContext();
   const deleteModel = createMutationQuery<{ id: string }>((input) => {
     return {
       url: `/api/llm/models/delete`,
@@ -89,7 +106,7 @@ const AIModelConfig = (
 
   return (
     <div class="flex">
-      <div class="flex-1 py-2 font-medium">{props.name}</div>
+      <div class="flex-1 py-2 font-medium">{props.name || "Untitled"}</div>
 
       <div class="flex space-x-3 items-center">
         <Show when={props.custom}>
@@ -103,7 +120,6 @@ const AIModelConfig = (
                 })
                 .then(() => {
                   props.refreshConfig();
-                  refreshWorkspace();
                 })
             }
           />
@@ -131,7 +147,6 @@ const AIModelConfig = (
                   })
                   .then(() => {
                     props.refreshConfig();
-                    refreshWorkspace();
                   });
               }}
             />

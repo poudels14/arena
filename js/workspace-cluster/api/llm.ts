@@ -48,20 +48,22 @@ const openAIModelSchema = baseModelSchema.merge(
         apiKey: z.string().min(1),
       }),
       model: z.object({
-        name: z.enum([
-          "gpt-4-0125-preview",
-          "gpt-4-turbo-preview",
-          "gpt-4-1106-preview",
-          "gpt-4-vision-preview",
-          "gpt-4-1106-vision-preview",
-          "gpt-4",
-          "gpt-4-0613",
-          "gpt-4-32k",
-          "gpt-4-32k-0613",
-          "gpt-3.5-turbo-0125",
-          "gpt-3.5-turbo",
-          "gpt-3.5-turbo-1106",
-        ]),
+        name: z
+          .enum([
+            "gpt-4-0125-preview",
+            "gpt-4-turbo-preview",
+            "gpt-4-1106-preview",
+            "gpt-4-vision-preview",
+            "gpt-4-1106-vision-preview",
+            "gpt-4",
+            "gpt-4-0613",
+            "gpt-4-32k",
+            "gpt-4-32k-0613",
+            "gpt-3.5-turbo-0125",
+            "gpt-3.5-turbo",
+            "gpt-3.5-turbo-1106",
+          ])
+          .or(z.string().min(4)),
       }),
     }),
   })
@@ -75,13 +77,16 @@ const anthropicModelSchema = baseModelSchema.merge(
         apiKey: z.string().min(1),
       }),
       model: z.object({
-        name: z.enum([
-          "claude-3-opus-20240229",
-          "claude-3-sonnet-20240229",
-          "claude-2.1",
-          "claude-2.0",
-          "claude-instant-1.2",
-        ]),
+        name: z
+          .enum([
+            "claude-3-opus-20240229",
+            "claude-3-sonnet-20240229",
+            "claude-3-haiku-20240307",
+            "claude-2.1",
+            "claude-2.0",
+            "claude-instant-1.2",
+          ])
+          .or(z.string().min(4)),
       }),
     }),
   })

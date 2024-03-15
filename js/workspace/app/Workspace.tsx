@@ -92,7 +92,7 @@ const WorkspaceRouter = () => {
               <WorkspaceSettings />
             </Show>
           </Route>
-          <Route path="/drive">
+          <Route path="/files">
             <Show when={portalDrive()}>
               <CurrentAppSetter app={portalDrive()!} showChatIsland={true} />
               <QueryContextProvider urlPrefix={`/w/apps/${portalDrive()!.id}/`}>
@@ -180,31 +180,27 @@ const WorkspaceSidebar = () => {
           icon={{
             svg: <HiOutlineDocumentChartBar />,
           }}
-          active={isTab("drive")}
+          active={isTab("files")}
           onClick={() => {
-            navigate("/drive");
+            navigate("/files");
           }}
         >
-          <div>Drive</div>
+          <div>Files</div>
         </SidebarTab>
       </PortalSidebar>
-      <div class="h-8 flex justify-center text-center text-xs font-medium ">
+      <div class="h-8 flex justify-center text-center text-xs font-medium">
         <div
           class="flex px-2 py-1 mb-2 cursor-pointer space-x-2"
           classList={{
             "text-gray-700": !isTab("settings"),
             "text-black": isTab("settings"),
           }}
+          onClick={() => {
+            navigate("/settings");
+          }}
         >
           <HiOutlineCog6Tooth size={16} />
-          <div
-            class="leading-1"
-            onClick={() => {
-              navigate("/settings");
-            }}
-          >
-            Settings
-          </div>
+          <div class="leading-1">Settings</div>
         </div>
       </div>
     </div>
