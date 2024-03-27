@@ -46,7 +46,7 @@ const ChatIsland = (props: { onNewThread: () => void; hide?: boolean }) => {
             }}
           ></div>
           <div class="absolute bottom-0 w-full flex justify-center pointer-events-none">
-            <div class="island flex flex-col flex-1 min-w-[200px] max-w-[700px] bg-white border-t rounded-lg drop-shadow-md shadow-lg pointer-events-auto">
+            <div class="island flex flex-col flex-1 min-h-[500px] h-[calc(100vh-theme(spacing.10))] min-w-[200px] max-w-[800px] bg-white border-t rounded-lg drop-shadow-md shadow-lg pointer-events-auto">
               <div class="flex text-xs shadow-sm text-gray-500">
                 <div
                   class="px-4 py-1 border-transparent border-t border-r rounded-t cursor-pointer hover:bg-gray-100"
@@ -70,8 +70,8 @@ const ChatIsland = (props: { onNewThread: () => void; hide?: boolean }) => {
                 </div>
               </div>
               <Show when={chatBoxExpanded()}>
-                <div class="flex justify-center">
-                  <div class="max-h-[500px] min-h-[225px] w-full">
+                <div class="flex-1 flex justify-center overflow-y-auto no-scrollbar">
+                  <div class="w-full">
                     <Show when={getActiveTab() == "chat"}>
                       <ChatThread
                         showDocument={() => {}}
