@@ -7,6 +7,9 @@ mod websocket;
 pub mod errors;
 pub mod request;
 pub mod response;
+mod sse;
+
+use bytes::BytesMut;
 pub use request::HttpRequest;
 pub use resources::HttpServerConfig;
 
@@ -21,6 +24,7 @@ use tokio::sync::oneshot;
 
 use self::resources::{HttpConnection, HttpResponseHandle};
 use self::response::{ParsedHttpResponse, StreamResponseWriter, StreamType};
+use self::sse::{Event, EventFlags};
 use super::r#macro::js_dist;
 use super::BuiltinExtension;
 use crate::extensions::server::websocket::WebsocketStream;
@@ -54,6 +58,7 @@ fn init(config: HttpServerConfig) -> Extension {
         op_http_start::DECL,
         op_http_send_response::DECL,
         op_http_write_text_to_stream::DECL,
+        op_http_write_uint8_event_to_stream::DECL,
         op_http_write_bytes_to_stream::DECL,
         op_http_close_stream::DECL,
         websocket::op_websocket_recv::DECL,
@@ -192,7 +197,48 @@ async fn op_http_write_text_to_stream(
   };
 
   let len = data.len();
-  match writer.write_text(&data).await {
+  match writer
+    .write_event(Event {
+      buffer: BytesMut::from(&data.as_bytes()[..]),
+      flags: EventFlags::HAS_DATA,
+    })
+    .await
+  {
+    Ok(_) => return Ok(len.try_into().unwrap()),
+    // If there's any error writing to the stream, close the stream resource
+    // and return error
+    Err(_) => {
+      state
+        .borrow_mut()
+        .resource_table
+        .take::<StreamResponseWriter>(writer_id)?
+        .close();
+      return Ok(-1);
+    }
+  }
+}
+
+#[op2(async)]
+async fn op_http_write_uint8_event_to_stream(
+  state: Rc<RefCell<OpState>>,
+  #[smi] writer_id: ResourceId,
+  #[buffer(copy)] data: Vec<u8>,
+) -> Result<i32> {
+  let writer = {
+    state
+      .borrow()
+      .resource_table
+      .get::<StreamResponseWriter>(writer_id)?
+  };
+
+  let len = data.len();
+  match writer
+    .write_event(Event {
+      buffer: BytesMut::from(&data[..]),
+      flags: EventFlags::HAS_EVENT,
+    })
+    .await
+  {
     Ok(_) => return Ok(len.try_into().unwrap()),
     // If there's any error writing to the stream, close the stream resource
     // and return error

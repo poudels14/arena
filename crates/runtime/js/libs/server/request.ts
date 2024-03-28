@@ -38,11 +38,19 @@ class ArenaRequest extends Request {
       while ((next = await reader.read()) && !next.done) {
         let len = 0;
         if (isEventStream) {
-          len = await opAsync(
-            "op_http_write_text_to_stream",
-            writerId!,
-            next.value
-          );
+          if (next.value instanceof Uint8Array) {
+            len = await opAsync(
+              "op_http_write_uint8_event_to_stream",
+              writerId!,
+              next.value
+            );
+          } else {
+            len = await opAsync(
+              "op_http_write_text_to_stream",
+              writerId!,
+              next.value
+            );
+          }
         } else {
           len = await opAsync(
             "op_http_write_bytes_to_stream",

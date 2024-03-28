@@ -3,8 +3,7 @@ use std::cell::{Ref, RefCell};
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
-use axum::response::sse::{Event, KeepAlive};
-use axum::response::{sse::Sse, IntoResponse, Response};
+use axum::response::{IntoResponse, Response};
 use bytes::Bytes;
 use deno_core::{ByteString, Resource, StringOrBuffer};
 use derivative::Derivative;
@@ -18,6 +17,7 @@ use tokio::sync::oneshot;
 use tokio_stream::wrappers::ReceiverStream;
 
 use super::errors::{self};
+use super::sse::{Event, KeepAlive, Sse};
 use super::websocket::WebsocketStream;
 
 pub trait IntoHttpResponse: IntoResponse {
@@ -200,6 +200,17 @@ impl StreamResponseWriter {
         tx.borrow()
           .send(Ok(Event::default().data::<&str>(&text)))
           .await?;
+        Ok(())
+      }
+    }
+  }
+
+  #[inline]
+  pub async fn write_event(&self, event: Event) -> Result<()> {
+    match self {
+      Self::Bytes(_) => unimplemented!(),
+      Self::Events(tx) => {
+        tx.borrow().send(Ok(event)).await?;
         Ok(())
       }
     }
