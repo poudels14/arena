@@ -80,6 +80,7 @@ async function generateLLMResponseStream(
     );
   }
 
+  const supportsImage = model.modalities.includes("image");
   const prompt = ChatPromptTemplate.fromMessages([
     options.context?.length! > 0
       ? [
@@ -99,18 +100,18 @@ async function generateLLMResponseStream(
     new MessagesPlaceholder("chat_history"),
     [
       "human",
-      [
-        {
-          type: "text",
-          text: "{input}",
-        },
-        contextImage
-          ? {
+      contextImage
+        ? [
+            {
+              type: "text",
+              text: "{input}",
+            },
+            {
               type: "image_url",
               image_url: `data:${contextImage.contentType};base64,${contextImage.file.content}`,
-            }
-          : undefined!,
-      ],
+            },
+          ]
+        : "{input}",
     ],
   ]);
 
@@ -137,6 +138,10 @@ async function generateLLMResponseStream(
   ]);
 
   try {
+    if (contextImage && !supportsImage) {
+      throw new Error("This model doesn't support image");
+    }
+
     const stream = await chatWithDocuments.stream(message.message.content!, {
       configurable: { sessionId: "sessionId" },
       // callbacks: [new ConsoleCallbackHandler()],

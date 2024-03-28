@@ -32,6 +32,18 @@ const AddModel = (props: { workspaceId: string; closeDialog: () => void }) => {
     resetError(() => state());
   });
 
+  const addModality = (modality: string) => {
+    setState("modalities", (prev) => {
+      return [...new Set([...prev, modality])];
+    });
+  };
+
+  const removeModality = (modality: string) => {
+    setState("modalities", (prev) => {
+      return prev.filter((p) => p != modality);
+    });
+  };
+
   const addModel = createMutationQuery(() => {
     return {
       url: "/api/llm/models/add",
@@ -82,13 +94,13 @@ const AddModel = (props: { workspaceId: string; closeDialog: () => void }) => {
           </label>
         </div>
         <div class="space-y-2">
-          <div class="text-base font-medium text-gray-800">Model Type</div>
+          <div class="text-base font-medium text-gray-800">Model type</div>
           <div class="flex flex-wrap gap-4">
             <RadioOption
-              id="text"
-              title="Text"
+              id="chat"
+              title="Chat"
               name="type"
-              selected="text"
+              selected="chat"
               onChange={(v) => {}}
             />
           </div>
@@ -162,18 +174,6 @@ const AddModel = (props: { workspaceId: string; closeDialog: () => void }) => {
           </div>
         </Show>
         <Show when={["openai", "anthropic", "groq"].includes(state.provider())}>
-          <div>
-            <Input
-              title="API Key"
-              name="apiKey"
-              placeholder="API Key"
-              type="text"
-              value={state.apiKey()}
-              onInput={(apiKey) => {
-                setState("apiKey", apiKey);
-              }}
-            />
-          </div>
           <div class="space-y-2">
             <div class="text-base font-medium text-gray-800">Model name</div>
             <div class="flex flex-wrap gap-4">
@@ -212,7 +212,6 @@ const AddModel = (props: { workspaceId: string; closeDialog: () => void }) => {
                       "claude-instant-1.2",
                     ]}
                     onChange={(model) => {
-                      console.log("model =", model);
                       setState("modelName", model);
                     }}
                   />
@@ -229,6 +228,53 @@ const AddModel = (props: { workspaceId: string; closeDialog: () => void }) => {
                 </Match>
               </Switch>
             </div>
+          </div>
+        </Show>
+        <Show when={state.provider()}>
+          <div class="space-y-2">
+            <div class="text-base font-medium text-gray-800">Modalities</div>
+            <div class="flex flex-wrap gap-4">
+              <Checkbox
+                value="text"
+                title="Text"
+                name="modalities"
+                checked={state.modalities().includes("text")}
+                onChange={(checked) => {
+                  if (checked) {
+                    addModality("text");
+                  } else {
+                    removeModality("text");
+                  }
+                }}
+              />
+              <Checkbox
+                value="image"
+                title="Image"
+                name="modalities"
+                checked={state.modalities().includes("image")}
+                onChange={(checked) => {
+                  if (checked) {
+                    addModality("image");
+                  } else {
+                    removeModality("image");
+                  }
+                }}
+              />
+            </div>
+          </div>
+        </Show>
+        <Show when={["openai", "anthropic", "groq"].includes(state.provider())}>
+          <div>
+            <Input
+              title="API Key"
+              name="apiKey"
+              placeholder="API Key"
+              type="text"
+              value={state.apiKey()}
+              onInput={(apiKey) => {
+                setState("apiKey", apiKey);
+              }}
+            />
           </div>
         </Show>
         <div class="text-xs text-center text-red-600 overflow-hidden text-ellipsis">
@@ -372,11 +418,39 @@ const RadioOption = (props: {
         value={props.id}
         checked={props.id == props.selected}
         onChange={(e) => {
-          console.log("e.target.value =", e.target.checked);
           if (e.target.checked) {
-            console.log("props.value =", props.id);
             props.onChange(props.id);
           }
+        }}
+      />
+    </label>
+  );
+};
+
+const Checkbox = (props: {
+  value: string;
+  title: string;
+  name: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  class?: string;
+}) => {
+  return (
+    <label
+      class="px-4 py-1.5 rounded space-y-1.5 bg-gray-50 text-gray-700 border border-gray-100 has-[:checked]:border-indigo-300 has-[:checked]:bg-indigo-100"
+      classList={{
+        [props.class!]: Boolean(props.class),
+      }}
+    >
+      <div class="text-sm font-medium">{props.title}</div>
+      <input
+        name={props.name}
+        type="checkbox"
+        class="hidden"
+        value={props.value}
+        checked={props.checked}
+        onChange={(e) => {
+          props.onChange(e.target.checked);
         }}
       />
     </label>
