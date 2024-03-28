@@ -19,8 +19,9 @@ import { ThreadOperationsStream } from "../../../chatsdk";
 import { ChatThread } from "../types";
 import { ChatMessage } from "../../repo/chatMessages";
 import { AtalasChatMessageHistory } from "./history";
-import { AtalasDriveSearch } from "./drive";
+import { AtalasDrive } from "./drive";
 import { getLLMModel } from "./modelSelector";
+import { pick } from "lodash-es";
 
 async function generateLLMResponseStream(
   { ctx }: Pick<ProcedureRequest<Context, any>, "ctx" | "errors">,
@@ -52,13 +53,32 @@ async function generateLLMResponseStream(
     };
   }
 ) {
-  const driveSearch = new AtalasDriveSearch(
+  const driveSearch = new AtalasDrive(
     ctx.env.PORTAL_WORKSPACE_HOST,
     ctx.repo,
     thread.id,
     message.id,
     options.context || []
   );
+
+  const contextImage = await driveSearch.fetchContextImage();
+  if (contextImage) {
+    const artifact = {
+      id: uniqueId(23),
+      threadId: thread.id,
+      messageId: message.id,
+      createdAt: new Date(),
+      name: contextImage.name,
+      file: contextImage.file,
+      size: contextImage.size || 0,
+      metadata: {},
+    };
+    await ctx.repo.artifacts.insert(artifact);
+    opsStream.sendMessageArtifact(
+      message.id,
+      pick(artifact, "id", "name", "createdAt", "metadata")
+    );
+  }
 
   const prompt = ChatPromptTemplate.fromMessages([
     options.context?.length! > 0
@@ -77,7 +97,21 @@ async function generateLLMResponseStream(
         ],
 
     new MessagesPlaceholder("chat_history"),
-    ["human", "{input}"],
+    [
+      "human",
+      [
+        {
+          type: "text",
+          text: "{input}",
+        },
+        contextImage
+          ? {
+              type: "image_url",
+              image_url: `data:${contextImage.contentType};base64,${contextImage.file.content}`,
+            }
+          : undefined!,
+      ],
+    ],
   ]);
 
   const chainModel = getLLMModel(model, {
@@ -140,6 +174,7 @@ async function generateLLMResponseStream(
       metadata: {},
     });
   } catch (e: any) {
+    console.log(e);
     const errorMessage = {
       id: uniqueId(19),
       threadId: thread.id,

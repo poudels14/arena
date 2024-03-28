@@ -11,18 +11,21 @@ import { klona } from "klona";
 import ky from "ky";
 import { Context } from "~/api/procedure";
 
-class AtalasDriveSearch extends BaseRetriever {
+class AtalasDrive extends BaseRetriever {
   workspaceHost: string;
   repo: Context["repo"];
   threadId: string;
   queryMessageId: string;
-  context: { app: { id: string }; breadcrumbs: { id: string }[] }[];
+  context: {
+    app: { id: string };
+    breadcrumbs: { id: string; contentType?: string }[];
+  }[];
   constructor(
     workspaceHost: string,
     repo: Context["repo"],
     threadId: string,
     queryMessageId: string,
-    context: AtalasDriveSearch["context"]
+    context: AtalasDrive["context"]
   ) {
     super();
     this.workspaceHost = workspaceHost;
@@ -124,9 +127,43 @@ class AtalasDriveSearch extends BaseRetriever {
     return finalResults;
   }
 
+  async fetchContextImage() {
+    if (this.context.length < 1) {
+      return null;
+    }
+    const { app, breadcrumbs } = this.context[0];
+    const contextFile = breadcrumbs[breadcrumbs.length - 1];
+    if (
+      ["image/png", "image/jpeg", "image/jpg"].includes(
+        contextFile.contentType!
+      )
+    ) {
+      const file = await ky
+        .get(
+          new URL(
+            `/w/apps/${app.id}/api/portal/document/${contextFile.id}`,
+            this.workspaceHost
+          ).href
+        )
+        .json<{
+          id: string;
+          name: string;
+          contentType: string;
+          file: {
+            content: string;
+            metadata: any;
+          };
+          size: number;
+        }>();
+      return file;
+    }
+
+    return null;
+  }
+
   get lc_namespace() {
     return ["atlasai"];
   }
 }
 
-export { AtalasDriveSearch };
+export { AtalasDrive };

@@ -30,7 +30,7 @@ type Artifact = InferModel<typeof artifacts> & {
 const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
   return {
     async insert(artifact: Omit<Artifact, "archivedAt">): Promise<void> {
-      await db.insert(artifacts).values(artifact);
+      await db.insert(artifacts).values({ ...artifact, archivedAt: null });
     },
     async get(filter: { id: string }): Promise<Artifact> {
       const rows = await db
@@ -42,7 +42,7 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
     },
     async list(
       filter: { threadId?: string },
-      options: { limit: number }
+      options: { includeContent?: boolean; limit: number }
     ): Promise<Artifact[]> {
       const rows = await db
         .with()
@@ -50,8 +50,14 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
           id: artifacts.id,
           name: artifacts.name,
           threadId: artifacts.threadId,
+          messageId: artifacts.messageId,
           metadata: artifacts.metadata,
           createdAt: artifacts.createdAt,
+          ...(options.includeContent
+            ? {
+                file: artifacts.file,
+              }
+            : {}),
         })
         .from(artifacts)
         .where(

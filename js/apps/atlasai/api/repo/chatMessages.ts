@@ -15,10 +15,21 @@ const chatMessages = pgTable("chat_messages", {
 
 type ChatMessage = InferModel<typeof chatMessages> & {
   message: {
-    content?: string;
+    content?: string | MessageContent[];
   };
   metadata: any;
 };
+
+type MessageContent =
+  | {
+      type: "text";
+      text: string;
+    }
+  | {
+      type: "image_url";
+      // `data:image/png;base64,...`
+      image_url: string;
+    };
 
 const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
   return {

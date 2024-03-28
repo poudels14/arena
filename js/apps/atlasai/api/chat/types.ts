@@ -24,7 +24,7 @@ export type Message = {
   parentId: string | null;
   message: {
     function_call?: string;
-    content?: string;
+    content?: string | MessageContent[];
   };
   role: string;
   createdAt: Date;
@@ -34,3 +34,14 @@ export type Message = {
     documents?: { documentId: string; score: number }[];
   } | null;
 };
+
+type MessageContent =
+  | {
+      type: "text";
+      text: string;
+    }
+  | {
+      type: "image_url";
+      // `data:image/png;base64,...`
+      image_url: string;
+    };

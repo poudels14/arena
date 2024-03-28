@@ -1,15 +1,16 @@
 import { keyBy, merge, pick } from "lodash-es";
 import z from "zod";
+import mime from "mime";
+import ky from "ky";
+import { ReplaySubject } from "rxjs";
+import { Workspace } from "@portal/workspace-sdk";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
 import { p } from "../procedure";
 import { ChatThread } from "./types";
 import { generateLLMResponseStream } from "./chains/query";
 import { ChatMessage } from "../repo/chatMessages";
-import { ReplaySubject } from "rxjs";
 import { ThreadOperationsStream } from "../../chatsdk";
 import { generateQueryTitle } from "./chains/title";
-import ky from "ky";
-import { Workspace } from "@portal/workspace-sdk";
 
 const listThreads = p.query(async ({ ctx }) => {
   const threads = await ctx.repo.chatThreads.list();
@@ -23,7 +24,7 @@ const getThread = p.query(async ({ req, ctx, params, errors, ...args }) => {
     return errors.notFound();
   }
 
-  const messages = await listMessages({
+  const messages = (await listMessages({
     ...args,
     req,
     ctx,
@@ -34,11 +35,32 @@ const getThread = p.query(async ({ req, ctx, params, errors, ...args }) => {
       threadId,
     },
     errors,
-  });
+  })) as unknown as any[];
+
+  const artifacts = await ctx.repo.artifacts.list(
+    {
+      threadId,
+    },
+    {
+      limit: 100,
+    }
+  );
 
   return {
     ...thread,
-    messages,
+    messages: messages.map((message) => {
+      return {
+        ...message,
+        artifacts: artifacts
+          .filter((a) => a.messageId == message.id)
+          .map((artifact) => {
+            return {
+              ...pick(artifact, "id", "name", "metadata", "createdAt"),
+              contentType: mime.getType(artifact.name),
+            };
+          }),
+      };
+    }),
   };
 });
 
@@ -73,7 +95,7 @@ const listMessages = p.query(async ({ ctx, params }) => {
         "model",
         "createdAt"
       ),
-      metadata: pick(m.metadata, "error", "searchResults"),
+      metadata: pick(m.metadata, "context", "error", "searchResults"),
     };
   });
 });
@@ -104,6 +126,7 @@ const sendMessage = p
           breadcrumbs: z.array(
             z.object({
               id: z.string(),
+              contentType: z.string().optional(),
             })
           ),
         })

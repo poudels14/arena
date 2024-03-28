@@ -25,7 +25,7 @@ import { ChatContext, ChatQueryContext, ChatState } from "./ChatContext";
 import { PluginWorkflow } from "./PluginWorkflow";
 import { Chat, Document } from "../types";
 import { Store } from "@portal/solid-store";
-import { createQuery } from "@portal/solid-query";
+import { createQuery, resolveFullUrl } from "@portal/solid-query";
 import { WigetContainer } from "./Widget";
 import { Markdown } from "./Markdown";
 
@@ -220,7 +220,10 @@ const ChatThread = (props: {
 const ChatMessage = (props: {
   state: ChatState;
   message: Store<
-    Pick<Chat.Message, "id" | "parentId" | "message" | "metadata" | "role">
+    Pick<
+      Chat.Message,
+      "id" | "parentId" | "message" | "metadata" | "artifacts" | "role"
+    >
   >;
   task?: Store<Chat.TaskExecution | undefined>;
   showDocument(doc: any): void;
@@ -334,6 +337,13 @@ const ChatMessage = (props: {
                 </div>
               </Show>
             </div>
+            <Show when={props.message.artifacts()}>
+              <For each={props.message.artifacts()}>
+                {(artifact) => {
+                  return <Artifact {...artifact} />;
+                }}
+              </For>
+            </Show>
           </div>
         </Show>
         <Show when={props.task && props.task()}>
@@ -446,6 +456,29 @@ const SearchResults = (props: { searchResults: Chat.SearchResult[] }) => {
           </For>
         </div>
       </Show>
+    </div>
+  );
+};
+
+const Artifact = (props: Chat.Artifact) => {
+  return (
+    <div>
+      <Switch>
+        <Match when={props.contentType.startsWith("image/")}>
+          <img
+            height="80px"
+            class="h-20"
+            src={resolveFullUrl(`/chat/artifacts/${props.id}/content`)}
+            alt={props.name}
+          />
+        </Match>
+
+        <Match when={true}>
+          <div class="text-xs text-red-800">
+            Unsupported content: {props.contentType}
+          </div>
+        </Match>
+      </Switch>
     </div>
   );
 };

@@ -33,6 +33,18 @@ class ThreadOperationsStream {
     });
   }
 
+  sendMessageArtifact(messageId: string, artifact: any) {
+    this.stream.next({
+      ops: [
+        {
+          op: "add",
+          path: ["messages", messageId, "message", "artifacts"],
+          value: artifact,
+        },
+      ],
+    });
+  }
+
   // send the message chunk of the given messageId
   // this chunk is concatenated with existing chunks
   sendMessageChunk(messageId: string, value: string) {

@@ -68,6 +68,7 @@ export namespace Chat {
         id: string;
       };
     } | null;
+    artifacts: Artifact[];
     /**
      * Set to true if this message is currently being streamed
      */
@@ -75,6 +76,14 @@ export namespace Chat {
   };
 
   export type SearchResult = { files: { id: string; name: string }[] };
+
+  export type Artifact = {
+    id: string;
+    name: string;
+    metadata: any;
+    createdAt: string;
+    contentType: string;
+  };
 
   export type TaskExecution = {
     id: string;
