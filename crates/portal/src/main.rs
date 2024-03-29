@@ -8,6 +8,7 @@ use anyhow::bail;
 use anyhow::Result;
 use clap::Parser;
 use colored::*;
+use config::WorkspaceConfig;
 use runtime::deno::core::v8;
 use signal_hook::consts::TERM_SIGNALS;
 use signal_hook::flag;
@@ -33,6 +34,9 @@ struct Args {
 enum Commands {
   /// Start portal server
   Start(server::Command),
+
+  /// Reset all user data
+  Reset,
 }
 
 fn main() -> Result<()> {
@@ -84,6 +88,13 @@ fn main() -> Result<()> {
           .await;
         signals_handle.close();
         res?;
+      }
+      Commands::Reset => {
+        let workspace_config =
+          WorkspaceConfig::load().expect("Error loading config");
+        let res = workspace_config.reset();
+        signals_handle.close();
+        res.expect("error resetting workspace");
       }
     };
     Ok::<(), anyhow::Error>(())

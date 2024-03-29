@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
+use std::time::SystemTime;
 
 use anyhow::Result;
-use arenasql::chrono::Utc;
+use arenasql::chrono::{DateTime, Utc};
 use arenasql_cluster::schema::ADMIN_USERNAME;
 use cloud::identity::Identity;
 use dqs::arena::{ArenaRuntimeState, MainModule};
@@ -46,6 +47,7 @@ impl Workspace {
     &self,
     v8_platform: v8::SharedRef<v8::Platform>,
   ) -> Result<()> {
+    self.config.reset_files()?;
     self.create_portal_database().await?;
     self.run_workspace_db_migrations(v8_platform).await?;
 
@@ -53,6 +55,15 @@ impl Workspace {
     let pool = create_connection_pool().await?;
     self.add_user(&pool).await?;
     self.add_default_app_templates(&pool).await?;
+    self
+      .trigger_tracking_event(
+        "desktop-install",
+        HashMap::from([(
+          "version".to_owned(),
+          env!("CARGO_PKG_VERSION").to_owned(),
+        )]),
+      )
+      .await;
     Ok(())
   }
 
@@ -225,5 +236,25 @@ impl Workspace {
     .await?;
 
     Ok(())
+  }
+
+  pub async fn trigger_tracking_event(
+    &self,
+    event: &str,
+    properties: HashMap<String, String>,
+  ) {
+    let now: DateTime<Utc> = SystemTime::now().into();
+    let client = reqwest::Client::new();
+    let _ = client
+      .post("https://app.posthog.com/capture/")
+      .json(&json!({
+          "api_key": "phc_hyT9GigBFrsv3HUkxDCiEettMlmdK4bT7M5SvczQ7fr",
+          "event": event,
+          "distinct_id": self.config.user_id,
+          "properties": properties,
+          "timestamp": now.to_rfc3339()
+      }))
+      .send()
+      .await;
   }
 }

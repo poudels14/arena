@@ -1,110 +1,14 @@
 import { z } from "zod";
-import { merge, pick } from "lodash-es";
-import { protectedProcedure } from "./procedure";
+import { merge, pick, sortBy } from "lodash-es";
+import { protectedProcedure } from "../procedure";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
-
-const baseModelSchema = z.object({
-  name: z.string().min(3),
-  disabled: z.boolean().optional(),
-  modalities: z.array(z.enum(["text", "image", "video"])),
-  type: z.enum([
-    // llm is non chat model
-    // "llm", // TODO
-    "chat",
-    // "image",
-  ]),
-});
-
-const ollamaModelSchema = baseModelSchema.merge(
-  z.object({
-    provider: z.literal("ollama"),
-    config: z.object({
-      http: z.object({
-        endpoint: z.string().url(),
-      }),
-      model: z.object({
-        name: z.string().min(1),
-      }),
-    }),
-  })
-);
-
-const lmStudioModelSchema = baseModelSchema.merge(
-  z.object({
-    provider: z.literal("lmstudio"),
-    config: z.object({
-      http: z.object({
-        endpoint: z.string().url(),
-      }),
-    }),
-  })
-);
-
-const openAIModelSchema = baseModelSchema.merge(
-  z.object({
-    provider: z.literal("openai"),
-    config: z.object({
-      http: z.object({
-        apiKey: z.string().min(1),
-      }),
-      model: z.object({
-        name: z
-          .enum([
-            "gpt-4-0125-preview",
-            "gpt-4-turbo-preview",
-            "gpt-4-1106-preview",
-            "gpt-4-vision-preview",
-            "gpt-4-1106-vision-preview",
-            "gpt-4",
-            "gpt-4-0613",
-            "gpt-4-32k",
-            "gpt-4-32k-0613",
-            "gpt-3.5-turbo-0125",
-            "gpt-3.5-turbo",
-            "gpt-3.5-turbo-1106",
-          ])
-          .or(z.string().min(4)),
-      }),
-    }),
-  })
-);
-
-const anthropicModelSchema = baseModelSchema.merge(
-  z.object({
-    provider: z.literal("anthropic"),
-    config: z.object({
-      http: z.object({
-        apiKey: z.string().min(1),
-      }),
-      model: z.object({
-        name: z
-          .enum([
-            "claude-3-opus-20240229",
-            "claude-3-sonnet-20240229",
-            "claude-3-haiku-20240307",
-            "claude-2.1",
-            "claude-2.0",
-            "claude-instant-1.2",
-          ])
-          .or(z.string().min(4)),
-      }),
-    }),
-  })
-);
-
-const groqModelSchema = baseModelSchema.merge(
-  z.object({
-    provider: z.literal("groq"),
-    config: z.object({
-      http: z.object({
-        apiKey: z.string().min(1),
-      }),
-      model: z.object({
-        name: z.string().min(1),
-      }),
-    }),
-  })
-);
+import {
+  anthropicModelSchema,
+  groqModelSchema,
+  lmStudioModelSchema,
+  ollamaModelSchema,
+  openAIModelSchema,
+} from "./schema";
 
 const customLLMModelSchema = z.union([
   ollamaModelSchema,
@@ -175,7 +79,7 @@ const listModels = protectedProcedure.query(
       namespace: "llm/models",
     });
 
-    const models = settings.map((s) => {
+    const models = sortBy(settings, ["createdAt"]).map((s) => {
       return merge(
         {
           id: s.id,
@@ -201,51 +105,51 @@ const listModels = protectedProcedure.query(
       (m) => !m.custom && m.id == "openai-gpt-4"
     );
     const availableModels: LLMModelSchema[] = [
-      merge(
-        {
-          id: "openai-gpt-3.5",
-          name: "OpenAI GPT 3.5",
-          custom: false,
-          disabled: false,
-          modalities: ["text"],
-          type: "chat",
-          provider: "openai",
-          quota: {},
-          config: {
-            http: {
-              method: "POST",
-              endpoint: "",
-              headers: {},
-            },
-          },
-        },
-        gpt35UserConfig
-      ),
-      merge(
-        {
-          id: "openai-gpt-4",
-          name: "OpenAI GPT 4",
-          custom: false,
-          disabled: false,
-          requiresSubscription: true,
-          modalities: ["text"],
-          type: "chat",
-          provider: "openai",
-          config: {
-            http: {
-              method: "POST",
-              endpoint: "",
-              headers: {},
-            },
-          },
-          quota: {
-            requests: {
-              remaining: 0,
-            },
-          },
-        },
-        gpt4UserConfig
-      ),
+      // merge(
+      //   {
+      //     id: "openai-gpt-3.5",
+      //     name: "OpenAI GPT 3.5",
+      //     custom: false,
+      //     disabled: false,
+      //     modalities: ["text"],
+      //     type: "chat",
+      //     provider: "openai",
+      //     quota: {},
+      //     config: {
+      //       http: {
+      //         method: "POST",
+      //         endpoint: "",
+      //         headers: {},
+      //       },
+      //     },
+      //   },
+      //   gpt35UserConfig
+      // ),
+      // merge(
+      //   {
+      //     id: "openai-gpt-4",
+      //     name: "OpenAI GPT 4",
+      //     custom: false,
+      //     disabled: false,
+      //     requiresSubscription: true,
+      //     modalities: ["text"],
+      //     type: "chat",
+      //     provider: "openai",
+      //     config: {
+      //       http: {
+      //         method: "POST",
+      //         endpoint: "",
+      //         headers: {},
+      //       },
+      //     },
+      //     quota: {
+      //       requests: {
+      //         remaining: 0,
+      //       },
+      //     },
+      //   },
+      //   gpt4UserConfig
+      // ),
       ...customModels,
     ];
 
@@ -308,3 +212,4 @@ const deleteModel = protectedProcedure
   });
 
 export { addCustomModel, listModels, updateModel, deleteModel };
+export * from "./proxy";
