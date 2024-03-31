@@ -78,14 +78,12 @@ where
     BuiltinModule::Cloudflare,
   ]
   .iter()
+  .chain(config.modules.iter())
   .map(|m| m.get_extension())
   .collect();
 
   extensions.extend(BuiltinExtensions::get_deno_extensions(
     &mut builtin_extensions,
-  ));
-  extensions.extend(BuiltinExtensions::get_deno_extensions(
-    &mut config.modules.iter().map(|m| m.get_extension()).collect(),
   ));
   extensions.push(self::build_init_extension(&config));
 
