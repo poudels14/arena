@@ -1,5 +1,6 @@
 use ring::aead::{self, Aad, LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
 
+#[allow(unused)]
 pub fn encrypt(
   key: &[u8],
   nonce: [u8; aead::NONCE_LEN],

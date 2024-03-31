@@ -3,13 +3,8 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use anyhow::Result;
-use directories::ProjectDirs;
+use common::dirs;
 use serde::{Deserialize, Serialize};
-
-use crate::utils::encryption::decrypt;
-use crate::utils::encryption::encrypt;
-
-static NONCE: &'static [u8; 12] = b"8uakmsytpqhf";
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct WorkspaceConfig {
@@ -19,12 +14,8 @@ pub struct WorkspaceConfig {
 
 impl WorkspaceConfig {
   pub fn load() -> Result<Self> {
-    let config = match fs::read(Self::get_config_path()) {
-      Ok(enc_config) => {
-        let config_bytes = decrypt(&Self::encryption_key(), NONCE, enc_config);
-        let config_str = std::str::from_utf8(&config_bytes)?;
-        toml::from_str(&config_str)?
-      }
+    let config = match fs::read_to_string(Self::get_config_path()) {
+      Ok(config_str) => toml::from_str(&config_str)?,
       _ => Self {
         user_id: format!("u-desktop-{}", nanoid::nanoid!()),
         ..Default::default()
@@ -35,9 +26,7 @@ impl WorkspaceConfig {
 
   pub fn save(&self) -> Result<()> {
     let toml = toml::to_string(&self).context("error serializing config")?;
-    let encrypted =
-      encrypt(&Self::encryption_key(), NONCE.to_owned(), toml.as_bytes());
-    std::fs::write(Self::get_config_path(), encrypted)
+    std::fs::write(Self::get_config_path(), toml)
       .context("error writing config to the file")?;
     Ok(())
   }
@@ -51,14 +40,14 @@ impl WorkspaceConfig {
   }
 
   pub fn data_dir() -> PathBuf {
-    ProjectDirs::from("ai", "portal", "portal-desktop-4200")
+    dirs::portal()
       .expect("Unable to determine project directory")
       .data_dir()
       .to_owned()
   }
 
   pub fn get_config_path() -> PathBuf {
-    Self::data_dir().join("CONFIG")
+    Self::data_dir().join("config.toml")
   }
 
   pub fn get_catalogs_dir(&self) -> PathBuf {
@@ -66,6 +55,7 @@ impl WorkspaceConfig {
     Self::data_dir().join("common")
   }
 
+  #[allow(unused)]
   pub fn encryption_key() -> Vec<u8> {
     env!("PORTAL_DESKTOP_ENC_KEY").as_bytes().to_owned()
   }
