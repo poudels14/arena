@@ -31,6 +31,7 @@ reqwest = { version = "0.11", features = [
   "gzip",
   "brotli",
   "socks",
+  "blocking",
 ] }
 anyhow = { version = "1.0.68", features = ["backtrace"] }
 base64 = "0.20.0"
@@ -90,9 +91,3 @@ debug = 1
 codegen-units = 1
 # incremental = true
 lto = true
-
-[profile.release.package.portal]
-debug = false
-strip = true
-codegen-units = 1
-opt-level = "z"
