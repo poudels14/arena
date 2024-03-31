@@ -12,8 +12,8 @@ export default function NavigationBar() {
           <div>Portal</div>
         </a>
         <div class="flex flex-1 dark:text-gray-400 text-sm font-medium items-center space-x-5">
-          <NavItem title="Blog" href="/blog" />
-          <NavItem title="Discord" href="/discord" />
+          {/* <NavItem title="Blog" href="/blog" /> */}
+          <NavItem title="Discord" href="https://discord.gg/kX4fYm7c" />
           <NavItem title="Download" href="/download" />
           {/* 
           <NavItem title="Features" />
@@ -22,7 +22,7 @@ export default function NavigationBar() {
         </div>
         <div class="px-4 flex dark:text-white text-sm items-center space-x-5">
           <a
-            href="/signup"
+            href="/waitlist"
             class="px-5 py-1.5 rounded-2xl dark:text-gray-400 cursor-pointer hover:underline"
           >
             Join waitlist

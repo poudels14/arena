@@ -13,7 +13,7 @@ export default function Home() {
             Portal
           </h1>
           <div class="pb-2 text-xl font-normal text-gray-800 dark:text-gray-400">
-            All-in-one AI workspace
+            An unified platform for AI apps
           </div>
         </div>
         <div class="flex justify-center">
@@ -32,7 +32,7 @@ export default function Home() {
           <div>Available for macOS and Linux</div>
         </div>
         <div class="text-xs font-normal text-gray-600 dark:text-gray-500">
-          *offline support using Ollama
+          *offline support using Ollama and LM Studio
         </div>
       </div>
 
