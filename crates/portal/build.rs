@@ -62,6 +62,8 @@ fn main() {
       base.join(package.1),
     );
   }
+
+  tauri_build::build();
 }
 
 fn add_directory_to_archive(

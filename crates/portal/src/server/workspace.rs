@@ -67,7 +67,7 @@ pub async fn start_workspace_server(
       module: module.clone(),
       env_variables: EnvironmentVariableStore::new(HashMap::from([
         env_var("DATABASE_URL", &workspace.database_url()),
-        env_var("HOST", "http://localhost:4200"),
+        env_var("HOST", "http://localhost:42690"),
         env_var("DATABASE_HOST", "localhost"),
         env_var("DATABASE_PORT", &workspace.db_port.to_string()),
         env_var("DATABASE_NAME", "portal"),
@@ -106,7 +106,7 @@ pub async fn start_workspace_server(
 
         process.env.SSR = "true";
         serve(server);
-        console.log("Server ready...");
+        console.log("App ready!");
         "#,
         )
         .into(),
@@ -154,6 +154,10 @@ impl WorkspaceRouter {
 
   pub fn axum_router(self) -> Result<Router> {
     let app = Router::new()
+      .route(
+        "/_healthy",
+        routing::on(MethodFilter::all(), || async { (StatusCode::OK, "OK") }),
+      )
       .route("/", routing::on(MethodFilter::all(), handle_app_index))
       .route(
         "/assets/apps/:templateId/:version/static/*path",

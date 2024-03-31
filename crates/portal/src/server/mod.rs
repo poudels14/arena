@@ -20,8 +20,14 @@ use crate::workspace::Workspace;
 #[derive(Parser, Debug)]
 pub struct Command {
   /// Server port
-  #[arg(short, long, default_value_t = 4200)]
+  #[arg(short, long, default_value_t = 42690)]
   pub port: u16,
+}
+
+impl Default for Command {
+  fn default() -> Self {
+    Self { port: 42690 }
+  }
 }
 
 impl Command {

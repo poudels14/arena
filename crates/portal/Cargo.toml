@@ -3,6 +3,14 @@ name = "portal"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "portal"
+path = "src/main.rs"
+
+[[bin]]
+name = "portal-desktop"
+path = "src/desktop.rs"
+
 [dependencies]
 anyhow.workspace = true
 axum.workspace = true
@@ -19,6 +27,8 @@ nanoid.workspace = true
 serde.workspace = true
 bytes.workspace = true
 hyper.workspace = true
+futures.workspace = true
+reqwest.workspace = true
 tracing-tree = "0.3.0"
 tracing-subscriber = "0.3.18"
 directories = "5.0.1"
@@ -38,7 +48,7 @@ tower-http = { version = "0.3.5", features = ["fs"] }
 async-trait = "0.1.77"
 mime_guess = "2.0.4"
 ring = "0.16.20"
-reqwest.workspace = true
+tauri = "1.6.1"
 
 [build-dependencies]
 pathdiff.workspace = true
@@ -46,3 +56,10 @@ nanoid.workspace = true
 tar = "0.4.40"
 walkdir = "2.5.0"
 ring = "0.16.20"
+tauri-build = "1.5.1"
+
+[features]
+# this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.
+# If you use cargo directly instead of tauri's cli you can use this feature flag to switch between tauri's `dev` and `build` modes.
+# DO NOT REMOVE!!
+custom-protocol = ["tauri/custom-protocol"]
