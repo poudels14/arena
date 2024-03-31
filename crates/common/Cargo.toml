@@ -25,6 +25,12 @@ once_cell.workspace = true
 simdutf8.workspace = true
 dotenvy.workspace = true
 futures.workspace = true
+reqwest.workspace = true
+
+directories = "5.0.1"
+tar = "0.4.40"
+tempdir = "0.3.7"
+flate2 = "1.0.28"
 
 deno_core = "=0.238.0"
 

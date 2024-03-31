@@ -1,14 +1,16 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
+use common::dirs;
+use common::downloader;
 use pdfium_render::prelude::*;
 use runtime::deno::core::{op2, JsBuffer, OpState};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PdfToHtmlOptions {
-  /// Uses `~/.arena/pdfium/libpdfium.so` by default
   pdfium_path: Option<String>,
 }
 
@@ -26,15 +28,12 @@ pub async fn op_cloud_pdf_to_html(
   #[buffer] pdf_bytes: JsBuffer,
   #[serde] options: PdfToHtmlOptions,
 ) -> Result<Vec<PdfPage>> {
+  let lib_path = get_pdfium_lib_path().await?.canonicalize()?;
   let pdfium = Pdfium::new(
     Pdfium::bind_to_library(
-      &options.pdfium_path.unwrap_or(
-        dirs::home_dir()
-          .ok_or(anyhow!("Failed to find HOME directory"))?
-          .join(".arena/pdfium/libpdfium.so")
-          .to_string_lossy()
-          .to_string(),
-      ),
+      &options
+        .pdfium_path
+        .unwrap_or(lib_path.to_string_lossy().to_string()),
     )
     .or_else(|_| Pdfium::bind_to_system_library())?,
   );
@@ -98,4 +97,33 @@ pub async fn op_cloud_pdf_to_html(
     })
     .collect::<Vec<_>>()
   )
+}
+
+async fn get_pdfium_lib_path() -> Result<PathBuf> {
+  let pdfium_dir = dirs::portal()?.cache_dir().join("pdfium");
+  let lib_path = pdfium_dir.join("lib/libpdfium.so");
+  if !lib_path.exists() {
+    let os = match env!("CARGO_CFG_TARGET_OS") {
+      "linux" => "linux",
+      "macos" => "mac",
+      os => panic!("Unsupported OS: {:?}", os),
+    };
+    let arch = match env!("CARGO_CFG_TARGET_ARCH") {
+      "x86_64" => "x64",
+      "x86" => "x86",
+      "arm" => "arm",
+      "aarch64" => "arm64",
+      arch => panic!("Unsupported architecture: {:?}", arch),
+    };
+    downloader::download_and_extract_tgz(
+      &format!(
+        "https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-{}-{}.tgz",
+        os,
+        arch,
+        ),
+      &pdfium_dir
+    )
+    .await?;
+  }
+  Ok(lib_path)
 }

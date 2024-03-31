@@ -59,6 +59,14 @@ macro_rules! include_from_project_root {
 }
 
 pub fn main() {
+  println!(
+    "cargo:rustc-env=CARGO_CFG_TARGET_OS={}",
+    env::var("CARGO_CFG_TARGET_OS").unwrap()
+  );
+  println!(
+    "cargo:rustc-env=CARGO_CFG_TARGET_ARCH={}",
+    env::var("CARGO_CFG_TARGET_ARCH").unwrap()
+  );
   let o = PathBuf::from(env::var_os("OUT_DIR").unwrap());
   generate_prod_snapshot(&o.join("WORKSPACE_DQS_SNAPSHOT.bin"));
 }
