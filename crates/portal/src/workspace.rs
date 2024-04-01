@@ -58,10 +58,10 @@ impl Workspace {
     self
       .trigger_tracking_event(
         "desktop-install",
-        HashMap::from([(
-          "version".to_owned(),
-          env!("CARGO_PKG_VERSION").to_owned(),
-        )]),
+        HashMap::from([
+          ("version".to_owned(), env!("CARGO_PKG_VERSION").to_owned()),
+          ("target".to_owned(), env!("TARGET").to_owned()),
+        ]),
       )
       .await;
     Ok(())

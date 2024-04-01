@@ -11,6 +11,10 @@ use tar::Header;
 use walkdir::WalkDir;
 
 fn main() {
+  println!(
+    "cargo:rustc-env=TARGET={}",
+    std::env::var("TARGET").unwrap()
+  );
   let key_len = AES_256_GCM.key_len();
   let encryption_key = nanoid::nanoid!(key_len);
   println!("cargo:rustc-env=PORTAL_DESKTOP_ENC_KEY={}", &encryption_key);
