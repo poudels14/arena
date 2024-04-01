@@ -5,7 +5,7 @@ import {
   createHandler,
 } from "@portal/server-core";
 import { ServerRoot, renderToStringAsync } from "@portal/solidjs/server";
-import Root from "@portal/workspace/app/root";
+import Root from "~/app/root";
 
 import { env } from "@portal/workspace-cluster/api/utils/env";
 import { router } from "@portal/workspace-cluster/api/desktop";

@@ -1,6 +1,6 @@
 import { mount, ClientRoot } from "@portal/solidjs/client";
 import { QueryClientProvider } from "@portal/solid-query";
-import Root from "@portal/workspace/app/root";
+import Root from "./app/root";
 
 const globalFetch = fetch;
 globalThis.fetch = async () => {

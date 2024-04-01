@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  font-family: "Inter", sans-serif;
+}
+
+@supports (font-variation-settings: normal) {
+  * {
+    font-family: "InterVariable", sans-serif;
+    font-optical-sizing: auto;
+  }
+}
+
+:root {
+  font-size: 16px;
+}
