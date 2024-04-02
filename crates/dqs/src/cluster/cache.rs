@@ -8,6 +8,7 @@ use sqlx::Pool;
 use sqlx::Postgres;
 
 use crate::arena::App;
+use crate::arena::Template;
 use crate::db::acl;
 use crate::db::app;
 
@@ -75,7 +76,10 @@ impl Cache {
           let app = App {
             workspace_id: app.workspace_id.clone(),
             id: app.id.clone(),
-            template: app.template.unwrap().try_into()?,
+            template: Template {
+              id: app.template_id.unwrap(),
+              version: app.template_version.unwrap(),
+            },
             owner_id: app.owner_id,
           };
           self.apps_by_id.insert(app.id.clone(), app.clone());

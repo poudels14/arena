@@ -1,4 +1,3 @@
-use serde_json::Value;
 use sqlx::types::chrono::NaiveDate;
 use sqlx::FromRow;
 
@@ -6,7 +5,8 @@ use sqlx::FromRow;
 pub struct App {
   pub id: String,
   pub workspace_id: String,
-  pub template: Option<Value>,
+  pub template_id: Option<String>,
+  pub template_version: Option<String>,
   pub owner_id: Option<String>,
   pub archived_at: Option<NaiveDate>,
 }
