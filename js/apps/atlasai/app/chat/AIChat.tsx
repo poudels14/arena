@@ -43,8 +43,8 @@ const AIChat = () => {
         </div>
       </div>
       <div class="chatbox-container absolute bottom-0 w-full flex justify-center pointer-events-none">
-        <div class="flex-1 -ml-6 min-w-[200px] max-w-[750px] rounded-lg pointer-events-auto backdrop-blur-xl bg-gray-400/10 space-y-1">
-          <div class="pb-4 bg-gradient-to-b from-transparent to-white rounded">
+        <div class="flex-1 -ml-6 min-w-[200px] max-w-[750px] rounded-lg pointer-events-auto backdrop-blur-xl space-y-1">
+          <div class="mb-4 bg-gray-400/10 rounded">
             <Chatbox
               threadId={state.activeThreadId()!}
               blockedBy={getActiveChatThread().blockedBy()}
