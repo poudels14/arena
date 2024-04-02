@@ -1,6 +1,7 @@
 const path = require("path");
+const pkg = require("./package.json");
 
-const version = "0.2.1";
+const version = pkg.version;
 
 /** @type {import('@portal/sdk/app/build').AppConfig} */
 module.exports = {

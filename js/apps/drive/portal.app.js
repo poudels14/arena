@@ -1,9 +1,10 @@
 const path = require("path");
+const pkg = require("./package.json");
 
 /** @type {import('@portal/sdk/app/build').AppConfig} */
 module.exports = {
   id: "portal-drive",
-  version: "0.1.0",
+  version: pkg.version,
   registry: {
     host: "http://localhost:9001/",
     apiKey: process.env.REGISTRY_API_KEY,
