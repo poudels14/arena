@@ -73,7 +73,7 @@ where
   ];
 
   let mut builtin_extensions = vec![
-    BuiltinModule::Node(Some(vec!["crypto"])),
+    BuiltinModule::Node(Some(vec![])),
     BuiltinModule::Postgres,
     BuiltinModule::Cloudflare,
   ]
