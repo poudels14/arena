@@ -21,6 +21,7 @@ if (appServer.migrations) {
       PORTAL_DATABASE_PASSWORD: z.string(),
     },
     runtimeEnv: process.env,
+    isServer: true,
   });
 
   const client = new Client({
