@@ -48,7 +48,11 @@ const EmptyThread = (props: EmptyThreadProps) => {
   });
 
   createComputed(() => {
-    setChatConfig("model", state.defaultModel());
+    const defaultModel = state.defaultModel();
+    const availableModels = activeWorkspace.models();
+    const modelToUse =
+      availableModels.find((m) => m.id == defaultModel) || availableModels[0];
+    setChatConfig("model", modelToUse?.id);
   });
 
   return (
@@ -103,7 +107,7 @@ const EmptyThread = (props: EmptyThreadProps) => {
               <For each={props.contextSelection}>
                 {(context, index) => {
                   return (
-                    <label class="px-4 py-2 flex text-sm space-x-2 rounded-md border border-gray-100 has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-200">
+                    <label class="px-4 py-2 flex text-sm items-center space-x-2 rounded-md border border-gray-100 has-[:checked]:bg-indigo-50 has-[:checked]:border-indigo-200">
                       <input
                         type="checkbox"
                         checked={state.selectedContext()[index()]}

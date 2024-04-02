@@ -134,6 +134,7 @@ class AtalasDrive extends BaseRetriever {
     const { app, breadcrumbs } = this.context[0];
     const contextFile = breadcrumbs[breadcrumbs.length - 1];
     if (
+      contextFile &&
       ["image/png", "image/jpeg", "image/jpg"].includes(
         contextFile.contentType!
       )

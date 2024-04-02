@@ -1,4 +1,4 @@
-import { Show, createMemo, createSignal, useContext } from "solid-js";
+import { Match, Show, Switch, createMemo, createSignal, useContext } from "solid-js";
 import { useNavigate } from "@portal/solid-router";
 import { DocumentViewer } from "./DocumentViewer";
 import { ChatContext } from "./ChatContext";
@@ -34,29 +34,40 @@ const AIChat = () => {
   }, []);
   return (
     <div class="chat relative flex-1 h-full min-w-[300px]">
-      <div class="flex h-full">
-        <div class="flex-1">
-          <ChatThread
-            showDocument={() => {}}
-            contextSelection={contextSelection()}
-          />
-        </div>
-      </div>
-      <div class="chatbox-container absolute bottom-0 w-full flex justify-center pointer-events-none">
-        <div class="flex-1 -ml-6 min-w-[200px] max-w-[750px] rounded-lg pointer-events-auto backdrop-blur-xl space-y-1">
-          <div class="mb-4 bg-gray-400/10 rounded">
-            <Chatbox
-              threadId={state.activeThreadId()!}
-              blockedBy={getActiveChatThread().blockedBy()}
-              sendNewMessage={(input) => sendNewMessage.mutate(input)}
-              onNewThread={() => navigate(`/`)}
-              autoFocus={true}
-              showContextBreadcrumb={false}
-              context={getChatContext()}
-            />
+      <Switch>
+        <Match when={activeWorkspace.models()?.length > 0}>
+          <div class="flex h-full">
+            <div class="flex-1">
+              <ChatThread
+                showDocument={() => { }}
+                contextSelection={contextSelection()}
+              />
+            </div>
           </div>
-        </div>
-      </div>
+          <div class="chatbox-container absolute bottom-0 w-full flex justify-center pointer-events-none">
+            <div class="flex-1 -ml-6 min-w-[200px] max-w-[750px] rounded-lg pointer-events-auto backdrop-blur-xl space-y-1">
+              <div class="mb-4 bg-gray-400/10 rounded">
+                <Chatbox
+                  threadId={state.activeThreadId()!}
+                  blockedBy={getActiveChatThread().blockedBy()}
+                  sendNewMessage={(input) => sendNewMessage.mutate(input)}
+                  onNewThread={() => navigate(`/`)}
+                  autoFocus={true}
+                  showContextBreadcrumb={false}
+                  context={getChatContext()}
+                />
+              </div>
+            </div>
+          </div>
+        </Match>
+        <Match when={true}>
+          <div class="h-full flex flex-col justify-center space-y-1">
+            <div class="text-center text-xl font-semibold text-gray-800">No AI models found.</div>
+            <div class="text-center text-lg font-medium text-gray-600">Add a model in Settings.</div>
+          </div>
+        </Match>
+      </Switch>
+
       <Show when={drawerDocument()}>
         <DocumentViewer
           document={drawerDocument()}
