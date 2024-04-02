@@ -238,6 +238,7 @@ impl Workspace {
     Ok(())
   }
 
+  #[allow(unused)]
   pub async fn trigger_tracking_event(
     &self,
     event: &str,
@@ -245,16 +246,19 @@ impl Workspace {
   ) {
     let now: DateTime<Utc> = SystemTime::now().into();
     let client = reqwest::Client::new();
-    let _ = client
-      .post("https://app.posthog.com/capture/")
-      .json(&json!({
-          "api_key": "phc_hyT9GigBFrsv3HUkxDCiEettMlmdK4bT7M5SvczQ7fr",
-          "event": event,
-          "distinct_id": self.config.user_id,
-          "properties": properties,
-          "timestamp": now.to_rfc3339()
-      }))
-      .send()
-      .await;
+    #[cfg(not(debug_assertions))]
+    {
+      let _ = client
+        .post("https://app.posthog.com/capture/")
+        .json(&json!({
+            "api_key": "phc_hyT9GigBFrsv3HUkxDCiEettMlmdK4bT7M5SvczQ7fr",
+            "event": event,
+            "distinct_id": self.config.user_id,
+            "properties": properties,
+            "timestamp": now.to_rfc3339()
+        }))
+        .send()
+        .await;
+    }
   }
 }
