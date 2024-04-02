@@ -19,7 +19,13 @@ impl TemplateLoader for PortalTemplateLoader {
             "{}/{}/server/index.js",
             app.template.id, app.template.version
           ))?
-          .ok_or_else(|| anyhow::anyhow!("Module not found"))
+          .ok_or_else(|| {
+            anyhow::anyhow!(
+              "App template not found: {}/{}",
+              app.template.id,
+              app.template.version
+            )
+          })
           .map(|bytes| {
             std::str::from_utf8(bytes.as_ref()).unwrap().to_owned()
           })?;

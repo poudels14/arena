@@ -23,19 +23,19 @@ fn main() {
   let packages = vec![
     (
       "workspace-desktop",
-      "0.0.2",
+      "0.1.1",
       "PORTAL_DESKTOP_WORKSPACE_VERSION",
       "../../js/workspace-desktop/dist/workspace-desktop",
     ),
     (
       "atlasai",
-      "0.0.2",
+      "0.1.1",
       "PORTAL_DESKTOP_ATLAS_VERSION",
       "../../js/apps/atlasai/dist/atlasai",
     ),
     (
       "portal-drive",
-      "0.0.2",
+      "0.1.1",
       "PORTAL_DESKTOP_DRIVE_VERSION",
       "../../js/apps/drive/dist/portal-drive",
     ),
@@ -77,6 +77,9 @@ fn add_directory_to_archive(
   version: &str,
   base: PathBuf,
 ) {
+  if !base.exists() {
+    panic!("Bundle directory doesn't exist: {:?}", base);
+  }
   for entry in WalkDir::new(&base)
     .into_iter()
     .filter_map(Result::ok)
