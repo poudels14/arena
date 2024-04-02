@@ -97,7 +97,7 @@ const Sidebar = () => {
                 class="group"
               >
                 <div class="flex-1 flex justify-start overflow-hidden">
-                  <div class="flex-1 overflow-hidden text-ellipsis text-nowrap">
+                  <div class="flex-1 overflow-hidden text-ellipsis text-nowrap whitespace-nowrap">
                     {state.threadsById[threadId].title() || "Untitled"}
                   </div>
 
