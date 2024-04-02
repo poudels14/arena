@@ -2,7 +2,7 @@
   "$schema": "./node_modules/@tauri-apps/cli/schema.json",
   "build": {
     "devPath": "http://localhost:42690/",
-    "distDir": "http://localhost:42691/"
+    "distDir": "http://localhost:42690/"
   },
   "package": {
     "productName": "portal",
