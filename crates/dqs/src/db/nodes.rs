@@ -11,6 +11,7 @@ pub struct DqsNode {
   pub status: String,
 }
 
+#[allow(unused)]
 pub async fn delete_dqs_node_with_id(
   pool: &Pool<Postgres>,
   id: &str,
@@ -22,6 +23,7 @@ pub async fn delete_dqs_node_with_id(
   Ok(())
 }
 
+#[allow(unused)]
 pub async fn update_dqs_node_status_with_id(
   pool: &Pool<Postgres>,
   id: &str,
@@ -47,6 +49,7 @@ pub async fn get_dqs_node_with_id(
   Ok(deployment)
 }
 
+#[allow(unused)]
 pub async fn insert_dqs_node(
   pool: &Pool<Postgres>,
   node: &DqsNode,

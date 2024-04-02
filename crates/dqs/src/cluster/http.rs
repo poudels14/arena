@@ -103,21 +103,26 @@ impl DqsCluster {
     )
       .into();
 
-    println!(
+    tracing::info!(
       "{}",
       format!("Starting DQS cluster on port {}...", self.options.port)
         .yellow()
         .bold()
     );
+
+    #[cfg(not(feature = "desktop"))]
     self.mark_node_as_online().await?;
     axum::Server::bind(&addr)
       .serve(app.into_make_service())
       .with_graceful_shutdown(async {
         shutdown_signal.recv().await.ok();
+
+        #[cfg(not(feature = "desktop"))]
         let _ = self.mark_node_as_terminating();
       })
       .await?;
 
+    #[cfg(not(feature = "desktop"))]
     self.mark_node_as_terminated().await?;
 
     // Terminate all server threads
