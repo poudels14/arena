@@ -19,3 +19,6 @@
 [submodule "datafusion"]
 	path = datafusion
 	url = git@github.com:poudels14/datafusion.git
+[submodule "app-bundles"]
+	path = app-bundles
+	url = git@github.com:poudels14/portal-app-bundles.git
