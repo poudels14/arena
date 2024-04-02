@@ -22,7 +22,7 @@ import {
 
 import { EmptyThread } from "./EmptyThread";
 import { ChatContext, ChatQueryContext, ChatState } from "./ChatContext";
-import { PluginWorkflow } from "./PluginWorkflow";
+// import { PluginWorkflow } from "./PluginWorkflow";
 import { Chat, Document } from "../types";
 import { Store } from "@portal/solid-store";
 import { createQuery, resolveFullUrl } from "@portal/solid-query";
@@ -156,9 +156,9 @@ const ChatThread = (props: {
 
               return (
                 <Switch>
-                  <Match when={message.metadata.workflow!()}>
+                  {/* <Match when={message.metadata.workflow!()}>
                     <PluginWorkflow id={message.metadata.workflow!.id()!} />
-                  </Match>
+                  </Match> */}
                   <Match when={message.message()}>
                     <ChatMessage
                       state={state}
