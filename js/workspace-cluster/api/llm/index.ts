@@ -212,4 +212,3 @@ const deleteModel = protectedProcedure
   });
 
 export { addCustomModel, listModels, updateModel, deleteModel };
-export * from "./proxy";
