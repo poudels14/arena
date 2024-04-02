@@ -1,5 +1,6 @@
-import { program } from "commander";
 import * as esbuild from "esbuild";
+import * as commander from "commander";
+const { program } = commander;
 
 /**
  * @typedef {{
@@ -80,8 +81,6 @@ program
           llm: "./cloud/llm/index.ts",
           html: "./cloud/html/index.ts",
           pdf: "./cloud/pdf/index.ts",
-          pyodide: "./cloud/pyodide/index.ts",
-          "pyodide/server": "./cloud/pyodide/server.ts",
         },
         outdir: "dist/cloud",
         external: [
