@@ -1,15 +1,17 @@
+const path = require("path");
+
 /** @type {import('@portal/sdk/app/build').AppConfig} */
 module.exports = {
   id: "atlasai",
   version: "0.0.1",
   registry: {
-    host: "http://localhost:9009/",
+    host: "http://localhost:9001/",
     apiKey: process.env.REGISTRY_API_KEY,
   },
   resolve: {
     alias: {
-      "~/app": "./app",
-      "~/api": "./api",
+      "~/app": path.resolve("./app"),
+      "~/api": path.resolve("./api"),
     },
     dedupe: [
       "solid-js",
@@ -19,13 +21,15 @@ module.exports = {
       "@portal/solid-store",
       "@portal/solid-router",
       "@portal/solid-ui",
+      "@portal/solid-dnd",
+      "@portal/workspace-sdk",
     ],
   },
   server: {
     input: "./entry-server.tsx",
     minify: true,
     resolve: {
-      conditions: ["solid", "node"],
+      conditions: ["browser"],
     },
     replace: {
       NODE_ENV: "production",
