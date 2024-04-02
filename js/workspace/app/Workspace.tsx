@@ -190,7 +190,7 @@ const WorkspaceSidebar = () => {
       </PortalSidebar>
       <div class="h-8 flex justify-center text-center text-xs font-medium">
         <div
-          class="flex px-2 py-1 mb-2 cursor-pointer space-x-2"
+          class="flex px-2 py-1 cursor-pointer space-x-2"
           classList={{
             "text-gray-700": !isTab("settings"),
             "text-black": isTab("settings"),
