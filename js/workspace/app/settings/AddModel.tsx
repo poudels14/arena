@@ -5,6 +5,7 @@ import {
   Show,
   createReaction,
   createComputed,
+  batch,
 } from "solid-js";
 import { createStore } from "@portal/solid-store";
 import Dialog from "@portal/solid-ui/Dialog";
@@ -80,7 +81,7 @@ const AddModel = (props: { workspaceId: string; closeDialog: () => void }) => {
       open={true}
       onOpenChange={props.closeDialog}
     >
-      <div class="px-8 pb-4 w-[580px] text-sm space-y-4">
+      <div class="px-8 pb-4 w-[680px] text-sm space-y-4">
         <div>
           <label class="space-y-1.5">
             <div class="text-base font-medium text-gray-800">Name</div>
@@ -113,12 +114,21 @@ const AddModel = (props: { workspaceId: string; closeDialog: () => void }) => {
                 <TextModelProviders
                   value={state.provider()}
                   onChange={(provider) => {
-                    if (provider == "ollama") {
-                      setState("apiEndpoint", "http://localhost:11434");
-                    } else if (provider == "lmstudio") {
-                      setState("apiEndpoint", "http://localhost:1234/v1");
-                    }
-                    setState("provider", provider);
+                    batch(() => {
+                      if (provider == "ollama") {
+                        setState("apiEndpoint", "http://localhost:11434");
+                      } else if (provider == "lmstudio") {
+                        setState("apiEndpoint", "http://localhost:1234/v1");
+                      }
+                      setState((prev) => {
+                        return {
+                          ...prev,
+                          provider,
+                          modelName: undefined,
+                          modalities: ["text"],
+                        };
+                      });
+                    });
                   }}
                 />
               </Match>
@@ -217,13 +227,16 @@ const AddModel = (props: { workspaceId: string; closeDialog: () => void }) => {
                   />
                 </Match>
                 <Match when={state.provider() == "groq"}>
-                  <input
-                    type="text"
-                    name="modelName"
-                    value={state.modelName()}
-                    placeholder="Name of the model; eg 'mixtral-8x7b-32768'"
-                    class="w-full px-2 py-1.5 text-sm border border-gray-200 bg2-gray-200 rounded outline-none focus:ring-1"
-                    onInput={(e) => setState("modelName", e.target.value)}
+                  <ModelNameSelection
+                    selected=""
+                    options={[
+                      "llama2-70b-4096",
+                      "mixtral-8x7b-32768",
+                      "gemma-7b-it",
+                    ]}
+                    onChange={(model) => {
+                      setState("modelName", model);
+                    }}
                   />
                 </Match>
               </Switch>

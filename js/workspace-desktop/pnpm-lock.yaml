@@ -9,8 +9,8 @@ dependencies:
     specifier: workspace:^
     version: link:../runtime/core
   '@kobalte/core':
-    specifier: ^0.12.1
-    version: 0.12.4(solid-js@1.8.15)
+    specifier: ^0.12.6
+    version: 0.12.6(solid-js@1.8.15)
   '@portal-apps/assistant':
     specifier: workspace:^
     version: link:../apps/atlasai
@@ -163,8 +163,8 @@ packages:
       '@jridgewell/sourcemap-codec': 1.4.15
     dev: true
 
-  /@kobalte/core@0.12.4(solid-js@1.8.15):
-    resolution: {integrity: sha512-i3zk840txhSTtr+hgOrugM7qejLA/PQgTEmv0Mw6gezch46Z45/jujXWIZft4Y6rJdoWDx8J7P7KOXqcsGLkjQ==}
+  /@kobalte/core@0.12.6(solid-js@1.8.15):
+    resolution: {integrity: sha512-+Ta2o2wEqZ2fCqLMkvjT40VHNmcFKdGe8TNDVQbbMPk66qoU6g/DDRFR/Ib7eAjb+C95VoIyk6zaafos2VOo0w==}
     peerDependencies:
       solid-js: ^1.8.15
     dependencies:

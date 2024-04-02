@@ -14,7 +14,7 @@
   "license": "UNLICENSED",
   "dependencies": {
     "@arena/runtime": "workspace:^",
-    "@kobalte/core": "^0.12.1",
+    "@kobalte/core": "^0.12.6",
     "@portal-apps/assistant": "workspace:^",
     "@portal-apps/drive": "workspace:^",
     "@portal/cli": "workspace:^",

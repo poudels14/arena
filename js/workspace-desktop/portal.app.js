@@ -1,6 +1,6 @@
 const path = require("path");
 
-const version = "0.0.2";
+const version = "0.2.1";
 
 /** @type {import('@portal/sdk/app/build').AppConfig} */
 module.exports = {
@@ -41,7 +41,9 @@ module.exports = {
       MODE: "production",
       PORTAL_STYLE_CSS: `/assets/apps/workspace-desktop/${version}/static/style.css`,
       PORTAL_PUBLISHED_ENTRY_CLIENT: `/assets/apps/workspace-desktop/${version}/static/entry-client.js`,
+      PORTAL_ASSETS_BASE: `/assets/apps/workspace-desktop/${version}/static/assets`,
     },
+    assets: [path.resolve("./assets")],
   },
   server: {
     input: "./entry-server.tsx",
@@ -54,6 +56,7 @@ module.exports = {
       MODE: "production",
       PORTAL_STYLE_CSS: `/assets/apps/workspace-desktop/${version}/static/style.css`,
       PORTAL_PUBLISHED_ENTRY_CLIENT: `/assets/apps/workspace-desktop/${version}/static/entry-client.js`,
+      PORTAL_ASSETS_BASE: `/assets/apps/workspace-desktop/${version}/static/assets`,
     },
   },
 };

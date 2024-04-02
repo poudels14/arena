@@ -7,6 +7,7 @@
 }
 @supports (font-variation-settings: normal) {
   :root {
-    font-family: "Inter var", sans-serif;
+    font-family: "InterVariable", sans-serif;
+    font-optical-sizing: auto;
   }
 }
