@@ -7,8 +7,8 @@ members = [
   "dagger",
   "arenasql",
   "arenasql-cluster",
-  "arenafs",
-  "python",
+ # "arenafs",
+  #"python",
   "portal",
 ]
 resolver = "2"

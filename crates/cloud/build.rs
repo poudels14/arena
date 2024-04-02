@@ -88,18 +88,10 @@ fn generate_prod_snapshot(path: &Path) {
     BuiltinModule::Custom(Rc::new(|| {
       BuiltinExtension::new(
         None,
-        vec![
-          (
-            "@arena/dqs/widget-server",
-            include_from_project_root!(
-              "../../js/runtime/dist/dqs/widget-server.js"
-            ),
-          ),
-          (
-            "@arena/dqs/postgres",
-            include_from_project_root!("../../js/runtime/dist/dqs/postgres.js"),
-          ),
-        ],
+        vec![(
+          "@arena/dqs/postgres",
+          include_from_project_root!("../../js/runtime/dist/dqs/postgres.js"),
+        )],
       )
     })),
   ]
