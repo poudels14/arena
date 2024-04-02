@@ -8,7 +8,8 @@ export const apps = pgTable("apps", {
   name: varchar("name").notNull(),
   slug: varchar("slug").notNull(),
   description: text("description"),
-  template: jsonb("template"),
+  templateId: varchar("template_id"),
+  templateVersion: varchar("template_version"),
   workspaceId: varchar("workspace_id").notNull(),
   ownerId: varchar("owner_id"),
   config: jsonb("config"),
@@ -18,8 +19,11 @@ export const apps = pgTable("apps", {
   archivedAt: timestamp("archived_at"),
 });
 
-type App = InferModel<typeof apps> & {
-  template: { id: string; version: string } | null;
+type App = Omit<InferModel<typeof apps>, "templateId" | "templateVersion"> & {
+  template: {
+    id: string;
+    version: string;
+  } | null;
   description?: string;
   config: {};
   archivedAt?: Date | null;
@@ -31,13 +35,16 @@ const createRepo = (client: Client) => {
     async insert(
       app: Omit<App, "createdAt" | "updatedAt" | "archivedAt">
     ): Promise<App> {
-      app = {
-        ...app,
+      const { template, ...rest } = app;
+      const dbapp = {
+        ...rest,
+        templateId: template?.id || null,
+        templateVersion: template?.version || null,
         createdAt: new Date(),
         updatedAt: new Date(),
         archivedAt: null,
-      } as App;
-      await db.insert(apps).values(app);
+      } as InferModel<typeof apps>;
+      await db.insert(apps).values(dbapp);
       return app as App;
     },
     async fetchById(id: string): Promise<App | null> {
@@ -45,7 +52,7 @@ const createRepo = (client: Client) => {
         .select()
         .from(apps)
         .where(and(isNull(apps.archivedAt), eq(apps.id, id)));
-      return (rows[0] || null) as App | null;
+      return (rows[0] ? formatTemplate(rows[0]) : null) as App | null;
     },
     async listApps(filters: {
       workspaceId: string;
@@ -63,7 +70,7 @@ const createRepo = (client: Client) => {
             isNull(apps.archivedAt)
           )
         );
-      return rows as App[];
+      return rows.map((row) => formatTemplate(row)) as App[];
     },
     async archiveById(id: string): Promise<Pick<Required<App>, "archivedAt">> {
       const archivedAt = new Date();
@@ -75,6 +82,19 @@ const createRepo = (client: Client) => {
         .where(and(eq(apps.id, id), isNull(apps.archivedAt)));
       return { archivedAt };
     },
+  };
+};
+
+const formatTemplate = (app: any) => {
+  const { templateId, templateVersion, ...rest } = app;
+  return {
+    ...rest,
+    template: templateId
+      ? {
+          id: templateId,
+          version: templateVersion,
+        }
+      : null,
   };
 };
 
