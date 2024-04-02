@@ -7,11 +7,21 @@
     "format": "pnpm prettier -w ."
   },
   "keywords": [],
-  "author": "",
+  "author": "Sagar Poudel",
   "private": true,
+  "workspaces": [
+    "runtime/*",
+    "packages/*",
+    "apps/*",
+    "portal/*"
+  ],
   "license": "UNLICENSED",
   "dependencies": {
-    "prettier": "^2.8.3",
     "tailwindcss": "^3.3.1"
+  },
+  "devDependencies": {
+    "commander": "^10.0.0",
+    "esbuild": "^0.17.10",
+    "prettier": "^2.8.4"
   }
 }

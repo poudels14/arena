@@ -1,5 +1,11 @@
 packages:
-  - arena-runtime
-  - packages/sdk
+  - runtime/*
   - portal/*
   - portal-app/*
+  - internal-sdk
+  - packages/sdk
+  - packages/solid-store
+  - workspace/
+  - workspace-cluster/
+  - apps/*
+  - website
