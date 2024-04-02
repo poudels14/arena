@@ -23,7 +23,12 @@ const llmSearch = p
           .get(
             `${ctx.workspaceHost}/api/acls?appTemplateId=${ctx.app.template.id}&userId=${ctx.user.id}`
           )
-          .json<any[]>();
+          .json<any[]>()
+          .catch((e) => {
+            // Note(sagar): this is mostly to prevent error in desktop app
+            // since desktop version doesn't have acl endpoint
+            return [];
+          });
 
         const appIds = uniq(acls.map((acl) => acl.appId)).filter(
           (appId) => appId != ctx.app.id
