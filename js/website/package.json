@@ -1,5 +1,6 @@
 {
   "name": "website",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "dev": "vinxi dev",
@@ -14,7 +15,7 @@
     "autoprefixer": "^10.4.14",
     "postcss": "^8.4.26",
     "solid-icons": "^1.1.0",
-    "solid-js": "^1.8.12",
+    "solid-js": "^1.8.16",
     "tailwindcss": "^3.3.3",
     "vinxi": "^0.1.6"
   },
