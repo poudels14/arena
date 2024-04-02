@@ -235,7 +235,7 @@ const sendMessage = p
         replayStream.subscribe({
           next(json) {
             try {
-              controller.enqueue("data: " + JSON.stringify(json) + "\n");
+              controller.enqueue("data: " + JSON.stringify(json) + "\n\n");
             } catch (e) {}
           },
           complete() {
