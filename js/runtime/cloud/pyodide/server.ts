@@ -30,15 +30,6 @@ const router = createRouter({
     "/healthy": p.query(async ({ ctx }) => {
       return "Ok";
     }),
-    "/admin/exec/js": p
-      .input(
-        z.object({
-          code: z.string(),
-        })
-      )
-      .mutate(async ({ body }) => {
-        // TODO
-      }),
     "/exec/python": p
       .input(
         z.object({
@@ -47,12 +38,21 @@ const router = createRouter({
       )
       .mutate(async ({ body, errors }) => {
         try {
-          await py.runPythonAsync(body.code);
-          return { success: true };
+          const data = await py.runPythonAsync(body.code);
+          return { data, success: true };
         } catch (e: any) {
           return errors.internalServerError(e.toString());
         }
       }),
+    // The POST body should be a valid code
+    "/exec/python/raw": p.mutate(async ({ req, errors }) => {
+      try {
+        const data = await py.runPythonAsync(await req.text());
+        return { data, success: true };
+      } catch (e: any) {
+        return errors.internalServerError(e.toString());
+      }
+    }),
   },
 });
 
