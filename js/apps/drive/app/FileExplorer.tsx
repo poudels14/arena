@@ -23,7 +23,7 @@ export type Directory = {
   parentId: string | null;
   type?: string;
   isDirectory: boolean;
-  breadcrumbs: Pick<Directory, "id" | "name">[];
+  breadcrumbs: Pick<Directory, "id" | "name" | "type">[];
   children: Directory[];
   appId?: string;
 };
@@ -88,6 +88,7 @@ const FileExplorer = () => {
       breadcrumbs.push({
         id: selectedFile.id,
         title: selectedFile.name,
+        contentType: selectedFile.type,
       });
     }
 

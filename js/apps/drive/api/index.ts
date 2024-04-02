@@ -27,6 +27,7 @@ const protectedRoutes = createRouter({
 const portalRoutes = createRouter({
   routes: {
     "/api/portal/llm/search": portal.llmSearch,
+    "/api/portal/document/:id": portal.getDocumentContent,
     "/api/portal/access": portal.listUserAccess,
     "/api/portal/access/add": portal.shareEntities,
     "/api/portal/access/remove": portal.removeUserAccess,

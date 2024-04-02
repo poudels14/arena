@@ -1,4 +1,4 @@
-import { uniq, uniqBy, keyBy, groupBy } from "lodash-es";
+import { uniq, uniqBy, keyBy, groupBy, pick } from "lodash-es";
 import ky from "ky";
 import { z } from "zod";
 import deepEqual from "fast-deep-equal/es6";
@@ -157,6 +157,16 @@ const llmSearch = p
                 start: metadata.start,
                 end: metadata.end,
                 content: file.content!.substring(metadata.start, metadata.end),
+                context: {
+                  before: file.content!.substring(
+                    Math.max(metadata.start - 300, 0),
+                    metadata.start
+                  ),
+                  after: file.content!.substring(
+                    metadata.end,
+                    Math.min(metadata.end + 300, file.content!.length)
+                  ),
+                },
               };
             })
             .sort((c1, c2) => c1.score - c2.score),
@@ -171,6 +181,14 @@ const llmSearch = p
       tools: [],
     };
   });
+
+const getDocumentContent = p.query(async ({ ctx, params, errors }) => {
+  const file = await ctx.repo.files.fetchById(params.id);
+  if (!file) {
+    return errors.notFound();
+  }
+  return pick(file, "id", "name", "contentType", "file", "size");
+});
 
 const listUserAccess = p.query(async ({ ctx, searchParams }) => {
   const entity = searchParams.entity;
@@ -297,4 +315,10 @@ const removeUserAccess = p
     return { success: true };
   });
 
-export { llmSearch, listUserAccess, removeUserAccess, shareEntities };
+export {
+  llmSearch,
+  getDocumentContent,
+  listUserAccess,
+  removeUserAccess,
+  shareEntities,
+};

@@ -132,9 +132,14 @@ const listDirectory = p.query(async ({ ctx, params, searchParams, errors }) => {
 });
 
 const listSharedDirectories = p.query(async ({ ctx }) => {
-  const acls = await ky
-    .get(`${ctx.workspaceHost}/api/acls?appTemplateId=${ctx.app.template.id}`)
-    .json<any[]>();
+  let acls = [];
+  try {
+    acls = await ky
+      .get(`${ctx.workspaceHost}/api/acls?appTemplateId=${ctx.app.template.id}`)
+      .json<any[]>();
+  } catch (e) {
+    return [];
+  }
 
   const sharedFileIds = acls
     .filter((acl) => {

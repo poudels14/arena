@@ -2,7 +2,9 @@
   "name": "@portal-apps/drive",
   "version": "0.1.0",
   "description": "",
-  "scripts": {},
+  "scripts": {
+    "build": "bun run node_modules/@portal/cli/bin/cli.ts app bundle"
+  },
   "keywords": [],
   "author": "Sagar Poudel",
   "private": true,
