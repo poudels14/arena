@@ -25,19 +25,28 @@ fn main() {
       "workspace-desktop",
       "0.1.1",
       "PORTAL_DESKTOP_WORKSPACE_VERSION",
+      #[cfg(debug_assertions)]
       "../../js/workspace-desktop/dist/workspace-desktop",
+      #[cfg(not(debug_assertions))]
+      "../../app-bundles/apps/workspace-desktop",
     ),
     (
       "atlasai",
       "0.1.1",
       "PORTAL_DESKTOP_ATLAS_VERSION",
+      #[cfg(debug_assertions)]
       "../../js/apps/atlasai/dist/atlasai",
+      #[cfg(not(debug_assertions))]
+      "../../app-bundles/apps/atlasai",
     ),
     (
       "portal-drive",
       "0.1.1",
       "PORTAL_DESKTOP_DRIVE_VERSION",
+      #[cfg(debug_assertions)]
       "../../js/apps/drive/dist/portal-drive",
+      #[cfg(not(debug_assertions))]
+      "../../app-bundles/apps/portal-drive",
     ),
   ];
 
