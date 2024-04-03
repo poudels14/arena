@@ -137,7 +137,6 @@ const createNewWorkspace = async (ctx: Context) => {
   const repo = await ctx.repo.transaction();
   try {
     const atlasAi = await ctx.repo.appTemplates.fetchById("atlasai");
-    console.log("atlasAi template =", atlasAi);
     if (atlasAi) {
       await addApp(
         repo,
