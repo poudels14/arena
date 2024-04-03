@@ -1,4 +1,4 @@
-import pkg = require("./package.json");
+const pkg = require("./package.json");
 
 /** @type {import('@portal/sdk/app/build').AppConfig} */
 module.exports = {
