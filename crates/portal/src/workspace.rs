@@ -128,7 +128,7 @@ impl Workspace {
         let assets = PortalAppModules::new();
         let migration_script = assets
           .get_asset(&format!(
-            "{}/{}/migrate.js",
+            "{}/{}/server/migrate.js",
             "workspace-desktop",
             env!("PORTAL_DESKTOP_WORKSPACE_VERSION")
           ))
