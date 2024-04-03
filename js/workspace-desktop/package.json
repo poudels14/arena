@@ -4,14 +4,13 @@
   "description": "Portal Desktop",
   "type": "module",
   "scripts": {
-    "build": "pnpm node ./build.mjs && bun run node_modules/@portal/cli/bin/cli.ts app bundle"
+    "build": "bun run node_modules/@portal/cli/bin/cli.ts app bundle && pnpm node ./build.mjs"
   },
   "keywords": [],
   "author": {
     "name": "Sagar",
     "email": "poudels14@gmail.com"
   },
-  "license": "UNLICENSED",
   "dependencies": {
     "@arena/runtime": "workspace:^",
     "@kobalte/core": "^0.12.6",

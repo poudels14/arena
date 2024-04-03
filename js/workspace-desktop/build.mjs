@@ -1,5 +1,6 @@
 import { program } from "commander";
 import * as esbuild from "esbuild";
+import pkg from "./package.json" with { type: "json" };
 
 /**
  * @typedef {{
@@ -42,7 +43,7 @@ program
         ...options,
         minify: options.minify,
         entryPoints: {
-          "workspace/migrate": "./migrate.ts",
+          [`workspace-desktop/${pkg.version}/server/migrate`]: "./migrate.ts",
         },
         external: ["path", "process", "crypto", "@arena/runtime/postgres"],
       }),
