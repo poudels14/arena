@@ -136,7 +136,18 @@ const listSharedDirectories = p.query(async ({ ctx }) => {
       .get(`${ctx.workspaceHost}/api/acls?appTemplateId=${ctx.app.template.id}`)
       .json<any[]>();
   } catch (e) {
-    return [];
+    return {
+      id: "shared",
+      name: "Shared with me",
+      breadcrumbs: [
+        {
+          id: "shared",
+          name: "Shared with me",
+          parentId: null,
+        },
+      ],
+      children: [],
+    };
   }
 
   const sharedFileIds = acls
