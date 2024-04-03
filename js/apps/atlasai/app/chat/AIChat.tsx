@@ -1,4 +1,11 @@
-import { Match, Show, Switch, createMemo, createSignal, useContext } from "solid-js";
+import {
+  Match,
+  Show,
+  Switch,
+  createMemo,
+  createSignal,
+  useContext,
+} from "solid-js";
 import { useNavigate } from "@portal/solid-router";
 import { DocumentViewer } from "./DocumentViewer";
 import { ChatContext } from "./ChatContext";
@@ -39,7 +46,7 @@ const AIChat = () => {
           <div class="flex h-full">
             <div class="flex-1">
               <ChatThread
-                showDocument={() => { }}
+                showDocument={() => {}}
                 contextSelection={contextSelection()}
               />
             </div>
@@ -62,8 +69,12 @@ const AIChat = () => {
         </Match>
         <Match when={true}>
           <div class="h-full flex flex-col justify-center space-y-1">
-            <div class="text-center text-xl font-semibold text-gray-800">No AI models found.</div>
-            <div class="text-center text-lg font-medium text-gray-600">Add a model in Settings.</div>
+            <div class="text-center text-xl font-semibold text-gray-800">
+              No AI model found.
+            </div>
+            <div class="text-center text-lg font-medium text-gray-600">
+              Add a model in Settings.
+            </div>
           </div>
         </Match>
       </Switch>
