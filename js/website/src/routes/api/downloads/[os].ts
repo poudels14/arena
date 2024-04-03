@@ -1,7 +1,8 @@
 import { APIEvent } from "@solidjs/start/server";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
-import { env } from "~/env";
 import { redirect } from "@solidjs/router";
+import ky from "ky";
+import { env } from "~/env";
 
 export async function GET({ params }: APIEvent) {
   let filename = "portal_0.1.0_aarch64.dmg";
@@ -17,19 +18,20 @@ export async function GET({ params }: APIEvent) {
     });
   }
 
-  if (env.MODE != "development") {
-    await fetch("https://app.posthog.com/capture/", {
-      method: "POST",
-      body: JSON.stringify({
-        api_key: env.POSTHOG_API_KEY,
-        event: "downloads",
-        distinct_id: uniqueId(),
-        properties: {
-          os: params.os,
+  if (env.MODE == "production") {
+    await ky
+      .post("https://app.posthog.com/capture/", {
+        json: {
+          api_key: env.POSTHOG_API_KEY,
+          event: "downloads",
+          distinct_id: uniqueId(),
+          properties: {
+            os: params.os,
+          },
+          timestamp: new Date().toISOString(),
         },
-        timestamp: new Date().toISOString(),
-      }),
-    });
+      })
+      .json();
   }
 
   return redirect(

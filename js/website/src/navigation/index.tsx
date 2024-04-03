@@ -12,7 +12,7 @@ export default function NavigationBar() {
         <div class="flex flex-1 dark:text-gray-400 text-sm font-medium items-center space-x-5">
           {/* <NavItem title="Blog" href="/blog" /> */}
           <NavItem title="Discord" href="https://discord.gg/kX4fYm7c" />
-          <NavItem title="Download" href="/downloads" />
+          <NavItem title="Download" href="/desktop" />
           {/* 
           <NavItem title="Features" />
           <NavItem title="Pricing" />

@@ -1,5 +1,8 @@
 import { createHandler } from "@solidjs/start/entry";
 import { StartServer } from "@solidjs/start/server";
+import { env } from "~/env";
+// use this here so that env is validated on startup
+void env;
 
 export default createHandler(() => (
   <StartServer
