@@ -21,6 +21,7 @@ use sqlx::{Pool, Postgres};
 use url::Url;
 
 use crate::config::WorkspaceConfig;
+use crate::utils::assets::PortalAppModules;
 
 #[derive(Debug, Clone)]
 pub struct Workspace {
@@ -124,13 +125,21 @@ impl Workspace {
         })
         .await?;
 
+        let assets = PortalAppModules::new();
+        let migration_script = assets
+          .get_asset(&format!(
+            "{}/{}/migrate.js",
+            "workspace-desktop",
+            env!("PORTAL_DESKTOP_WORKSPACE_VERSION")
+          ))
+          .expect("error loading migration script")
+          .map(|bytes| std::str::from_utf8(bytes.as_ref()).unwrap().to_owned())
+          .expect("error loading migration script");
         let mod_id = runtime
           .load_main_module(
             &Url::parse("file:///main.js").unwrap(),
             // TODO: encrypt JS code
-            Some(ModuleCode::from_static(include_str!(
-              "../../../js/workspace-desktop/dist/workspace/migrate.js"
-            ))),
+            Some(ModuleCode::from(migration_script)),
           )
           .await?;
 
