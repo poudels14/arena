@@ -53,7 +53,7 @@ const Root = () => {
           href={`${process.env.PORTAL_ASSETS_BASE}/fonts/inter/inter.css`}
         />
       </Head>
-      <Body class="antialiased">
+      <Body class="antialiased select-none">
         <Workspace />
       </Body>
     </Html>
