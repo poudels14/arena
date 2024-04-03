@@ -8,7 +8,7 @@ class PdfDocument extends Document {
   private pages: PdfPage[] | undefined;
   // text of each page in the pdf
   private pageTexts: string[] | undefined;
-  private content: string | undefined;
+  private extractedText: string | undefined;
   private html: string | undefined;
 
   constructor(raw: RawDocument) {
@@ -19,12 +19,12 @@ class PdfDocument extends Document {
     return this.raw.data;
   }
 
-  async getContent() {
-    if (!this.content) {
+  async getExtractedText() {
+    if (!this.extractedText) {
       await this.initPages();
-      this.content = this.pageTexts!.join(PAGE_DELIMETER);
+      this.extractedText = this.pageTexts!.join(PAGE_DELIMETER);
     }
-    return this.content!;
+    return this.extractedText!;
   }
 
   async getHtml() {

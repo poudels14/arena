@@ -11,9 +11,10 @@ abstract class Document {
     this.raw = raw;
   }
 
-  abstract getContent(): Promise<string>;
+  // Return null if text extraction isnt needed, like for plain text files etc
+  abstract getExtractedText(): Promise<string | null>;
 
-  abstract getRaw(): Buffer | null;
+  abstract getRaw(): Buffer;
 
   abstract getHtml(): Promise<string | null>;
 

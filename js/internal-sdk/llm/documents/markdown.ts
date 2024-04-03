@@ -2,19 +2,20 @@ import { DocumentSplitter } from "@portal/sdk/llm/splitter";
 import { Document, RawDocument } from "./document";
 
 class MarkdownDocument extends Document {
-  private content: string;
+  private rawText: string;
   constructor(raw: RawDocument) {
     super(raw);
-    this.content = this.raw.data.toString("utf-8");
+    this.rawText = this.raw.data.toString("utf-8");
   }
 
   // Note(sagar): return null since raw and content as same for markdown
   getRaw() {
-    return null;
+    return this.raw;
   }
 
-  async getContent() {
-    return this.content;
+  async getExtractedText() {
+    // return null since no text extraction needed
+    return null;
   }
 
   async getHtml() {
@@ -24,7 +25,7 @@ class MarkdownDocument extends Document {
   async split(splitter: DocumentSplitter) {
     return await splitter.split({
       type: "text/markdown",
-      content: await this.getContent(),
+      content: this.rawText,
     });
   }
 }
