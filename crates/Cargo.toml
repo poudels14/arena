@@ -7,7 +7,7 @@ members = [
   "dagger",
   "arenasql",
   "arenasql-cluster",
- # "arenafs",
+  # "arenafs",
   #"python",
   "portal",
 ]
@@ -87,7 +87,6 @@ sqlx = { version = "0.7.3", features = [
 
 [profile.release]
 strip = true
-debug = 1
+debug = false
 codegen-units = 1
-# incremental = true
 lto = true
