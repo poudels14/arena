@@ -17,6 +17,7 @@ type User = InferModel<typeof users> & {
   archivedAt?: Date | null;
   config: {
     waitlisted?: boolean;
+    message?: string;
   };
 };
 
@@ -26,7 +27,7 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
       user: Partial<User> & Pick<User, "id" | "email">
     ): Promise<User> {
       const dbUser = {
-        config: { waitlisted: true },
+        config: { waitlisted: true, ...(user.config || {}) },
         createdAt: new Date(),
         archivedAt: null,
         ...user,

@@ -44,6 +44,7 @@ const signup = p
       firstName: z.string(),
       lastName: z.string(),
       email: z.string(),
+      message: z.string().optional(),
     })
   )
   .mutate(async ({ ctx, body, errors }) => {
@@ -65,6 +66,9 @@ const signup = p
       firstName: body.firstName,
       lastName: body.lastName,
       email: body.email,
+      config: {
+        message: body.message,
+      },
     });
     return { id: user.id };
   });
