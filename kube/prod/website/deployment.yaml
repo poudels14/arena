@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: workspace-cluster
+  name: website
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: workspace-cluster
+      app: website
   template:
     metadata:
       labels:
-        app: workspace-cluster
+        app: website
     spec:
       containers:
-        - name: workspace-cluster
+        - name: website
           image: dagger
           imagePullPolicy: Always
           args:
@@ -25,9 +25,9 @@ spec:
             - "--enable-cloud-ext"
             - "--s3bucket"
             - "portal-prod-2024"
-            - apps/workspace-cluster/0.1.1/server/index.js
+            - "apps/portal-website/0.1.3/server/index.mjs"
           ports:
             - containerPort: 9000
           envFrom:
             - secretRef:
-                name: workspace-cluster-env-secrets
+                name: website-env-secrets

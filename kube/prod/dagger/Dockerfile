@@ -1,9 +1,9 @@
-FROM debian:bookworm as builder
+FROM ubuntu:22.04 as builder
 
 RUN apt update
-RUN apt install -y postgresql
+RUN DEBIAN_FRONTEND=noninteractive apt install -yq openssl ca-certificates postgresql
 
-FROM debian:bookworm-slim
+FROM ubuntu:22.04
 
 COPY --from=builder /lib/x86_64-linux-gnu/libpq* /lib/x86_64-linux-gnu/
 COPY --from=builder /lib/x86_64-linux-gnu/libssl* /lib/x86_64-linux-gnu/
@@ -12,9 +12,12 @@ COPY --from=builder /lib/x86_64-linux-gnu/libgssapi_krb5.so.2 /lib/x86_64-linux-
 COPY --from=builder /lib/x86_64-linux-gnu/libkrb5.so.3 /lib/x86_64-linux-gnu/
 COPY --from=builder /lib/x86_64-linux-gnu/libk5crypto.so.3 /lib/x86_64-linux-gnu/
 COPY --from=builder /lib/x86_64-linux-gnu/libkrb5support.so.0 /lib/x86_64-linux-gnu/
-COPY --from=builder /lib/x86_64-linux-gnu/liblber-2.5.so.0 /lib/x86_64-linux-gnu/
+# COPY --from=builder /lib/x86_64-linux-gnu/liblber-2.5.so.0 /lib/x86_64-linux-gnu/
 COPY --from=builder /lib/x86_64-linux-gnu/libsasl2.so.2 /lib/x86_64-linux-gnu/
 COPY --from=builder /lib/x86_64-linux-gnu/libkeyutils.so.1 /lib/x86_64-linux-gnu/
-COPY --from=builder /lib/x86_64-linux-gnu/libldap-2.5.so.0 /lib/x86_64-linux-gnu/
+# COPY --from=builder /lib/x86_64-linux-gnu/libldap-2.5.so.0 /lib/x86_64-linux-gnu/
+
+COPY --from=builder /usr/local/share/ca-certificates/ /usr/local/share/ca-certificates/
+COPY --from=builder /etc/ssl/certs/ /etc/ssl/certs/
 
 COPY ./dagger /bin/dagger

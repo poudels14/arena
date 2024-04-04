@@ -18,7 +18,7 @@ spec:
             name: envoy-config
       containers:
         - name: envoy-proxy
-          image: envoy
+          image: envoyproxy
           ports:
             - containerPort: 8000
             - containerPort: 5000

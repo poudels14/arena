@@ -4,8 +4,9 @@ resources:
   - service.yaml
   - deployment.yaml
 commonLabels:
-  app: arenasql-cluster
-  version: "1.0"
-images:
-  - name: arenasql-cluster
-    newName: arenasql-cluster
+  app: website
+  version: "0.1.1"
+secretGenerator:
+  - name: website-env-secrets
+    envs:
+      - secrets/website.env

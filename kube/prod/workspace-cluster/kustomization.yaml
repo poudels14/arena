@@ -10,6 +10,3 @@ secretGenerator:
   - name: workspace-cluster-env-secrets
     envs:
       - secrets/workspace-cluster.env
-images:
-  - name: workspace-cluster
-    newName: workspace-cluster

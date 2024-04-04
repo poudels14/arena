@@ -1,0 +1,12 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: portal-ingress
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: portal-global
+spec:
+  defaultBackend:
+    service:
+      name: envoy
+      port:
+        number: 8000

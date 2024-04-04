@@ -10,6 +10,3 @@ configMapGenerator:
 commonLabels:
   app: envoy
   version: "1.0"
-images:
-  - name: envoy
-    newName: envoy

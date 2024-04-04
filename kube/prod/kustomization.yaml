@@ -1,23 +1,17 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-bases:
-  - ./envoy
-  - ./app-cluster
-  - ./arenasql-cluster
-  - ./workspace-cluster
+resources:
+  - ./envoy/
+  - ./website/
+  - ./workspace-cluster/
+  - ./network.yaml
+  - ./ingress-service.yaml
 commonLabels:
   group: core-services
-resources:
-  - app-cluster-config.yaml
-  - arenasql-pvc.yaml
-  - workspace-cluster-config.yaml
 images:
   - name: envoyproxy
     newName: envoyproxy/envoy
     newTag: v1.29-latest
-#   - name: apiserver
-#     newName: us-central1-docker.pkg.dev/appdesk-prod/prod-images/apiserver
-#     newTag: ${COMMIT_HASH}
-#   - name: dqs
-#     newName: us-central1-docker.pkg.dev/appdesk-prod/prod-images/dqs
-#     newTag: ${COMMIT_HASH}
+  - name: dagger
+    newName: us-central1-docker.pkg.dev/sidecar-prod-419217/docker/dagger
+    newTag: ubuntu-22.04-0.2.0-0.3

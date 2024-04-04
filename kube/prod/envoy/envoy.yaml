@@ -30,28 +30,49 @@ static_resources:
                       domains:
                         - "*"
                       routes:
+                        # - match:
+                        #     prefix: /w/
+                        #   route:
+                        #     cluster: app_cluster
                         - match:
-                            prefix: /w/
+                            prefix: /api/
                           route:
-                            cluster: app_cluster
+                            cluster: workspace_cluster
+                        - match:
+                            prefix: /registry/
+                          route:
+                            cluster: workspace_cluster
                         - match:
                             prefix: /
                           route:
-                            cluster: workspace_cluster
+                            cluster: website
   clusters:
-    - name: app_cluster
+    - name: website
       connect_timeout: 10s
       type: strict_dns
       lb_policy: round_robin
       load_assignment:
-        cluster_name: app_cluster_1
+        cluster_name: website_1
         endpoints:
           - lb_endpoints:
               - endpoint:
                   address:
                     socket_address:
-                      address: app-cluster
+                      address: website
                       port_value: 9000
+    # - name: app_cluster
+    #   connect_timeout: 10s
+    #   type: strict_dns
+    #   lb_policy: round_robin
+    #   load_assignment:
+    #     cluster_name: app_cluster_1
+    #     endpoints:
+    #       - lb_endpoints:
+    #           - endpoint:
+    #               address:
+    #                 socket_address:
+    #                   address: app-cluster
+    #                   port_value: 9000
     - name: workspace_cluster
       connect_timeout: 10s
       type: strict_dns

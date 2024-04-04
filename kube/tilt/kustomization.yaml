@@ -1,15 +1,11 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-bases:
-  - ./postgres
-  - ./minio
-  - ../prod/envoy
-  - ../prod/arenasql-cluster
-  - ../prod/app-cluster
-  - ../prod/workspace-cluster
 commonLabels:
   group: core-services
 resources:
+  - ./postgres
+  - ./minio
+  - ../prod/arenasql-cluster
   - app-cluster-config.yaml
   - arenasql-pvc.yaml
   - postgres-pvc.yaml
