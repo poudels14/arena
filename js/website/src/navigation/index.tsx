@@ -1,3 +1,5 @@
+import PortalLogo from "../icons/portal.png";
+
 export default function NavigationBar() {
   return (
     <nav class="sticky top-0 mx-auto text-center dark:bg-slate-900/90 backdrop-blur-sm shadow-sm dark:shadow-slate-800">
@@ -6,7 +8,7 @@ export default function NavigationBar() {
           class="flex px-4 text-xl font-bold dark:text-gray-100 items-center space-x-2"
           href="/"
         >
-          <img src="/assets/icons/portal.png" width="32px" />
+          <img src={PortalLogo} width="32px" />
           <div>Portal</div>
         </a>
         <div class="flex flex-1 dark:text-gray-400 text-sm font-medium items-center space-x-5">
