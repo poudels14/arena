@@ -67,6 +67,7 @@ const signup = p
       lastName: body.lastName,
       email: body.email,
       config: {
+        waitlisted: true,
         message: body.message,
       },
     });

@@ -27,7 +27,7 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
       user: Partial<User> & Pick<User, "id" | "email">
     ): Promise<User> {
       const dbUser = {
-        config: { waitlisted: true, ...(user.config || {}) },
+        config: user.config || {},
         createdAt: new Date(),
         archivedAt: null,
         ...user,
