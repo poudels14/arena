@@ -123,6 +123,14 @@ function Waitlist() {
                     <textarea
                       class="w-full h-16 px-2 py-1.5 outline-none rounded border border-gray-200 focus:ring-1"
                       placeholder="Tell us about your use case"
+                      onInput={(e) => {
+                        setState((prev) => {
+                          return {
+                            ...prev,
+                            message: e.target.value,
+                          };
+                        });
+                      }}
                     />
                   </label>
                 </div>
