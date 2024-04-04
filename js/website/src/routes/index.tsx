@@ -34,7 +34,7 @@ export default function Home() {
             </div> */}
           <a
             class="flex px-8 py-3 text-base justify-center items-center space-x-2 rounded-full text-white bg-indigo-600"
-            href="/downloads"
+            href="/desktop"
           >
             <div>Download now</div>
             <HiSolidArrowLongDown />
