@@ -1,8 +1,10 @@
 {
   "name": "@portal/workspace-cluster",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Workspace cluster API server",
-  "scripts": {},
+  "scripts": {
+    "build": "bun run node_modules/@portal/cli/bin/cli.ts app bundle"
+  },
   "keywords": [],
   "author": "Sagar Poudel",
   "private": true,
