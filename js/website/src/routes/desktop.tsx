@@ -16,24 +16,24 @@ export default function Home() {
           <div class="space-y-4">
             <a
               class="flex px-8 py-3 text-sm justify-center items-center space-x-2 rounded-full text-white bg-indigo-600"
-              href="/api/downloads/mac"
-              download="portal.dmg"
+              href="/downloads/mac"
+              target="_blank"
             >
               <SiApple />
               <div>Download for Mac</div>
             </a>
             <a
               class="flex px-8 py-3 text-sm justify-center items-center space-x-2 rounded-full text-white bg-indigo-600"
-              href="/api/downloads/linux-appimage"
-              download="portal.AppImage"
+              href="/downloads/linux-appimage"
+              target="_blank"
             >
               <SiLinux />
               <div>Download for Linux (AppImage)</div>
             </a>
             <a
               class="flex px-8 py-3 text-sm justify-center items-center space-x-2 rounded-full text-white bg-indigo-600"
-              href="/api/downloads/linux-deb"
-              download="portal.deb"
+              href="/downloads/linux-deb"
+              target="_blank"
             >
               <SiLinux />
               <div>Download for Linux (.deb)</div>
