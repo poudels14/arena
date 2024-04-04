@@ -8,6 +8,7 @@ import * as acls from "./acls";
 import * as databases from "./databases";
 import * as llm from "./llm";
 import * as registry from "./registry";
+import * as releases from "./releases";
 
 /**
  * These internal routes are accessible
@@ -66,9 +67,22 @@ const registryRoutes = createRouter({
   },
 });
 
+const appReleaseRoutes = createRouter({
+  routes: {
+    "/desktop/updates/:target/:arch/:currentVersion":
+      releases.hasDesktopAppUpdate,
+  },
+});
+
 const router = mergedRouter({
   ignoreTrailingSlash: true,
-  routers: [registryRoutes, accountRoutes, authorizedRoutes, internalRoutes],
+  routers: [
+    registryRoutes,
+    appReleaseRoutes,
+    accountRoutes,
+    authorizedRoutes,
+    internalRoutes,
+  ],
   async middleware({ ctx, next }) {
     // This middleware just logs the error
     try {
