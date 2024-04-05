@@ -35,6 +35,14 @@ const getLLMModel = (
         temperature: options.temperature,
       });
     }
+    case "portal": {
+      return new ChatPortalAI({
+        portalAIbaseUrl: model.config.http.endpoint!,
+        portalAIApiKey: "n/a",
+        temperature: options.temperature,
+        modelName: model.config.model.name,
+      });
+    }
     case "openai": {
       return new ChatOpenAI({
         modelName: model.config.model.name,

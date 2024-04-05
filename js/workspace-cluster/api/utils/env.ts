@@ -5,6 +5,7 @@ const env = createEnv({
   server: {
     MODE: z.enum(["development", "production"]).default("development"),
     HOST: z.string().url(),
+    PORTAL_CLOUD_HOST: z.string().url(),
     DATABASE_HOST: z.string(),
     DATABASE_PORT: z.string().transform((val) => parseInt(val)),
     DATABASE_NAME: z.string(),
@@ -21,6 +22,8 @@ const env = createEnv({
     // for exmple: signin@emails.tryarena.io
     LOGIN_EMAIL_SENDER: z.string().email(),
     RESEND_API_KEY: z.string(),
+
+    GROQ_API_KEY: z.string(),
   },
   isServer: true,
   runtimeEnv: process.env,

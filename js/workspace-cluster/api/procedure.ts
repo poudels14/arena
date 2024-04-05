@@ -1,6 +1,5 @@
 import { procedure } from "@portal/server-core/router";
 import { Pool } from "@arena/runtime/postgres";
-import * as jwt from "@arena/cloud/jwt";
 import { Client } from "@arena/cloud/s3";
 import { Repo } from "./repo";
 import { Env } from "./utils/env";

@@ -100,6 +100,32 @@ export const anthropicModelSchema = baseModelSchema.merge(
   })
 );
 
+export const portalModelSchema = baseModelSchema.merge(
+  z.object({
+    provider: z.literal("portal"),
+    config: z.object({
+      http: z.object({
+        // adding optional endpoint to support free proxy endpoint
+        endpoint: z.string().url().optional(),
+        apiKey: z.string().min(1),
+      }),
+      model: z.object({
+        name: z
+          .enum([
+            "demo",
+            "anthropic:claude-3-opus-20240229",
+            "anthropic:claude-3-sonnet-20240229",
+            "anthropic:claude-3-haiku-20240307",
+            "anthropic:claude-2.1",
+            "anthropic:claude-2.0",
+            "anthropic:claude-instant-1.2",
+          ])
+          .or(z.string().min(4)),
+      }),
+    }),
+  })
+);
+
 export const groqModelSchema = baseModelSchema.merge(
   z.object({
     provider: z.literal("groq"),

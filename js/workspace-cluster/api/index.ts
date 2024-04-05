@@ -74,6 +74,13 @@ const appReleaseRoutes = createRouter({
   },
 });
 
+const publicRoutes = createRouter({
+  prefix: "/api",
+  routes: {
+    "/llm/free-proxy/chat/completions": llm.proxy.freeProxy,
+  },
+});
+
 const router = mergedRouter({
   ignoreTrailingSlash: true,
   routers: [
@@ -82,6 +89,7 @@ const router = mergedRouter({
     accountRoutes,
     authorizedRoutes,
     internalRoutes,
+    publicRoutes,
   ],
   async middleware({ ctx, next }) {
     // This middleware just logs the error

@@ -8,7 +8,9 @@ import {
   lmStudioModelSchema,
   ollamaModelSchema,
   openAIModelSchema,
+  portalModelSchema,
 } from "./schema";
+import { env } from "../utils/env";
 
 const customLLMModelSchema = z.union([
   ollamaModelSchema,
@@ -16,6 +18,7 @@ const customLLMModelSchema = z.union([
   openAIModelSchema,
   anthropicModelSchema,
   groqModelSchema,
+  portalModelSchema,
 ]);
 
 const llmModelSchema = z
@@ -105,6 +108,27 @@ const listModels = protectedProcedure.query(
       (m) => !m.custom && m.id == "openai-gpt-4"
     );
     const availableModels: LLMModelSchema[] = [
+      {
+        id: "demo-model-11111",
+        name: "Portal AI - demo",
+        custom: false,
+        disabled: false,
+        requiresSubscription: false,
+        quota: {},
+        modalities: ["text"],
+        type: "chat",
+        provider: "portal",
+        config: {
+          http: {
+            endpoint: new URL("/api/llm/free-proxy", env.PORTAL_CLOUD_HOST)
+              .href,
+            apiKey: "n/a",
+          },
+          model: {
+            name: "demo",
+          },
+        },
+      },
       // merge(
       //   {
       //     id: "openai-gpt-3.5",
@@ -212,3 +236,4 @@ const deleteModel = protectedProcedure
   });
 
 export { addCustomModel, listModels, updateModel, deleteModel };
+export * as proxy from "./proxy";
