@@ -117,6 +117,7 @@ const sendMessage = p
       idFilter: z.array(z.string()).optional(),
       regenerate: z.boolean().optional(),
       temperature: z.number().optional(),
+      selectedChatProfileId: z.string().optional(),
       // chat query context
       context: z.array(
         z.object({
@@ -217,6 +218,7 @@ const sendMessage = p
         options: {
           temperature: body.temperature || 0.9,
           context: body.context,
+          selectedChatProfileId: body.selectedChatProfileId,
         },
       }
     );

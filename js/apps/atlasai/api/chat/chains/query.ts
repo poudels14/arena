@@ -50,6 +50,7 @@ async function generateLLMResponseStream(
           id: string;
         }[];
       }[];
+      selectedChatProfileId?: string;
     };
   }
 ) {
@@ -81,18 +82,33 @@ async function generateLLMResponseStream(
   }
 
   const supportsImage = model.modalities.includes("image");
-  const promptProfiles = await ctx.repo.promptProfiles.list({
-    default: true,
-  });
-  const promptProfile =
-    promptProfiles[0]?.template ||
+
+  let promptTemplate: any;
+  if (options.selectedChatProfileId) {
+    const promptProfile = await ctx.repo.promptProfiles.get(
+      options.selectedChatProfileId
+    );
+    promptTemplate = promptProfile?.template;
+  } else {
+    const promptProfiles = await ctx.repo.promptProfiles.list(
+      {
+        default: true,
+      },
+      {
+        includePrompt: true,
+      }
+    );
+    promptTemplate = promptProfiles[0]?.template;
+  }
+  promptTemplate =
+    promptTemplate ||
     "You are a helpful assistant. Answer all questions to the best of your ability.";
 
   const prompt = ChatPromptTemplate.fromMessages([
     [
       "system",
       dedent`
-      {promptProfile}
+      {promptTemplate}
 
 
       {context}`,
@@ -132,7 +148,7 @@ async function generateLLMResponseStream(
   const chatWithDocuments = RunnableSequence.from([
     {
       context: driveSearch.pipe(formatDocumentsAsString),
-      promptProfile: () => promptProfile,
+      promptTemplate: () => promptTemplate,
       input: new RunnablePassthrough(),
     },
     chainWithHistory,

@@ -101,6 +101,9 @@ const migrations: PostgresDatabaseConfig = {
           default BOOLEAN NOT NULL,
           metadata JSONB NOT NULL,
           created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+          -- this is used to sort profiles so that most recently
+          -- used appears at the top
+          last_used_at TIMESTAMP DEFAULT NOW(),
           archived_at TIMESTAMP DEFAULT NULL
         )`);
       },

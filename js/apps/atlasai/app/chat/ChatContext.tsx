@@ -4,7 +4,6 @@ import {
   createComputed,
   createMemo,
   createSignal,
-  Setter,
 } from "solid-js";
 import { Store, UNDEFINED_PROXY, createStore } from "@portal/solid-store";
 import {
@@ -46,6 +45,7 @@ type ChatContext = {
   selectedMessageVersionByParentId: Accessor<Record<string, string>>;
   selectMessageVersion: (parentId: string, id: string) => void;
   getActiveChatThread: () => Store<ChatThread>;
+  getChatProfiles: () => Chat.Profile[];
   refreshThreadsById: () => void;
   sendNewMessage: MutationQuery<
     {
@@ -105,6 +105,10 @@ const ChatContextProvider = (props: {
       return null;
     }
     return `/chat/threads/${props.activeThreadId}`;
+  }, {});
+
+  const chatProfiles = createQuery<Chat.Profile[]>(() => {
+    return `/chat/profiles`;
   }, {});
 
   // refresh chat message when props id change
@@ -230,6 +234,7 @@ const ChatContextProvider = (props: {
           parentId: lastAIMessageId || null,
           idFilter: input.idFilter || selectedMessages,
           regenerate: input.regenerate,
+          selectedChatProfileId: chatConfig.selectedProfileId,
           context: input.context,
         },
         headers: {
@@ -328,6 +333,9 @@ const ChatContextProvider = (props: {
           threadsRoute.refresh();
         },
         getActiveChatThread,
+        getChatProfiles() {
+          return chatProfiles.data() || [];
+        },
         sortedMessageIds,
         aiMessageIdsByParentId,
         selectedMessageVersionByParentId: selectedMessageVersion,

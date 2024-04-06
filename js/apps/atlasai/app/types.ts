@@ -36,6 +36,13 @@ export namespace Chat {
     messages: Message[];
   };
 
+  export type Profile = {
+    id: string;
+    name: string;
+    prompt: string;
+    default: boolean;
+  };
+
   export type Error = {
     message: string;
     threadId: string | null;

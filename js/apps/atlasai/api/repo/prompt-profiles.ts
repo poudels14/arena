@@ -18,6 +18,7 @@ const promptProfiles = pgTable("prompt_profiles", {
   default: boolean("default").notNull(),
   metadata: jsonb("metadata").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
+  lastUsedAt: timestamp("last_used_at").defaultNow(),
   archivedAt: timestamp("archived_at"),
 });
 
@@ -32,13 +33,13 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
         .insert(promptProfiles)
         .values({ ...promptTemplate, archivedAt: null });
     },
-    async get(id: string): Promise<PromptProfile> {
+    async get(id: string): Promise<PromptProfile | null> {
       const rows = await db
         .with()
         .select()
         .from(promptProfiles)
         .where(eq(promptProfiles.id, id));
-      return rows[0] as PromptProfile;
+      return (rows[0] as PromptProfile) || null;
     },
     async list(
       filter: {
@@ -66,6 +67,7 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
           default: promptProfiles.default,
           metadata: promptProfiles.metadata,
           createdAt: promptProfiles.createdAt,
+          lastUsedAt: promptProfiles.lastUsedAt,
           ...(options.includePrompt
             ? {
                 template: promptProfiles.template,
@@ -74,8 +76,29 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
         })
         .from(promptProfiles)
         .where(and(...conditions))
-        .orderBy(desc(promptProfiles.createdAt));
+        .orderBy(desc(promptProfiles.lastUsedAt));
       return rows as PromptProfile[];
+    },
+    async update(
+      profile: Partial<PromptProfile> & Pick<PromptProfile, "id">
+    ): Promise<void> {
+      const { id, ...rest } = profile;
+      await db
+        .update(promptProfiles)
+        .set(rest)
+        .where(eq(promptProfiles.id, profile.id));
+    },
+    // clears the default profile
+    async clearDefault(): Promise<void> {
+      await db
+        .update(promptProfiles)
+        .set({
+          default: false,
+        })
+        .where(eq(promptProfiles.default, true));
+    },
+    async deleteById(id: PromptProfile["id"]): Promise<void> {
+      await db.delete(promptProfiles).where(eq(promptProfiles.id, id));
     },
   };
 };

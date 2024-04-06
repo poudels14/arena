@@ -1,5 +1,6 @@
 import { createRouter } from "@portal/server-core/router";
 import * as chat from "./chat";
+import * as profiles from "./chat/profiles";
 import * as artifacts from "./artifacts";
 
 const router = createRouter({
@@ -14,6 +15,11 @@ const router = createRouter({
     }
   },
   routes: {
+    "/chat/profiles": profiles.listProfiles,
+    "/chat/profiles/add": profiles.addProfile,
+    "/chat/profiles/:id": profiles.getProfile,
+    "/chat/profiles/:id/update": profiles.updateProfile,
+    "/chat/profiles/:id/delete": profiles.deleteProfile,
     "/chat/threads/": chat.listThreads,
     "/chat/threads/:threadId": chat.getThread,
     "/chat/threads/:threadId/delete": chat.deleteThread,

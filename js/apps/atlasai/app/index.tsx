@@ -4,12 +4,13 @@ import { Sidebar as PortalSidebar, SidebarTab } from "@portal/solid-ui/sidebar";
 import {
   HiOutlineTrash,
   HiOutlineChatBubbleBottomCenter,
+  HiOutlineUser,
 } from "solid-icons/hi";
 import { ChatContext, ChatContextProvider } from "./chat/ChatContext.tsx";
 import { createMutationQuery } from "@portal/solid-query";
 
 const Chat = lazy(() => import("./chat/index.tsx"));
-// const Settings = lazy(() => import("./settings/index.tsx"));
+const Profiles = lazy(() => import("./profiles/index.tsx"));
 
 const Assistant = () => {
   const navigate = useNavigate();
@@ -23,9 +24,9 @@ const Assistant = () => {
     >
       <div class="w-full h-screen flex flex-row">
         <Sidebar />
-        {/* <Route path="/settings">
-          <Settings />
-        </Route> */}
+        <Route path="/profiles">
+          <Profiles />
+        </Route>
         <Route
           path="/*"
           component={() => {
@@ -67,21 +68,20 @@ const Sidebar = () => {
 
   const isThreadActive = createSelector(() => state.activeThreadId());
   return (
-    <PortalSidebar class="basis-[225px] max-w-[225px] shrink-0 no-scrollbar py-4 h-screen shadow tab:py-2 tab:px-4 tab:py-2 tab:text-gray-600 tab-hover:text-gray-700 tab-active:text-black tab-active:font-medium icon:w-4 icon:h-4 icon:text-gray-400 overflow-y-auto">
-      {/* <SidebarTab
+    <PortalSidebar class="basis-[225px] max-w-[225px] shrink-0 text-sm no-scrollbar py-4 h-screen shadow tab:py-2 tab:px-4 tab:py-2 tab:text-gray-600 tab-hover:text-gray-700 tab-active:text-black tab-active:font-medium icon:w-4 icon:h-4 icon:text-gray-400 overflow-y-auto">
+      <SidebarTab
         icon={{
-          svg: <HiOutlineCog6Tooth />,
+          svg: <HiOutlineUser />,
         }}
-        active={isTabActive("settings")}
-        onClick={() => navigate("/settings")}
+        active={isTabActive("profiles")}
+        onClick={() => navigate("/profiles")}
       >
-        <div>Settings</div>
-      </SidebarTab> */}
+        <div>Profiles</div>
+      </SidebarTab>
       <SidebarTab
         icon={{
           svg: <HiOutlineChatBubbleBottomCenter />,
         }}
-        class="text-sm"
         active={isTabActive("chat") || isTabActive("t")}
         onClick={() => navigate("/")}
       >
@@ -100,7 +100,6 @@ const Sidebar = () => {
                   <div class="flex-1 overflow-hidden text-ellipsis text-nowrap whitespace-nowrap">
                     {state.threadsById[threadId].title() || "Untitled"}
                   </div>
-
                   <div
                     class="pl-2 hidden group-hover:block"
                     onClick={(e) => {
