@@ -3,7 +3,6 @@ import {
   Match,
   Show,
   Switch,
-  createComputed,
   createEffect,
   createMemo,
   createSignal,
@@ -18,6 +17,7 @@ import {
 import { Chat } from "../types";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
 import { SharedWorkspaceContext } from "@portal/workspace-sdk";
+import { adjustTextareaHeight } from "@portal/solid-ui/form/Textarea";
 
 type ChatQueryContext = NonNullable<
   ReturnType<SharedWorkspaceContext["getChatContext"]>
@@ -42,9 +42,6 @@ const Chatbox = (props: {
   context: ChatQueryContext;
 }) => {
   const [getMessage, setMessage] = createSignal("");
-  const [getTextareaHeight, setTextareaHeight] = createSignal(
-    "22px" /* height of 1 line + border */
-  );
 
   // TODO(sagar): move this to @arena/components Textarea
   let textareaRef: any;
@@ -58,24 +55,6 @@ const Chatbox = (props: {
     if (props.autoFocus) {
       textareaRef?.focus();
     }
-  });
-
-  createComputed(() => {
-    const msg = getMessage();
-    if (!textareaTextRef) return;
-    textareaTextRef.innerText = msg;
-    var s = getComputedStyle(textareaTextRef) as any;
-    let height =
-      Math.max(
-        20 /* height of 1 line */,
-        parseFloat(s.height) -
-          parseFloat(s.paddingTop) -
-          parseFloat(s.paddingBottom)
-      ) + 2; /* border */
-    if (msg.substring(msg.length - 1) == "\n") {
-      height += parseFloat(s.lineHeight);
-    }
-    setTextareaHeight(height + "px");
   });
 
   const submitForm = () => {
@@ -134,11 +113,10 @@ const Chatbox = (props: {
           }}
         >
           <textarea
-            ref={textareaRef}
+            ref={(node) => adjustTextareaHeight(node, getMessage)}
             placeholder="Send a message"
             class="w-full max-h-[180px] px-2 text-sm text-gray-800 bg-transparent outline-none focus:outline-none resize-none placeholder:text-gray-500"
             style={{
-              height: getTextareaHeight(),
               "--uikit-scrollbar-w": "3px",
               "--uikit-scrollbar-track-bg": "transparent",
               "--uikit-scrollbar-track-thumb": "rgb(210, 210, 210)",
@@ -154,14 +132,14 @@ const Chatbox = (props: {
             class="absolute top-0 px-4 text-sm opacity-0 select-none pointer-events-none whitespace-break-spaces"
             ref={textareaTextRef}
           />
-          <div
-            class="absolute bottom-2 right-0 px-2"
-            classList={{
-              "text-white": getMessage().trim().length > 0,
-              "text-gray-500": true,
-            }}
-          >
-            <button class="p-1 bg-brand-10/20 rounded outline-none">
+          <div class="absolute bottom-2 right-0 px-2">
+            <button
+              class="p-1  rounded outline-none"
+              classList={{
+                "text-white bg-indigo-500": getMessage().trim().length > 0,
+                "text-gray-500 bg-indigo-200": getMessage().trim().length == 0,
+              }}
+            >
               <HiOutlinePaperAirplane size="14px" />
             </button>
           </div>
