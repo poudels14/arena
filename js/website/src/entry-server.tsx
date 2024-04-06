@@ -20,7 +20,7 @@ export default createHandler(() => (
           ></script>
           {assets}
         </head>
-        <body class="hiddens scroll:w-1 thumb:rounded thumb:bg-slate-700 track:bg-slate-900">
+        <body class="scroll:w-1 thumb:rounded thumb:bg-slate-700 track:bg-slate-900">
           {children}
         </body>
         {scripts}
