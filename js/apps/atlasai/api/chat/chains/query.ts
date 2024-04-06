@@ -9,19 +9,19 @@ import {
 } from "@langchain/core/runnables";
 import { ConsoleCallbackHandler } from "@langchain/core/tracers/console";
 import { StringOutputParser } from "@langchain/core/output_parsers";
-import { formatDocumentsAsString } from "langchain/util/document";
 import { ProcedureRequest } from "@portal/server-core/router";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
 import { Workspace } from "@portal/workspace-sdk";
+import dedent from "dedent";
+import { pick } from "lodash-es";
 
 import { Context } from "../../procedure";
 import { ThreadOperationsStream } from "../../../chatsdk";
 import { ChatThread } from "../types";
 import { ChatMessage } from "../../repo/chatMessages";
 import { AtalasChatMessageHistory } from "./history";
-import { AtalasDrive } from "./drive";
+import { AtalasDrive, formatDocumentsAsString } from "./drive";
 import { getLLMModel } from "./modelSelector";
-import { pick } from "lodash-es";
 
 async function generateLLMResponseStream(
   { ctx }: Pick<ProcedureRequest<Context, any>, "ctx" | "errors">,
@@ -81,22 +81,22 @@ async function generateLLMResponseStream(
   }
 
   const supportsImage = model.modalities.includes("image");
-  const prompt = ChatPromptTemplate.fromMessages([
-    options.context?.length! > 0
-      ? [
-          // TODO: anthropic fails with seconds message since it expects all system messages to
-          // be in the first message. So, this conditional is a hack
-          "system",
-          `Use the following pieces of context to answer the question at the end.
-    If you don't know the answer, just say that you don't know, don't try to make up an answer.
-    ----------------
-    {context}`,
-        ]
-      : [
-          "system",
-          "You are a helpful assistant. Answer all questions to the best of your ability.",
-        ],
+  const promptProfiles = await ctx.repo.promptProfiles.list({
+    default: true,
+  });
+  const promptProfile =
+    promptProfiles[0]?.template ||
+    "You are a helpful assistant. Answer all questions to the best of your ability.";
 
+  const prompt = ChatPromptTemplate.fromMessages([
+    [
+      "system",
+      dedent`
+      {promptProfile}
+
+
+      {context}`,
+    ],
     new MessagesPlaceholder("chat_history"),
     [
       "human",
@@ -132,6 +132,7 @@ async function generateLLMResponseStream(
   const chatWithDocuments = RunnableSequence.from([
     {
       context: driveSearch.pipe(formatDocumentsAsString),
+      promptProfile: () => promptProfile,
       input: new RunnablePassthrough(),
     },
     chainWithHistory,

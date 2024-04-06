@@ -87,6 +87,27 @@ const migrations: PostgresDatabaseConfig = {
         await db.query(`DROP TABLE chat_artifacts;`);
       },
     },
+    {
+      id: "create_prompt_profiles_table",
+      async up(db) {
+        await db.query(`CREATE TABLE prompt_profiles (
+          id VARCHAR(50) UNIQUE NOT NULL,
+          name VARCHAR(250) NOT NULL,
+          description TEXT NOT NULL,
+          template TEXT NOT NULL,
+          -- bookmarked templates are owned by some other app/user
+          -- bookmarked templates needs to be periodically synced
+          bookmarked  BOOLEAN NOT NULL,
+          default BOOLEAN NOT NULL,
+          metadata JSONB NOT NULL,
+          created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+          archived_at TIMESTAMP DEFAULT NULL
+        )`);
+      },
+      async down(db) {
+        await db.query(`DROP TABLE prompt_profiles;`);
+      },
+    },
   ],
 };
 

@@ -2,13 +2,17 @@ import {
   BaseCallbackConfig,
   Callbacks,
 } from "@langchain/core/callbacks/manager";
-import { DocumentInterface } from "@langchain/core/dist/documents/document";
+import {
+  DocumentInterface,
+  Document,
+} from "@langchain/core/dist/documents/document";
 import { BaseRetriever } from "@langchain/core/retrievers";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
 import { Search } from "@portal/workspace-sdk/llm/search";
 import { dset } from "dset";
 import { klona } from "klona";
 import ky from "ky";
+import dedent from "dedent";
 import { Context } from "~/api/procedure";
 
 class AtalasDrive extends BaseRetriever {
@@ -167,4 +171,17 @@ class AtalasDrive extends BaseRetriever {
   }
 }
 
-export { AtalasDrive };
+const formatDocumentsAsString = (documents: Document[]) => {
+  const pageContents = documents.map((doc) => doc.pageContent).join("\n\n");
+
+  if (documents.length == 0) {
+    return "";
+  }
+
+  return dedent`Use the following pieces of context to answer the question at the end.
+    If you don't know the answer, just say that you don't know, don't try to make up an answer.
+    ----------------
+    ${pageContents}`;
+};
+
+export { AtalasDrive, formatDocumentsAsString };
