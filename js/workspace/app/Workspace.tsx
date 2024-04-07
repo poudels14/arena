@@ -188,7 +188,7 @@ const WorkspaceSidebar = () => {
           <div>Files</div>
         </SidebarTab>
       </PortalSidebar>
-      <div class="h-8 flex justify-center text-center text-xs font-medium">
+      <div class="h-8 flex justify-center items-center text-center text-xs font-medium">
         <div
           class="flex px-2 py-1 cursor-pointer space-x-2"
           classList={{
