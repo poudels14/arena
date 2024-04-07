@@ -5,13 +5,14 @@ import ky from "ky";
 import { env } from "~/env";
 
 export async function GET({ params }: APIEvent) {
-  let filename = "";
+  const version = "0.1.2";
+  let fileSuffix = "";
   if (params.os == "mac") {
-    filename = "portal_0.1.2_aarch64.dmg";
+    fileSuffix = "aarch64.dmg";
   } else if (params.os == "linux-appimage") {
-    filename = "portal_0.1.2_amd64.AppImage";
+    fileSuffix = "amd64.AppImage";
   } else if (params.os == "linux-deb") {
-    filename = "portal_0.1.2_amd64.deb";
+    fileSuffix = "amd64.deb";
   } else {
     return new Response("Not found", {
       status: 404,
@@ -35,6 +36,6 @@ export async function GET({ params }: APIEvent) {
   }
 
   return redirect(
-    `https://github.com/poudels14/portal-release/releases/download/0.1.1/${filename}`
+    `https://github.com/poudels14/portal-release/releases/download/${version}/portal_${version}_${fileSuffix}`
   );
 }
