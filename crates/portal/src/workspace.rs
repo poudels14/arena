@@ -247,6 +247,30 @@ impl Workspace {
     Ok(())
   }
 
+  pub async fn upgrade_app_versions(
+    &self,
+    pool: &Pool<Postgres>,
+  ) -> Result<()> {
+    for (template_id, template_version) in [
+      (
+        "workspace-desktop",
+        env!("PORTAL_DESKTOP_WORKSPACE_VERSION"),
+      ),
+      ("atlasai", env!("PORTAL_DESKTOP_ATLAS_VERSION")),
+      ("portal-drive", env!("PORTAL_DESKTOP_DRIVE_VERSION")),
+    ] {
+      sqlx::query(
+        r#"UPDATE apps SET template_version = $1 WHERE template_id = $2"#,
+      )
+      .bind(template_version)
+      .bind(template_id)
+      .execute(pool)
+      .await?;
+    }
+
+    Ok(())
+  }
+
   #[allow(unused)]
   pub async fn trigger_tracking_event(
     &self,

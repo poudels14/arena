@@ -23,7 +23,7 @@ fn main() {
   let packages = vec![
     (
       "workspace-desktop",
-      "0.1.1",
+      "0.1.2",
       "PORTAL_DESKTOP_WORKSPACE_VERSION",
       #[cfg(debug_assertions)]
       "../../js/workspace-desktop/dist/workspace-desktop",
@@ -32,7 +32,7 @@ fn main() {
     ),
     (
       "atlasai",
-      "0.1.1",
+      "0.1.2",
       "PORTAL_DESKTOP_ATLAS_VERSION",
       #[cfg(debug_assertions)]
       "../../js/apps/atlasai/dist/atlasai",

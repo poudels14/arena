@@ -72,8 +72,10 @@ impl Command {
     std::env::set_var("DATABASE_URL", workspace_database_url.clone());
     std::env::set_var("JWT_SIGNING_SECRET", "portal-desktop-jwt-secret");
 
+    // TODO: use transaction
     let db_pool = db::create_connection_pool().await?;
     workspace.reset_database_cluster(&db_pool).await?;
+    workspace.upgrade_app_versions(&db_pool).await?;
     let dqs_cluster = DqsCluster::new(
       DqsClusterOptions {
         v8_platform: v8_platform.clone(),

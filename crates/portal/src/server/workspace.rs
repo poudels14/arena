@@ -84,6 +84,8 @@ pub async fn start_workspace_server(
         env_var("JWT_SIGNING_SECRET", ""),
         env_var("LOGIN_EMAIL_SENDER", "invalid@desktop.sidecar.so"),
         env_var("RESEND_API_KEY", ""),
+        env_var("PORTAL_CLOUD_HOST", "https://useportal.ai"),
+        env_var("GROQ_API_KEY", "n/a"),
       ])),
     }),
     identity: Identity::Unknown,
