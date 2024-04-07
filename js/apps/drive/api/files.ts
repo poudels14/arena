@@ -5,7 +5,7 @@ import mime from "mime";
 import ky from "ky";
 import qs from "qs";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
-import type { ContentType } from "@portal/internal-sdk/llm/documents";
+import { ContentType } from "@portal/internal-sdk/llm/documents";
 import { createDocument } from "@portal/internal-sdk/llm/documents";
 import { createDocumentSplitter } from "@portal/sdk/llm/splitter";
 import { p } from "./procedure";
