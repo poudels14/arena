@@ -5,13 +5,13 @@ import ky from "ky";
 import { env } from "~/env";
 
 export async function GET({ params }: APIEvent) {
-  let filename = "portal_0.1.0_aarch64.dmg";
+  let filename = "";
   if (params.os == "mac") {
-    filename = "portal_0.1.0_aarch64.dmg";
+    filename = "portal_0.1.2_aarch64.dmg";
   } else if (params.os == "linux-appimage") {
-    filename = "portal_0.1.0_amd64.AppImage";
+    filename = "portal_0.1.2_amd64.AppImage";
   } else if (params.os == "linux-deb") {
-    filename = "portal_0.1.0_amd64.deb";
+    filename = "portal_0.1.2_amd64.deb";
   } else {
     return new Response("Not found", {
       status: 404,

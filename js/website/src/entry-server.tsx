@@ -1,5 +1,6 @@
 import { createHandler } from "@solidjs/start/entry";
 import { StartServer } from "@solidjs/start/server";
+import PortalIcon from "./icons/favicon.ico";
 import { env } from "~/env";
 // use this here so that env is validated on startup
 void env;
@@ -11,6 +12,7 @@ export default createHandler(() => (
         <head>
           <meta charset="utf-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <link rel="icon" type="image/x-icon" href={PortalIcon} />
           <link rel="preconnect" href="https://rsms.me/" />
           <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
           <script
