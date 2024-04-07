@@ -123,7 +123,9 @@ const Uploader = (props: {
                 body: formData,
               })
               .then((res) => {
-                if (!res.ok) {
+                if (res.ok) {
+                  tracking.success();
+                } else {
                   tracking.error("Error uploading");
                 }
               });
