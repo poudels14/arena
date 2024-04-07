@@ -25,7 +25,7 @@ export default function Home() {
             </div>
           </div>
           <div class="pb-2 text-5xl font-bold text-gray-800 dark:text-gray-400">
-            An unified platform for AI applications
+            A unified platform for AI applications
           </div>
         </div>
         <div class="flex justify-center">
