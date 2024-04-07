@@ -101,6 +101,9 @@ pub async fn op_cloud_pdf_to_html(
 
 async fn get_pdfium_lib_path() -> Result<PathBuf> {
   let pdfium_dir = dirs::portal()?.cache_dir().join("pdfium");
+  #[cfg(target_os = "macos")]
+  let lib_path = pdfium_dir.join("lib/libpdfium.dylib");
+  #[cfg(target_os = "linux")]
   let lib_path = pdfium_dir.join("lib/libpdfium.so");
   if !lib_path.exists() {
     let os = match env!("CARGO_CFG_TARGET_OS") {
