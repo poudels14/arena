@@ -45,6 +45,7 @@ const getLLMModel = (
     }
     case "openai": {
       return new ChatOpenAI({
+        openAIApiKey: model.config.http.apiKey,
         modelName: model.config.model.name,
         temperature: options.temperature,
       });
