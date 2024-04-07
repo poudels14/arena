@@ -3,12 +3,14 @@ import { HiOutlineArrowUpOnSquare, HiOutlinePlus } from "solid-icons/hi";
 import { createMutationQuery } from "@portal/solid-query";
 import Dialog from "@portal/solid-ui/Dialog";
 import { Form, Input } from "@portal/solid-ui/form";
+import { useUploadTrackerContext } from "./UploadTracker";
 
 const Uploader = (props: {
   parentId: string | null;
   onUpload: (files: any[]) => void;
   onNewDirectory: () => void;
 }) => {
+  const { trackFileUpload } = useUploadTrackerContext();
   const uploader = createMutationQuery<any>((input) => {
     return {
       url: "/api/fs/upload",
@@ -111,12 +113,22 @@ const Uploader = (props: {
           onChange={async () => {
             const formData = new FormData(formRef);
             formData.set("parentId", props.parentId || "null");
-            await uploader.mutate({
-              body: formData,
+
+            const filename = (formData.get("file") as File).name;
+            const tracking = trackFileUpload({
+              title: filename,
             });
+            await uploader
+              .mutate({
+                body: formData,
+              })
+              .then((res) => {
+                if (!res.ok) {
+                  tracking.error("Error uploading");
+                }
+              });
 
             props.onUpload(uploader.data().files);
-            // TODO: if error, show toast
             formRef.reset();
           }}
         />
