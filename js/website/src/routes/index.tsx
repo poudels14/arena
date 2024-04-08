@@ -3,7 +3,7 @@ import { HiSolidArrowLongDown, HiOutlineArrowRight } from "solid-icons/hi";
 export default function Home() {
   return (
     <main>
-      <div class="h-full pt-20 pb-24 text-center dark:bg-gradient-to-b dark:from-slate-800 dark:from-20% dark:via-70% dark:to-gray-800">
+      <div class="h-full pt-12 md:pt-20 pb-24 text-center dark:bg-gradient-to-b dark:from-slate-800 dark:from-20% dark:via-70% dark:to-gray-800">
         <div class="pt-36 pb-12 relative justify-center items-baseline">
           {/* <div class="pb-2 flex justify-center">
             <Logo size={150} />
@@ -27,7 +27,7 @@ export default function Home() {
               </a>
             </div>
           </div>
-          <div class="pb-2 text-5xl font-bold text-gray-800 dark:text-gray-400">
+          <div class="pb-2 text-2xl md:text-5xl font-bold text-gray-800 dark:text-gray-400">
             A unified platform for AI applications
           </div>
         </div>
