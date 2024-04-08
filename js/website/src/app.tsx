@@ -4,6 +4,7 @@ import { FileRoutes } from "@solidjs/start";
 import { Suspense } from "solid-js";
 import "./app.css";
 import NavigationBar from "./navigation";
+import Footer from "./navigation/footer";
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
       <Router root={(props) => <Suspense>{props.children}</Suspense>}>
         <FileRoutes />
       </Router>
+      <Footer />
     </div>
   );
 }

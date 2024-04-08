@@ -15,13 +15,16 @@ export default function Home() {
           {/* <div class="pt-40"></div> */}
           <div class="absolute inset-0">
             <div class="pt-16 flex justify-center">
-              <div class="flex py-2 px-5 text-sm rounded-full items-center space-x-3 cursor-pointer group border border-gray-50 hover:bg-gray-50">
+              <a
+                class="flex py-2 px-5 text-sm rounded-full items-center space-x-3 cursor-pointer group border border-gray-50 hover:bg-gray-50"
+                href="/desktop"
+              >
                 <div class="px-3 rounded-2xl bg-green-100 text-green-600">
                   New
                 </div>
                 <div class="">Introducing Portal Desktop</div>
                 <HiOutlineArrowRight />
-              </div>
+              </a>
             </div>
           </div>
           <div class="pb-2 text-5xl font-bold text-gray-800 dark:text-gray-400">
