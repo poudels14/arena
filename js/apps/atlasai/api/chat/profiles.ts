@@ -2,9 +2,42 @@ import { z } from "zod";
 import { pick } from "lodash-es";
 import { p } from "../procedure";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
+import { PromptProfile } from "../repo/prompt-profiles";
+
+type ExtendedPromptProfile = PromptProfile & {
+  customizable: boolean;
+};
+const DEFAULT_CHAT_PROFILE: ExtendedPromptProfile = {
+  id: "default-profile",
+  name: "Default",
+  bookmarked: false,
+  createdAt: new Date(),
+  default: false,
+  description: "Default chat profile",
+  template:
+    "You are an amazing AI assistant called Atlas. Please answer user's questions as accurately as possible",
+  metadata: {},
+  lastUsedAt: null,
+  archivedAt: null,
+  customizable: false,
+};
 
 const listProfiles = p.query(async ({ ctx }) => {
-  const profiles = await ctx.repo.promptProfiles.list({});
+  const profiles = (await ctx.repo.promptProfiles.list(
+    {}
+  )) as ExtendedPromptProfile[];
+
+  let hasCustomDefault = false;
+  profiles.forEach((profile) => {
+    profile.customizable = true;
+    hasCustomDefault = hasCustomDefault || profile.default;
+  });
+
+  profiles.push({
+    ...DEFAULT_CHAT_PROFILE,
+    // only set this as default if there's no custom default profile
+    default: !hasCustomDefault,
+  });
   return profiles.map((profile) => {
     return pick(
       profile,
@@ -13,13 +46,21 @@ const listProfiles = p.query(async ({ ctx }) => {
       "description",
       "bookmarked",
       "default",
-      "createdAt"
+      "createdAt",
+      "customizable"
     );
   });
 });
 
 const getProfile = p.query(async ({ ctx, params, errors }) => {
-  const profile = await ctx.repo.promptProfiles.get(params.id);
+  let profile: ExtendedPromptProfile | null = DEFAULT_CHAT_PROFILE;
+  if (params.id != DEFAULT_CHAT_PROFILE.id) {
+    const customProfile = await ctx.repo.promptProfiles.get(params.id);
+    if (customProfile) {
+      profile = { ...customProfile, customizable: true };
+    }
+  }
+
   if (!profile) {
     return errors.notFound();
   }
@@ -31,7 +72,8 @@ const getProfile = p.query(async ({ ctx, params, errors }) => {
     "template",
     "bookmarked",
     "default",
-    "createdAt"
+    "createdAt",
+    "customizable"
   );
 });
 
