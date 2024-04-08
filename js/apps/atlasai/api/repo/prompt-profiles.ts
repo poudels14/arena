@@ -86,7 +86,7 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
       await db
         .update(promptProfiles)
         .set(rest)
-        .where(eq(promptProfiles.id, profile.id));
+        .where(eq(promptProfiles.id, id));
     },
     // clears the default profile
     async clearDefault(): Promise<void> {

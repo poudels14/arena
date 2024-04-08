@@ -10,15 +10,17 @@ import { Sidebar as PortalSidebar, SidebarTab } from "@portal/solid-ui/sidebar";
 import { useMatcher, useNavigate } from "@portal/solid-router";
 import { createQuery } from "@portal/solid-query";
 import { HiOutlinePlus } from "solid-icons/hi";
-import { Profile } from "./profile";
-import { AddProfile } from "./add";
+import { ViewProfile } from "./view";
+import { AddOrUpdateProfile } from "./add";
 
 const Profiles = () => {
   const navigate = useNavigate();
 
   const tabMatcher = useMatcher(() => "/:profileId/*");
+  const modeMatcher = useMatcher(() => "/:profileId/:mode");
   const activeProfileId = () => tabMatcher()?.params?.profileId;
   const isProfileActive = createSelector(() => activeProfileId() || "-");
+  const profileMode = () => modeMatcher()?.params?.mode;
 
   const profiles = createQuery<any[]>(
     () => {
@@ -41,7 +43,7 @@ const Profiles = () => {
         <div class="w-[225px] flex flex-col space-y-0">
           <div class="py-1 text-sm text-center bg-gray-100">Profiles</div>
           <div
-            class="flex px-4 py-1.5 justify-start items-center cursor-pointer space-x-2 text-xs text-white bg-indigo-500 hover:bg-indigo-600"
+            class="flex px-4 py-1.5 justify-start items-center cursor-pointer space-x-2 text-xs text-indigo-800 bg-indigo-100 hover:bg-indigo-200"
             onClick={() => {
               navigate("/add");
             }}
@@ -67,21 +69,26 @@ const Profiles = () => {
         <div class="flex-1 flex justify-center">
           <div class="flex-1 basis-[200px] max-w-[500px] py-5 px-5 text-gray-700">
             <Switch>
+              <Match
+                when={activeProfileId() == "add" || profileMode() == "edit"}
+              >
+                <AddOrUpdateProfile
+                  id={profileMode() == "edit" ? activeProfileId() : undefined}
+                  onSuccess={(id) => {
+                    profiles.refresh();
+                    gotoProfile(id);
+                  }}
+                />
+              </Match>
               <Match when={activeProfileId() && activeProfileId() != "add"}>
-                <Profile
+                <ViewProfile
                   id={activeProfileId()!}
+                  refreshProfiles={profiles.refresh}
                   onDelete={() => {
                     profiles.refresh();
                     navigate("/");
                   }}
-                />
-              </Match>
-              <Match when={activeProfileId() == "add"}>
-                <AddProfile
-                  onProfileAdd={(id) => {
-                    profiles.refresh();
-                    gotoProfile(id);
-                  }}
+                  editProfile={(id) => navigate(`/${id}/edit`)}
                 />
               </Match>
               <Match when={true}>

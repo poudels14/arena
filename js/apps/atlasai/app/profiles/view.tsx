@@ -1,15 +1,39 @@
-import { Match, Switch } from "solid-js";
+import { Match, Switch, createComputed } from "solid-js";
 import { createMutationQuery, createQuery } from "@portal/solid-query";
 
-const Profile = (props: { id: string; onDelete: (id: string) => void }) => {
+type Profile = {
+  id: string;
+  name: string;
+  description: string;
+  prompt: string;
+  default: boolean;
+};
+
+const ViewProfile = (props: {
+  id: string;
+  refreshProfiles: () => void;
+  editProfile: (profileId: string) => void;
+  onDelete: (id: string) => void;
+}) => {
   const profile = createQuery<{
     name: string;
     description: string;
     template: string;
     default: boolean;
-  }>(() => {
-    return `/chat/profiles/${props.id}`;
-  }, {});
+  }>(
+    () => {
+      return `/chat/profiles/${props.id}`;
+    },
+    {},
+    {
+      lazy: true,
+    }
+  );
+  // refresh profile every time id changes
+  createComputed(() => {
+    void props.id;
+    profile.refresh();
+  });
 
   const updateProfile = createMutationQuery<{
     default?: boolean;
@@ -67,7 +91,7 @@ const Profile = (props: { id: string; onDelete: (id: string) => void }) => {
                 <Match when={true}>
                   <button
                     type="button"
-                    class="px-4 py-1.5 text-xs text-white rounded bg-indigo-500 hover:bg-indigo-600"
+                    class="px-4 py-1.5 text-xs text-indigo-800 rounded border border-indigo-100 bg-indigo-50 hover:bg-indigo-200"
                     onClick={() => {
                       updateProfile
                         .mutate({
@@ -83,10 +107,17 @@ const Profile = (props: { id: string; onDelete: (id: string) => void }) => {
                 </Match>
               </Switch>
             </div>
-            <div class="space-y-1.5">
+            <div class="space-x-4">
               <button
                 type="button"
-                class="px-6 py-1.5 text-xs text-white rounded bg-gray-500 hover:bg-red-500"
+                class="px-6 py-1.5 text-xs text-indigo-800 rounded border border-indigo-100 bg-indigo-50 hover:bg-indigo-200"
+                onClick={() => props.editProfile(props.id)}
+              >
+                Edit Profile
+              </button>
+              <button
+                type="button"
+                class="px-6 py-1.5 text-xs text-red-800 rounded border border-red-100 bg-red-50 hover:bg-red-200"
                 onClick={() => {
                   deleteProfile.mutate({}).then(() => {
                     props.onDelete(props.id);
@@ -96,6 +127,18 @@ const Profile = (props: { id: string; onDelete: (id: string) => void }) => {
                 Delete
               </button>
             </div>
+
+            {/* <button
+              type="button"
+              class="px-6 py-1.5 text-xs text-white rounded bg-gray-500 hover:bg-red-500"
+              onClick={() => {
+                deleteProfile.mutate({}).then(() => {
+                  props.onDelete(props.id);
+                });
+              }}
+            >
+              Delete
+            </button> */}
           </div>
         </Match>
       </Switch>
@@ -103,4 +146,5 @@ const Profile = (props: { id: string; onDelete: (id: string) => void }) => {
   );
 };
 
-export { Profile };
+export { ViewProfile };
+export type { Profile };

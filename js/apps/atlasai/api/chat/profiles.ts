@@ -65,7 +65,7 @@ const updateProfile = p
     z.object({
       name: z.string().min(3).optional(),
       description: z.string().optional(),
-      template: z.string().min(5).optional(),
+      prompt: z.string().min(5).optional(),
       default: z.boolean().optional(),
     })
   )
@@ -77,9 +77,12 @@ const updateProfile = p
     if (body.default) {
       await ctx.repo.promptProfiles.clearDefault();
     }
+
+    const { prompt: template, ...updates } = body;
     await ctx.repo.promptProfiles.update({
       id: params.id,
-      ...body,
+      template,
+      ...updates,
     });
     return {
       ...existingProfile,
