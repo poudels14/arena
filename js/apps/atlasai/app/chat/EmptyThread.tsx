@@ -84,7 +84,7 @@ const EmptyThread = (props: EmptyThreadProps) => {
         How can I help you?
       </div>
 
-      <div class="flex justify-center space-x-6">
+      <div class="flex justify-center space-x-8">
         <div class="px-4">
           <div class="basis-60 space-y-3">
             <div>
@@ -152,7 +152,7 @@ const EmptyThread = (props: EmptyThreadProps) => {
             </Show>
           </div>
         </div>
-        <div class="basis-60 py-2 px-4 space-y-3">
+        <div class="basis-60 px-4 space-y-3">
           <Show when={getChatProfiles().length > 0}>
             <div class="text-md font-bold text-gray-600">
               Select chat profile

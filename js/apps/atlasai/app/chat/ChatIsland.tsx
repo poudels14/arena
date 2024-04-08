@@ -108,7 +108,7 @@ const ChatIsland = (props: { onNewThread: () => void; hide?: boolean }) => {
         </div>
       </Show>
       <Show when={!chatBoxExpanded()}>
-        <div class="absolute bottom-4 left-0 right-0 w-full backdrop-blur-[1px]">
+        <div class="absolute bottom-4 left-0 right-0 w-full">
           <div class="w-full flex justify-center">
             <Minimized
               context={getChatContext()}
