@@ -8,9 +8,9 @@ use sqlx::types::Json;
 use crate::error::Error;
 
 #[allow(dead_code)]
-#[derive(Debug, Default, FromRow)]
+#[derive(Debug, Default, Clone, FromRow)]
 pub struct DbAttribute {
-  pub id: String,
+  pub id: Option<String>,
   pub name: String,
   pub parent_id: Option<String>,
   pub is_directory: bool,
@@ -47,4 +47,10 @@ pub trait Backend: Send + Sync {
   ) -> Result<Vec<DbAttribute>, Error>;
 
   async fn read_file(&self, id: String) -> Result<Option<DbFile>, Error>;
+
+  async fn write_file(
+    &self,
+    attr: &DbAttribute,
+    content: &[u8],
+  ) -> Result<(), Error>;
 }

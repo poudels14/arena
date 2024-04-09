@@ -1,10 +1,10 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use clap::Parser;
 use fuser::MountOption;
 
 use crate::backend::postgres::PostgresBackend;
-use crate::fs::FileSystem;
+use crate::fs::{FileSystem, FilesCache};
 
 mod backend;
 mod error;
@@ -17,6 +17,9 @@ struct Args {
   /// Either set DATABASE_URL env variable or pass it as this arg
   #[arg(long, short)]
   db_url: Option<String>,
+
+  #[arg(long)]
+  auto_unmount: bool,
   /// The dir to mount the filesystem to
   mount_point: String,
 }
@@ -30,13 +33,14 @@ async fn main() {
       .expect("either pass `db_url` arg or set DATABASE_URL env variable")
   });
 
-  let backend = PostgresBackend::init(&db_url).await.unwrap();
+  let backend = PostgresBackend::init(&db_url, "files", true).await.unwrap();
   let filesystem = FileSystem::with_backend(
     fs::Options {
       root_id: None,
       user_id: 1000,
       group_id: 1000,
     },
+    Arc::new(Mutex::new(FilesCache::new())),
     Arc::new(backend),
   )
   .await
@@ -44,9 +48,9 @@ async fn main() {
 
   let mut options =
     vec![MountOption::RW, MountOption::FSName("arenafs".to_string())];
-  // if matches.get_flag("auto_unmount") {
-  //   options.push(MountOption::AutoUnmount);
-  // }
+  if args.auto_unmount {
+    options.push(MountOption::AutoUnmount);
+  }
   options.push(MountOption::Suid);
-  fuser::mount2(filesystem, args.mount_point, &options).unwrap();
+  filesystem.mount(&args.mount_point, &options).unwrap();
 }

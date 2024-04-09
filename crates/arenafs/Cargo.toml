@@ -14,6 +14,7 @@ futures.workspace = true
 libc = "0.2.153"
 nanoid.workspace = true
 once_cell.workspace = true
+parking_lot = "0.12.1"
 serde.workspace = true
 serde_json = { workspace = true, features = ["raw_value"] }
 sqlx = { version = "0.7.3", features = ["postgres", "runtime-tokio", "time", "runtime-tokio-native-tls", "chrono"] }

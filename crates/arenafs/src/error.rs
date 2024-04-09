@@ -9,6 +9,9 @@ pub enum Error {
   #[error("data backend disconnected")]
   BackendDisconnected(String),
 
+  #[error("IO error")]
+  IOError(#[from] std::io::Error),
+
   #[error("unknown error")]
   Unknown,
 }
