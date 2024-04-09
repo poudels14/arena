@@ -22,11 +22,9 @@ import {
 
 import { EmptyThread } from "./EmptyThread";
 import { ChatContext, ChatQueryContext, ChatState } from "./ChatContext";
-// import { PluginWorkflow } from "./PluginWorkflow";
 import { Chat, Document } from "../types";
 import { Store } from "@portal/solid-store";
 import { createQuery, resolveFullUrl } from "@portal/solid-query";
-import { WigetContainer } from "./Widget";
 import { Markdown } from "./Markdown";
 
 const ChatThread = (props: {
@@ -111,107 +109,138 @@ const ChatThread = (props: {
   });
 
   return (
-    <div
-      ref={chatMessagesContainerRef}
-      class="flex justify-center h-full overflow-y-auto scroll:w-1 thumb:rounded thumb:bg-gray-400"
-    >
-      <div class="px-4 flex-1 min-w-[350px] max-w-[750px]">
-        <Show
-          when={
-            !state.activeThreadId() &&
-            !(sendNewMessage.isPending && !sendNewMessage.isIdle)
-          }
-        >
-          <EmptyThread contextSelection={props.contextSelection} />
-        </Show>
-        <div
-          ref={chatMessagesRef}
-          class="chat-messages pt-2 text-sm text-accent-12/80 space-y-3"
-          classList={{
-            "pb-24": !Boolean(props.removeBottomPadding),
-          }}
-        >
-          <For each={sortedMessageIds()}>
-            {(messageId, index) => {
-              const isLastMessage = createMemo(
-                () => index() == sortedMessageIds().length - 1
-              );
-              // Note(sagar): use state directly to only update message
-              // content element when streaming
-              const message = getActiveChatThread().messages[messageId]!;
-              if (isLastMessage()) {
-                createEffect(() => {
-                  void message.message();
-                  // Note(sagar): scroll to the bottom. Need to do it after
-                  // the last message is rendered
-                  const containerHeight = parseFloat(
-                    getComputedStyle(chatMessagesRef).height
-                  );
-                  chatMessagesContainerRef.scrollTo(
-                    0,
-                    containerHeight + 100_000
-                  );
-                });
+    <div class="h-full overflow-y-auto scroll:w-1 thumb:rounded thumb:bg-gray-400 space-y-6">
+      <Show when={getActiveChatThread()}>
+        <div class="flex text-sm text-gray-700 bg-gray-50 border-b border-gray-100">
+          <div class="flex-1 flex justify-center items-center">
+            <div class="px-20 py-2 flex-1 min-w-[350px] max-w-[750px] font-medium overflow-hidden text-ellipsis">
+              {getActiveChatThread().title()}
+            </div>
+          </div>
+          <div class="relative right-10 flex items-center px-2 py-1 text-xs space-y-0.5">
+            <div class="flex flex-col justify-center items-center">
+              <Show when={getActiveChatThread().metadata.model()}>
+                <div class="flex space-x-2">
+                  <div class="">Model:</div>
+                  <div>{getActiveChatThread().metadata.model.name()}</div>
+                </div>
+              </Show>
+              <Show when={getActiveChatThread().metadata.profile!()}>
+                <div class="flex space-x-2">
+                  <div class="">Profile:</div>
+                  <div>{getActiveChatThread().metadata.profile!.name()}</div>
+                </div>
+              </Show>
+            </div>
+          </div>
+        </div>
+      </Show>
+      <div ref={chatMessagesContainerRef} class="flex justify-center">
+        <div class="px-4 flex-1 min-w-[350px] max-w-[750px]">
+          <Switch>
+            <Match
+              when={
+                !state.activeThreadId() &&
+                !(sendNewMessage.isPending && !sendNewMessage.isIdle)
               }
+            >
+              <EmptyThread contextSelection={props.contextSelection} />
+            </Match>
+            <Match when={getActiveChatThread()}>
+              <div
+                ref={chatMessagesRef}
+                class="chat-messages pt-2 text-sm text-accent-12/80 space-y-3"
+                classList={{
+                  "pb-24": !Boolean(props.removeBottomPadding),
+                }}
+              >
+                <For each={sortedMessageIds()}>
+                  {(messageId, index) => {
+                    const isLastMessage = createMemo(
+                      () => index() == sortedMessageIds().length - 1
+                    );
+                    // Note(sagar): use state directly to only update message
+                    // content element when streaming
+                    const message = getActiveChatThread().messages[messageId]!;
+                    if (isLastMessage()) {
+                      createEffect(() => {
+                        void message.message();
+                        // Note(sagar): scroll to the bottom. Need to do it after
+                        // the last message is rendered
+                        const containerHeight = parseFloat(
+                          getComputedStyle(chatMessagesRef).height
+                        );
+                        chatMessagesContainerRef.scrollTo(
+                          0,
+                          containerHeight + 100_000
+                        );
+                      });
+                    }
 
-              return (
-                <Switch>
-                  {/* <Match when={message.metadata.workflow!()}>
+                    return (
+                      <Switch>
+                        {/* <Match when={message.metadata.workflow!()}>
                     <PluginWorkflow id={message.metadata.workflow!.id()!} />
                   </Match> */}
-                  <Match when={message.message()}>
+                        <Match when={message.message()}>
+                          <ChatMessage
+                            state={state}
+                            message={message}
+                            task={
+                              threadTaskExecutionsById.data[
+                                message.message.tool_calls[0].id() as any as number
+                              ]
+                            }
+                            showDocument={props.showDocument}
+                            showLoadingBar={
+                              sendNewMessage.isStreaming && isLastMessage()
+                            }
+                            showRegenerate={
+                              isLastMessage() && message.role() == "ai"
+                            }
+                            regenerateMessage={regenerateMessage}
+                            versions={
+                              aiMessageIdsByParentId()[message.parentId()!] ||
+                              []
+                            }
+                            selectedVersion={
+                              selectedMessageVersionByParentId()?.[
+                                message.parentId()!
+                              ]
+                            }
+                            selectVersion={selectMessageVersion}
+                          />
+                        </Match>
+                      </Switch>
+                    );
+                  }}
+                </For>
+                <Show
+                  when={
+                    sendNewMessage.isPending &&
+                    !sendNewMessage.isIdle &&
+                    !sendNewMessage.input.regenerate()
+                  }
+                >
+                  <div>
                     <ChatMessage
                       state={state}
-                      message={message}
-                      task={
-                        threadTaskExecutionsById.data[
-                          message.message.tool_calls[0].id() as any as number
-                        ]
-                      }
+                      // @ts-expect-error
+                      message={sendNewMessage.input}
                       showDocument={props.showDocument}
-                      showLoadingBar={
-                        sendNewMessage.isStreaming && isLastMessage()
-                      }
-                      showRegenerate={isLastMessage() && message.role() == "ai"}
-                      regenerateMessage={regenerateMessage}
-                      versions={
-                        aiMessageIdsByParentId()[message.parentId()!] || []
-                      }
-                      selectedVersion={
-                        selectedMessageVersionByParentId()?.[
-                          message.parentId()!
-                        ]
-                      }
-                      selectVersion={selectMessageVersion}
+                      versions={[]}
                     />
-                  </Match>
-                </Switch>
-              );
-            }}
-          </For>
-          <Show
-            when={
-              sendNewMessage.isPending &&
-              !sendNewMessage.isIdle &&
-              !sendNewMessage.input.regenerate()
-            }
-          >
-            <div>
-              <ChatMessage
-                state={state}
-                // @ts-expect-error
-                message={sendNewMessage.input}
-                showDocument={props.showDocument}
-                versions={[]}
-              />
+                  </div>
+                </Show>
+              </div>
+            </Match>
+          </Switch>
+          <Show when={error()}>
+            <div class="py-4 text-center bg-red-50 text-red-700">
+              {error()?.message}
             </div>
           </Show>
         </div>
-        <Show when={error()}>
-          <div class="py-4 text-center bg-red-50 text-red-700">
-            {error()?.message}
-          </div>
-        </Show>
       </div>
     </div>
   );

@@ -8,8 +8,14 @@ export type ChatThread = {
    */
   blockedBy: string | null;
   metadata: {
-    ai: {
-      model: string;
+    model: {
+      id: string;
+      name: string;
+    };
+    // chat profile
+    profile?: {
+      id: string;
+      name: string;
     };
     activeWorkflow?: {
       id: string;

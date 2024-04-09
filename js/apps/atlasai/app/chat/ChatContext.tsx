@@ -4,6 +4,7 @@ import {
   createComputed,
   createMemo,
   createSignal,
+  batch,
 } from "solid-js";
 import { Store, UNDEFINED_PROXY, createStore } from "@portal/solid-store";
 import {
@@ -24,9 +25,15 @@ export type ChatState = {
 };
 
 type ChatThread = {
+  id: string;
+  title: string;
   blockedBy: string | null;
   metadata: {
     model: {
+      id: string;
+      name: string;
+    };
+    profile?: {
       id: string;
       name: string;
     };
@@ -134,19 +141,22 @@ const ChatContextProvider = (props: {
       return;
     }
     const messages = data.messages || [];
-    setChatThreadsById(data.id, "blockedBy", data.blockedBy || null);
-    setChatThreadsById(data.id, "metadata", data.metadata!);
-    setChatThreadsById(data.id, "messages", (prev) => {
-      return messages.reduce(
-        (agg, message) => {
-          agg[message.id] = {
-            ...message,
-            createdAt: new Date(message.createdAt).toISOString(),
-          };
-          return agg;
-        },
-        { ...prev } as Record<string, Chat.Message>
-      );
+    batch(() => {
+      setChatThreadsById(data.id, "title", data.title!);
+      setChatThreadsById(data.id, "blockedBy", data.blockedBy || null);
+      setChatThreadsById(data.id, "metadata", data.metadata!);
+      setChatThreadsById(data.id, "messages", (prev) => {
+        return messages.reduce(
+          (agg, message) => {
+            agg[message.id] = {
+              ...message,
+              createdAt: new Date(message.createdAt).toISOString(),
+            };
+            return agg;
+          },
+          { ...prev } as Record<string, Chat.Message>
+        );
+      });
     });
   });
 

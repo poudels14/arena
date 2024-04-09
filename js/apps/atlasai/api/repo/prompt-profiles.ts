@@ -24,6 +24,25 @@ const promptProfiles = pgTable("prompt_profiles", {
 
 type PromptProfile = InferModel<typeof promptProfiles> & {};
 
+type ExtendedPromptProfile = PromptProfile & {
+  customizable: boolean;
+};
+
+const DEFAULT_CHAT_PROFILE: ExtendedPromptProfile = {
+  id: "default-profile",
+  name: "Default",
+  bookmarked: false,
+  createdAt: new Date(),
+  default: false,
+  description: "Default chat profile",
+  template:
+    "You are an amazing AI assistant called Atlas. Please answer user's questions as accurately as possible",
+  metadata: {},
+  lastUsedAt: null,
+  archivedAt: null,
+  customizable: false,
+};
+
 const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
   return {
     async insert(
@@ -103,5 +122,5 @@ const createRepo = (db: PostgresJsDatabase<Record<string, never>>) => {
   };
 };
 
-export { createRepo };
-export type { PromptProfile };
+export { createRepo, DEFAULT_CHAT_PROFILE };
+export type { PromptProfile, ExtendedPromptProfile };

@@ -11,6 +11,7 @@ import { generateLLMResponseStream } from "./chains/query";
 import { ChatMessage } from "../repo/chatMessages";
 import { ThreadOperationsStream } from "../../chatsdk";
 import { generateQueryTitle } from "./chains/title";
+import { DEFAULT_CHAT_PROFILE } from "../repo/prompt-profiles";
 
 const listThreads = p.query(async ({ ctx }) => {
   const threads = await ctx.repo.chatThreads.list();
@@ -104,7 +105,6 @@ const sendMessage = p
   .input(
     z.object({
       id: z.string().optional(),
-      thread: z.any(),
       parentId: z.string().nullable(),
       // one of the models provided by workspace /api/llm/models
       model: z.object({
@@ -142,6 +142,7 @@ const sendMessage = p
     if (!model) {
       return errors.badRequest("Invalid model");
     }
+
     const now = new Date();
     // TODO(sagar): abstract several steps and use middleware like system
     // so that it's easier to build plugins for chat system itself. For example,
@@ -149,25 +150,34 @@ const sendMessage = p
     // a plugin to provide additional context based on the prompt, or a plugin
     // to built agent like multi-step llm querries
     body.id = body.id || uniqueId();
-    body.thread = merge(
-      {
-        id: params.threadId,
-        metadata: {
-          model: {
-            id: model.id,
-            name: model.name,
-          },
-        },
-      },
-      body.thread
-    );
+    const existingThread = await ctx.repo.chatThreads.getById(params.threadId);
+    const chatProfileId =
+      existingThread?.metadata.profile?.id || body.selectedChatProfileId;
+    let chatProfile =
+      (chatProfileId
+        ? await ctx.repo.promptProfiles.get(chatProfileId)
+        : await ctx.repo.promptProfiles
+            .list(
+              {
+                default: true,
+              },
+              {
+                includePrompt: true,
+              }
+            )
+            .then((profiles) => profiles[0])) || DEFAULT_CHAT_PROFILE;
 
-    const existingThread = await ctx.repo.chatThreads.getById(body.thread.id!);
     const thread: ChatThread = existingThread || {
-      id: body.thread.id!,
+      id: params.threadId,
       title: "",
       blockedBy: null,
-      metadata: body.thread.metadata as ChatThread["metadata"],
+      metadata: {
+        model: {
+          id: model.id,
+          name: model.name,
+        },
+        profile: pick(chatProfile, "id", "name"),
+      },
       createdAt: now,
     };
 
@@ -207,6 +217,28 @@ const sendMessage = p
     if (!body.regenerate) {
       opsStream.sendNewMessage(newMessage);
     }
+
+    let systemPrompt: any;
+    if (body.selectedChatProfileId) {
+      const promptProfile = await ctx.repo.promptProfiles.get(
+        body.selectedChatProfileId
+      );
+      systemPrompt = promptProfile?.template;
+    } else {
+      const promptProfiles = await ctx.repo.promptProfiles.list(
+        {
+          default: true,
+        },
+        {
+          includePrompt: true,
+        }
+      );
+      systemPrompt = promptProfiles[0]?.template;
+    }
+    systemPrompt =
+      systemPrompt ||
+      "You are a helpful assistant. Answer all questions to the best of your ability.";
+
     generateLLMResponseStream(
       { ctx, errors },
       {
@@ -217,6 +249,7 @@ const sendMessage = p
         previousMessages: filteredOldMessages,
         options: {
           temperature: body.temperature || 0.9,
+          systemPrompt,
           context: body.context,
           selectedChatProfileId: body.selectedChatProfileId,
         },
