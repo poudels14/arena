@@ -14,6 +14,10 @@ pub fn init(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     py_module!(py, "portal.ast", include_str!("./ast.py")),
   )?;
   m.add(
+    "matplotlib",
+    py_module!(py, "portal.matplotlib", include_str!("./matplotlib.py")),
+  )?;
+  m.add(
     "serde",
     Into::<Py<PyAny>>::into(PyModule::from_code(
       py,

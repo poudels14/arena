@@ -4,11 +4,11 @@ use anyhow::Result;
 use dashmap::DashMap;
 
 pub mod handlers;
-mod image;
 mod runtime;
+mod runtime_spec;
 
-use image::RuntimeImage;
 use runtime::Runtime;
+use runtime_spec::RuntimeImage;
 
 #[derive(Clone)]
 pub struct Cluster {

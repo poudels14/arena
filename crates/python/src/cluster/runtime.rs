@@ -1,11 +1,12 @@
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, Result};
-use arenafs::{FileSystem, FilesCache, MountOption};
+use arenafs::{Backend, FileSystem, FilesCache, MountOption, PostgresBackend};
 use derivative::Derivative;
 use serde::Serialize;
 use tokio::net::UnixStream;
+use tokio::sync::mpsc;
 use tonic::transport::{Endpoint, Uri};
 use tower::service_fn;
 
@@ -13,6 +14,8 @@ use crate::fs::NoopBackend;
 use crate::grpc::python_runtime_client::PythonRuntimeClient;
 use crate::grpc::{self, ExecCodeResponse};
 use crate::utils::NANOID_CHARS;
+
+use super::runtime_spec as spec;
 
 #[derive(Clone, Derivative)]
 #[derivative(Debug)]
@@ -27,6 +30,9 @@ pub struct Runtime {
   #[derivative(Debug = "ignore")]
   files_cache: Arc<Mutex<FilesCache>>,
 }
+
+unsafe impl Sync for Runtime {}
+unsafe impl Send for Runtime {}
 
 #[derive(Serialize)]
 pub struct File {
@@ -53,30 +59,69 @@ pub async fn init(socket_file: &str) -> Result<Runtime> {
 }
 
 impl Runtime {
-  pub async fn mount_fs(&self, path: String) -> Result<()> {
-    let filesystem = FileSystem::with_backend(
-      arenafs::Options {
-        root_id: None,
-        user_id: 1000,
-        group_id: 1000,
-      },
-      self.files_cache.clone(),
-      Arc::new(NoopBackend {}),
-    )
-    .await
-    .unwrap();
-
-    let options = vec![
-      MountOption::RW,
-      MountOption::FSName("arenafs".to_string()),
-      MountOption::Suid,
-      MountOption::AutoUnmount,
-    ];
-
+  pub async fn mount_fs(
+    &self,
+    path: String,
+    fs: Option<spec::FileSystem>,
+  ) -> Result<()> {
+    let (tx, mut rx) = mpsc::channel::<bool>(1);
+    let files_cache = self.files_cache.clone();
+    files_cache
+      .lock()
+      .map_err(|_| anyhow!("File cache lock error"))?
+      .reset();
     std::thread::spawn(move || {
+      let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .worker_threads(1)
+        .build()
+        .unwrap();
+
+      let guard = rt.enter();
+      let filesystem = rt
+        .block_on(async {
+          let backend: Arc<dyn Backend> = match fs {
+            Some(ref fs) => Arc::new(
+              PostgresBackend::init(
+                &fs.connection_string,
+                &fs.table_name,
+                fs.enable_write.unwrap_or(false),
+              )
+              .await?,
+            ),
+            None => Arc::new(NoopBackend {}),
+          };
+
+          FileSystem::with_backend(
+            arenafs::Options {
+              root_id: fs.and_then(|s| s.root.clone()),
+              user_id: 1000,
+              group_id: 1000,
+            },
+            files_cache,
+            backend,
+          )
+          .await
+        })
+        .unwrap();
+
+      let options = vec![
+        MountOption::RW,
+        MountOption::FSName("arenafs".to_string()),
+        MountOption::Suid,
+        MountOption::AutoUnmount,
+      ];
+
+      rt.spawn(async move {
+        let _ = tx.send(true).await;
+      });
       filesystem.mount(&path, &options).unwrap();
+      drop(guard);
     });
 
+    let _ = rx.recv().await;
+    // allow some time to mount fs
+    tokio::time::sleep(Duration::from_millis(20)).await;
     Ok(())
   }
 
@@ -115,6 +160,7 @@ impl Runtime {
     Ok(files)
   }
 
+  #[allow(dead_code)]
   pub async fn terminate(&self) -> Result<()> {
     Ok(())
   }

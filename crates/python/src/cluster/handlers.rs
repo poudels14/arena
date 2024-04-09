@@ -6,17 +6,19 @@ use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use super::image::RuntimeImage;
 use super::runtime::File;
+use super::runtime_spec::{FileSystem, RuntimeImage};
 use super::Cluster;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateRuntimeRequest {
   image: RuntimeImage,
+  #[serde(default)]
+  fs: Option<FileSystem>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateRuntimeResponse {
   id: String,
@@ -24,6 +26,7 @@ pub struct CreateRuntimeResponse {
   api_key: String,
 }
 
+#[tracing::instrument(skip_all, level = "debug")]
 pub async fn create_runtime(
   State(cluster): State<Cluster>,
   Json(request): Json<CreateRuntimeRequest>,
@@ -32,6 +35,11 @@ pub async fn create_runtime(
     RuntimeImage::Python { .. } | RuntimeImage::Python310 { .. } => {
       let runtime = cluster
         .create_new_runtime(&request.image)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+      runtime
+        .mount_fs("./mnt".to_owned(), request.fs)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -47,8 +55,13 @@ pub async fn create_runtime(
 #[serde(rename_all = "camelCase")]
 pub struct ExecCodeRequest {
   code: String,
+
   // if true, updated files will be included in the response
   include_artifacts: Option<bool>,
+
+  /// If set, overrides the current file system mount
+  #[serde(default)]
+  fs: Option<FileSystem>,
 }
 
 #[derive(Serialize)]
@@ -62,6 +75,7 @@ pub struct ExecCodeResponse {
   artifacts: Option<Vec<File>>,
 }
 
+#[tracing::instrument(skip_all, level = "debug")]
 pub async fn exec_code(
   Path(runtime_id): Path<String>,
   State(cluster): State<Cluster>,
@@ -71,6 +85,13 @@ pub async fn exec_code(
   let runtime = cluster
     .get_runtime(&runtime_id)
     .ok_or_else(|| (StatusCode::NOT_FOUND, format!("runtime not found")))?;
+
+  if request.fs.is_some() {
+    runtime
+      .mount_fs("./mnt".to_owned(), request.fs)
+      .await
+      .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, format!("IO error")))?;
+  }
 
   let response = runtime.exec_code(request.code).await.map_err(|e| {
     (
