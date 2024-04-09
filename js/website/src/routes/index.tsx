@@ -9,7 +9,7 @@ import ChatProfilesScreenshot from "../assets/profiles-screenshot.png";
 
 export default function Home() {
   return (
-    <main class="*:py-36">
+    <main class="*:py-20 *:md:py-36">
       <div class="h-full pt-12 md:pt-20 pb-10 text-center dark:bg-gradient-to-b dark:from-slate-800 dark:from-20% dark:via-70% dark:to-gray-800">
         <div class="pt-36 pb-12 relative justify-center items-baseline">
           <div class="absolute inset-0">
@@ -31,7 +31,7 @@ export default function Home() {
           </div>
         </div>
         <div class="flex justify-center">
-          <div>
+          <div class="flex flex-col items-center">
             <DownloadButton />
             <div class="flex pt-2 pb-1 justify-center text-xs text-gray-600">
               <div>Available for macOS and Linux</div>
@@ -70,7 +70,7 @@ const AppScreenshot = () => {
         <img
           src={AppHomeScreenshot}
           alt="Portal desktop screenshot"
-          class="w-[800px]"
+          class="w-[1000px]"
         />
       </div>
     </div>
@@ -79,9 +79,9 @@ const AppScreenshot = () => {
 
 const ChatWithDocsSection = () => {
   return (
-    <div class="flex justify-between px-12 md:px-56 space-x-10 bg-gradient-to-b from-sky-50/20 to-indigo-50/20">
-      <div class="pt-10 space-y-4">
-        <div class="text-3xl font-bold text-gray-700">
+    <div class="flex flex-col md:flex-row justify-between px-12 md:px-56 space-y-8 md:space-y-0 md:space-x-10 bg-gradient-to-b from-sky-50/20 to-indigo-50/20">
+      <div class="md:pt-10 space-y-4">
+        <div class="text-xl md:text-3xl font-bold text-center md:text-left text-gray-700">
           Chat with your documents
         </div>
         <ul class="px-8 text-sm text-gray-500 list-disc space-y-2">
@@ -103,7 +103,7 @@ const ChatWithDocsSection = () => {
 
 const ChatProfilesSection = () => {
   return (
-    <div class="flex justify-between px-12 md:px-56 space-x-10 bg-gradient-radial from-10% from-indigo-50 via-indigo-50/50 to-white/30 backdrop:blur-3xl">
+    <div class="flex flex-col-reverse md:flex-row justify-between px-12 md:px-56 space-y-reverse space-y-8 md:space-x-10 bg-gradient-radial from-10% from-indigo-50 via-indigo-50/50 to-white/30 backdrop:blur-3xl">
       <div>
         <img
           src={ChatProfilesScreenshot}
@@ -111,8 +111,8 @@ const ChatProfilesSection = () => {
           class="w-[500px]"
         />
       </div>
-      <div class="pt-10 space-y-4">
-        <div class="text-3xl font-bold text-gray-700">
+      <div class="md:pt-10 space-y-4">
+        <div class="text-xl md:text-3xl font-bold text-center md:text-left text-gray-700">
           Customize chat profiles
         </div>
         <ul class="px-8 text-sm text-gray-500 list-disc space-y-2">
@@ -136,9 +136,9 @@ const LLMModelsSection = () => {
   return (
     <div class="flex justify-center px-12 md:px-56 space-x-10 bg-gradient-to-b from-indigo-50/20 to-purple-50/10">
       <div class="space-y-4">
-        <div class="flex items-center text-4xl font-bold text-gray-700 space-x-3">
-          <div>Access state-of-the-art AI models</div>
-          <div class="inline px-2 py-0.5 text-xs text-green-800 bg-green-50 border border-green-200 rounded">
+        <div class="flex flex-col md:flex-row items-center text-xl md:text-3xl font-bold text-gray-700 space-y-2 md:space-y-0 md:space-x-3">
+          <div class="text-center">Access state-of-the-art AI models</div>
+          <div class="md:inline px-2 py-0.5 text-xs text-green-800 bg-green-50 border border-green-200 rounded">
             Coming soon
           </div>
         </div>
@@ -171,8 +171,8 @@ const DownloadPortalDesktop = () => {
         <div class="flex justify-center">
           <img src={PortalLogo} width="100px" />
         </div>
-        <div class="text-3xl font-bold text-gray-700 space-y-6">
-          <div>Download Portal Desktop for free</div>
+        <div class="text-xl md:text-3xl font-bold text-gray-700 space-y-6">
+          <div class="text-center">Download Portal Desktop for free</div>
           <div class="flex justify-center">
             <DownloadButton />
           </div>

@@ -3,14 +3,14 @@ import { SiApple, SiLinux } from "solid-icons/si";
 export default function Home() {
   return (
     <main>
-      <div class="h-full pt-32 pb-24 text-center dark:bg-gradient-to-b dark:from-slate-800 dark:from-20% dark:via-70% dark:to-gray-800">
-        <div class="pb-12 relative justify-center items-baseline">
-          <div class="pb-2 text-5xl font-bold text-gray-700 dark:text-gray-400">
+      <div class="h-full pt-20 md:pt-32 pb-24 text-center dark:bg-gradient-to-b dark:from-slate-800 dark:from-20% dark:via-70% dark:to-gray-800">
+        <div class="relative justify-center items-baseline">
+          <div class="text-3xl md:text-5xl font-bold text-gray-700 dark:text-gray-400">
             Portal Desktop
           </div>
         </div>
-        <div class="py-24 px-12 md:px-56 flex justify-between items-center space-x-10 bg-gradient-to-b from-white to-purple-50/30">
-          <div class="px-20 text-left space-y-5 text-gray-700">
+        <div class="py-16 md:py-24 px-12 md:px-56 flex flex-col-reverse md:flex-row justify-between items-center space-y-reverse space-y-14 md:space-y-0 md:space-x-10 bg-gradient-to-b from-white to-purple-50/30">
+          <div class="text-left space-y-5 text-gray-700">
             <div class="space-y-1.5">
               <div class="flex font-medium space-x-1">
                 <div>Feature parity with Portal cloud</div>
