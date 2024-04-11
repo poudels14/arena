@@ -11,6 +11,11 @@ path = "src/main.rs"
 name = "python-cluster"
 path = "src/runtime-cluster.rs"
 
+[lib]
+name = "permission"
+path = "./src/permission.rs"
+crate-type = ["staticlib"]
+
 [dependencies]
 anyhow.workspace = true
 axum.workspace = true
