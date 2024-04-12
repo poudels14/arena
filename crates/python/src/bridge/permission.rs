@@ -86,7 +86,7 @@ pub extern "C" fn portal_permission_checker_from_cli_args(
 }
 
 #[no_mangle]
-pub extern "C" fn portal_create_new_permission_checker(
+pub extern "C" fn portal_permission_checker_create_new(
 ) -> Box<PermissionChecker> {
   let checker = Box::new(PermissionChecker {
     enabled: false,

@@ -1,7 +1,8 @@
 use anyhow::Result;
 use derivative::Derivative;
+use pyo3::prelude::*;
 use pyo3::types::{IntoPyDict, PyDict, PyModule};
-use pyo3::{IntoPy, PyAny, Python};
+use pyo3::Python;
 
 use super::serialize::SerializedResult;
 use super::tty::TtyBuffer;
@@ -14,21 +15,27 @@ pub struct Context<'py> {
   #[derivative(Debug = "ignore")]
   py: Python<'py>,
   #[derivative(Debug = "ignore")]
-  globals: &'py PyDict,
+  globals: Bound<'py, PyDict>,
 }
 
 impl<'py> Context<'py> {
   pub fn new(py: Python<'py>) -> Result<Self> {
-    let module = PyModule::new(py, "portal")?;
-    portal::init(py, module)?;
-    let module: &PyAny = module;
+    let module = PyModule::new_bound(py, "portal")?;
+    portal::init(py, &module)?;
     let globals = [
-      ("portal", module),
-      ("display", module.getattr("serde")?.getattr("display")?),
+      ("portal", &module),
+      (
+        "display",
+        module
+          .getattr("serde")?
+          .getattr("display")?
+          .downcast::<PyModule>()
+          .unwrap(),
+      ),
     ]
-    .into_py_dict(py);
+    .into_py_dict_bound(py);
 
-    let sys = py.import("sys")?;
+    let sys = py.import_bound("sys")?;
     let stdout = TtyBuffer::new();
     let stderr = TtyBuffer::new();
     sys.setattr("stdout", stdout.into_py(py))?;
@@ -48,24 +55,26 @@ impl<'py> Context<'py> {
     let code_blocks: Vec<String> =
       pop_last_expr.call((code,), None)?.extract()?;
 
-    self
-      .py
-      .run(&code_blocks[0], Some(&self.globals), Some(&self.globals))?;
+    self.py.run_bound(
+      &code_blocks[0],
+      Some(&self.globals),
+      Some(&self.globals),
+    )?;
 
     match code_blocks.get(1) {
       Some(stmt) => {
         let res = self
           .py
-          .eval(&stmt, Some(&self.globals), Some(&self.globals))
+          .eval_bound(&stmt, Some(&self.globals), Some(&self.globals))
           .unwrap();
-        Ok(serialize_py_obj(&self.py, &self.globals, res).unwrap_or_default())
+        Ok(serialize_py_obj(&self.py, &self.globals, &res).unwrap_or_default())
       }
       _ => Ok(None),
     }
   }
 
   pub fn stdout(&self) -> Result<String> {
-    let sys = self.py.import("sys")?;
+    let sys = self.py.import_bound("sys")?;
     let stdout = sys
       .getattr("stdout")?
       .getattr("serialize")?
@@ -75,7 +84,7 @@ impl<'py> Context<'py> {
   }
 
   pub fn stderr(&self) -> Result<String> {
-    let sys = self.py.import("sys")?;
+    let sys = self.py.import_bound("sys")?;
     let stderr = sys
       .getattr("stderr")?
       .getattr("serialize")?

@@ -2,12 +2,13 @@ use pyo3::prelude::*;
 
 macro_rules! py_module {
   ($py:tt,$name:literal,$code:expr) => {
-    Into::<Py<PyAny>>::into(PyModule::from_code($py, $code, "", $name)?)
+    Into::<Py<PyAny>>::into(PyModule::from_code_bound($py, $code, "", $name)?)
   };
 }
 
 #[pymodule]
-pub fn init(py: Python<'_>, m: &PyModule) -> PyResult<()> {
+#[pyo3(name = "portal")]
+pub fn init(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
   m.add("version", env!("CARGO_PKG_VERSION"))?;
   m.add(
     "ast",
@@ -19,7 +20,7 @@ pub fn init(py: Python<'_>, m: &PyModule) -> PyResult<()> {
   )?;
   m.add(
     "serde",
-    Into::<Py<PyAny>>::into(PyModule::from_code(
+    Into::<Py<PyAny>>::into(PyModule::from_code_bound(
       py,
       include_str!("./serde.py"),
       "",

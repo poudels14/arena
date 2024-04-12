@@ -1,6 +1,7 @@
 use anyhow::Result;
+use pyo3::prelude::PyAnyMethods;
 use pyo3::types::PyDict;
-use pyo3::{PyAny, Python};
+use pyo3::{Bound, PyAny, Python};
 
 pub struct SerializedResult {
   // "json" | "dataframe" | etc
@@ -11,10 +12,11 @@ pub struct SerializedResult {
 
 pub fn serialize_py_obj(
   py: &Python,
-  ctxt: &PyDict,
-  obj: &PyAny,
+  ctxt: &Bound<'_, PyDict>,
+  obj: &Bound<'_, PyAny>,
 ) -> Result<Option<SerializedResult>> {
-  let portal = py.eval("portal.serde.serialize", Some(&ctxt), Some(&ctxt))?;
+  let portal =
+    py.eval_bound("portal.serde.serialize", Some(&ctxt), Some(&ctxt))?;
   let res: Option<Vec<String>> = portal.call((obj,), None)?.extract().unwrap();
   match res {
     Some(mut data) => Ok(Some(SerializedResult {
