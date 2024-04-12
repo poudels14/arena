@@ -22,3 +22,6 @@
 [submodule "app-bundles"]
 	path = app-bundles
 	url = git@github.com:poudels14/portal-app-bundles.git
+[submodule "cpython"]
+	path = cpython
+	url = git@github.com:poudels14/cpython.git
