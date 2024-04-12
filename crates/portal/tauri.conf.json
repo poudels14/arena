@@ -5,7 +5,7 @@
     "distDir": "http://localhost:42690/"
   },
   "package": {
-    "productName": "portal",
+    "productName": "Portal",
     "version": "0.1.2"
   },
   "tauri": {
@@ -15,7 +15,7 @@
     "bundle": {
       "active": true,
       "category": "DeveloperTool",
-      "copyright": "",
+      "copyright": "Arena Inc.",
       "deb": {
         "depends": []
       },

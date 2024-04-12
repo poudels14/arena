@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use directories::ProjectDirs;
 
 pub fn portal() -> Result<ProjectDirs> {
-  self::from("ai", "portal", "portal-desktop-4200")
+  self::from("ai", "useportal", "portal-desktop")
 }
 
 pub fn from(

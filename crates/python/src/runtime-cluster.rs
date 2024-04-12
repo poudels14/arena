@@ -16,7 +16,6 @@ mod fs;
 mod grpc;
 mod portal;
 mod runtime;
-mod server;
 mod utils;
 
 use cluster::Cluster;
