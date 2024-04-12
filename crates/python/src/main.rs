@@ -1,19 +1,22 @@
+#[cfg(not(feature = "unix-socket"))]
+use std::net::SocketAddr;
+#[cfg(feature = "unix-socket")]
 use std::path::PathBuf;
 use std::str::FromStr;
 
 use anyhow::Result;
 use clap::Parser;
 use rayon::ThreadPoolBuilder;
+#[cfg(feature = "unix-socket")]
 use tokio::net::UnixListener;
 use tokio::signal;
 use tracing_subscriber::filter::Directive;
 use tracing_subscriber::prelude::*;
 use tracing_tree::HierarchicalLayer;
 
-#[cfg(unix)]
+#[cfg(feature = "unix-socket")]
 use tokio_stream::wrappers::UnixListenerStream;
 
-mod fs;
 mod grpc;
 mod portal;
 mod runtime;
@@ -26,9 +29,15 @@ use tonic::transport::Server;
 #[derive(Parser, Debug)]
 #[command(version)]
 struct Args {
+  #[cfg(feature = "unix-socket")]
   /// UNIX socket file
   #[arg(long)]
   socket_file: String,
+
+  #[cfg(not(feature = "unix-socket"))]
+  /// Port
+  #[arg(long)]
+  port: u16,
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -59,20 +68,32 @@ async fn main() -> Result<()> {
     .build_global()
     .unwrap();
 
-  let path = PathBuf::from(args.socket_file);
-  let _ = std::fs::remove_file(&path);
-  std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+  let server =
+    Server::builder().add_service(PythonRuntimeServer::new(RuntimeServer {}));
 
-  let uds = UnixListener::bind(&path)?;
-  let uds_stream = UnixListenerStream::new(uds);
-  println!("Listening on {:?}", &path);
+  #[cfg(feature = "unix-socket")]
+  let server = {
+    let path = PathBuf::from(args.socket_file);
+    let _ = std::fs::remove_file(&path);
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
 
-  Server::builder()
-    .add_service(PythonRuntimeServer::new(RuntimeServer {}))
-    .serve_with_incoming_shutdown(uds_stream, async {
+    let uds = UnixListener::bind(&path)?;
+    let stream = UnixListenerStream::new(uds);
+    println!("Listening on {:?}", &path);
+    server.serve_with_incoming_shutdown(stream, async {
       signal::ctrl_c().await.unwrap()
     })
-    .await?;
+  };
 
+  #[cfg(not(feature = "unix-socket"))]
+  let server = {
+    println!("Listening on port {:?}", &args.port);
+    server.serve_with_shutdown(
+      format!("0.0.0.0:{}", args.port).parse::<SocketAddr>()?,
+      async { signal::ctrl_c().await.unwrap() },
+    )
+  };
+
+  server.await?;
   Ok(())
 }
