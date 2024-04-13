@@ -1,8 +1,13 @@
 use std::collections::HashMap;
 use std::ffi::CStr;
+use std::ffi::CString;
 use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
+
+use libc::c_int;
+use parking_lot::RwLock;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -11,11 +16,20 @@ pub struct PermissionChecker {
   cwd: PathBuf,
   allow_read: Vec<String>,
   allow_write: Vec<String>,
+  track_write: bool,
+  state: Arc<RwLock<State>>,
   finalized: bool,
 }
 
-const FS_RO: i8 = 0;
-const FS_RW: i8 = 1;
+#[repr(C)]
+#[derive(Debug, Default)]
+pub struct State {
+  // list of paths opened with write access
+  paths_written: Vec<String>,
+}
+
+const FS_R: i8 = 0;
+const FS_W: i8 = 1;
 
 #[no_mangle]
 pub extern "C" fn portal_permission_checker_from_cli_args(
@@ -25,7 +39,7 @@ pub extern "C" fn portal_permission_checker_from_cli_args(
     .get("PORTAL_PERMISSION_ENABLED")
     .unwrap_or(&"false".to_owned())
     .parse()
-    .expect("parsing PORTAL_PERMISSION_ENABLED env");
+    .unwrap_or_default();
 
   let allow_read: Vec<String> = env_vars
     .get("PORTAL_ALLOW_READ")
@@ -49,6 +63,12 @@ pub extern "C" fn portal_permission_checker_from_cli_args(
         })
         .collect()
     })
+    .unwrap_or_default();
+
+  let track_write: bool = env_vars
+    .get("PORTAL_TRACK_WRITE")
+    .unwrap_or(&"false".to_owned())
+    .parse()
     .unwrap_or_default();
 
   let allow_write: Vec<String> = env_vars
@@ -81,6 +101,8 @@ pub extern "C" fn portal_permission_checker_from_cli_args(
     cwd,
     allow_read,
     allow_write,
+    track_write,
+    state: Arc::new(RwLock::new(State::default())),
     finalized: true,
   })
 }
@@ -93,6 +115,8 @@ pub extern "C" fn portal_permission_checker_create_new(
     cwd: PathBuf::new(),
     allow_read: vec![],
     allow_write: vec![],
+    track_write: false,
+    state: Arc::new(RwLock::new(State::default())),
     finalized: false,
   });
 
@@ -112,10 +136,10 @@ pub extern "C" fn portal_permission_checker_add_fs_permission(
   }
   let path = c_str_to_str(path);
   match permission {
-    FS_RO => {
+    FS_R => {
       checker.allow_read.push(path.to_owned());
     }
-    FS_RW => {
+    FS_W => {
       checker.allow_write.push(path.to_owned());
     }
     _ => {
@@ -177,18 +201,55 @@ pub extern "C" fn portal_permission_checker_has_fs_permission(
   );
 
   let allowed_paths = match permission {
-    FS_RO => &checker.allow_read,
-    FS_RW => &checker.allow_write,
+    FS_R => &checker.allow_read,
+    FS_W => &checker.allow_write,
     _ => return 0,
   };
   if allowed_paths
     .iter()
     .any(|allowed_path| path.starts_with(allowed_path))
   {
+    if permission == FS_W && checker.track_write {
+      checker.state.write().paths_written.push(path.to_owned());
+    }
     1
   } else {
     0
   }
+}
+
+#[no_mangle]
+pub extern "C" fn portal_permission_checker_list_paths_written(
+  checker: *const PermissionChecker,
+  outlen: *mut c_int,
+) -> *mut *mut i8 {
+  let checker =
+    unsafe { checker.as_ref().expect("Invalid Permission Checker") };
+  let state_paths_written = &checker.state.read().paths_written;
+
+  let mut out = state_paths_written
+    .iter()
+    .map(|path| CString::new(path.as_str()).unwrap().into_raw())
+    .collect::<Vec<*mut i8>>();
+
+  out.shrink_to_fit();
+  let len = out.len();
+  let ptr = out.as_mut_ptr();
+  std::mem::forget(out);
+  unsafe {
+    std::ptr::write(outlen, len as c_int);
+  }
+
+  ptr
+}
+
+#[no_mangle]
+pub extern "C" fn portal_permission_checker_reset_paths_written(
+  checker: *const PermissionChecker,
+) {
+  let checker =
+    unsafe { checker.as_ref().expect("Invalid Permission Checker") };
+  checker.state.write().paths_written.clear();
 }
 
 fn c_str_to_str<'a>(path: *const i8) -> &'a str {
