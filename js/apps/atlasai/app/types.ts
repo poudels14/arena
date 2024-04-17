@@ -27,6 +27,10 @@ export namespace Chat {
         id: string;
         name: string;
       };
+      profile?: {
+        id: string;
+        name: string;
+      };
       activeWorkflow?: {
         id: string;
       };

@@ -21,23 +21,10 @@ import {
 
 export type ChatState = {
   activeThreadId: Accessor<string | undefined>;
-  threadsById: Store<Record<string, Chat.Thread>>;
+  threadsById: Store<Record<string, ChatThread>>;
 };
 
-type ChatThread = {
-  id: string;
-  title: string;
-  blockedBy: string | null;
-  metadata: {
-    model: {
-      id: string;
-      name: string;
-    };
-    profile?: {
-      id: string;
-      name: string;
-    };
-  };
+type ChatThread = Omit<Chat.Thread, "messages"> & {
   messages: Record<string, Chat.Message>;
 };
 
@@ -77,28 +64,6 @@ const ChatContextProvider = (props: {
   children: any;
 }) => {
   const { activeWorkspace, getChatConfig } = useSharedWorkspaceContext();
-  const threadsRoute = createQuery<any[]>(
-    () => {
-      return "/chat/threads";
-    },
-    {},
-    {
-      derive: {
-        threadsById: (query, prev: any) => {
-          const threads = query.data();
-          if (threads) {
-            const theadsById: Record<string, Chat.Thread> = {};
-            // TODO(sagar): reconcile
-            threads.forEach((thread: Chat.Thread) => {
-              theadsById[thread.id] = thread;
-            });
-            return theadsById;
-          }
-        },
-      },
-    }
-  );
-
   const [chatThreadsById, setChatThreadsById] = createStore<
     Record<string, ChatThread>
   >({});
@@ -106,6 +71,21 @@ const ChatContextProvider = (props: {
   const [selectedMessageVersion, setSelectedMessageVersion] = createSignal<
     Record<string, string>
   >({});
+
+  const listThreadsRoute = createQuery<any[]>(() => {
+    return "/chat/threads";
+  }, {});
+
+  createComputed(() => {
+    const threads = listThreadsRoute.data();
+    batch(() => {
+      threads?.forEach((thread) => {
+        setChatThreadsById(thread.id, (prev) => {
+          return { ...(prev || {}), ...thread };
+        });
+      });
+    });
+  });
 
   const activeThreadRoute = createQuery<Chat.Thread>(() => {
     if (!props.activeThreadId) {
@@ -128,6 +108,7 @@ const ChatContextProvider = (props: {
           prev || {
             blockedBy: null,
             messages: {},
+            createdAt: new Date(),
           }
         );
       });
@@ -142,6 +123,7 @@ const ChatContextProvider = (props: {
     }
     const messages = data.messages || [];
     batch(() => {
+      setChatThreadsById(data.id, "id", data.id!);
       setChatThreadsById(data.id, "title", data.title!);
       setChatThreadsById(data.id, "blockedBy", data.blockedBy || null);
       setChatThreadsById(data.id, "metadata", data.metadata!);
@@ -288,7 +270,7 @@ const ChatContextProvider = (props: {
               return messages;
             });
           } else if (pathPrefix == "threads") {
-            threadsRoute.setState<any>("threadsById", (prev) => {
+            setChatThreadsById((prev) => {
               let threadsById = prev;
               if (op.op == "replace") {
                 threadsById = cleanSet(threadsById, path, op.value);
@@ -334,13 +316,12 @@ const ChatContextProvider = (props: {
             return props.activeThreadId;
           },
           get threadsById() {
-            return threadsRoute.state<Record<string, Chat.Thread>>(
-              "threadsById"
-            );
+            void chatThreadsById();
+            return chatThreadsById;
           },
         },
         refreshThreadsById() {
-          threadsRoute.refresh();
+          listThreadsRoute.refresh();
         },
         getActiveChatThread,
         getChatProfiles() {
