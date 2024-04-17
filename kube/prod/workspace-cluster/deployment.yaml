@@ -25,7 +25,7 @@ spec:
             - "--enable-cloud-ext"
             - "--s3bucket"
             - "portal-prod-2024"
-            - apps/workspace-cluster/0.1.1/server/index.js
+            - apps/workspace-cluster/0.1.2/server/index.js
           ports:
             - containerPort: 9000
           envFrom:
