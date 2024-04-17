@@ -96,6 +96,8 @@ const get = protectedProcedure.query(async ({ req, ctx, params, errors }) => {
     },
     req,
     errors,
+  }).then((res) => {
+    return res instanceof Response ? [] : res;
   });
 
   return {
