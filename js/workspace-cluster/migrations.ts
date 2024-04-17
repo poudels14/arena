@@ -1,3 +1,4 @@
+import dedent from "dedent";
 import { PostgresDatabaseConfig } from "@portal/deploy/db";
 
 const migrations: PostgresDatabaseConfig = {
@@ -258,6 +259,24 @@ const migrations: PostgresDatabaseConfig = {
         await db.query(`DROP TABLE settings;`);
         await db.query(`DROP INDEX settings_workspace_id;`);
         await db.query(`DROP INDEX settings_user_id;`);
+      },
+    },
+    {
+      id: "add_atlas_ai_and_drive_app_templates",
+      async up(db) {
+        await db.query(
+          dedent(`INSERT INTO app_templates (id, name, default_version, owner_id)
+        VALUES ('atlasai', 'Atlas AI', '0.1.2', '1'),
+        ('portal-drive', 'Portal Drive', '0.1.2', '1');
+        `)
+        );
+      },
+      async down(db) {
+        await db.query(
+          dedent(
+            `DELETE FROM app_templates WHERE id = 'atlasai' OR id = 'portal-drive'`
+          )
+        );
       },
     },
   ],
