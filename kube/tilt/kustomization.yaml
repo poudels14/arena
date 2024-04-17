@@ -1,12 +1,13 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+namePrefix: tilt-arena-
 commonLabels:
   group: core-services
 resources:
   - ./postgres
   - ./minio
-  - ../prod/arenasql-cluster
-  - app-cluster-config.yaml
+  # - ../prod/arenasql-cluster
+  # - app-cluster-config.yaml
   - arenasql-pvc.yaml
   - postgres-pvc.yaml
   - minio-pvc.yaml
