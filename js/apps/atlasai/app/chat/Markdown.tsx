@@ -34,8 +34,15 @@ const MarkdownRenderer = (props: { markdown: string }) => {
       tokens={tokens()}
       renderer={{
         code(props) {
-          const highlighted =
-            props.lang && hljs.listLanguages().includes(props.lang);
+          const html = createMemo(() => {
+            const highlighted =
+              props.lang && hljs.listLanguages().includes(props.lang);
+            return highlighted
+              ? hljs.highlight(props.text || "", {
+                  language: props.lang,
+                }).value
+              : props.text;
+          });
           return (
             <div class="my-2 rounded text-white space-y-0">
               <div class="flex py-1 px-2 text-xs rounded-t bg-gray-600">
@@ -53,13 +60,7 @@ const MarkdownRenderer = (props: { markdown: string }) => {
               </div>
               <code
                 class="block px-4 py-4 text-xs rounded-b bg-gray-800 whitespace-pre overflow-auto scroll:h-1 thumb:rounded thumb:bg-gray-400"
-                innerHTML={
-                  highlighted
-                    ? hljs.highlight(props.text, {
-                        language: props.lang,
-                      }).value
-                    : props.text
-                }
+                innerHTML={html()}
               />
             </div>
           );
