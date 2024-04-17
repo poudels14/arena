@@ -43,7 +43,7 @@ export default function Home() {
             <div class="space-y-4">
               <a
                 class="flex px-8 py-3 text-xs justify-center items-center space-x-2 rounded-full text-white bg-indigo-600"
-                href="/downloads/mac.dmg"
+                href="/downloads/Portal_0.1.2_aarch64.dmg"
                 target="_blank"
               >
                 <SiApple />
@@ -51,7 +51,7 @@ export default function Home() {
               </a>
               <a
                 class="flex px-8 py-3 text-xs justify-center items-center space-x-2 rounded-full text-white bg-indigo-600"
-                href="/downloads/linux-appimage"
+                href="/downloads/Portal_0.1.2_amd64.AppImage"
                 target="_blank"
               >
                 <SiLinux />
@@ -59,7 +59,7 @@ export default function Home() {
               </a>
               <a
                 class="flex px-8 py-3 text-xs justify-center items-center space-x-2 rounded-full text-white bg-indigo-600"
-                href="/downloads/linux-deb"
+                href="/downloads/Portal_0.1.2_amd64.deb"
                 target="_blank"
               >
                 <SiLinux />

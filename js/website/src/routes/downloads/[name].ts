@@ -5,15 +5,12 @@ import ky from "ky";
 import { env } from "~/env";
 
 export async function GET({ params }: APIEvent) {
-  const version = "0.1.2";
-  let fileSuffix = "";
-  if (params.os == "mac") {
-    fileSuffix = "aarch64.dmg";
-  } else if (params.os == "linux-appimage") {
-    fileSuffix = "amd64.AppImage";
-  } else if (params.os == "linux-deb") {
-    fileSuffix = "amd64.deb";
-  } else {
+  const regex = [...params.name.matchAll(/Portal_([0-9.]+)_(\w+).(\w+)/gm)];
+  console.log("regex =", [...regex]);
+  const version = regex[0][1];
+  const arch = regex[0][2];
+  const fileType = regex[0][3];
+  if (!version || !arch || !fileType) {
     return new Response("Not found", {
       status: 404,
     });
@@ -27,7 +24,9 @@ export async function GET({ params }: APIEvent) {
           event: "downloads",
           distinct_id: uniqueId(),
           properties: {
-            os: params.os,
+            arch,
+            version,
+            fileType,
           },
           timestamp: new Date().toISOString(),
         },
@@ -36,6 +35,6 @@ export async function GET({ params }: APIEvent) {
   }
 
   return redirect(
-    `https://github.com/poudels14/portal-release/releases/download/${version}/portal_${version}_${fileSuffix}`
+    `https://github.com/poudels14/portal-release/releases/download/${version}/Portal_${version}_${arch}.${fileType}`
   );
 }
