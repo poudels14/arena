@@ -11,6 +11,7 @@ import cssGrammar from "highlight.js/lib/languages/css";
 import xmlGrammar from "highlight.js/lib/languages/xml";
 import pythonGrammar from "highlight.js/lib/languages/python";
 import rustGrammar from "highlight.js/lib/languages/rust";
+import cGrammar from "highlight.js/lib/languages/c";
 
 hljs.registerLanguage("json", jsonGrammar);
 hljs.registerLanguage("javascript", jsGrammar);
@@ -19,6 +20,7 @@ hljs.registerLanguage("html", xmlGrammar);
 hljs.registerLanguage("xml", xmlGrammar);
 hljs.registerLanguage("python", pythonGrammar);
 hljs.registerLanguage("rust", rustGrammar);
+hljs.registerLanguage("c", cGrammar);
 
 const marked = new Marked({});
 
@@ -50,7 +52,7 @@ const MarkdownRenderer = (props: { markdown: string }) => {
                 </div>
               </div>
               <code
-                class="block px-4 py-4 rounded-b bg-gray-800 whitespace-pre overflow-auto scroll:h-1 thumb:rounded thumb:bg-gray-400"
+                class="block px-4 py-4 text-xs rounded-b bg-gray-800 whitespace-pre overflow-auto scroll:h-1 thumb:rounded thumb:bg-gray-400"
                 innerHTML={
                   highlighted
                     ? hljs.highlight(props.text, {
