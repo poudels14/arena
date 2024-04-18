@@ -5,6 +5,7 @@ import {
   Switch,
   createEffect,
   createMemo,
+  createReaction,
   createSignal,
   onCleanup,
   useContext,
@@ -263,6 +264,12 @@ const ChatMessage = (props: {
   selectedVersion?: string;
   selectVersion: (parentId: string, id: string) => void;
 }) => {
+  const trackLatestVersion = createReaction(() => {
+    props.selectVersion(
+      props.message.parentId()!,
+      props.versions[props.versions.length - 1]
+    );
+  });
   const selectedVersionIndex = createMemo(() => {
     const idx = props.versions.findIndex((v) => props.selectedVersion == v);
     return idx < 0 ? props.versions.length - 1 : idx;
@@ -357,6 +364,7 @@ const ChatMessage = (props: {
                 <div
                   class="cursor-pointer text-gray-400 hover:text-gray-800"
                   onClick={() => {
+                    trackLatestVersion(() => props.versions);
                     props.regenerateMessage({
                       id: props.message.id()!,
                     });
