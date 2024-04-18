@@ -322,7 +322,7 @@ const ChatMessage = (props: {
       >
         <Show when={props.message.message.content!()}>
           <div
-            class="message px-4 py-1 rounded-lg leading-6 select-auto"
+            class="message px-4 py-1 rounded-lg leading-6 select-text"
             classList={{
               "bg-[hsl(60_28%_95%)]": role().id == "user",
               "text-gray-800": role().id == "ai",
