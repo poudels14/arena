@@ -13,11 +13,11 @@ const router = createRouter({
     // information about the app like, what permissions this app needs
     // when installing, what resources are needed to be installed in the
     // workspace that this app will need to access, etc
-    "/_metadata/permissions": p.query(async () => {}),
+    "/_admin/metadata/permissions": p.query(async () => {}),
     // TODO(sagar): this will return the schema of the routes this app has
     // which can be used by LLM models.
     // TODO: maybe this endpoint should be under `/_admin`?
-    "/_metadata/api/schemas": p.query(async () => {}),
+    "/_admin/metadata/api/schemas": p.query(async () => {}),
   },
 });
 

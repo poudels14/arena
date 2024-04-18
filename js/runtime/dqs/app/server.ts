@@ -6,6 +6,7 @@ import { PostgresDatabaseMigrator } from "@portal/deploy/db/postgres";
 // @ts-expect-error
 import * as appServer from "@dqs/template/app";
 import { migrateDatabase } from "@portal/deploy/db";
+import { router as adminRouter } from "./admin";
 
 const handler = appServer.default?.fetch;
 
@@ -39,6 +40,10 @@ if (appServer.migrations) {
 }
 serve({
   async fetch(req) {
+    const adminRes = await adminRouter.route(req);
+    if (adminRes) {
+      return adminRes;
+    }
     if (handler) {
       const res = await handler(req);
       if (res instanceof Response) {
