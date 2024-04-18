@@ -113,7 +113,7 @@ const ChatThread = (props: {
       <Show when={getActiveChatThread()}>
         <div class="flex text-sm text-gray-700 bg-gray-50 border-b border-gray-100">
           <div class="flex-1 flex justify-center items-center">
-            <div class="px-20 py-2 flex-1 min-w-[350px] max-w-[750px] font-medium overflow-hidden text-ellipsis">
+            <div class="px-20 py-2 flex-1 min-w-[350px] max-w-[750px] font-medium whitespace-nowrap overflow-hidden text-ellipsis">
               {getActiveChatThread().title()}
             </div>
           </div>

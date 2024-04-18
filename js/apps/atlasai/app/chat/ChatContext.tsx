@@ -101,24 +101,12 @@ const ChatContextProvider = (props: {
   // refresh chat message when props id change
   createComputed(() => {
     void props.activeThreadId;
-    if (props.activeThreadId) {
-      // set default messages for thread if it's not already set
-      setChatThreadsById(props.activeThreadId, (prev) => {
-        return (
-          prev || {
-            blockedBy: null,
-            messages: {},
-            createdAt: new Date(),
-          }
-        );
-      });
-    }
     activeThreadRoute.refresh();
   });
 
   createComputed(() => {
     const data = activeThreadRoute.data()!;
-    if (!data) {
+    if (!data || activeThreadRoute.status() != 200) {
       return;
     }
     const messages = data.messages || [];

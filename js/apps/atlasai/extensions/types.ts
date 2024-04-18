@@ -16,6 +16,7 @@ type Manifest<Args> = {
     utils: {
       uploadArtifact(artifact: Artifact): Promise<{ id: string; name: string }>;
     };
+    context?: any;
     prompt: (message: string) => Promise<void>;
     setStatus: (status: DbTaskExecution["status"]) => Promise<void>;
     setState: (state: any, status?: DbTaskExecution["status"]) => Promise<void>;
