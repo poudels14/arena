@@ -89,7 +89,7 @@ const AddModel = (props: { workspaceId: string; closeDialog: () => void }) => {
               type="text"
               name="model-name"
               placeholder="Name"
-              class="w-full px-2 py-1.5 text-sm border border-gray-200 bg2-gray-200 rounded outline-none focus:ring-1"
+              class="w-full px-2 py-1.5 text-sm border border-gray-200 rounded outline-none focus:ring-1"
               onInput={(e) => setState("name", e.target.value)}
             />
           </label>
