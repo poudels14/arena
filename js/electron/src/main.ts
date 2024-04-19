@@ -22,7 +22,10 @@ const createWindow = () => {
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`)
     );
   }
-  win.webContents.openDevTools();
+  // @ts-expect-error
+  if (import.meta.env.MODE == "development") {
+    win.webContents.openDevTools();
+  }
 };
 
 app.on("before-quit", () => {

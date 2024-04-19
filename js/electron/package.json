@@ -1,15 +1,23 @@
 {
-  "name": "electron",
-  "productName": "electron",
-  "version": "1.0.0",
-  "description": "My Electron application description",
+  "name": "portal",
+  "productName": "Portal",
+  "version": "0.1.5",
+  "description": "Portal - all in one AI assistant platform",
   "main": ".vite/build/main.js",
+  "build": {
+    "appId": "ai.useportal.portal-desktop",
+    "mac": {
+      "category": "ai.useportal.portal-desktop"
+    },
+    "copyright": "Arena Inc."
+  },
   "scripts": {
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
-    "lint": "eslint --ext .ts,.tsx ."
+    "lint": "eslint --ext .ts,.tsx .",
+    "build": "electron-builder"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.4.0",
@@ -24,6 +32,7 @@
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "electron": "30.0.0",
+    "electron-builder": "^24.13.3",
     "eslint": "^8.57.0",
     "eslint-plugin-import": "^2.29.1",
     "postcss": "^8.4.38",
@@ -34,8 +43,7 @@
     "vite-plugin-solid": "^2.10.2"
   },
   "keywords": [],
-  "author": "Sagar Poudel",
-  "license": "MIT",
+  "author": "Sam Poudel",
   "dependencies": {
     "electron-squirrel-startup": "^1.0.0",
     "solid-js": "^1.8.16"
