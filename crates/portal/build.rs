@@ -25,7 +25,7 @@ fn main() {
   let packages = vec![
     (
       "workspace-desktop",
-      "0.1.3",
+      "0.1.5",
       "PORTAL_DESKTOP_WORKSPACE_VERSION",
       #[cfg(debug_assertions)]
       "../../js/workspace-desktop/dist/workspace-desktop",
@@ -34,7 +34,7 @@ fn main() {
     ),
     (
       "atlasai",
-      "0.1.4",
+      "0.1.5",
       "PORTAL_DESKTOP_ATLAS_VERSION",
       #[cfg(debug_assertions)]
       "../../js/apps/atlasai/dist/atlasai",
@@ -43,7 +43,7 @@ fn main() {
     ),
     (
       "portal-drive",
-      "0.1.1",
+      "0.1.5",
       "PORTAL_DESKTOP_DRIVE_VERSION",
       #[cfg(debug_assertions)]
       "../../js/apps/drive/dist/portal-drive",
