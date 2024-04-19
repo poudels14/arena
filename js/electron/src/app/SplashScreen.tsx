@@ -11,9 +11,14 @@ const HOST = "http://localhost:42690/";
 const SplashScreen = (props: any) => {
   const [serverReady, setServerReady] = createSignal(false);
   const pollServer = async () => {
-    const res = await fetch(new URL("/_healthy", HOST), {}).catch((e) => {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 2_500);
+    const res = await fetch(new URL("/_healthy", HOST), {
+      signal: controller.signal,
+    }).catch((e) => {
       return { ok: false };
     });
+    clearTimeout(id);
     if (res.ok) {
       setServerReady(true);
     } else {
