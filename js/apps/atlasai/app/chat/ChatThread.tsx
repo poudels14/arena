@@ -112,27 +112,23 @@ const ChatThread = (props: {
   return (
     <div class="h-full overflow-y-auto scroll:w-1 thumb:rounded thumb:bg-gray-400 space-y-6">
       <Show when={getActiveChatThread()}>
-        <div class="flex text-sm text-gray-700 bg-gray-50 border-b border-gray-100">
-          <div class="flex-1 flex justify-center items-center">
-            <div class="px-20 py-2 flex-1 min-w-[350px] max-w-[750px] font-medium whitespace-nowrap overflow-hidden text-ellipsis">
-              {getActiveChatThread().title()}
-            </div>
+        <div class="w-full flex justify-between text-sm text-gray-700 bg-gray-50 border-b border-gray-100 overflow-hidden">
+          <div class="max-w-[450px] pl-20 pr-4 py-2 font-medium whitespace-nowrap overflow-hidden text-ellipsis">
+            {getActiveChatThread().title()}
           </div>
-          <div class="relative right-10 flex items-center px-2 py-1 text-xs space-y-0.5">
-            <div class="flex flex-col justify-center items-center">
-              <Show when={getActiveChatThread().metadata.model()}>
-                <div class="flex space-x-2">
-                  <div class="">Model:</div>
-                  <div>{getActiveChatThread().metadata.model.name()}</div>
-                </div>
-              </Show>
-              <Show when={getActiveChatThread().metadata.profile!()}>
-                <div class="flex space-x-2">
-                  <div class="">Profile:</div>
-                  <div>{getActiveChatThread().metadata.profile!.name()}</div>
-                </div>
-              </Show>
-            </div>
+          <div class="max-md:hidden md:flex basis-40 flex-col justify-center items-center pl-2 pr-8 py-1 text-xs whitespace-nowrap space-y-0.5">
+            <Show when={getActiveChatThread().metadata.model()}>
+              <div class="flex space-x-2">
+                <div class="">Model:</div>
+                <div>{getActiveChatThread().metadata.model.name()}</div>
+              </div>
+            </Show>
+            <Show when={getActiveChatThread().metadata.profile!()}>
+              <div class="flex space-x-2">
+                <div class="">Profile:</div>
+                <div>{getActiveChatThread().metadata.profile!.name()}</div>
+              </div>
+            </Show>
           </div>
         </div>
       </Show>

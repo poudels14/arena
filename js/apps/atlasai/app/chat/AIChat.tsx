@@ -40,7 +40,7 @@ const AIChat = () => {
       });
   }, []);
   return (
-    <div class="chat relative flex-1 h-full min-w-[300px]">
+    <div class="chat relative flex-1 h-full min-w-[300px] overflow-hidden">
       <Switch>
         <Match when={activeWorkspace.models()?.length > 0}>
           <div class="flex h-full">
@@ -51,8 +51,8 @@ const AIChat = () => {
               />
             </div>
           </div>
-          <div class="chatbox-container absolute bottom-0 w-full flex justify-center pointer-events-none">
-            <div class="flex-1 -ml-6 min-w-[200px] max-w-[750px] rounded-lg pointer-events-auto backdrop-blur-xl space-y-1">
+          <div class="chatbox-container absolute bottom-0 w-full px-4 flex justify-center pointer-events-none">
+            <div class="flex-1 min-w-[200px] max-w-[750px] rounded-lg pointer-events-auto backdrop-blur-xl space-y-1">
               <div class="mb-4 bg-gray-400/10 rounded">
                 <Chatbox
                   threadId={state.activeThreadId()!}
