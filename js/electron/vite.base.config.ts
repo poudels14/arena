@@ -121,7 +121,7 @@ export function copyFilesToOutputDir(options: { files: string[] }): Plugin {
       await Promise.all(
         options.files.map(async (file) => {
           const filePath = path.join(config.root, file);
-          if ((await fs.lstat(filePath)).isDirectory) {
+          if ((await fs.lstat(filePath)).isDirectory()) {
             const outDir = path.join(config.root, config.build.outDir);
             await fs
               .cp(filePath, outDir, {
