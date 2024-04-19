@@ -271,10 +271,16 @@ const sendMessage = p
           next(json) {
             try {
               controller.enqueue("data: " + JSON.stringify(json) + "\n\n");
-            } catch (e) {}
+            } catch (e) {
+              console.error("Error sending message to stream:", e);
+            }
           },
           complete() {
-            controller.close();
+            try {
+              controller.close();
+            } catch (e) {
+              console.error("Error closing stream:", e);
+            }
           },
         });
       },
