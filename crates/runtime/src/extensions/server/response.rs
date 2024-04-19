@@ -122,14 +122,14 @@ pub fn channel(
 ) -> (StreamResponseWriter, StreamResponseReader) {
   match stream_type {
     StreamType::Bytes => {
-      let (tx, rx) = mpsc::channel(20);
+      let (tx, rx) = mpsc::channel(100);
       (
         StreamResponseWriter::Bytes(tx.into()),
         StreamResponseReader::Bytes(rx.into()),
       )
     }
     StreamType::Events => {
-      let (tx, rx) = mpsc::channel(20);
+      let (tx, rx) = mpsc::channel(100);
       (
         StreamResponseWriter::Events(tx.into()),
         StreamResponseReader::Events(rx.into()),

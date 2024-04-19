@@ -51,14 +51,20 @@ const serve = async (config: ServeConfig) => {
             config.websocket(result[0], result[1]);
           }
         })
-        .catch((e) => console.error(e));
+        .catch((e) =>
+          console.error(`Error sending response [path = ${req?.url}]`)
+        );
     } catch (error) {
       console.error(error);
-      req!.send(
-        new Response("Internal Server Error", {
-          status: 500,
-        })
-      );
+      req!
+        .send(
+          new Response("Internal Server Error", {
+            status: 500,
+          })
+        )
+        .catch(() => {
+          // ignore error
+        });
     }
   });
 };

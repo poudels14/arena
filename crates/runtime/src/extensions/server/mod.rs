@@ -159,7 +159,10 @@ async fn op_http_send_response(
 
   let sender = handle.0.take();
   if let Some(sender) = sender {
-    match sender.send(res).map_err(|e| anyhow!("{:?}", e)) {
+    match sender
+      .send(res)
+      .map_err(|e| anyhow!("Error sending response: {:?}", e))
+    {
       Ok(_) => {
         if let Some(rx) = websocket_rx {
           let websocket = rx.await?;
