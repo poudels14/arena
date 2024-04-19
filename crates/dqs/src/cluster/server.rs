@@ -96,6 +96,7 @@ impl DqsServer {
     ));
     let options_clone = options.clone();
 
+    #[allow(unused_mut)]
     let mut env_vars = match options.module.as_app() {
       Some(app) => Self::load_app_env_variables(
         &options.workspace_id,
@@ -109,10 +110,10 @@ impl DqsServer {
 
     #[cfg(feature = "desktop")]
     env_vars.insert(
-      "PORTAL_APP_HIDE_LOGS",
+      "PORTAL_APP_NO_DEBUG".to_owned(),
       EnvVar {
-        id: "PORTAL_APP_HIDE_LOGS".to_owned(),
-        key: "PORTAL_APP_HIDE_LOGS".to_owned(),
+        id: "PORTAL_APP_NO_DEBUG".to_owned(),
+        key: "PORTAL_APP_NO_DEBUG".to_owned(),
         value: Value::Bool(true),
         is_secret: false,
       },
