@@ -1,8 +1,12 @@
+use std::collections::HashMap;
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
+
 use anyhow::Result;
 use arenasql_cluster::schema::ADMIN_USERNAME;
-use axum::body::Body;
+use axum::body::{Body, Full};
 use axum::extract::{Path, Query, State};
-use axum::http::{Request, StatusCode};
+use axum::http::{HeaderValue, Request, StatusCode};
 use axum::middleware;
 use axum::response::{IntoResponse, Response};
 use axum::routing::MethodFilter;
@@ -12,7 +16,8 @@ use common::axum::logger;
 use dqs::arena::{App, ArenaRuntimeState, MainModule, Template};
 use dqs::jsruntime::RuntimeOptions;
 use dqs::loaders::AppkitModuleLoader;
-use hyper::Body as HyperBody;
+use hyper::{header, Body as HyperBody};
+use once_cell::sync::Lazy;
 use runtime::deno::core::{v8, ModuleCode};
 use runtime::env::{EnvVar, EnvironmentVariableStore};
 use runtime::extensions::server::request::read_http_body_to_buffer;
@@ -20,9 +25,6 @@ use runtime::extensions::server::response::ParsedHttpResponse;
 use runtime::extensions::server::{errors, HttpRequest, HttpServerConfig};
 use runtime::permissions::PermissionsContainer;
 use serde_json::Value;
-use std::collections::HashMap;
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::oneshot::Sender;
 use tokio::sync::{mpsc, oneshot};
@@ -158,7 +160,14 @@ impl WorkspaceRouter {
     let app = Router::new()
       .route(
         "/_healthy",
-        routing::on(MethodFilter::all(), || async { (StatusCode::OK, "OK") }),
+        routing::on(MethodFilter::all(), || async {
+          let mut res = Full::from("OK").into_response();
+          res.headers_mut().insert(
+            header::ACCESS_CONTROL_ALLOW_ORIGIN,
+            HeaderValue::from_static("*"),
+          );
+          res
+        }),
       )
       .route("/", routing::on(MethodFilter::all(), handle_app_index))
       .route(
@@ -200,13 +209,32 @@ pub async fn handle_static_asset_route(
   }
 }
 
+static CORS_DISABLED_ROUTES: Lazy<Arc<matchit::Router<bool>>> =
+  Lazy::new(|| {
+    let mut router = matchit::Router::new();
+    router.insert("api/workspaces", true).unwrap();
+    router.insert("api/workspaces/{id}", true).unwrap();
+    router.insert("w/apps/{id}/_admin/healthy", true).unwrap();
+    Arc::new(router)
+  });
+
 pub async fn handle_app_routes(
   Path(path): Path<String>,
   Query(search_params): Query<Vec<(String, String)>>,
   State(server): State<WorkspaceRouter>,
   req: Request<Body>,
 ) -> impl IntoResponse {
-  pipe_app_request(&server, path, search_params, req).await
+  pipe_app_request(&server, &path, search_params, req)
+    .await
+    .map(|mut res| {
+      if CORS_DISABLED_ROUTES.at(&path).is_ok() {
+        res.headers_mut().insert(
+          header::ACCESS_CONTROL_ALLOW_ORIGIN,
+          HeaderValue::from_static("*"),
+        );
+      }
+      res
+    })
 }
 
 pub async fn handle_app_index(
@@ -214,13 +242,13 @@ pub async fn handle_app_index(
   State(server): State<WorkspaceRouter>,
   req: Request<Body>,
 ) -> impl IntoResponse {
-  pipe_app_request(&server, "/".to_owned(), search_params, req).await
+  pipe_app_request(&server, "/", search_params, req).await
 }
 
 #[tracing::instrument(skip_all, err, level = "trace")]
 pub async fn pipe_app_request(
   server: &WorkspaceRouter,
-  path: String,
+  path: &str,
   search_params: Vec<(String, String)>,
   mut req: Request<Body>,
 ) -> Result<Response, errors::Error> {

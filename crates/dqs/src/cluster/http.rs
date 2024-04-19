@@ -15,6 +15,8 @@ use cloud::pubsub::EventSink;
 use cloud::pubsub::Subscriber;
 use colored::Colorize;
 use common::axum::logger;
+use http::header;
+use http::HeaderValue;
 use http::StatusCode;
 use http::{Method, Request};
 use hyper::Body;
@@ -201,7 +203,18 @@ pub async fn handle_app_routes(
   State(cluster): State<DqsCluster>,
   req: Request<Body>,
 ) -> impl IntoResponse {
-  pipe_app_request(cluster, app_id, path, search_params, req).await
+  let disable_cors = path == "_admin/healthy";
+  pipe_app_request(cluster, app_id, path, search_params, req)
+    .await
+    .map(|mut res| {
+      if disable_cors {
+        res.headers_mut().insert(
+          header::ACCESS_CONTROL_ALLOW_ORIGIN,
+          HeaderValue::from_static("*"),
+        );
+      }
+      res
+    })
 }
 
 #[tracing::instrument(skip_all, err, level = "trace")]
