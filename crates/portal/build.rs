@@ -4,6 +4,8 @@ use std::io::Read;
 use std::path::Path;
 use std::path::PathBuf;
 
+extern crate napi_build;
+
 use ring::aead;
 use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
 use tar::Builder;
@@ -32,7 +34,7 @@ fn main() {
     ),
     (
       "atlasai",
-      "0.1.3",
+      "0.1.4",
       "PORTAL_DESKTOP_ATLAS_VERSION",
       #[cfg(debug_assertions)]
       "../../js/apps/atlasai/dist/atlasai",
@@ -75,8 +77,7 @@ fn main() {
       base.join(package.1),
     );
   }
-
-  tauri_build::build();
+  napi_build::setup();
 }
 
 fn add_directory_to_archive(

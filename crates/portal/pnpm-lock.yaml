@@ -9,7 +9,18 @@ dependencies:
     specifier: ^1.5.11
     version: 1.5.11
 
+devDependencies:
+  '@napi-rs/cli':
+    specifier: ^2.18.2
+    version: 2.18.2
+
 packages:
+
+  /@napi-rs/cli@2.18.2:
+    resolution: {integrity: sha512-IXQji3IF5eStxTHe/PxDSRjPrFymYAQ5FbIvqurxzxyWR8nJql9mtvmCP8y2g8tSoW5xhaToLQW0+mO3lUZq4w==}
+    engines: {node: '>= 10'}
+    hasBin: true
+    dev: true
 
   /@tauri-apps/cli-darwin-arm64@1.5.11:
     resolution: {integrity: sha512-2NLSglDb5VfvTbMtmOKWyD+oaL/e8Z/ZZGovHtUFyUSFRabdXc6cZOlcD1BhFvYkHqm+TqGaz5qtPR5UbqDs8A==}

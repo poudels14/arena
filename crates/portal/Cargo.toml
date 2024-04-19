@@ -3,13 +3,16 @@ name = "portal"
 version = "0.1.2"
 edition = "2021"
 
-[[bin]]
-name = "portal"
-path = "src/main.rs"
+# [[bin]]
+# name = "portal"
+# path = "src/main.rs"
 
-[[bin]]
-name = "portal-cli"
-path = "src/cli.rs"
+# [[bin]]
+# name = "portal-cli"
+# path = "src/cli.rs"
+
+[lib]
+crate-type = ["cdylib"]
 
 [dependencies]
 anyhow.workspace = true
@@ -49,6 +52,11 @@ async-trait = "0.1.77"
 mime_guess = "2.0.4"
 ring = "0.16.20"
 tauri = { version = "1.6.1", features = ["default", "updater"] }
+napi = "2"
+napi-derive = "2"
+http-body = "1.0.0"
+matchit = "0.8.0"
+once_cell.workspace = true
 
 [build-dependencies]
 pathdiff.workspace = true
@@ -57,6 +65,7 @@ tar = "0.4.40"
 walkdir = "2.5.0"
 ring = "0.16.20"
 tauri-build = { version = "1.5.1", features = [] }
+napi-build = "1"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.
