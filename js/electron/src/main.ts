@@ -4,7 +4,7 @@ import path from "path";
 // TODO: use utilityProcess instead; it wasn't working, so used child process
 // for now
 const { fork } = require("child_process");
-const server = fork(path.join(__dirname, "server.js"), ["args"], {
+const server = fork(path.join(__dirname, "server.js"), [], {
   stdio: "inherit",
 });
 

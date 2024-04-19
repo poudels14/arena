@@ -28,10 +28,10 @@ const config: ForgeConfig = {
           entry: "src/main.ts",
           config: "vite.main.config.ts",
         },
-        {
-          entry: "src/preload.ts",
-          config: "vite.preload.config.ts",
-        },
+        // {
+        //   entry: "src/preload.ts",
+        //   config: "vite.preload.config.ts",
+        // },
         {
           entry: "src/server.ts",
           config: "vite.server.config.ts",
