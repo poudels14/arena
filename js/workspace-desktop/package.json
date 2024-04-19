@@ -1,10 +1,10 @@
 {
   "name": "@portal/workspace-desktop",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Portal Desktop",
   "type": "module",
   "scripts": {
-    "build": "bun run node_modules/@portal/cli/bin/cli.ts app bundle && pnpm node ./build.mjs"
+    "build": "bun run node_modules/@portal/cli/bin/cli.ts app bundle && bun run ./build.mjs"
   },
   "keywords": [],
   "author": {
