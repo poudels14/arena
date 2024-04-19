@@ -1,12 +1,15 @@
 {
   "name": "portal",
   "productName": "Portal",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Portal - all in one AI assistant platform",
   "main": ".vite/build/main.js",
   "build": {
     "appId": "ai.useportal.portal-desktop",
     "mac": {
+      "category": "ai.useportal.portal-desktop"
+    },
+    "linux": {
       "category": "ai.useportal.portal-desktop"
     },
     "copyright": "Arena Inc."

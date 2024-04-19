@@ -6,14 +6,17 @@ import {
   pluginHotRestart,
   copyFilesToOutputDir,
 } from "./vite.base.config";
+import pkg from "./package.json";
 
 // https://vitejs.dev/config
 export default defineConfig((env) => {
   const forgeEnv = env as ConfigEnv<"build">;
   const { forgeConfigSelf } = forgeEnv;
   const config: UserConfig = {
+    define: {
+      _APP_VERSION: JSON.stringify(pkg.version),
+    },
     assetsInclude: ["**/*.node"],
-
     build: {
       rollupOptions: {
         external,
@@ -31,7 +34,7 @@ export default defineConfig((env) => {
     plugins: [
       pluginHotRestart("reload"),
       copyFilesToOutputDir({
-        files: ["../../crates/target/release/portal.node"],
+        files: [`../../crates/target/release/portal-${pkg.version}.node`],
       }),
     ],
   };
