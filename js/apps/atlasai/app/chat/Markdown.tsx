@@ -1,4 +1,4 @@
-import { createMemo } from "solid-js";
+import { Match, Switch, createMemo } from "solid-js";
 import { HiOutlineClipboard } from "solid-icons/hi";
 import { Marked } from "marked";
 import { Markdown } from "@portal/solid-ui/markdown";
@@ -24,9 +24,9 @@ hljs.registerLanguage("c", cGrammar);
 
 const marked = new Marked({});
 
-const MarkdownRenderer = (props: { markdown: string }) => {
+const MarkdownRenderer = (markdownProps: { markdown: string }) => {
   const tokens = createMemo(() => {
-    return marked.lexer(props.markdown);
+    return marked.lexer(markdownProps.markdown);
   });
 
   return (
@@ -44,25 +44,32 @@ const MarkdownRenderer = (props: { markdown: string }) => {
               : props.text;
           });
           return (
-            <div class="my-2 rounded text-white space-y-0">
-              <div class="flex py-1 px-2 text-xs rounded-t bg-gray-600">
-                <div class="flex-1">{props.lang}</div>
-                <div
-                  class="flex px-2 text-[0.5rem] cursor-pointer"
-                  onClick={() => {
-                    window.navigator &&
-                      navigator.clipboard.writeText(props.text);
-                  }}
-                >
-                  <HiOutlineClipboard class="py-0.5" size={14} />
-                  <div>Copy</div>
+            <Switch>
+              <Match when={!props.text}>
+                <div class="markdown hidden">{markdownProps.markdown}</div>
+              </Match>
+              <Match when={props.text}>
+                <div class="my-2 rounded text-white space-y-0">
+                  <div class="flex py-1 px-2 text-xs rounded-t bg-gray-600">
+                    <div class="flex-1">{props.lang}</div>
+                    <div
+                      class="flex px-2 text-[0.5rem] cursor-pointer"
+                      onClick={() => {
+                        window.navigator &&
+                          navigator.clipboard.writeText(props.text);
+                      }}
+                    >
+                      <HiOutlineClipboard class="py-0.5" size={14} />
+                      <div>Copy</div>
+                    </div>
+                  </div>
+                  <code
+                    class="block px-4 py-4 text-xs rounded-b bg-gray-800 whitespace-pre overflow-auto scroll:h-1 thumb:rounded thumb:bg-gray-400"
+                    innerHTML={html()}
+                  />
                 </div>
-              </div>
-              <code
-                class="block px-4 py-4 text-xs rounded-b bg-gray-800 whitespace-pre overflow-auto scroll:h-1 thumb:rounded thumb:bg-gray-400"
-                innerHTML={html()}
-              />
-            </div>
+              </Match>
+            </Switch>
           );
         },
       }}
