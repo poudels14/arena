@@ -57,6 +57,19 @@ impl DqsCluster {
     let compression_predicate = DefaultPredicate::new()
       .and(NotForContentType::new(mime::TEXT_EVENT_STREAM.as_ref()));
 
+    let mut builder = ServiceBuilder::new();
+    // only add logger in desktop if it's a debug release
+    #[cfg(feature = "desktop")]
+    {
+      if cfg!(debug_assertions) {
+        builder = builder.layer(middleware::from_fn(logger::middleware));
+      }
+    }
+    #[cfg(not(feature = "desktop"))]
+    {
+      builder = builder.layer(middleware::from_fn(logger::middleware));
+    }
+
     let app = Router::new()
       .route(
         "/w/apps/:appId/",
@@ -81,8 +94,7 @@ impl DqsCluster {
         routing::get(subscribe_to_events),
       )
       .layer(
-        ServiceBuilder::new()
-          .layer(middleware::from_fn(logger::middleware))
+        builer
           .layer(CompressionLayer::new().compress_when(compression_predicate))
           .layer(
             CorsLayer::new()

@@ -96,7 +96,7 @@ impl DqsServer {
     ));
     let options_clone = options.clone();
 
-    let env_vars = match options.module.as_app() {
+    let mut env_vars = match options.module.as_app() {
       Some(app) => Self::load_app_env_variables(
         &options.workspace_id,
         app,
@@ -106,6 +106,18 @@ impl DqsServer {
       .unwrap_or_default(),
       _ => HashMap::new(),
     };
+
+    #[cfg(feature = "desktop")]
+    env_vars.insert(
+      "PORTAL_APP_HIDE_LOGS",
+      EnvVar {
+        id: "PORTAL_APP_HIDE_LOGS".to_owned(),
+        key: "PORTAL_APP_HIDE_LOGS".to_owned(),
+        value: Value::Bool(true),
+        is_secret: false,
+      },
+    );
+
     let thread_handle = thread.spawn(move || {
       let state = ArenaRuntimeState {
         workspace_id: options.workspace_id.clone(),
