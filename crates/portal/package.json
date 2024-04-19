@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "napi build",
-    "release": "napi build --release"
+    "build": "napi build ../target/debug/",
+    "release": "napi build --release ../target/release/"
   },
   "napi": {
     "name": "portal"
