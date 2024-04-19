@@ -27,11 +27,11 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "com.portal.desktop-4200",
+      "identifier": "ai.useportal.portal-desktop",
       "longDescription": "",
       "macOS": {
-        "entitlements": null,
-        "exceptionDomain": "",
+        "entitlements": "./entitlements.plist",
+        "exceptionDomain": "localhost",
         "frameworks": [],
         "providerShortName": null,
         "signingIdentity": null
