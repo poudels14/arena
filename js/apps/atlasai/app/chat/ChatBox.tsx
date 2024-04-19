@@ -113,7 +113,10 @@ const Chatbox = (props: {
           }}
         >
           <textarea
-            ref={(node) => adjustTextareaHeight(node, getMessage)}
+            ref={(node) => {
+              adjustTextareaHeight(node, getMessage);
+              textareaRef = node;
+            }}
             placeholder="Send a message"
             class="w-full max-h-[180px] px-2 text-sm text-gray-800 bg-transparent outline-none focus:outline-none resize-none placeholder:text-gray-500"
             style={{
