@@ -99,6 +99,7 @@ impl DqsCluster {
     )
     .await?;
 
+    #[cfg(any(not(feature = "desktop"), debug_assertions))]
     println!(
       "{}",
       format!(

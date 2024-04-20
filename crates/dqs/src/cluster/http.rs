@@ -61,9 +61,7 @@ impl DqsCluster {
       ServiceBuilder::new().layer(middleware::from_fn(logger::middleware));
     // remove logger in desktop release
     #[cfg(all(feature = "desktop", not(debug_assertions)))]
-    {
-      let builder = ServiceBuilder::new();
-    }
+    let builder = ServiceBuilder::new();
 
     let app = Router::new()
       .route(
