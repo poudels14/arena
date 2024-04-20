@@ -7,12 +7,10 @@ use arenasql_cluster::schema::ADMIN_USERNAME;
 use axum::body::{Body, Full};
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderValue, Request, StatusCode};
-use axum::middleware;
 use axum::response::{IntoResponse, Response};
 use axum::routing::MethodFilter;
 use axum::{routing, Router};
 use cloud::identity::Identity;
-use common::axum::logger;
 use dqs::arena::{App, ArenaRuntimeState, MainModule, Template};
 use dqs::jsruntime::RuntimeOptions;
 use dqs::loaders::AppkitModuleLoader;
@@ -28,7 +26,6 @@ use serde_json::Value;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::oneshot::Sender;
 use tokio::sync::{mpsc, oneshot};
-use tower::ServiceBuilder;
 use url::Url;
 
 use crate::utils::assets::PortalAppModules;
@@ -177,11 +174,14 @@ impl WorkspaceRouter {
       .route(
         "/*path",
         routing::on(MethodFilter::all(), handle_app_routes),
-      )
-      .layer(
-        ServiceBuilder::new().layer(middleware::from_fn(logger::middleware)),
-      )
-      .with_state(self.clone());
+      );
+
+    // add logger in debug mode
+    #[cfg(debug_assertions)]
+    let app =
+      app.layer(axum::middleware::from_fn(common::axum::logger::middleware));
+
+    let app = app.with_state(self.clone());
     Ok(app)
   }
 }
