@@ -13,7 +13,7 @@ export default function NavigationBar() {
         </a>
         <div class="flex-1 dark:text-gray-400 text-sm font-medium">
           <div class="hidden md:flex justify-start space-x-5">
-            <NavItem title="Discord" href="https://discord.gg/kX4fYm7c" />
+            <NavItem title="Discord" href="https://discord.gg/WGksNRMz" />
             <NavItem title="Download" href="/desktop" />
           </div>
         </div>
