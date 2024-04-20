@@ -11,7 +11,9 @@ import { router as adminRouter } from "./admin";
 const handler = appServer.default?.fetch;
 
 if (appServer.migrations) {
-  console.log("Running migrations");
+  if (!process.env.PORTAL_APP_NO_DEBUG) {
+    console.log("Running migrations");
+  }
 
   const env = createEnv({
     server: {
@@ -36,7 +38,10 @@ if (appServer.migrations) {
   const migrator = new PostgresDatabaseMigrator(client, appServer.migrations);
   await migrateDatabase(migrator, client, appServer.migrations);
   client.close();
-  console.log("Migration completed!");
+
+  if (!process.env.PORTAL_APP_NO_DEBUG) {
+    console.log("Migration completed!");
+  }
 }
 serve({
   async fetch(req) {
