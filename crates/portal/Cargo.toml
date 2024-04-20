@@ -43,7 +43,7 @@ tar = "0.4.40"
 
 arenasql = { path = "../arenasql" }
 arenasql-cluster = { path = "../arenasql-cluster" }
-runtime = { path = "../runtime" }
+runtime = { path = "../runtime", features = ["disable-http-log"] }
 common = { path = "../common", features = ["dotenv"] }
 cloud = { path = "../cloud", features = ["disable-auth"] }
 dqs = { path = "../dqs", features = ["disable-auth", "desktop"] }
