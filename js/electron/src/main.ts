@@ -13,6 +13,7 @@ const createWindow = () => {
     width: 1000,
     height: 700,
   });
+  win.setMinimumSize(100, 80);
 
   // and load the index.html of the app.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
