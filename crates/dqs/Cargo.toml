@@ -66,7 +66,10 @@ futures.workspace = true
 
 [build-dependencies]
 common = { path = "../common", features = [] }
-runtime = { path = "../runtime", features = ["include-in-binary"] }
+runtime = { path = "../runtime", features = [
+  "include-in-binary",
+  "disable-http-log",
+] }
 cloud = { path = "../cloud", features = [] }
 futures.workspace = true
 url.workspace = true

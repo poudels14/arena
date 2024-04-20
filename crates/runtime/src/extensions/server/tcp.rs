@@ -90,6 +90,7 @@ pub(crate) async fn op_http_accept(
         <Result<Response, errors::Error>>::Ok(
           res
             .map(|res| {
+              #[cfg(not(feature = "disable-http-log"))]
               println!(
                 "{} {:?} {} {}",
                 res.1.method,

@@ -10,6 +10,7 @@ build-tools = []
 # turn off the feature if using snapshot with modules
 include-in-binary = []
 fs_rerun_if_changed = []
+disable-http-log = []
 
 [dependencies]
 anyhow = { version = "1.0", features = ["backtrace"] }
