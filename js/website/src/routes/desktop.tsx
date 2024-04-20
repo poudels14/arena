@@ -13,11 +13,10 @@ export default function Home() {
           <div class="text-left space-y-5 text-gray-700">
             <div class="space-y-1.5">
               <div class="flex font-medium space-x-1">
-                <div>Feature parity with Portal cloud</div>
-                <sup class="inline-block mt-4 text-gray-400">*</sup>
+                <div>Chat with your docs</div>
               </div>
               <div class="text-xs text-gray-500">
-                Enjoy same set of features as Portal Cloud
+                Organize docs into folders to narrow chat context
               </div>
             </div>
             <div class="space-y-1.5">
