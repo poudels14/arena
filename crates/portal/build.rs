@@ -25,7 +25,7 @@ fn main() {
   let packages = vec![
     (
       "workspace-desktop",
-      "0.1.6",
+      "0.1.7",
       "PORTAL_DESKTOP_WORKSPACE_VERSION",
       #[cfg(debug_assertions)]
       "../../js/workspace-desktop/dist/workspace-desktop",
