@@ -7,6 +7,7 @@
   "build": {
     "appId": "ai.useportal.portal-desktop",
     "mac": {
+      "icon": "../../crates/portal/icons/icon.icns",
       "category": "ai.useportal.portal-desktop"
     },
     "linux": {
