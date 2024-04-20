@@ -5,7 +5,6 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Context, Result};
 use axum::extract::{Json, Path, Query, State};
-use axum::middleware;
 use axum::response::{IntoResponse, Response};
 use axum::routing::MethodFilter;
 use axum::RequestExt;
@@ -14,7 +13,6 @@ use cloud::identity::Identity;
 use cloud::pubsub::EventSink;
 use cloud::pubsub::Subscriber;
 use colored::Colorize;
-use common::axum::logger;
 use http::header;
 use http::HeaderValue;
 use http::StatusCode;
@@ -29,7 +27,6 @@ use serde_json::{json, Value};
 use tokio::sync::broadcast;
 use tokio::sync::oneshot;
 use tokio::sync::Mutex;
-use tower::ServiceBuilder;
 use tower_http::compression::predicate::NotForContentType;
 use tower_http::compression::{CompressionLayer, DefaultPredicate, Predicate};
 use tower_http::cors::{AllowOrigin, CorsLayer};
@@ -54,15 +51,6 @@ impl DqsCluster {
     router: Option<Router>,
     mut shutdown_signal: broadcast::Receiver<()>,
   ) -> Result<()> {
-    let compression_predicate = DefaultPredicate::new()
-      .and(NotForContentType::new(mime::TEXT_EVENT_STREAM.as_ref()));
-
-    let builder =
-      ServiceBuilder::new().layer(middleware::from_fn(logger::middleware));
-    // remove logger in desktop release
-    #[cfg(all(feature = "desktop", not(debug_assertions)))]
-    let builder = ServiceBuilder::new();
-
     let app = Router::new()
       .route(
         "/w/apps/:appId/",
@@ -85,15 +73,21 @@ impl DqsCluster {
       .route(
         "/w/subscribe/:workspaceId/*path",
         routing::get(subscribe_to_events),
-      )
+      );
+
+    // add logger in debug mode and non-desktop feature mode
+    #[cfg(any(not(feature = "desktop"), debug_assertions))]
+    let app =
+      app.layer(axum::middleware::from_fn(common::axum::logger::middleware));
+
+    let compression_predicate = DefaultPredicate::new()
+      .and(NotForContentType::new(mime::TEXT_EVENT_STREAM.as_ref()));
+    let app = app
+      .layer(CompressionLayer::new().compress_when(compression_predicate))
       .layer(
-        builder
-          .layer(CompressionLayer::new().compress_when(compression_predicate))
-          .layer(
-            CorsLayer::new()
-              .allow_methods([Method::GET])
-              .allow_origin(AllowOrigin::list(vec![])),
-          ),
+        CorsLayer::new()
+          .allow_methods([Method::GET])
+          .allow_origin(AllowOrigin::list(vec![])),
       )
       .with_state(self.clone());
 

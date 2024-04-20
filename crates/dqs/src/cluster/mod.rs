@@ -73,7 +73,7 @@ impl DqsCluster {
     &self,
     options: DqsServerOptions,
   ) -> Result<(DqsServer, watch::Receiver<ServerEvents>)> {
-    let dqs_server_id = options.id.clone();
+    #[allow(unused_variables)]
     let server_root = options
       .root
       .as_ref()
@@ -104,7 +104,7 @@ impl DqsCluster {
       "{}",
       format!(
         "[{}] DQS server started! [root: {}]",
-        dqs_server_id, server_root
+        options.id, server_root
       )
       .yellow()
     );
