@@ -109,7 +109,10 @@ export function pluginHotRestart(command: "reload" | "restart"): Plugin {
   };
 }
 
-export function copyFilesToOutputDir(options: { files: string[] }): Plugin {
+export function copyFilesToOutputDir(options: {
+  files: string[];
+  ignoreError?: boolean;
+}): Plugin {
   let config: any = {};
   return {
     name: "portal-copy-native-module",
@@ -121,7 +124,15 @@ export function copyFilesToOutputDir(options: { files: string[] }): Plugin {
       await Promise.all(
         options.files.map(async (file) => {
           const filePath = path.join(config.root, file);
-          if ((await fs.lstat(filePath)).isDirectory()) {
+          const stat = await fs.lstat(filePath).catch((e) => {
+            if (!options.ignoreError) {
+              throw e;
+            }
+            return null;
+          });
+          if (!stat) return;
+
+          if (stat.isDirectory()) {
             const outDir = path.join(config.root, config.build.outDir);
             await fs
               .cp(filePath, outDir, {

@@ -35,6 +35,7 @@ export default defineConfig((env) => {
       pluginHotRestart("reload"),
       copyFilesToOutputDir({
         files: [`../../crates/target/release/portal-${pkg.version}.node`],
+        ignoreError: true,
       }),
     ],
   };
