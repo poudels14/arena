@@ -1,6 +1,6 @@
 import { createHandler } from "@solidjs/start/entry";
 import { StartServer } from "@solidjs/start/server";
-import PortalIcon from "./icons/favicon.ico";
+import PortalIcon from "./icons/portal-icon.png";
 import { env } from "~/env";
 // use this here so that env is validated on startup
 void env;
