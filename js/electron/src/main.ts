@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, Menu, globalShortcut } = require("electron");
 import path from "path";
 
 // TODO: use utilityProcess instead; it wasn't working, so used child process
@@ -29,11 +29,29 @@ const createWindow = () => {
   }
 };
 
+const setupMenu = () => {
+  const menuTemplate = [
+    {
+      label: "File",
+      submenu: [{ role: "quit" }],
+    },
+  ];
+
+  const menu = Menu.buildFromTemplate(menuTemplate);
+  Menu.setApplicationMenu(menu);
+
+  // Disable dev tools shortcut
+  globalShortcut.register("CommandOrControl+Shift+I", () => {
+    console.log("Developer Tools shortcut attempted, but disabled.");
+  });
+};
+
 app.on("before-quit", () => {
   server.kill();
 });
 
 app.whenReady().then(() => {
+  setupMenu();
   createWindow();
 });
 
