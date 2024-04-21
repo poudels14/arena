@@ -79,7 +79,7 @@ const AppScreenshot = () => {
 
 const ChatWithDocsSection = () => {
   return (
-    <div class="flex flex-col md:flex-row justify-between px-12 md:px-56 space-y-8 md:space-y-0 md:space-x-10 bg-gradient-to-b from-sky-50/20 to-indigo-50/20">
+    <div class="flex flex-col md:flex-row justify-between px-12 md:px-40 space-y-8 md:space-y-0 md:space-x-10 bg-gradient-to-b from-sky-50/20 to-indigo-50/20">
       <div class="md:pt-10 space-y-4">
         <div class="text-xl md:text-3xl font-bold text-center md:text-left text-gray-700">
           Chat with your documents
@@ -94,7 +94,7 @@ const ChatWithDocsSection = () => {
         <img
           src={ChatWithDocsScreenshot}
           alt="Chat with docs screenshot"
-          class="w-[500px]"
+          class="w-[700px]"
         />
       </div>
     </div>
@@ -103,12 +103,12 @@ const ChatWithDocsSection = () => {
 
 const ChatProfilesSection = () => {
   return (
-    <div class="flex flex-col-reverse md:flex-row justify-between px-12 md:px-56 space-y-reverse space-y-8 md:space-x-10 bg-gradient-radial from-10% from-indigo-50 via-indigo-50/50 to-white/30 backdrop:blur-3xl">
+    <div class="flex flex-col-reverse md:flex-row justify-between px-12 md:px-40 space-y-reverse space-y-8 md:space-x-10 bg-gradient-radial from-10% from-indigo-50 via-indigo-50/50 to-white/30 backdrop:blur-3xl">
       <div>
         <img
           src={ChatProfilesScreenshot}
           alt="Chat with docs screenshot"
-          class="w-[500px]"
+          class="w-[700px]"
         />
       </div>
       <div class="md:pt-10 space-y-4">
@@ -125,14 +125,6 @@ const ChatProfilesSection = () => {
 };
 
 const LLMModelsSection = () => {
-  const ModelProviderIcon = (props: { logo: any }) => {
-    return (
-      <div>
-        <img src={props.logo} class="h-8" />
-      </div>
-    );
-  };
-
   return (
     <div class="flex justify-center px-12 md:px-56 space-x-10 bg-gradient-to-b from-indigo-50/20 to-purple-50/10">
       <div class="space-y-4">
