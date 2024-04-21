@@ -1,6 +1,6 @@
 {
   "name": "@portal/workspace-cluster",
-  "version": "0.1.3",
+  "version": "0.1.8",
   "description": "Workspace cluster API server",
   "scripts": {
     "build": "bun run node_modules/@portal/cli/bin/cli.ts app bundle"

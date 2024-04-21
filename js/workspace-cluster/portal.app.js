@@ -8,7 +8,7 @@ module.exports = {
   id: "workspace-cluster",
   version,
   registry: {
-    host: "http://localhost:9001/",
+    host: "http://127.0.0.1:9001/",
     apiKey: process.env.REGISTRY_API_KEY,
   },
   resolve: {
