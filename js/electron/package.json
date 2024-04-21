@@ -7,12 +7,18 @@
   "build": {
     "appId": "ai.useportal.portal-desktop",
     "mac": {
+      "appId": "ai.useportal.portal-desktop",
       "icon": "../../crates/portal/icons/icon.icns",
-      "category": "ai.useportal.portal-desktop"
+      "category": "ai.useportal.portal-desktop",
+      "hardenedRuntime": true,
+      "entitlements": "../../crates/portal/entitlements.plist",
+      "entitlementsInherit": "../../crates/portal/entitlements.plist",
+      "notarize": false
     },
     "linux": {
       "category": "ai.useportal.portal-desktop"
     },
+    "afterSign": "./notarize.js",
     "copyright": "Arena Inc."
   },
   "scripts": {
