@@ -55,7 +55,7 @@ impl Workspace {
     std::env::set_var("DATABASE_URL", self.database_url());
     let pool = create_connection_pool().await?;
     self.add_user(&pool).await?;
-    self.add_default_app_templates(&pool).await?;
+    self.update_default_app_templates(&pool).await?;
     self
       .trigger_tracking_event(
         "desktop-install",
@@ -181,35 +181,27 @@ impl Workspace {
     Ok(())
   }
 
-  async fn add_default_app_templates(
+  async fn update_default_app_templates(
     &self,
     pool: &Pool<Postgres>,
   ) -> Result<()> {
+    // update app template versions
+    // they are already added by the migration script
     sqlx::query(
-      r#"INSERT INTO app_templates
-    (id, name, default_version, owner_id, created_at)
-    VALUES ($1, $2, $3, $4, $5)
-    "#,
+      r#"UPDATE app_templates SET default_version = $2
+        WHERE id = $1;"#,
     )
     .bind("atlasai")
-    .bind("Atlas AI")
     .bind(env!("PORTAL_DESKTOP_ATLAS_VERSION"))
-    .bind(&self.config.user_id)
-    .bind(&Utc::now().naive_utc())
     .execute(pool)
     .await?;
 
     sqlx::query(
-      r#"INSERT INTO app_templates
-    (id, name, default_version, owner_id, created_at)
-    VALUES ($1, $2, $3, $4, $5)
-    "#,
+      r#"UPDATE app_templates SET default_version = $2
+    WHERE id = $1;"#,
     )
     .bind("portal-drive")
-    .bind("Drive")
     .bind(env!("PORTAL_DESKTOP_DRIVE_VERSION"))
-    .bind(&self.config.user_id)
-    .bind(&Utc::now().naive_utc())
     .execute(pool)
     .await?;
 
