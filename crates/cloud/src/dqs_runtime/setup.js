@@ -1,8 +1,8 @@
 import * as webidl from "ext:deno_webidl/00_webidl.js";
+import DOMException from "ext:deno_web/01_dom_exception.js";
 import { AbortSignal, AbortController } from "ext:deno_web/03_abort_signal.js";
-import { performance, setTimeOrigin } from "ext:deno_web/15_performance.js";
-import * as _ from "ext:deno_fetch/27_eventsource.js";
 import * as globalInterfaces from "ext:deno_web/04_global_interfaces.js";
+import { performance, setTimeOrigin } from "ext:deno_web/15_performance.js";
 import {
   setTimeoutUnclamped,
   setTimeout,
@@ -23,9 +23,10 @@ import {
   forgivingBase64UrlEncode as encodeToBase64Url,
 } from "ext:deno_web/00_infra.js";
 import { ReadableStream, TransformStream } from "ext:deno_web/06_streams.js";
-import { fetch } from "ext:deno_fetch/26_fetch.js";
 import { Console } from "ext:deno_console/01_console.js";
 import * as imageData from "ext:deno_web/16_image_data.js";
+import { fetch } from "ext:deno_fetch/26_fetch.js";
+import * as _ from "ext:deno_fetch/27_eventsource.js";
 
 function nonEnumerable(value) {
   return {
@@ -69,6 +70,7 @@ function nonEnumerable(value) {
     encodeToBase64,
     encodeToBase64Url,
 
+    DOMException,
     Event: event.Event,
     EventTarget: event.EventTarget,
     Window: globalInterfaces.Window,
