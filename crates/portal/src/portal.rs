@@ -16,8 +16,7 @@ use tokio::sync::broadcast;
 use tracing_appender::rolling;
 use tracing_appender::rolling::RollingFileAppender;
 use tracing_subscriber::filter::Directive;
-use tracing_subscriber::prelude::*;
-use tracing_tree::HierarchicalLayer;
+use tracing_subscriber::EnvFilter;
 
 use crate::config::WorkspaceConfig;
 use crate::server;
@@ -48,30 +47,25 @@ pub fn run_portal(command: Command) -> Result<()> {
   }));
 
   let file_appender = RollingFileAppender::new(
-    rolling::Rotation::HOURLY,
-    dirs::portal()?.cache_dir(),
+    rolling::Rotation::DAILY,
+    dirs::portal()?.cache_dir().join("logs"),
     "portal.log",
   );
 
   let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-  let subscriber = tracing_subscriber::registry()
-    .with(
-      tracing_subscriber::fmt::Layer::new()
-        .with_writer(non_blocking)
-        .with_ansi(false),
-    )
-    .with(
-      tracing_subscriber::filter::EnvFilter::from_default_env()
+  let subscriber = tracing_subscriber::FmtSubscriber::builder()
+    .with_writer(non_blocking)
+    .with_thread_names(true)
+    .with_env_filter(
+      tracing_subscriber::filter::EnvFilter::try_from_default_env()
+        .or_else(|_| EnvFilter::try_new("debug"))
+        .unwrap()
         // Note(sagar): filter out swc_* logs because they are noisy
         .add_directive(Directive::from_str("swc_=OFF").unwrap())
         .add_directive(Directive::from_str("tokio=OFF").unwrap())
         .add_directive(Directive::from_str("hyper=OFF").unwrap()),
     )
-    .with(
-      HierarchicalLayer::default()
-        .with_indent_amount(2)
-        .with_thread_names(true),
-    );
+    .finish();
   tracing::subscriber::set_global_default(subscriber).unwrap();
 
   // Note: v8 platform has to be created before creating tokio runtime
@@ -100,6 +94,11 @@ pub fn run_portal(command: Command) -> Result<()> {
   let handle = rt.spawn(async move {
     match command {
       Command::Start(cmd) => {
+        tracing::debug!("---------------------------------------------------");
+        tracing::debug!("---------------------------------------------------");
+        tracing::debug!("Starting portal server");
+        tracing::debug!("---------------------------------------------------");
+        tracing::debug!("---------------------------------------------------");
         let res = cmd
           .execute(v8_platform.clone(), shutdown_signal_tx_clone.clone())
           .await;
