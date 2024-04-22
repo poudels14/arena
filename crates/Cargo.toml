@@ -86,7 +86,7 @@ sqlx = { version = "0.7.3", features = [
 ] }
 
 [profile.release]
-strip = true
-debug = false
+strip = false
+debug = 1
 codegen-units = 1
 lto = true
