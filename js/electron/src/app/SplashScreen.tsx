@@ -5,7 +5,6 @@ import {
   Switch,
   Match,
 } from "solid-js";
-import * as Sentry from "@sentry/browser";
 import Logo from "../../../../logos/portal-blue.png";
 
 const HOST = "http://localhost:42690/";
@@ -27,9 +26,8 @@ const SplashScreen = (props: any) => {
       setServerReady(true);
     } else {
       if (retry == 0) {
-        Sentry.captureException(
-          new Error(`Error fetching /_healthy [retry count = ${RETRY}]`)
-        );
+        // @ts-expect-error
+        window.electronAPI.reportServerStartError(RETRY);
         setSetupError("Something went wrong. Please restart the app");
         return;
       }

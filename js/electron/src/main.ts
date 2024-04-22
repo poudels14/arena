@@ -1,13 +1,8 @@
-const {
-  app,
-  BrowserWindow,
-  Menu,
-  globalShortcut,
-  dialog,
-} = require("electron");
+const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const { fork } = require("child_process");
 import path from "path";
 import * as Sentry from "@sentry/node";
+import fs from "fs";
 import "./updater";
 import { setupMenu } from "./menu";
 
@@ -56,6 +51,9 @@ const createWindow = () => {
   const win = new BrowserWindow({
     width: 1000,
     height: 700,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+    },
   });
   win.setMinimumSize(100, 80);
 
@@ -72,6 +70,33 @@ const createWindow = () => {
     win.webContents.openDevTools();
   }
 };
+
+ipcMain.on("error:report-server-start-error", (e: any, retry: any) => {
+  // @ts-expect-error
+  if (import.meta.env.MODE == "development") {
+    return;
+  }
+  try {
+    const portal = require(`./portal-${__APP_VERSION__}.node`);
+    const filename = portal.getTodaysLogFileName();
+    const data = fs.readFileSync(filename, {
+      encoding: "utf-8",
+    });
+
+    Sentry.captureException(
+      new Error(`Error starting portal server [retry count = ${retry}]`, {}),
+      {
+        attachments: [
+          {
+            filename: path.basename(filename),
+            data,
+            contentType: "text/plain",
+          },
+        ],
+      }
+    );
+  } catch (e) {}
+});
 
 app.on("before-quit", () => {
   if (server) {
