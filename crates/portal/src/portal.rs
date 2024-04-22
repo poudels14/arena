@@ -2,7 +2,9 @@ use anyhow::bail;
 use anyhow::Result;
 use clap::Parser;
 use colored::*;
+use common::dirs;
 use runtime::deno::core::v8;
+use sentry::integrations::anyhow::capture_anyhow;
 use signal_hook::consts::TERM_SIGNALS;
 use signal_hook::flag;
 use signal_hook::iterator::exfiltrator::SignalOnly;
@@ -11,6 +13,8 @@ use std::str::FromStr;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use tokio::sync::broadcast;
+use tracing_appender::rolling;
+use tracing_appender::rolling::RollingFileAppender;
 use tracing_subscriber::filter::Directive;
 use tracing_subscriber::prelude::*;
 use tracing_tree::HierarchicalLayer;
@@ -36,7 +40,26 @@ pub enum Command {
 }
 
 pub fn run_portal(command: Command) -> Result<()> {
+  let _guard = sentry::init((
+    "https://c07667ff0b5f460434e9ed5f88efb00a@o4507128581914624.ingest.us.sentry.io/4507128586502144",
+    sentry::ClientOptions {
+    release: sentry::release_name!(),
+    ..Default::default()
+  }));
+
+  let file_appender = RollingFileAppender::new(
+    rolling::Rotation::HOURLY,
+    dirs::portal()?.cache_dir(),
+    "portal.log",
+  );
+
+  let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
   let subscriber = tracing_subscriber::registry()
+    .with(
+      tracing_subscriber::fmt::Layer::new()
+        .with_writer(non_blocking)
+        .with_ansi(false),
+    )
     .with(
       tracing_subscriber::filter::EnvFilter::from_default_env()
         // Note(sagar): filter out swc_* logs because they are noisy
@@ -102,6 +125,7 @@ pub fn run_portal(command: Command) -> Result<()> {
   let res = rt.block_on(handle).unwrap();
   match res {
     Err(e) => {
+      capture_anyhow(&e);
       if !e.to_string().contains("execution terminated") {
         // colorize the error
         eprintln!("Error: {}", format!("{:?}", e.to_string()).red().bold());
