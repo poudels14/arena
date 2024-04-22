@@ -1,6 +1,6 @@
 [package]
 name = "portal"
-version = "0.1.2"
+version = "0.1.9"
 edition = "2021"
 
 # [[bin]]
@@ -57,6 +57,8 @@ napi-derive = "2"
 http-body = "1.0.0"
 matchit = "0.8.0"
 once_cell.workspace = true
+tracing-appender = "0.2.3"
+sentry = { version = "0.32.3", features = ["anyhow"] }
 
 [build-dependencies]
 pathdiff.workspace = true
