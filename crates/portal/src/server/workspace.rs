@@ -22,7 +22,7 @@ use runtime::extensions::server::request::read_http_body_to_buffer;
 use runtime::extensions::server::response::ParsedHttpResponse;
 use runtime::extensions::server::{errors, HttpRequest, HttpServerConfig};
 use runtime::permissions::PermissionsContainer;
-use serde_json::Value;
+use serde_json::{json, Value};
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::oneshot::Sender;
 use tokio::sync::{mpsc, oneshot};
@@ -162,6 +162,31 @@ impl WorkspaceRouter {
           res.headers_mut().insert(
             header::ACCESS_CONTROL_ALLOW_ORIGIN,
             HeaderValue::from_static("*"),
+          );
+          res
+        }),
+      )
+      .route(
+        "/_info",
+        routing::on(MethodFilter::all(), || async {
+          let mut res = Full::from(
+            serde_json::to_string(&json!({
+              "versions": &json!({
+                "workspace": env!("PORTAL_DESKTOP_WORKSPACE_VERSION"),
+                "atlasai": env!("PORTAL_DESKTOP_ATLAS_VERSION"),
+                "portal-drive": env!("PORTAL_DESKTOP_DRIVE_VERSION")
+              })
+            }))
+            .unwrap(),
+          )
+          .into_response();
+          res.headers_mut().insert(
+            header::ACCESS_CONTROL_ALLOW_ORIGIN,
+            HeaderValue::from_static("*"),
+          );
+          res.headers_mut().insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
           );
           res
         }),
