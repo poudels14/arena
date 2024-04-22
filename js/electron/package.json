@@ -1,7 +1,7 @@
 {
   "name": "portal",
   "productName": "Portal",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Portal - all in one AI assistant platform",
   "main": ".vite/build/main.js",
   "build": {
@@ -27,7 +27,7 @@
     "make": "electron-forge make",
     "publish": "electron-forge publish",
     "lint": "eslint --ext .ts,.tsx .",
-    "build": "electron-builder"
+    "release": "electron-forge package && electron-builder"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.4.0",
