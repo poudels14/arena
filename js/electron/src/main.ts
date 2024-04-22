@@ -1,13 +1,47 @@
-const { app, BrowserWindow, Menu, globalShortcut } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  Menu,
+  globalShortcut,
+  dialog,
+} = require("electron");
+const { fork } = require("child_process");
 import path from "path";
 import "./updater";
 
-// TODO: use utilityProcess instead; it wasn't working, so used child process
-// for now
-const { fork } = require("child_process");
-const server = fork(path.join(__dirname, "server.js"), [], {
-  stdio: "inherit",
-});
+let server: any;
+const startServer = async () => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), 3_000);
+  const res = await fetch("http://localhost:42690/_healthy", {
+    signal: controller.signal,
+  }).catch((e) => {
+    return { ok: false };
+  });
+  clearTimeout(id);
+
+  if (res.ok) {
+    dialog
+      .showMessageBox({
+        type: "info",
+        buttons: ["Quit"],
+        title: "Multiple instances found",
+        message: "Another instance of Portal open",
+        detail:
+          "Only one instance of Portal is allowed. Please quit all instances and try again.",
+      })
+      .then((returnValue: any) => {
+        app.quit();
+      });
+  }
+
+  // TODO: use utilityProcess instead; it wasn't working, so used child process
+  // for now
+  server = fork(path.join(__dirname, "server.js"), [], {
+    stdio: "inherit",
+  });
+};
+startServer();
 
 const createWindow = () => {
   const win = new BrowserWindow({
@@ -64,7 +98,9 @@ const setupMenu = () => {
 };
 
 app.on("before-quit", () => {
-  server.kill();
+  if (server) {
+    server.kill();
+  }
 });
 
 app.whenReady().then(() => {
