@@ -9,6 +9,7 @@ const { fork } = require("child_process");
 import path from "path";
 import * as Sentry from "@sentry/node";
 import "./updater";
+import { setupMenu } from "./menu";
 
 Sentry.init({
   dsn: "https://b6d70976adbb0932725f7b4817e422cf@o4507128581914624.ingest.us.sentry.io/4507131496366080",
@@ -70,39 +71,6 @@ const createWindow = () => {
   if (import.meta.env.MODE == "development") {
     win.webContents.openDevTools();
   }
-};
-
-const setupMenu = () => {
-  const menuTemplate = [
-    {
-      label: app.name,
-      submenu: [{ role: "quit" }],
-    },
-    {
-      label: "Edit",
-      submenu: [
-        { label: "Undo", accelerator: "CmdOrCtrl+Z", selector: "undo:" },
-        { label: "Redo", accelerator: "Shift+CmdOrCtrl+Z", selector: "redo:" },
-        { type: "separator" },
-        { label: "Cut", accelerator: "CmdOrCtrl+X", selector: "cut:" },
-        { label: "Copy", accelerator: "CmdOrCtrl+C", selector: "copy:" },
-        { label: "Paste", accelerator: "CmdOrCtrl+V", selector: "paste:" },
-        {
-          label: "Select All",
-          accelerator: "CmdOrCtrl+A",
-          selector: "selectAll:",
-        },
-      ],
-    },
-  ];
-
-  const menu = Menu.buildFromTemplate(menuTemplate);
-  Menu.setApplicationMenu(menu);
-
-  // Disable dev tools shortcut
-  globalShortcut.register("CommandOrControl+Shift+I", () => {
-    console.log("Developer Tools shortcut attempted, but disabled.");
-  });
 };
 
 app.on("before-quit", () => {
