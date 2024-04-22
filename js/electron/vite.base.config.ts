@@ -50,7 +50,7 @@ export function getDefineKeys(names: string[]) {
 }
 
 export function getBuildDefine(env: ConfigEnv<"build">) {
-  const { command, forgeConfig } = env;
+  const { command, mode, forgeConfig } = env;
   const names = forgeConfig.renderer
     .filter(({ name }) => name != null)
     .map(({ name }) => name!);
@@ -63,6 +63,12 @@ export function getBuildDefine(env: ConfigEnv<"build">) {
           ? JSON.stringify(process.env[VITE_DEV_SERVER_URL])
           : undefined,
       [VITE_NAME]: JSON.stringify(name),
+      __APP_VERSION__: JSON.stringify(pkg.version),
+      __PORTAL_CLOUD_HOST__: JSON.stringify(
+        mode == "production"
+          ? "https://useportal.ai/"
+          : "http://localhost:9001/"
+      ),
     };
     return { ...acc, ...def };
   }, {} as Record<string, any>);

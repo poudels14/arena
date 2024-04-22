@@ -1,5 +1,6 @@
 const { app, BrowserWindow, Menu, globalShortcut } = require("electron");
 import path from "path";
+import "./updater";
 
 // TODO: use utilityProcess instead; it wasn't working, so used child process
 // for now

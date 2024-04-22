@@ -5,6 +5,7 @@ import {
   external,
   pluginHotRestart,
   copyFilesToOutputDir,
+  getBuildDefine,
 } from "./vite.base.config";
 import pkg from "./package.json";
 
@@ -12,10 +13,9 @@ import pkg from "./package.json";
 export default defineConfig((env) => {
   const forgeEnv = env as ConfigEnv<"build">;
   const { forgeConfigSelf } = forgeEnv;
+  const define = getBuildDefine(forgeEnv);
   const config: UserConfig = {
-    define: {
-      _APP_VERSION: JSON.stringify(pkg.version),
-    },
+    define,
     assetsInclude: ["**/*.node"],
     build: {
       rollupOptions: {
