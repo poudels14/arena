@@ -29,6 +29,7 @@
     "@portal/workspace": "workspace:^",
     "@portal/workspace-cluster": "workspace:^",
     "@portal/workspace-sdk": "workspace:^",
+    "@sentry/browser": "^7.111.0",
     "@solidjs/meta": "^0.29.3",
     "@solidjs/router": "^0.13.0",
     "commander": "^12.0.0",

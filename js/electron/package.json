@@ -55,6 +55,8 @@
   "keywords": [],
   "author": "Sam Poudel",
   "dependencies": {
+    "@sentry/browser": "^7.111.0",
+    "@sentry/node": "^7.111.0",
     "electron-squirrel-startup": "^1.0.0",
     "solid-js": "^1.8.16"
   }

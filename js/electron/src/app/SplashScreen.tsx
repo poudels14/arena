@@ -5,12 +5,16 @@ import {
   Switch,
   Match,
 } from "solid-js";
+import * as Sentry from "@sentry/browser";
 import Logo from "../../../../logos/portal-blue.png";
 
 const HOST = "http://localhost:42690/";
 const SplashScreen = (props: any) => {
   const [serverReady, setServerReady] = createSignal(false);
-  const pollServer = async () => {
+  const [setupError, setSetupError] = createSignal("");
+
+  const RETRY = 50;
+  const pollServer = async (retry: number) => {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), 2_500);
     const res = await fetch(new URL("/_healthy", HOST), {
@@ -22,13 +26,20 @@ const SplashScreen = (props: any) => {
     if (res.ok) {
       setServerReady(true);
     } else {
+      if (retry == 0) {
+        Sentry.captureException(
+          new Error(`Error fetching /_healthy [retry count = ${RETRY}]`)
+        );
+        setSetupError("Something went wrong. Please restart the app");
+        return;
+      }
       setTimeout(() => {
-        pollServer();
+        pollServer(retry - 1);
       }, 1000);
     }
   };
 
-  pollServer();
+  pollServer(RETRY);
   return (
     <div class="w-screen h-screen flex justify-center items-center bg-slate-100">
       <div class="space-y-10">
@@ -40,6 +51,9 @@ const SplashScreen = (props: any) => {
         </div>
         <div class="text-gray-600">
           <Switch>
+            <Match when={setupError()}>
+              <div>{setupError()}</div>
+            </Match>
             <Match when={!serverReady()}>
               <div class="text-center">Loading...</div>
             </Match>
