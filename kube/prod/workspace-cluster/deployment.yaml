@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: workspace-cluster
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: workspace-cluster
@@ -25,7 +25,7 @@ spec:
             - "--enable-cloud-ext"
             - "--s3bucket"
             - "portal-prod-2024"
-            - apps/workspace-cluster/0.1.8/server/index.js
+            - apps/workspace-cluster/0.1.9/server/index.js
           ports:
             - containerPort: 9000
           envFrom:
