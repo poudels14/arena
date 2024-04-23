@@ -172,6 +172,7 @@ impl WorkspaceRouter {
           let mut res = Full::from(
             serde_json::to_string(&json!({
               "versions": &json!({
+                "portal": env!("CARGO_PKG_VERSION"),
                 "workspace": env!("PORTAL_DESKTOP_WORKSPACE_VERSION"),
                 "atlasai": env!("PORTAL_DESKTOP_ATLAS_VERSION"),
                 "portal-drive": env!("PORTAL_DESKTOP_DRIVE_VERSION")
