@@ -69,8 +69,7 @@ const registryRoutes = createRouter({
 
 const appReleaseRoutes = createRouter({
   routes: {
-    "/desktop/updates/:target/:arch/:currentVersion":
-      releases.hasDesktopAppUpdate,
+    "/desktop/updates/:os/:arch/:currentVersion": releases.hasDesktopAppUpdate,
   },
 });
 
