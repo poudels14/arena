@@ -1,7 +1,7 @@
 import semver from "semver";
 import { p } from "./procedure";
 
-const MAC_VERSIONS = ["0.1.9", "0.1.10"];
+const MAC_VERSIONS = ["0.1.9", "0.1.10", "0.1.11"];
 
 const hasDesktopAppUpdate = p.query(async ({ ctx, req, params, errors }) => {
   const { os, arch, currentVersion } = params;

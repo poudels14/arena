@@ -1,6 +1,6 @@
 import { SiApple, SiLinux } from "solid-icons/si";
 
-const MAC_APP_VERSION = "0.1.9";
+const MAC_APP_VERSION = "0.1.11";
 const LINUX_APP_VERSION = "0.1.8";
 export default function Home() {
   return (
