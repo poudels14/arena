@@ -1,0 +1,66 @@
+version: "3"
+
+tasks:
+  release:
+    deps:
+      - update-release-version
+      - build-electron
+    cmds:
+      - echo $(pwd)
+      - echo $PORTAL_RELEASE_VERSION
+  validate-new-version:
+    cmds:
+      - label: check version
+        summary: test
+        silent: true
+        cmd: |
+          pattern="^[0-9]+.[0-9]+.[0-9]+$"
+          if [[ ! $PORTAL_RELEASE_VERSION =~ $pattern ]]; then
+            echo "Please set valiad PORTAL_RELEASE_VERSION"
+            exit -1
+          fi
+  update-release-version:
+    deps:
+      - validate-new-version
+    vars:
+      desktop_pkg: $ARENA_ROOT/js/electron/package.json
+      node_lib_pkg: $ARENA_ROOT/crates/portal/package.json
+      node_lib_toml: $ARENA_ROOT/crates/portal/Cargo.toml
+    cmds:
+      - echo {{.portal_pkg}}
+      - cat <<< $(jq --arg version "$PORTAL_RELEASE_VERSION" '.version = $version' {{.desktop_pkg}}) > {{.desktop_pkg}}
+      - cat <<< $(jq --arg version "$PORTAL_RELEASE_VERSION" '.version = $version' {{.node_lib_pkg}}) > {{.node_lib_pkg}}
+      - cat <<< $(jq --arg version "$PORTAL_RELEASE_VERSION" '.napi.name = "portal-" + $version' {{.node_lib_pkg}}) > {{.node_lib_pkg}}
+  build-runtime-js:
+    deps:
+      - clean-runtime-js
+    dir: $ARENA_ROOT/crates/runtime/js/
+    cmds:
+      - pnpm build
+  build-cloud-js:
+    deps:
+      - clean-cloud-js
+    dir: $ARENA_ROOT/js/runtime/
+    cmds:
+      - pnpm build
+  build-portal-module:
+    dir: $ARENA_ROOT/crates/portal
+    deps:
+      - build-runtime-js
+      - build-cloud-js
+    cmds:
+      - pnpm release
+  build-electron:
+    deps:
+      - build-portal-module
+    dir: $ARENA_ROOT/js/electron/
+    cmds:
+      - npm run release
+  clean-runtime-js:
+    ignore_error: true
+    cmds:
+      - rm -r $ARENA_ROOT/crates/runtime/js/dist/
+  clean-cloud-js:
+    ignore_error: true
+    cmds:
+      - rm -r $ARENA_ROOT/js/runtime/dist/
