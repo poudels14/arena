@@ -6,7 +6,7 @@ commonLabels:
 resources:
   - ./postgres
   - ./minio
-  - ../prod/arenasql-cluster
+  - ./arenasql-cluster
   # - app-cluster-config.yaml
   - arenasql-pvc.yaml
   - postgres-pvc.yaml
