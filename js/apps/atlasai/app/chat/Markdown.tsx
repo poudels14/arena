@@ -1,4 +1,4 @@
-import { Match, Switch, createMemo, onMount } from "solid-js";
+import { Match, Switch, createMemo } from "solid-js";
 import { HiOutlineClipboard } from "solid-icons/hi";
 import { Marked } from "marked";
 import { Markdown } from "@portal/solid-ui/markdown";
@@ -34,7 +34,6 @@ const MarkdownRenderer = (markdownProps: { markdown: string }) => {
       tokens={tokens()}
       renderer={{
         code(props) {
-          let codeRef: any;
           const codeContent = createMemo(() => {
             const highlighted =
               props.lang && hljs.listLanguages().includes(props.lang);
@@ -44,14 +43,6 @@ const MarkdownRenderer = (markdownProps: { markdown: string }) => {
               });
             } else {
               return hljs.highlightAuto(props.text);
-            }
-          });
-
-          onMount(() => {
-            if (codeContent().value) {
-              codeRef.innerHTML = codeContent().value
-            } else {
-              codeRef.innerText = props.text
             }
           });
           return (
@@ -77,7 +68,13 @@ const MarkdownRenderer = (markdownProps: { markdown: string }) => {
                   <pre>
                     <code
                       class="block px-4 py-4 text-xs rounded-b bg-gray-800 whitespace-pre overflow-auto scroll:h-1 thumb:rounded thumb:bg-gray-400"
-                      ref={codeRef}
+                      ref={(node) => {
+                        if (codeContent().value) {
+                          node.innerHTML = codeContent().value
+                        } else {
+                          node.innerText = props.text
+                        }
+                      }}
                     /></pre>
                 </div>
               </Match>
