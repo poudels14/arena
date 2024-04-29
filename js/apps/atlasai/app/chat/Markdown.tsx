@@ -1,4 +1,4 @@
-import { Match, Switch, createMemo } from "solid-js";
+import { Match, Switch, createMemo, onMount } from "solid-js";
 import { HiOutlineClipboard } from "solid-icons/hi";
 import { Marked } from "marked";
 import { Markdown } from "@portal/solid-ui/markdown";
@@ -34,14 +34,25 @@ const MarkdownRenderer = (markdownProps: { markdown: string }) => {
       tokens={tokens()}
       renderer={{
         code(props) {
-          const html = createMemo(() => {
+          let codeRef: any;
+          const codeContent = createMemo(() => {
             const highlighted =
               props.lang && hljs.listLanguages().includes(props.lang);
-            return highlighted
-              ? hljs.highlight(props.text || "", {
-                  language: props.lang,
-                }).value
-              : props.text;
+            if (highlighted) {
+              return hljs.highlight(props.text || "", {
+                language: props.lang,
+              });
+            } else {
+              return hljs.highlightAuto(props.text);
+            }
+          });
+
+          onMount(() => {
+            if (codeContent().value) {
+              codeRef.innerHTML = codeContent().value
+            } else {
+              codeRef.innerText = props.text
+            }
           });
           return (
             <Switch>
@@ -51,7 +62,7 @@ const MarkdownRenderer = (markdownProps: { markdown: string }) => {
               <Match when={props.text}>
                 <div class="my-2 rounded text-white space-y-0">
                   <div class="flex py-1 px-2 text-xs rounded-t bg-gray-600">
-                    <div class="flex-1">{props.lang}</div>
+                    <div class="flex-1">{codeContent().language || props.lang}</div>
                     <div
                       class="flex px-2 text-[0.5rem] cursor-pointer"
                       onClick={() => {
@@ -63,10 +74,11 @@ const MarkdownRenderer = (markdownProps: { markdown: string }) => {
                       <div>Copy</div>
                     </div>
                   </div>
-                  <code
-                    class="block px-4 py-4 text-xs rounded-b bg-gray-800 whitespace-pre overflow-auto scroll:h-1 thumb:rounded thumb:bg-gray-400"
-                    innerHTML={html()}
-                  />
+                  <pre>
+                    <code
+                      class="block px-4 py-4 text-xs rounded-b bg-gray-800 whitespace-pre overflow-auto scroll:h-1 thumb:rounded thumb:bg-gray-400"
+                      ref={codeRef}
+                    /></pre>
                 </div>
               </Match>
             </Switch>
