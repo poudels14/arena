@@ -26,6 +26,9 @@ dependencies:
   '@portal/cli':
     specifier: workspace:^
     version: link:../../portal-app/cli
+  '@portal/cortex':
+    specifier: workspace:^
+    version: link:../../cortex
   '@portal/deploy':
     specifier: workspace:^
     version: link:../../portal-app/deploy

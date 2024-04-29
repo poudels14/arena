@@ -5,6 +5,7 @@
   "scripts": {
     "build": "bun run node_modules/@portal/cli/bin/cli.ts app bundle"
   },
+  "type": "module",
   "keywords": [],
   "author": "Sagar Poudel",
   "arena": {
@@ -38,6 +39,7 @@
     "@langchain/groq": "^0.0.2",
     "@langchain/openai": "^0.0.15",
     "@portal/cli": "workspace:^",
+    "@portal/cortex": "workspace:^",
     "@portal/deploy": "workspace:^",
     "@portal/sdk": "workspace:^",
     "@portal/server-core": "workspace:^",
