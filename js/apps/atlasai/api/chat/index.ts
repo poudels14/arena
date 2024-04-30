@@ -10,7 +10,6 @@ import { ChatThread } from "./types";
 import { generateLLMResponseStream } from "./chains/query";
 import { ChatMessage } from "../repo/chatMessages";
 import { ThreadOperationsStream } from "../../chatsdk";
-import { generateQueryTitle } from "./chains/title";
 import { DEFAULT_CHAT_PROFILE } from "../repo/prompt-profiles";
 
 const listThreads = p.query(async ({ ctx }) => {
@@ -245,6 +244,7 @@ const sendMessage = p
         model,
         opsStream,
         thread,
+        isNewThread: !existingThread,
         message: newMessage,
         previousMessages: filteredOldMessages,
         options: {
@@ -255,15 +255,6 @@ const sendMessage = p
         },
       }
     );
-
-    if (!existingThread) {
-      const title = await generateQueryTitle(model, body.message.content);
-      await ctx.repo.chatThreads.update({
-        id: thread.id,
-        title,
-      });
-      opsStream.setThreadTitle(title);
-    }
 
     const responseStream = new ReadableStream({
       async start(controller) {

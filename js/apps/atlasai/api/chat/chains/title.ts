@@ -9,9 +9,9 @@ async function generateQueryTitle(modelInfo: Workspace.Model, query: string) {
   const prompt = ChatPromptTemplate.fromMessages([
     [
       "system",
-      "You are an AI called Atlas who is expert at generating a summary of any text. You should ALWAYS respond with a SHORT and HELPFUL summary without using QUOTES OR providing additional info.",
+      "You are an AI called Atlas who is expert at generating a title for any text. You should ALWAYS respond with a SHORT and HELPFUL summary/title without using QUOTES OR providing additional info.",
     ],
-    ["human", "Summarize the text in few words: {query}"],
+    ["human", "Generate a title for the following text:\n{query}"],
   ]);
 
   const model = buildModelProvider(modelInfo);

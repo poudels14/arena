@@ -21,6 +21,7 @@ import {
   formatSearchResultsAsString,
 } from "./drive";
 import { buildModelProvider } from "./modelSelector";
+import { generateQueryTitle } from "./title";
 
 async function generateLLMResponseStream(
   { ctx }: Pick<ProcedureRequest<Context, any>, "ctx" | "errors">,
@@ -28,6 +29,7 @@ async function generateLLMResponseStream(
     model,
     opsStream,
     thread,
+    isNewThread,
     message,
     previousMessages,
     options,
@@ -36,6 +38,7 @@ async function generateLLMResponseStream(
 
     opsStream: ThreadOperationsStream;
     thread: ChatThread;
+    isNewThread: boolean;
     message: ChatMessage;
     // old messages in the thread
     previousMessages: ChatMessage[];
@@ -175,6 +178,16 @@ async function generateLLMResponseStream(
       searchResults: get(ctxt.state, "atlasai.drive.search"),
     };
     opsStream.sendMessageMetadata(aiMessageId, metadata);
+
+    if (isNewThread) {
+      await generateQueryTitle(model, response).then(async (title) => {
+        opsStream.setThreadTitle(title);
+        await ctx.repo.chatThreads.update({
+          id: thread.id,
+          title,
+        });
+      });
+    }
     await ctx.repo.chatMessages.insert({
       id: aiMessageId,
       threadId: thread.id,
