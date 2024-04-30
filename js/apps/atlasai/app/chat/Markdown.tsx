@@ -7,6 +7,7 @@ import hljs from "highlight.js/lib/core";
 import "highlight.js/styles/atom-one-dark.css";
 import jsonGrammar from "highlight.js/lib/languages/json";
 import jsGrammar from "highlight.js/lib/languages/javascript";
+import tsGrammar from "highlight.js/lib/languages/typescript";
 import cssGrammar from "highlight.js/lib/languages/css";
 import xmlGrammar from "highlight.js/lib/languages/xml";
 import pythonGrammar from "highlight.js/lib/languages/python";
@@ -15,6 +16,7 @@ import cGrammar from "highlight.js/lib/languages/c";
 
 hljs.registerLanguage("json", jsonGrammar);
 hljs.registerLanguage("javascript", jsGrammar);
+hljs.registerLanguage("typescript", tsGrammar);
 hljs.registerLanguage("css", cssGrammar);
 hljs.registerLanguage("html", xmlGrammar);
 hljs.registerLanguage("xml", xmlGrammar);
