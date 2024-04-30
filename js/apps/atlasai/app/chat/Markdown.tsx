@@ -53,7 +53,9 @@ const MarkdownRenderer = (markdownProps: { markdown: string }) => {
               <Match when={props.text}>
                 <div class="my-2 rounded text-white space-y-0">
                   <div class="flex py-1 px-2 text-xs rounded-t bg-gray-600">
-                    <div class="flex-1">{codeContent().language || props.lang}</div>
+                    <div class="flex-1">
+                      {codeContent().language || props.lang}
+                    </div>
                     <div
                       class="flex px-2 text-[0.5rem] cursor-pointer"
                       onClick={() => {
@@ -70,12 +72,13 @@ const MarkdownRenderer = (markdownProps: { markdown: string }) => {
                       class="block px-4 py-4 text-xs rounded-b bg-gray-800 whitespace-pre overflow-auto scroll:h-1 thumb:rounded thumb:bg-gray-400"
                       ref={(node) => {
                         if (codeContent().value) {
-                          node.innerHTML = codeContent().value
+                          node.innerHTML = codeContent().value;
                         } else {
-                          node.innerText = props.text
+                          node.innerText = props.text;
                         }
                       }}
-                    /></pre>
+                    />
+                  </pre>
                 </div>
               </Match>
             </Switch>

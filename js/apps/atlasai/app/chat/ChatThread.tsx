@@ -318,7 +318,7 @@ const ChatMessage = (props: {
       >
         <Show when={props.message.message.content!()}>
           <div
-            class="message px-4 py-1 rounded-lg leading-6 select-text"
+            class="message px-4 py-1 rounded-lg leading-6 select-text space-y-2"
             classList={{
               "bg-[hsl(60_28%_95%)]": role().id == "user",
               "text-gray-800": role().id == "ai",
@@ -326,6 +326,11 @@ const ChatMessage = (props: {
             style={"letter-spacing: 0.1px; word-spacing: 1px"}
           >
             <Markdown markdown={props.message.message.content!()!} />
+            <Show when={props.message.metadata.searchResults!()}>
+              <SearchResults
+                searchResults={props.message.metadata.searchResults!()!}
+              />
+            </Show>
             <div class="flex text-xs items-center space-x-2">
               <Show when={props.versions.length > 1}>
                 <div class="flex text-[10px] items-center space-x-1">
@@ -383,11 +388,6 @@ const ChatMessage = (props: {
           {/* @ts-expect-error */}
           <TaskExecution task={props.task!} />
         </Show>
-        <Show when={props.message.metadata.searchResults!()}>
-          <SearchResults
-            searchResults={props.message.metadata.searchResults!()!}
-          />
-        </Show>
         <Show when={props.message.metadata.error!()}>
           <div class="py-2 text-red-700">
             <b>Error: </b>
@@ -439,7 +439,7 @@ const ChatMessage = (props: {
 const SearchResults = (props: { searchResults: Chat.SearchResult[] }) => {
   const [showSearchResults, setShowSearchResults] = createSignal(true);
   return (
-    <div class="pt-4">
+    <div class="search-results">
       <div
         class="px-2 py-1 flex font-semibold bg-gray-100 text-gray-600 rounded cursor-pointer space-x-2"
         onClick={() => {

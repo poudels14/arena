@@ -1,27 +1,26 @@
+import { ChatCompletionExecutor } from "@portal/cortex/executors/ChatCompletion";
+import { ChatPromptTemplate } from "@portal/cortex/prompt";
+import { MessagesPlaceholder } from "@portal/cortex/prompt";
 import {
-  ChatPromptTemplate,
-  MessagesPlaceholder,
-} from "@langchain/core/prompts";
-import {
-  RunnablePassthrough,
-  RunnableSequence,
-  RunnableWithMessageHistory,
-} from "@langchain/core/runnables";
-import { ConsoleCallbackHandler } from "@langchain/core/tracers/console";
-import { StringOutputParser } from "@langchain/core/output_parsers";
+  createStreamDeltaStringSubscriber,
+  parseStringResponse,
+} from "@portal/cortex/plugins/response";
 import { ProcedureRequest } from "@portal/server-core/router";
 import { uniqueId } from "@portal/sdk/utils/uniqueId";
 import { Workspace } from "@portal/workspace-sdk";
 import dedent from "dedent";
-import { pick } from "lodash-es";
+import { pick, get } from "lodash-es";
 
 import { Context } from "../../procedure";
 import { ThreadOperationsStream } from "../../../chatsdk";
 import { ChatThread } from "../types";
 import { ChatMessage } from "../../repo/chatMessages";
-import { AtalasChatMessageHistory } from "./history";
-import { AtalasDrive, formatDocumentsAsString } from "./drive";
-import { getLLMModel } from "./modelSelector";
+import {
+  AtalasDrive,
+  SearchResults,
+  formatSearchResultsAsString,
+} from "./drive";
+import { buildModelProvider } from "./modelSelector";
 
 async function generateLLMResponseStream(
   { ctx }: Pick<ProcedureRequest<Context, any>, "ctx" | "errors">,
@@ -55,7 +54,7 @@ async function generateLLMResponseStream(
     };
   }
 ) {
-  const driveSearch = new AtalasDrive(
+  const drive = new AtalasDrive(
     ctx.env.PORTAL_WORKSPACE_HOST,
     ctx.repo,
     thread.id,
@@ -63,7 +62,7 @@ async function generateLLMResponseStream(
     options.context || []
   );
 
-  const contextImage = await driveSearch.fetchContextImage();
+  const contextImage = await drive.fetchContextImage();
   if (contextImage) {
     const artifact = {
       id: uniqueId(23),
@@ -89,8 +88,7 @@ async function generateLLMResponseStream(
       dedent`
       {systemPrompt}
 
-
-      {context}`,
+      {drive_search_results}`,
     ],
     new MessagesPlaceholder("chat_history"),
     [
@@ -110,69 +108,84 @@ async function generateLLMResponseStream(
     ],
   ]);
 
-  const chainModel = getLLMModel(model, {
-    temperature: options.temperature,
-  });
-  const outputParser = new StringOutputParser();
-  const chain = prompt.pipe(chainModel).pipe(outputParser);
-  const chainWithHistory = new RunnableWithMessageHistory({
-    runnable: chain,
-    inputMessagesKey: "input",
-    historyMessagesKey: "chat_history",
-    getMessageHistory: async (sessionId) => {
-      return new AtalasChatMessageHistory(previousMessages);
+  const chainModel = buildModelProvider(model);
+  const executor = new ChatCompletionExecutor({
+    runnables: [prompt, chainModel, drive],
+    variables: {
+      chat_history: () => {
+        return previousMessages.map((message) => {
+          return {
+            role:
+              message.role == "system"
+                ? "system"
+                : message.role == "ai"
+                ? "assistant"
+                : "user",
+            content: message.message.content!,
+          };
+        });
+      },
+      drive_search_results: async (ctxt) => {
+        const searchResult = await ctxt.resolve<SearchResults>(
+          "atlasai.drive.search",
+          {
+            argument: message.message.content as string,
+          }
+        );
+        return formatSearchResultsAsString(searchResult as any);
+      },
     },
   });
 
-  const chatWithDocuments = RunnableSequence.from([
-    {
-      context: driveSearch.pipe(formatDocumentsAsString),
-      systemPrompt: () => options.systemPrompt,
-      input: new RunnablePassthrough(),
-    },
-    chainWithHistory,
-  ]);
+  const aiMessageId = uniqueId(19);
+  const aiResponseTime = new Date();
+  opsStream.sendNewMessage({
+    id: aiMessageId,
+    threadId: thread.id,
+    parentId: message.id,
+    role: "ai",
+    message: {},
+    userId: null,
+    createdAt: aiResponseTime,
+    metadata: {},
+  });
 
   try {
     if (contextImage && !supportsImage) {
       throw new Error("This model doesn't support image");
     }
 
-    const stream = await chatWithDocuments.stream(message.message.content!, {
-      configurable: { sessionId: "sessionId" },
-      // callbacks: [new ConsoleCallbackHandler()],
+    const ctxt = await executor.invoke({
+      variables: {
+        input: message.message.content!,
+        systemPrompt: options.systemPrompt,
+      },
+      config: {
+        stream: true,
+        temperature: options.temperature,
+      },
+      plugins: [
+        createStreamDeltaStringSubscriber((chunk) => {
+          opsStream.sendMessageChunk(aiMessageId, chunk);
+        }),
+      ],
     });
-
-    const aiResponseTime = new Date();
-    const aiMessageId = uniqueId(19);
-    opsStream.sendNewMessage({
-      id: aiMessageId,
-      threadId: thread.id,
-      parentId: message.id,
-      role: "ai",
-      message: {},
-      userId: null,
-      createdAt: aiResponseTime,
-      metadata: {},
-    });
-
-    let allChunk = "";
-    for await (const chunk of stream) {
-      allChunk += chunk;
-      opsStream.sendMessageChunk(aiMessageId, chunk);
-    }
-
+    const response = parseStringResponse(ctxt);
+    const metadata = {
+      searchResults: get(ctxt.state, "atlasai.drive.search"),
+    };
+    opsStream.sendMessageMetadata(aiMessageId, metadata);
     await ctx.repo.chatMessages.insert({
       id: aiMessageId,
       threadId: thread.id,
       parentId: message.id,
       role: "ai",
       message: {
-        content: allChunk,
+        content: response,
       },
       userId: null,
       createdAt: aiResponseTime,
-      metadata: {},
+      metadata,
     });
   } catch (e: any) {
     console.log(e);

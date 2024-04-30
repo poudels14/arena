@@ -1,21 +1,12 @@
-import {
-  BaseCallbackConfig,
-  Callbacks,
-} from "@langchain/core/callbacks/manager";
-import {
-  DocumentInterface,
-  Document,
-} from "@langchain/core/dist/documents/document";
-import { BaseRetriever } from "@langchain/core/retrievers";
-import { uniqueId } from "@portal/sdk/utils/uniqueId";
-import { Search } from "@portal/workspace-sdk/llm/search";
-import { dset } from "dset";
-import { klona } from "klona";
 import ky from "ky";
 import dedent from "dedent";
+import indentString from "indent-string";
+import { Context as CortexContext, Runnable } from "@portal/cortex/core";
+import { Search } from "@portal/workspace-sdk/llm/search";
 import { Context } from "~/api/procedure";
 
-class AtalasDrive extends BaseRetriever {
+export type SearchResults = (Search.Response & { app: { id: string } })[];
+class AtalasDrive extends Runnable {
   workspaceHost: string;
   repo: Context["repo"];
   threadId: string;
@@ -39,11 +30,12 @@ class AtalasDrive extends BaseRetriever {
     this.context = context;
   }
 
-  async getRelevantDocuments(
-    query: string,
-    config?: BaseCallbackConfig | Callbacks | undefined
-  ): Promise<DocumentInterface<Record<string, any>>[]> {
-    let searchResults: (Search.Response & { app: { id: string } })[] = [];
+  get namespace(): string {
+    return "atlasai.drive.search";
+  }
+
+  async run(ctxt: CortexContext, query: string) {
+    let searchResults: SearchResults = [];
     if (this.context.length > 0) {
       const results = await Promise.all(
         this.context.map(async (context) => {
@@ -89,46 +81,7 @@ class AtalasDrive extends BaseRetriever {
         })
       );
     }
-
-    if (searchResults.length > 0) {
-      const clonedSearchResults = klona(searchResults);
-      clonedSearchResults.forEach((result) => {
-        result.files.forEach((file) => {
-          file.chunks.forEach((chunk) => {
-            // clear the chunk content to avoid storing duplicate data
-            dset(chunk, "content", undefined);
-          });
-        });
-      });
-
-      await this.repo.chatMessages.insert({
-        id: uniqueId(21),
-        message: {
-          content: "",
-        },
-        threadId: this.threadId,
-        role: "system",
-        userId: null,
-        createdAt: new Date(),
-        metadata: {
-          searchResults: clonedSearchResults,
-        },
-        parentId: this.queryMessageId,
-      });
-    }
-
-    const finalResults = searchResults
-      .flatMap((result) => result.files)
-      .map((file) => {
-        return {
-          pageContent: file.chunks.map((c) => c.content).join("\n\n...\n\n"),
-          metadata: {
-            filename: file.name,
-          },
-        };
-      });
-
-    return finalResults;
+    return searchResults;
   }
 
   async fetchContextImage() {
@@ -165,23 +118,52 @@ class AtalasDrive extends BaseRetriever {
 
     return null;
   }
-
-  get lc_namespace() {
-    return ["atlasai"];
-  }
 }
 
-const formatDocumentsAsString = (documents: Document[]) => {
-  const pageContents = documents.map((doc) => doc.pageContent).join("\n\n");
+const formatSearchResultsAsString = (result: SearchResults) => {
+  const fileContents = result
+    .flatMap((result) => result.files)
+    .map((file) => {
+      const chunks = file.chunks
+        .map((c) => {
+          return indentString(
+            `<section>\n` +
+              indentString(
+                dedent`<id>${c.id}</id>
+              <content>
+              ${
+                (c.context?.before || "") + c.content + (c.context?.after || "")
+              }
+              </content>\n`,
+                4
+              ) +
+              `</section>`,
+            4
+          );
+        })
+        .join("\n");
+      return (
+        `<file>\n` +
+        indentString(
+          dedent`<name>${file.name}</name>
+            <sections>\n` +
+            chunks +
+            dedent`\n</sections>`,
+          4
+        ) +
+        `\n</file>`
+      );
+    })
+    .join("\n\n");
 
-  if (documents.length == 0) {
+  if (result.length == 0) {
     return "";
   }
 
-  return dedent`Use the following pieces of context to answer the question at the end.
+  return dedent`Use the following context to answer the user query.
     If you don't know the answer, just say that you don't know, don't try to make up an answer.
     ----------------
-    ${pageContents}`;
+    ${fileContents}`;
 };
 
-export { AtalasDrive, formatDocumentsAsString };
+export { AtalasDrive, formatSearchResultsAsString };

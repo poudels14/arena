@@ -38,8 +38,20 @@ class ThreadOperationsStream {
       ops: [
         {
           op: "add",
-          path: ["messages", messageId, "message", "artifacts"],
+          path: ["messages", messageId, "artifacts"],
           value: artifact,
+        },
+      ],
+    });
+  }
+
+  sendMessageMetadata(messageId: string, metadata: any) {
+    this.stream.next({
+      ops: [
+        {
+          op: "add",
+          path: ["messages", messageId, "metadata"],
+          value: metadata,
         },
       ],
     });
