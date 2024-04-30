@@ -25,3 +25,6 @@
 [submodule "cpython"]
 	path = cpython
 	url = git@github.com:poudels14/cpython.git
+[submodule "js/cortex"]
+	path = js/cortex
+	url = git@github.com:poudels14/cortex.git
