@@ -1,0 +1,7 @@
+version: "3"
+
+tasks:
+  dev:
+    cmds:
+      - DISABLE_AUTH=true dagger-prod app dev --port 9004
+      # --app-id portal_copilot_1
