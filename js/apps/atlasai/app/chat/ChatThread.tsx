@@ -185,7 +185,7 @@ const ChatThread = (props: {
                             message={message}
                             task={
                               threadTaskExecutionsById.data[
-                                message.message.tool_calls[0].id() as any as number
+                              message.message.tool_calls[0].id() as any as number
                               ]
                             }
                             showDocument={props.showDocument}
@@ -202,7 +202,7 @@ const ChatThread = (props: {
                             }
                             selectedVersion={
                               selectedMessageVersionByParentId()?.[
-                                message.parentId()!
+                              message.parentId()!
                               ]
                             }
                             selectVersion={selectMessageVersion}
@@ -326,7 +326,7 @@ const ChatMessage = (props: {
             style={"letter-spacing: 0.1px; word-spacing: 1px"}
           >
             <Markdown markdown={props.message.message.content!()!} />
-            <Show when={props.message.metadata.searchResults!()}>
+            <Show when={props.message.metadata.searchResults!()?.length! > 0}>
               <SearchResults
                 searchResults={props.message.metadata.searchResults!()!}
               />
