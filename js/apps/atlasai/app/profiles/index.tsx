@@ -39,7 +39,7 @@ const Profiles = () => {
 
   return (
     <Show when={profiles.data()}>
-      <div class="flex-1 flex">
+      <div class="flex-1 flex overflow-y-auto">
         <div class="w-[225px] flex flex-col space-y-0">
           <div class="py-1 text-sm text-center bg-gray-100">Profiles</div>
           <div
@@ -66,7 +66,7 @@ const Profiles = () => {
             </For>
           </PortalSidebar>
         </div>
-        <div class="flex-1 flex justify-center">
+        <div class="flex-1 flex justify-center overflow-y-auto">
           <div class="flex-1 basis-[200px] max-w-[500px] py-5 px-5 text-gray-700">
             <Switch>
               <Match

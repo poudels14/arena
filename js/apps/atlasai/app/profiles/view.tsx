@@ -56,7 +56,7 @@ const ViewProfile = (props: {
   });
 
   return (
-    <div>
+    <div class="pb-6">
       <Switch>
         <Match when={profile.status() == 404}>
           <div>Not found</div>
@@ -69,7 +69,7 @@ const ViewProfile = (props: {
             </div>
             <div class="space-y-1.5">
               <div class="text-base font-medium text-gray-800">Description</div>
-              <div class="text-sm">
+              <div class="text-sm whitespace-pre-wrap">
                 {profile.data.description() || (
                   <i class="font-light text-gray-500">
                     No description available
@@ -79,7 +79,7 @@ const ViewProfile = (props: {
             </div>
             <div class="space-y-1.5">
               <div class="text-base font-medium text-gray-800">Prompt</div>
-              <div class="text-sm">{profile.data.template!()}</div>
+              <div class="text-sm whitespace-pre-wrap">{profile.data.template!()}</div>
             </div>
             <div class="space-y-1.5">
               <Switch>
