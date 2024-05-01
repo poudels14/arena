@@ -5,6 +5,7 @@ import {
   createMemo,
   createSignal,
   batch,
+  untrack,
 } from "solid-js";
 import { Store, UNDEFINED_PROXY, createStore } from "@portal/solid-store";
 import {
@@ -78,13 +79,23 @@ const ChatContextProvider = (props: {
 
   createComputed(() => {
     const threads = listThreadsRoute.data();
-    batch(() => {
-      threads?.forEach((thread) => {
-        setChatThreadsById(thread.id, (prev) => {
-          return { ...(prev || {}), ...thread };
+    if (threads) {
+      const oldThreadIds = untrack(() => Object.keys(chatThreadsById()));
+      const threadIds = threads.map((t) => t.id);
+      const deletedThreadIds = oldThreadIds.filter(
+        (t) => !threadIds.includes(t)
+      );
+      batch(() => {
+        threads.forEach((thread) => {
+          setChatThreadsById(thread.id, (prev) => {
+            return { ...(prev || {}), ...thread };
+          });
+        });
+        deletedThreadIds.forEach((threadId) => {
+          setChatThreadsById(threadId, undefined!);
         });
       });
-    });
+    }
   });
 
   const activeThreadRoute = createQuery<Chat.Thread>(() => {

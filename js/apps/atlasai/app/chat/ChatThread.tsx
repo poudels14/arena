@@ -185,7 +185,7 @@ const ChatThread = (props: {
                             message={message}
                             task={
                               threadTaskExecutionsById.data[
-                              message.message.tool_calls[0].id() as any as number
+                                message.message.tool_calls[0].id() as any as number
                               ]
                             }
                             showDocument={props.showDocument}
@@ -202,7 +202,7 @@ const ChatThread = (props: {
                             }
                             selectedVersion={
                               selectedMessageVersionByParentId()?.[
-                              message.parentId()!
+                                message.parentId()!
                               ]
                             }
                             selectVersion={selectMessageVersion}
