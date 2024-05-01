@@ -180,13 +180,15 @@ async function generateLLMResponseStream(
     opsStream.sendMessageMetadata(aiMessageId, metadata);
 
     if (isNewThread) {
-      await generateQueryTitle(model, response).then(async (title) => {
-        opsStream.setThreadTitle(title);
-        await ctx.repo.chatThreads.update({
-          id: thread.id,
-          title,
-        });
-      });
+      await generateQueryTitle(model, response || message.message.content).then(
+        async (title) => {
+          opsStream.setThreadTitle(title);
+          await ctx.repo.chatThreads.update({
+            id: thread.id,
+            title,
+          });
+        }
+      );
     }
     await ctx.repo.chatMessages.insert({
       id: aiMessageId,
@@ -219,7 +221,10 @@ async function generateLLMResponseStream(
     opsStream.sendNewMessage(errorMessage);
     await ctx.repo.chatMessages.insert(errorMessage);
   } finally {
-    opsStream.close();
+    // wait before closing the stream to allow messages to be sent
+    setTimeout(() => {
+      opsStream.close();
+    }, 1_000);
   }
 }
 
