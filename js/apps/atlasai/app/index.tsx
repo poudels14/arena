@@ -1,4 +1,4 @@
-import { For, createMemo, createSelector, lazy, useContext } from "solid-js";
+import { For, createEffect, createMemo, createSelector, lazy, useContext } from "solid-js";
 import { Route, useNavigate, useMatcher } from "@portal/solid-router";
 import { Sidebar as PortalSidebar, SidebarTab } from "@portal/solid-ui/sidebar";
 import {
@@ -43,6 +43,8 @@ const Sidebar = () => {
   const tabMatcher = useMatcher(() => "/:tab/*");
   const isTabActive = createSelector(() => tabMatcher()?.params?.tab || "chat");
   const { state, refreshThreadsById } = useContext(ChatContext)!;
+
+  createEffect(() => refreshThreadsById());
 
   const threadIds = createMemo(() => {
     const threads = Object.values(state.threadsById() || {});
