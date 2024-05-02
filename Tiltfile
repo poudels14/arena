@@ -9,7 +9,10 @@ k8s_resource('tilt-arena-arenasql-cluster', port_forwards=['6000:6000'])
 
 docker_build('arenasql-cluster',
   context="./bin",
-  dockerfile='./kube/prod/arenasql-cluster/Dockerfile',
+  dockerfile='./kube/tilt/arenasql-cluster/Dockerfile',
+  build_args={
+    "ARCH": "aarch64"
+  }
 )
 
 # docker_build('app-cluster',
