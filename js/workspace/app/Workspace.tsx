@@ -20,6 +20,7 @@ import {
   HiOutlineDocumentChartBar,
   HiOutlineHome,
   HiOutlineCog6Tooth,
+  HiSolidNoSymbol
 } from "solid-icons/hi";
 import { QueryContextProvider } from "@portal/solid-query";
 import {
@@ -53,7 +54,7 @@ const Workspace = () => {
 };
 
 const WorkspaceRouter = () => {
-  const { activeWorkspace } = useSharedWorkspaceContext();
+  const { activeWorkspace, } = useSharedWorkspaceContext();
 
   const portalDrive = createMemo(() => {
     const apps = activeWorkspace.apps();
@@ -144,14 +145,22 @@ const CurrentAppSetter = (props: { app: any; showChatIsland: boolean }) => {
 };
 
 const WorkspaceSidebar = () => {
+  const { isFocusModeOn, toggleFocusMode } = useSharedWorkspaceContext();
   const navigate = useNavigate();
   const matcher = useMatcher(() => "/:tab/*");
   const isTab = createSelector(() => matcher()?.params?.tab || "home");
+  const width = createMemo(() => {
+    return isFocusModeOn() ? "25px" : "150px";
+  })
   return (
-    <div class="max-md:hidden md:block">
+    <div class="max-md:hidden md:block bg-slate-50">
       <PortalSidebar
-        width="150px"
-        class="py-4 px-6 h-[calc(100vh-theme(spacing.8))] text-sm bg-slate-50 tab:py-1.5 tab:text-gray-600 tab-hover:text-gray-700 tab-active:text-black tab-active:font-medium"
+        width={width()}
+        class="py-4 h-[calc(100vh-theme(spacing.8))] text-sm tab:py-1.5 tab:text-gray-600 tab-hover:text-gray-700 tab-active:text-black tab-active:font-medium"
+        classList={{
+          "tab:justify-center": isFocusModeOn(),
+          "px-5": !isFocusModeOn()
+        }}
       >
         <SidebarTab
           icon={{
@@ -162,7 +171,9 @@ const WorkspaceSidebar = () => {
             navigate("/chat");
           }}
         >
-          <div>Chat</div>
+          <Show when={!isFocusModeOn()}>
+            <div>Chat</div>
+          </Show>
         </SidebarTab>
         <SidebarTab
           icon={{
@@ -173,23 +184,32 @@ const WorkspaceSidebar = () => {
             navigate("/files");
           }}
         >
-          <div>Files</div>
+          <Show when={!isFocusModeOn()}>
+            <div>Files</div>
+          </Show>
         </SidebarTab>
       </PortalSidebar>
       <div class="h-8 flex justify-center items-center text-center text-xs font-medium">
         <div
-          class="flex px-2 py-1 cursor-pointer space-x-2"
-          classList={{
-            "text-gray-700": !isTab("settings"),
-            "text-black": isTab("settings"),
-          }}
-          onClick={() => {
-            navigate("/settings");
-          }}
+          class="flex px-1 py-1 cursor-pointer rounded hover:bg-gray-200"
+          onClick={() => toggleFocusMode()}
         >
-          <HiOutlineCog6Tooth size={16} />
-          <div class="leading-1">Settings</div>
+          <HiSolidNoSymbol size={16} />
         </div>
+        <Show when={!isFocusModeOn()}>
+          <div
+            class="flex px-1 py-1 cursor-pointer rounded hover:bg-gray-200"
+            classList={{
+              "text-gray-700": !isTab("settings"),
+              "text-black": isTab("settings"),
+            }}
+            onClick={() => {
+              navigate("/settings");
+            }}
+          >
+            <HiOutlineCog6Tooth size={16} />
+          </div>
+        </Show>
       </div>
     </div>
   );
