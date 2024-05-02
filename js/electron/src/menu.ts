@@ -1,4 +1,5 @@
-const { app, Menu, globalShortcut, dialog } = require("electron");
+const { app, Menu, globalShortcut, dialog, autoUpdater } = require("electron");
+import { url as updateUrl } from "./updater";
 
 const setupMenu = () => {
   const menuTemplate = [
@@ -28,6 +29,23 @@ const setupMenu = () => {
                   app.quit();
                 }
               });
+          },
+        },
+        {
+          label: "Check for updates...",
+          click: async () => {
+            const res = await fetch(updateUrl);
+            if (res.status == 204) {
+              dialog.showMessageBox({
+                type: "info",
+                buttons: ["Close"],
+                title: "App update",
+                message: "No update available",
+                detail: `You are running the latest version (${__APP_VERSION__}) of Portal.`,
+              });
+            } else if (res.status == 200) {
+              autoUpdater.checkForUpdates();
+            }
           },
         },
         { role: "quit" },

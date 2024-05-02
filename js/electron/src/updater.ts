@@ -1,13 +1,13 @@
 const { app, autoUpdater, dialog } = require("electron");
 import os from "os";
 
-const setupUpdater = () => {
-  const url = new URL(
-    `/desktop/updates/${os.platform()}/${os.arch()}/${app.getVersion()}`,
-    __PORTAL_CLOUD_HOST__
-  ).href;
-  autoUpdater.setFeedURL({ url });
+export const url = new URL(
+  `/desktop/updates/${os.platform()}-${os.arch()}-${app.getVersion()}`,
+  __PORTAL_CLOUD_HOST__
+).href;
 
+const setupUpdater = () => {
+  autoUpdater.setFeedURL({ url });
   autoUpdater.on("update-downloaded", (e: any) => {
     dialog
       .showMessageBox({

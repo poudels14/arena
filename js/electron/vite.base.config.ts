@@ -67,7 +67,7 @@ export function getBuildDefine(env: ConfigEnv<"build">) {
       __PORTAL_CLOUD_HOST__: JSON.stringify(
         mode == "production"
           ? "https://useportal.ai/"
-          : "http://localhost:9001/"
+          : "http://localhost:9000/"
       ),
     };
     return { ...acc, ...def };
