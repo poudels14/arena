@@ -3,7 +3,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: arenasql-pvc
 spec:
-  storageClassName: microk8s-hostpath
+  # storageClassName: microk8s-hostpath
   accessModes:
     - ReadWriteOnce
   resources:
