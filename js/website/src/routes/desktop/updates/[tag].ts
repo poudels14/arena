@@ -20,7 +20,7 @@ export async function GET({ params }: APIEvent) {
         return {
           version: newVersion,
           pub_date: new Date().toISOString(),
-          url: `https://github.com/poudels14/portal-release/releases/download/${newVersion}/Portal_${newVersion}_${arch}_darwin.zip`,
+          url: `https://github.com/poudels14/portal-release/releases/download/${newVersion}/Portal-${newVersion}-${arch}-mac.zip`,
         };
       }
     }

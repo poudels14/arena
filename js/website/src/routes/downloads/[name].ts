@@ -34,6 +34,6 @@ export async function GET({ params }: APIEvent) {
   }
 
   return redirect(
-    `https://github.com/poudels14/portal-release/releases/download/${version}/Portal_${version}_${arch}.${fileType}`
+    `https://github.com/poudels14/portal-release/releases/download/${version}/Portal-${version}-${arch}.${fileType}`
   );
 }
