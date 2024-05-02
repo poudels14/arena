@@ -37,17 +37,20 @@ const FileExplorer = () => {
   const currentDirectoryId = createMemo(() => {
     return routeMatcher()?.params?.id || null;
   });
+  const getActiveAppId = createMemo(() => {
+    const routeAppId = routeMatcher()?.params?.appId;
+    const activeAppId = getActiveApp()?.id;
+    return routeAppId || activeAppId;
+  })
 
   const navigate = useNavigate();
   const goToDirectory = (id: string, appId?: string) => {
     let query = "";
-    const routeAppId = routeMatcher()?.params?.appId;
-    const activeAppId = getActiveApp()?.id;
-    navigate(`/${appId || routeAppId || activeAppId}/explore/` + id + query);
+    navigate(`/${appId || getActiveAppId()}/explore/` + id + query);
   };
   const filesQuery = createQuery<Directory>(() => {
     const id = currentDirectoryId() ?? "";
-    const appId = routeMatcher()?.params?.appId;
+    const appId = getActiveAppId();
     let query = "";
     if (appId) {
       query = `?app=${appId}`;
@@ -88,7 +91,7 @@ const FileExplorer = () => {
       breadcrumbs.push({
         id: selectedFile.id,
         title: selectedFile.name,
-        contentType: selectedFile.type,
+        contentType: selectedFile.type || undefined,
       });
     }
 
@@ -101,14 +104,14 @@ const FileExplorer = () => {
       setChatContext([
         {
           app: {
-            id: routeMatcher()?.params?.appId!,
+            id: getActiveAppId()!,
             name: "Drive",
           },
           selection: selection
             ? {
-                id: selection.id,
-                type: selection.isDirectory ? "directory" : "file",
-              }
+              id: selection.id,
+              type: selection.isDirectory ? "directory" : "file",
+            }
             : undefined,
           breadcrumbs,
         },
@@ -222,7 +225,7 @@ const SharedWithMe = () => {
       id={"shared"}
       name={"Shared with me"}
       selected={false}
-      onClick={() => {}}
+      onClick={() => { }}
       onDblClick={() => {
         goToDirectory("shared");
       }}
