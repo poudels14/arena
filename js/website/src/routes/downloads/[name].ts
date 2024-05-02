@@ -6,7 +6,6 @@ import { env } from "~/env";
 
 export async function GET({ params }: APIEvent) {
   const regex = [...params.name.matchAll(/Portal_([0-9.]+)_(\w+).(\w+)/gm)];
-  console.log("regex =", [...regex]);
   const version = regex[0][1];
   const arch = regex[0][2];
   const fileType = regex[0][3];

@@ -7,6 +7,12 @@
     "build": "vinxi build",
     "start": "vinxi start"
   },
+  "portal-config": {
+    "latest-desktop-versions": {
+      "mac": "0.1.12",
+      "linux": "0.1.8"
+    }
+  },
   "dependencies": {
     "@portal/deploy": "workspace:^",
     "@portal/sdk": "workspace:^",

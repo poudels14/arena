@@ -1,7 +1,5 @@
 import { SiApple, SiLinux } from "solid-icons/si";
 
-const MAC_APP_VERSION = "0.1.11";
-const LINUX_APP_VERSION = "0.1.8";
 export default function Home() {
   return (
     <main>
@@ -44,7 +42,7 @@ export default function Home() {
             <div class="space-y-4">
               <a
                 class="flex px-8 py-3 text-xs justify-center items-center space-x-2 rounded-full text-white bg-indigo-600"
-                href={`/downloads/Portal_${MAC_APP_VERSION}_arm64.dmg`}
+                href={`/downloads/Portal_${_MAC_APP_VERSION}_arm64.dmg`}
                 target="_blank"
               >
                 <SiApple />
@@ -52,7 +50,7 @@ export default function Home() {
               </a>
               <a
                 class="flex px-8 py-3 text-xs justify-center items-center space-x-2 rounded-full text-white bg-indigo-600"
-                href={`/downloads/Portal_${LINUX_APP_VERSION}_amd64.AppImage`}
+                href={`/downloads/Portal_${_LINUX_APP_VERSION}_amd64.AppImage`}
                 target="_blank"
               >
                 <SiLinux />
