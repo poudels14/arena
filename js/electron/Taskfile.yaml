@@ -1,9 +1,9 @@
 version: "3"
 
 tasks:
-  release:
+  release-mac:
     deps:
-      - update-release-version
+      - update-mac-release-version
       - build-electron
     cmds:
       - echo $(pwd)
@@ -25,12 +25,18 @@ tasks:
     vars:
       desktop_pkg: $ARENA_ROOT/js/electron/package.json
       node_lib_pkg: $ARENA_ROOT/crates/portal/package.json
-      node_lib_toml: $ARENA_ROOT/crates/portal/Cargo.toml
     cmds:
       - echo {{.portal_pkg}}
       - cat <<< $(jq --arg version "$PORTAL_RELEASE_VERSION" '.version = $version' {{.desktop_pkg}}) > {{.desktop_pkg}}
       - cat <<< $(jq --arg version "$PORTAL_RELEASE_VERSION" '.version = $version' {{.node_lib_pkg}}) > {{.node_lib_pkg}}
       - cat <<< $(jq --arg version "$PORTAL_RELEASE_VERSION" '.napi.name = "portal-" + $version' {{.node_lib_pkg}}) > {{.node_lib_pkg}}
+  update-mac-release-version:
+    deps:
+      - update-release-version
+    vars:
+      website_pkg: $ARENA_ROOT/js/website/package.json
+    cmds:
+      - cat <<< $(jq --arg version "$PORTAL_RELEASE_VERSION" '."portal-config"."latest-desktop-versions"."mac" = $version' {{.website_pkg}}) > {{.website_pkg}}
   build-runtime-js:
     deps:
       - clean-runtime-js
