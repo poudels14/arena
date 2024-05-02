@@ -1,6 +1,6 @@
 {
   "name": "@portal/workspace-desktop",
-  "version": "0.1.7",
+  "version": "0.1.12",
   "description": "Portal Desktop",
   "type": "module",
   "scripts": {

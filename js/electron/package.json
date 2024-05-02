@@ -1,7 +1,7 @@
 {
   "name": "portal",
   "productName": "Portal",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "Portal - all in one AI assistant platform",
   "main": ".vite/build/main.js",
   "build": {

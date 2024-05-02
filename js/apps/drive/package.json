@@ -1,6 +1,6 @@
 {
   "name": "@portal-apps/drive",
-  "version": "0.1.5",
+  "version": "0.1.12",
   "description": "",
   "scripts": {
     "build": "bun run node_modules/@portal/cli/bin/cli.ts app bundle"
