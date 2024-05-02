@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: website
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: website
@@ -25,7 +25,7 @@ spec:
             - "--enable-cloud-ext"
             - "--s3bucket"
             - "portal-prod-2024"
-            - "apps/portal-website/0.1.5/server/index.mjs"
+            - "apps/portal-website/2024-05-02-16-37/server/index.mjs"
           ports:
             - containerPort: 9000
           envFrom:
