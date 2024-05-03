@@ -132,7 +132,10 @@ const ChatThread = (props: {
           </div>
         </div>
       </Show>
-      <div ref={chatMessagesContainerRef} class="flex justify-center items-center">
+      <div
+        ref={chatMessagesContainerRef}
+        class="flex justify-center items-center"
+      >
         <div class="px-4 flex-1 min-w-[350px] max-w-[750px]">
           <Switch>
             <Match
@@ -185,7 +188,7 @@ const ChatThread = (props: {
                             message={message}
                             task={
                               threadTaskExecutionsById.data[
-                              message.message.tool_calls[0].id() as any as number
+                                message.message.tool_calls[0].id() as any as number
                               ]
                             }
                             showDocument={props.showDocument}
@@ -202,7 +205,7 @@ const ChatThread = (props: {
                             }
                             selectedVersion={
                               selectedMessageVersionByParentId()?.[
-                              message.parentId()!
+                                message.parentId()!
                               ]
                             }
                             selectVersion={selectMessageVersion}
