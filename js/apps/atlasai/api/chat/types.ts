@@ -20,6 +20,11 @@ export type ChatThread = {
     activeWorkflow?: {
       id: string;
     };
+    agent?: {
+      id: string;
+      name: string;
+      layout: "show-agentpanel"[];
+    };
   };
   createdAt: Date;
 };

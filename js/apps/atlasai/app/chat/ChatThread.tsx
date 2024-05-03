@@ -111,10 +111,10 @@ const ChatThread = (props: {
 
   return (
     <div class="h-full overflow-y-auto scroll:w-1 thumb:rounded thumb:bg-gray-400 space-y-6">
-      <Show when={getActiveChatThread()}>
+      <Show when={state.activeThreadId()}>
         <div class="w-full flex justify-between text-sm text-gray-700 bg-gray-50 border-b border-gray-100 overflow-hidden">
-          <div class="max-w-[450px] pl-20 pr-4 py-2 font-medium whitespace-nowrap overflow-hidden text-ellipsis">
-            {getActiveChatThread().title()}
+          <div class="flex max-w-[450px] pl-20 pr-4 py-2 items-center font-medium whitespace-nowrap overflow-hidden text-ellipsis">
+            {getActiveChatThread().title() || "Untitled"}
           </div>
           <div class="max-md:hidden md:flex basis-40 flex-col justify-center items-center pl-2 pr-8 py-1 text-xs whitespace-nowrap space-y-0.5">
             <Show when={getActiveChatThread().metadata.model()}>
@@ -132,7 +132,7 @@ const ChatThread = (props: {
           </div>
         </div>
       </Show>
-      <div ref={chatMessagesContainerRef} class="flex justify-center">
+      <div ref={chatMessagesContainerRef} class="flex justify-center items-center">
         <div class="px-4 flex-1 min-w-[350px] max-w-[750px]">
           <Switch>
             <Match
@@ -185,7 +185,7 @@ const ChatThread = (props: {
                             message={message}
                             task={
                               threadTaskExecutionsById.data[
-                                message.message.tool_calls[0].id() as any as number
+                              message.message.tool_calls[0].id() as any as number
                               ]
                             }
                             showDocument={props.showDocument}
@@ -202,7 +202,7 @@ const ChatThread = (props: {
                             }
                             selectedVersion={
                               selectedMessageVersionByParentId()?.[
-                                message.parentId()!
+                              message.parentId()!
                               ]
                             }
                             selectVersion={selectMessageVersion}

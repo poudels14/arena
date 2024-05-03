@@ -34,6 +34,12 @@ export namespace Chat {
       activeWorkflow?: {
         id: string;
       };
+      // If this thread is used to chat with agent, this field must be set
+      agent?: {
+        id: string;
+        name: string;
+        layout: "show-agentpanel"[];
+      };
     };
     createdAt: number;
 
