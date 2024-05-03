@@ -15,11 +15,13 @@ import {
 } from "solid-icons/hi";
 import { ChatContext, ChatContextProvider } from "./chat/ChatContext.tsx";
 import { createMutationQuery } from "@portal/solid-query";
+import { useSharedWorkspaceContext } from "@portal/workspace-sdk";
 
 const Chat = lazy(() => import("./chat/index.tsx"));
 const Profiles = lazy(() => import("./profiles/index.tsx"));
 
 const Assistant = () => {
+  const { isFocusModeOn, toggleFocusMode } = useSharedWorkspaceContext();
   const navigate = useNavigate();
   const threadIdMatcher = useMatcher(() => "/t/:threadId");
   return (
@@ -30,7 +32,9 @@ const Assistant = () => {
       }}
     >
       <div class="w-full h-screen flex flex-row">
-        <Sidebar />
+        <Show when={!isFocusModeOn()}>
+          <Sidebar />
+        </Show>
         <Route path="/profiles">
           <Profiles />
         </Route>
