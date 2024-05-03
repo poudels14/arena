@@ -6,7 +6,12 @@ tasks:
       - update-mac-release-version
       - build-electron
     cmds:
-      - echo $(pwd)
+      - echo $PORTAL_RELEASE_VERSION
+  release-linux:
+    deps:
+      - update-linux-release-version
+      - build-electron
+    cmds:
       - echo $PORTAL_RELEASE_VERSION
   validate-new-version:
     cmds:
@@ -37,6 +42,13 @@ tasks:
       website_pkg: $ARENA_ROOT/js/website/package.json
     cmds:
       - cat <<< $(jq --arg version "$PORTAL_RELEASE_VERSION" '."portal-config"."latest-desktop-versions"."mac" = $version' {{.website_pkg}}) > {{.website_pkg}}
+  update-linux-release-version:
+    deps:
+      - update-release-version
+    vars:
+      website_pkg: $ARENA_ROOT/js/website/package.json
+    cmds:
+      - cat <<< $(jq --arg version "$PORTAL_RELEASE_VERSION" '."portal-config"."latest-desktop-versions"."linux" = $version' {{.website_pkg}}) > {{.website_pkg}}
   build-runtime-js:
     deps:
       - clean-runtime-js

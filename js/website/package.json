@@ -10,7 +10,7 @@
   "portal-config": {
     "latest-desktop-versions": {
       "mac": "0.1.13",
-      "linux": "0.1.8"
+      "linux": "0.1.13"
     }
   },
   "dependencies": {
