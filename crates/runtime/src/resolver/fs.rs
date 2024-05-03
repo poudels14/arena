@@ -239,6 +239,7 @@ impl FilePathResolver {
             .or_else(|_| {
               self.resolve_from_imports(
                 &specifier,
+                &parsed_specifier,
                 maybe_package
                   .as_ref()
                   .map(|p| (p, &specifier_path))
@@ -336,6 +337,7 @@ impl FilePathResolver {
   fn resolve_from_imports(
     &self,
     specifier: &str,
+    parsed_specifier: &ParsedSpecifier,
     package: Option<(&Package, &PathBuf)>,
   ) -> Result<PathBuf> {
     if let Some((package, base_dir)) = package {
@@ -344,7 +346,12 @@ impl FilePathResolver {
         .as_ref()
         .and_then(|imports| imports.get(specifier))
         .and_then(|conditional_imports| {
-          get_matching_export(conditional_imports, &self.config.conditions).ok()
+          get_matching_export(
+            &parsed_specifier.sub_path,
+            conditional_imports,
+            &self.config.conditions,
+          )
+          .ok()
         })
         .and_then(|export| {
           package
@@ -435,12 +442,20 @@ impl FilePathResolver {
     match package.exports.as_ref() {
       Some(exports) => {
         // If there's a export for subpath use it, else use top level export
-        let exports = exports.get(specifier_subpath).unwrap_or(exports);
+        let exports = exports
+          .get(&format!("./{}", specifier_subpath))
+          .unwrap_or(exports);
         return match resolution {
-          ResolutionType::Require => {
-            get_matching_export(exports, &indexset! {"require".to_owned()})
-          }
-          _ => get_matching_export(exports, &self.config.conditions),
+          ResolutionType::Require => get_matching_export(
+            specifier_subpath,
+            exports,
+            &indexset! {"require".to_owned()},
+          ),
+          _ => get_matching_export(
+            specifier_subpath,
+            exports,
+            &self.config.conditions,
+          ),
         };
       }
       None => bail!("exports field missing in package.json"),
@@ -462,8 +477,8 @@ fn parse_specifier(specifier: &str) -> ParsedSpecifier {
   };
 
   let sub_path = match sub_path.len() == 0 {
-    true => format!(".{sub_path}"),
-    false => format!("./{sub_path}"),
+    true => ".".to_owned(),
+    false => sub_path,
   };
 
   ParsedSpecifier {
@@ -495,6 +510,7 @@ fn resolve_package_main(dir: &Path, package: &Package) -> Result<PathBuf> {
 /// Exports are selected based on this doc:
 /// https://webpack.js.org/guides/package-exports/
 fn get_matching_export(
+  specifier_subpath: &str,
   subpath_export: &Value,
   conditions: &IndexSet<String>,
 ) -> Result<String> {
@@ -505,7 +521,9 @@ fn get_matching_export(
   } else if let Some(exports) = subpath_export.as_array() {
     // Turns out exports can be of shape: [{key:value}, string]; LOL
     for export in exports {
-      if let Ok(result) = get_matching_export(export, conditions) {
+      if let Ok(result) =
+        get_matching_export(specifier_subpath, export, conditions)
+      {
         return Ok(result);
       }
     }
@@ -521,13 +539,28 @@ fn get_matching_export(
         let span =
           tracing::span!(Level::TRACE, "get_matching_export", condition);
         let _enter = span.enter();
-        if let Ok(result) = get_matching_export(value, conditions) {
+        if let Ok(result) =
+          get_matching_export(specifier_subpath, value, conditions)
+        {
           return Ok(result);
         }
       }
     }
+    if specifier_subpath == "." {
+      if let Some(export) = exports.get(".") {
+        return get_matching_export(specifier_subpath, export, conditions);
+      }
+    } else {
+      if let Some(export) = exports.get("./*") {
+        return get_matching_export(specifier_subpath, export, conditions)
+          // Some export might be in the format "./dist/*/index.jsx",
+          // so, replace "*" with specified_subpath
+          .map(|res| return res.replace("*", specifier_subpath));
+      }
+    }
     // Note(sagar): always try default export
     return get_matching_export(
+      specifier_subpath,
       exports
         .get("default")
         .ok_or(anyhow!("no matching condition found"))?,
