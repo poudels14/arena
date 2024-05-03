@@ -29,6 +29,7 @@ module.exports = {
       "@kobalte/core",
       "@portal-apps/assistant",
       "@portal-apps/drive",
+      "corvu",
     ],
   },
   client: {
