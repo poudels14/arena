@@ -9,7 +9,7 @@
   },
   "portal-config": {
     "latest-desktop-versions": {
-      "mac": "0.1.13",
+      "mac": "0.1.14",
       "linux": "0.1.13"
     }
   },

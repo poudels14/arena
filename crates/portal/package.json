@@ -1,6 +1,6 @@
 {
   "name": "portal",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "release": "napi build --release ../target/release/"
   },
   "napi": {
-    "name": "portal-0.1.13"
+    "name": "portal-0.1.14"
   },
   "keywords": [],
   "author": "",

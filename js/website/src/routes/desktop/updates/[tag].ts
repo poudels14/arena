@@ -1,7 +1,14 @@
 import semver from "semver";
 import { APIEvent } from "@solidjs/start/server";
 
-const MAC_VERSIONS = ["0.1.9", "0.1.10", "0.1.11", "0.1.12"];
+const MAC_VERSIONS = [
+  "0.1.9",
+  "0.1.10",
+  "0.1.11",
+  "0.1.12",
+  "0.1.13",
+  "0.1.14",
+];
 export async function GET({ params }: APIEvent) {
   const regex = [...params.tag.matchAll(/(\w+)-(\w+)-([0-9\.]+)/gm)];
   const os = regex[0][1];
