@@ -79,7 +79,9 @@ const ViewProfile = (props: {
             </div>
             <div class="space-y-1.5">
               <div class="text-base font-medium text-gray-800">Prompt</div>
-              <div class="text-sm whitespace-pre-wrap">{profile.data.template!()}</div>
+              <div class="text-sm whitespace-pre-wrap">
+                {profile.data.template!()}
+              </div>
             </div>
             <div class="space-y-1.5">
               <Switch>

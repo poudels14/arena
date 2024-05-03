@@ -20,7 +20,7 @@ import {
   HiOutlineDocumentChartBar,
   HiOutlineHome,
   HiOutlineCog6Tooth,
-  HiSolidNoSymbol
+  HiSolidNoSymbol,
 } from "solid-icons/hi";
 import { QueryContextProvider } from "@portal/solid-query";
 import {
@@ -54,7 +54,7 @@ const Workspace = () => {
 };
 
 const WorkspaceRouter = () => {
-  const { activeWorkspace, } = useSharedWorkspaceContext();
+  const { activeWorkspace } = useSharedWorkspaceContext();
 
   const portalDrive = createMemo(() => {
     const apps = activeWorkspace.apps();
@@ -151,7 +151,7 @@ const WorkspaceSidebar = () => {
   const isTab = createSelector(() => matcher()?.params?.tab || "home");
   const width = createMemo(() => {
     return isFocusModeOn() ? "25px" : "150px";
-  })
+  });
   return (
     <div class="max-md:hidden md:block bg-slate-50">
       <PortalSidebar
@@ -159,7 +159,7 @@ const WorkspaceSidebar = () => {
         class="py-4 h-[calc(100vh-theme(spacing.8))] text-sm tab:py-1.5 tab:text-gray-600 tab-hover:text-gray-700 tab-active:text-black tab-active:font-medium"
         classList={{
           "tab:justify-center": isFocusModeOn(),
-          "px-5": !isFocusModeOn()
+          "px-5": !isFocusModeOn(),
         }}
       >
         <SidebarTab

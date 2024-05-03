@@ -41,7 +41,7 @@ const FileExplorer = () => {
     const routeAppId = routeMatcher()?.params?.appId;
     const activeAppId = getActiveApp()?.id;
     return routeAppId || activeAppId;
-  })
+  });
 
   const navigate = useNavigate();
   const goToDirectory = (id: string, appId?: string) => {
@@ -109,9 +109,9 @@ const FileExplorer = () => {
           },
           selection: selection
             ? {
-              id: selection.id,
-              type: selection.isDirectory ? "directory" : "file",
-            }
+                id: selection.id,
+                type: selection.isDirectory ? "directory" : "file",
+              }
             : undefined,
           breadcrumbs,
         },
@@ -225,7 +225,7 @@ const SharedWithMe = () => {
       id={"shared"}
       name={"Shared with me"}
       selected={false}
-      onClick={() => { }}
+      onClick={() => {}}
       onDblClick={() => {
         goToDirectory("shared");
       }}
