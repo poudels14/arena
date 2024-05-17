@@ -1,4 +1,5 @@
 import { filter, mergeScan, of, skipWhile } from "rxjs";
+
 import { Edge } from "../core/graph";
 import { AgentNode, ZodObjectSchema } from "../core/node";
 import { EventStream } from "../core/stream";
@@ -39,7 +40,14 @@ export class ActorNode<
 
     const eventFilter = this.inputEdges.map((edge) => edge.from.node);
     stream
-      .pipe(filter((event) => eventFilter.includes(event.node.id)))
+      .pipe(
+        filter(
+          (event) =>
+            eventFilter.includes(event.node.id) &&
+            // filter out the output not used by this agent node
+            inputFieldsMapByOutputNode[event.node.id]
+        )
+      )
       .pipe(
         mergeScan((acc, curr) => {
           const fieldMap = inputFieldsMapByOutputNode[curr.node.id];

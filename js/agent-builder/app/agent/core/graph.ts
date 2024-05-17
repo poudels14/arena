@@ -1,22 +1,29 @@
-export type Node = {
-  id: string;
-  type: string;
-  config: any;
-};
+import z from "zod";
 
-export type Edge = {
-  id: string;
-  from: {
-    node: string;
-    outputKey: string;
-  };
-  to: {
-    node: string;
-    inputKey: string;
-  };
-};
+const node = z.object({
+  id: z.string(),
+  type: z.string(),
+  config: z.any(),
+});
 
-export type Graph = {
-  nodes: Node[];
-  edges: Edge[];
-};
+const edge = z.object({
+  id: z.string(),
+  from: z.object({
+    node: z.string(),
+    outputKey: z.string(),
+  }),
+  to: z.object({
+    node: z.string(),
+    inputKey: z.string(),
+  }),
+});
+
+const graph = z.object({
+  nodes: z.array(node),
+  edges: z.array(edge),
+});
+
+export { node, edge, graph };
+export type Node = z.infer<typeof node>;
+export type Edge = z.infer<typeof edge>;
+export type Graph = z.infer<typeof graph>;

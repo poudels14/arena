@@ -16,6 +16,7 @@ export type Metadata<
   Input extends ZodObjectSchema,
   Output extends ZodObjectSchema
 > = {
+  id: string;
   name: string;
   version: string;
   config: Config;
@@ -23,11 +24,15 @@ export type Metadata<
   output: Output;
 };
 
+export const IS_AGENT_NODE = Symbol("_AGENT_NODE_");
+
 export abstract class AgentNode<
   Config extends ZodObjectSchema,
   Input extends ZodObjectSchema,
   Output extends ZodObjectSchema
 > {
+  static [IS_AGENT_NODE]: boolean = true;
+
   abstract get metadata(): Metadata<Config, Input, Output>;
 
   abstract run(

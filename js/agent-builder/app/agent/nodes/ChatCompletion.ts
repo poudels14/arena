@@ -1,6 +1,5 @@
 import dedent from "dedent";
-import { ReplaySubject } from "rxjs";
-import { z } from "zod";
+import { ReplaySubject, Subject } from "rxjs";
 import { ChatCompletionExecutor } from "@portal/cortex/executors";
 import { ChatPromptTemplate, MessagesPlaceholder } from "@portal/cortex/prompt";
 import {
@@ -8,24 +7,26 @@ import {
   parseStringResponse,
 } from "@portal/cortex/plugins/response";
 import { Groq } from "@portal/cortex/integrations/models";
+
+import { z } from "../core/zod";
 import { AgentNode } from "../core/node";
 import { Context } from "../core/context";
 
 const config = z.object({
-  systemPrompt: z.string(),
-  temperature: z.number(),
-  stream: z.boolean().optional(),
+  systemPrompt: z.string().title("System Prompt"),
+  temperature: z.number().title("temperature"),
+  stream: z.boolean().optional().title("Stream"),
 });
 
 const input = z.object({
-  query: z.string(),
-  context: z.string().optional(),
-  chatHistory: z.any().optional(),
+  query: z.string().title("Query"),
+  context: z.string().optional().title("Context"),
+  chatHistory: z.any().array().optional().title("Chat History"),
 });
 
 const output = z.object({
-  stream: z.any(),
-  markdown: z.string(),
+  stream: z.instanceof(Subject).title("Markdown stream"),
+  markdown: z.string().title("Markdown"),
 });
 
 export class ChatCompletion extends AgentNode<
@@ -35,8 +36,9 @@ export class ChatCompletion extends AgentNode<
 > {
   get metadata() {
     return {
-      name: "@core/chat-completion",
+      id: "@core/chat-completion",
       version: "0.0.1",
+      name: "Chat completion",
       config,
       input,
       output,
@@ -87,7 +89,7 @@ export class ChatCompletion extends AgentNode<
       },
       plugins: [
         createStreamDeltaStringSubscriber((chunk) => {
-          stream.next({ type: "content", delta: chunk });
+          stream.next({ type: "content/delta", delta: chunk });
         }),
       ],
     });

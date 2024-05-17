@@ -1,5 +1,6 @@
-import { z } from "zod";
 import { uniqueId } from "@portal/cortex/utils/uniqueId";
+
+import { z } from "../core/zod";
 import { AgentNode } from "../core/node";
 import { Context } from "../core/context";
 
@@ -10,8 +11,8 @@ const input = z.object({
 });
 
 const output = z.object({
-  threadId: z.string(),
-  history: z.any().array(),
+  threadId: z.string().title("Thread Id"),
+  history: z.any().array().title("History"),
 });
 
 export class ChatThread extends AgentNode<
@@ -21,8 +22,9 @@ export class ChatThread extends AgentNode<
 > {
   get metadata() {
     return {
-      name: "@core/chat-thread",
+      id: "@core/chat-thread",
       version: "0.0.1",
+      name: "Chat thread",
       config,
       input,
       output,
