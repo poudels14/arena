@@ -1,0 +1,25 @@
+.react-flow__handle.source {
+  @apply bg-indigo-300;
+}
+
+.react-flow__handle.target {
+  @apply bg-purple-300;
+}
+
+.dash.animate {
+  animation: dash 30s linear infinite;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -200;
+  }
+}
+
+.agent-editor .react-flow__handle-connecting {
+  @apply !bg-pink-600;
+}
+
+.agent-editor .react-flow__handle-valid {
+  @apply !bg-green-600;
+}
