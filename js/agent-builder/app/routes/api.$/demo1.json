@@ -1,0 +1,108 @@
+{
+  "graph": {
+    "nodes": [
+      {
+        "id": "input",
+        "type": "@core/input",
+        "config": {},
+        "ui": {
+          "label": "Workflow Entry",
+          "type": "agentInput",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "draggable": false
+        }
+      },
+      {
+        "id": "chat-completion-1",
+        "type": "@core/chat-completion",
+        "config": {
+          "systemPrompt": "You are an AI assistant called Atlas",
+          "temperature": 0.7,
+          "stream": true
+        },
+        "ui": {
+          "label": "Chat completion",
+          "type": "agentNode",
+          "position": {
+            "x": 200,
+            "y": -1.1111111111111143
+          }
+        }
+      },
+      {
+        "id": "user",
+        "type": "@core/user",
+        "config": {},
+        "ui": {
+          "label": "User",
+          "type": "user",
+          "position": {
+            "x": 0,
+            "y": 400
+          },
+          "draggable": false
+        }
+      },
+      {
+        "id": "svrHjZaa5cXdm",
+        "type": "@core/chat-completion",
+        "config": {
+          "systemPrompt": "You are an AI assistant!!!!",
+          "temperature": "0.1",
+          "stream": false
+        },
+        "ui": {
+          "label": "Chat completion",
+          "type": "agentNode",
+          "position": {
+            "x": 714.4444444444443,
+            "y": -37.77777777777777
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge-1",
+        "from": {
+          "node": "input",
+          "outputKey": "query"
+        },
+        "to": {
+          "node": "chat-completion-1",
+          "inputKey": "query"
+        },
+        "ui": {}
+      },
+      {
+        "id": "chat-completion-1-markdown-svrHjZaa5cXdm-query",
+        "from": {
+          "node": "chat-completion-1",
+          "outputKey": "markdown"
+        },
+        "to": {
+          "node": "svrHjZaa5cXdm",
+          "inputKey": "query"
+        },
+        "ui": {}
+      },
+      {
+        "id": "svrHjZaa5cXdm-stream-user-stream",
+        "from": {
+          "node": "svrHjZaa5cXdm",
+          "outputKey": "stream"
+        },
+        "to": {
+          "node": "user",
+          "inputKey": "stream"
+        },
+        "ui": {
+          "type": "step"
+        }
+      }
+    ]
+  }
+}
