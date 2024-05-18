@@ -13,6 +13,7 @@ const AgentNode = (props: any) => {
   );
 
   const nodeConfig = agentNodes.find((node) => node.id == props.data.type) || {
+    icon: undefined,
     config: [],
     inputs: [],
     outputs: [],
@@ -37,11 +38,22 @@ const AgentNode = (props: any) => {
       <div>
         <div
           className={clsx(
-            "p-3 title border-b border-gray-200 overflow-hidden text-sm text-ellipsis whitespace-nowrap",
+            "title flex p-3 items-center space-x-3 border-b border-gray-200 overflow-hidden text-sm text-ellipsis whitespace-nowrap",
             isHighlighted && "bg-slate-100"
           )}
         >
-          {props.data.label}
+          {nodeConfig.icon && (
+            <div
+              className={clsx({
+                "text-gray-500": !isHighlighted,
+                "text-indigo-500": isHighlighted,
+              })}
+              dangerouslySetInnerHTML={{ __html: nodeConfig.icon }}
+            ></div>
+          )}
+          <div className="overflow-hidden text-ellipsis">
+            {props.data.label} NICE SADAS SA DSA DASD ASDAS DAS ADS AD ASD S
+          </div>
         </div>
         {nodeConfig.inputs.length > 0 && (
           <div>

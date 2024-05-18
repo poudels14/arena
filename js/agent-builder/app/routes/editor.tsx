@@ -1,11 +1,11 @@
 import { json } from "@remix-run/node";
 import { useLoaderData, Outlet } from "@remix-run/react";
 
-import { AgentNodeContextProvider } from "../editor/AgentNodes";
+import { AgentNode, AgentNodeContextProvider } from "../editor/AgentNodes";
 import { listNodes } from "../agent/nodes";
 
 export async function loader() {
-  const nodes = await listNodes();
+  const nodes: AgentNode[] = await listNodes();
   return json({
     nodes,
   });
