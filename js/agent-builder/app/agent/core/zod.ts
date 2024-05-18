@@ -1,13 +1,23 @@
 import z from "zod";
 
-z.ZodType.prototype.title = function (title: string) {
-  this._def.title = title;
+type UISchema = {
+  type?: "textarea";
+};
+
+z.ZodType.prototype.label = function (label: string) {
+  this._def.label = label;
+  return this;
+};
+
+z.ZodType.prototype.uiSchema = function (uiSchema: UISchema) {
+  this._def.uiSchema = uiSchema;
   return this;
 };
 
 declare module "zod" {
   interface ZodTypeDef {
-    title?: string;
+    label?: string;
+    uiSchema?: UISchema;
   }
 
   interface ZodType<
@@ -15,7 +25,15 @@ declare module "zod" {
     Def extends ZodTypeDef = ZodTypeDef,
     Input = Output
   > {
-    title<T extends z.ZodTypeAny>(this: T, title: string): T;
+    label<T extends z.ZodTypeAny>(this: T, label: string): T;
+  }
+
+  interface ZodType<
+    Output = any,
+    Def extends ZodTypeDef = ZodTypeDef,
+    Input = Output
+  > {
+    uiSchema<T extends z.ZodTypeAny>(this: T, uiSchema: UISchema): T;
   }
 }
 

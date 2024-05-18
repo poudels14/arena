@@ -1,4 +1,6 @@
 import { glob } from "glob";
+import { omit } from "lodash-es";
+import zodToJsonSchema from "zod-to-json-schema";
 
 import { AgentNode, IS_AGENT_NODE, ZodObjectSchema } from "../core/node";
 
@@ -26,22 +28,44 @@ const listNodes = async () => {
       id: node.metadata.id,
       version: node.metadata.version,
       name: node.metadata.name,
+      icon: node.metadata.icon,
       config: Object.entries(config).map(([key, shape]) => {
+        if (!shape._def.label) {
+          throw new Error(`label missing from config field: "${key}"`);
+        }
+        const schema = omit(zodToJsonSchema(shape), "$schema");
+        if (schema.default == undefined) {
+          throw new Error(`default value missing from config field: "${key}"`);
+        }
         return {
           id: key,
-          title: shape._def.title as string,
+          label: shape._def.label as string,
+          schema,
+          ui: {
+            type: shape._def.uiSchema?.type,
+          },
         };
       }),
       inputs: Object.entries(inputs).map(([key, shape]) => {
+        if (!shape._def.label) {
+          throw new Error(`label missing from input field: "${key}"`);
+        }
+        const schema = omit(zodToJsonSchema(shape), "$schema");
         return {
           id: key,
-          title: shape._def.title as string,
+          label: shape._def.label as string,
+          schema,
         };
       }),
       outputs: Object.entries(outputs).map(([key, shape]) => {
+        if (!shape._def.label) {
+          throw new Error(`label missing from output field: "${key}"`);
+        }
+        const schema = omit(zodToJsonSchema(shape), "$schema");
         return {
           id: key,
-          title: shape._def.title as string,
+          label: shape._def.label as string,
+          schema,
         };
       }),
     };

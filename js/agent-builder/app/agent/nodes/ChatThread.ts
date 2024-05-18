@@ -7,12 +7,12 @@ import { Context } from "../core/context";
 const config = z.object({});
 
 const input = z.object({
-  threadId: z.string().nullable(),
+  threadId: z.string().nullable().label("Thread id"),
 });
 
 const output = z.object({
-  threadId: z.string().title("Thread Id"),
-  history: z.any().array().title("History"),
+  threadId: z.string().label("Thread id"),
+  history: z.any().array().label("History"),
 });
 
 export class ChatThread extends AgentNode<

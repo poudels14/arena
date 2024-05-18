@@ -7,26 +7,35 @@ import {
   parseStringResponse,
 } from "@portal/cortex/plugins/response";
 import { Groq } from "@portal/cortex/integrations/models";
+import { renderToString } from "react-dom/server";
+import { HiSparkles } from "react-icons/hi";
 
 import { z } from "../core/zod";
 import { AgentNode } from "../core/node";
 import { Context } from "../core/context";
+import React from "react";
 
 const config = z.object({
-  systemPrompt: z.string().title("System Prompt"),
-  temperature: z.number().title("temperature"),
-  stream: z.boolean().optional().title("Stream"),
+  systemPrompt: z
+    .string()
+    .default("You are an AI assistant.")
+    .label("System Prompt")
+    .uiSchema({
+      type: "textarea",
+    }),
+  temperature: z.number().default(0.9).label("Temperature"),
+  stream: z.boolean().default(false).label("Stream"),
 });
 
 const input = z.object({
-  query: z.string().title("Query"),
-  context: z.string().optional().title("Context"),
-  chatHistory: z.any().array().optional().title("Chat History"),
+  query: z.string().label("Query"),
+  context: z.string().default("").label("Context"),
+  chatHistory: z.any().array().default([]).label("Chat History"),
 });
 
 const output = z.object({
-  stream: z.instanceof(Subject).title("Markdown stream"),
-  markdown: z.string().title("Markdown"),
+  stream: z.instanceof(Subject).label("Markdown stream"),
+  markdown: z.string().label("Markdown"),
 });
 
 export class ChatCompletion extends AgentNode<
@@ -39,6 +48,7 @@ export class ChatCompletion extends AgentNode<
       id: "@core/chat-completion",
       version: "0.0.1",
       name: "Chat completion",
+      icon: renderToString(React.createElement(HiSparkles, {})),
       config,
       input,
       output,

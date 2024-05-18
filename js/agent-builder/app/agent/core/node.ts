@@ -19,6 +19,7 @@ export type Metadata<
   id: string;
   name: string;
   version: string;
+  icon?: string;
   config: Config;
   input: Input;
   output: Output;

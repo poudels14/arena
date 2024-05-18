@@ -8,7 +8,7 @@ const input = z.object({});
 
 const output = z
   .object({
-    query: z.string().title("Query"),
+    query: z.string().label("Query"),
   })
   .passthrough();
 

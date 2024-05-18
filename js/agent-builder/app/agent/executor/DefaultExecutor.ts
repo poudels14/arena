@@ -35,7 +35,6 @@ class DefaultExecutorBuilder {
         (edge) => edge.to.node == node.id || edge.from.node == node.id
       );
       const Node = this.#agentNodesByName[node.type];
-      console.log("node =", node);
       if (!Node) {
         throw new Error(`Agent node of type [${node.type}] not found`);
       }

@@ -6,11 +6,11 @@ import { Subject } from "rxjs";
 const config = z.object({});
 
 const input = z.object({
-  stream: z.instanceof(Subject).title("Stream"),
+  stream: z.instanceof(Subject).label("Stream"),
 });
 
 const output = z.object({
-  stream: z.instanceof(Subject).title("Stream"),
+  stream: z.instanceof(Subject).label("Stream"),
 });
 
 export class User extends AgentNode<
