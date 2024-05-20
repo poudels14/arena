@@ -1,3 +1,4 @@
+import React from "react";
 import dedent from "dedent";
 import { ReplaySubject, Subject } from "rxjs";
 import { ChatCompletionExecutor } from "@portal/cortex/executors";
@@ -7,15 +8,11 @@ import {
   parseStringResponse,
 } from "@portal/cortex/plugins/response";
 import { Groq } from "@portal/cortex/integrations/models";
+import { z, AgentNode, Context } from "@portal/cortex/agent";
 import { renderToString } from "react-dom/server";
 import { HiSparkles } from "react-icons/hi";
 
-import { z } from "../core/zod";
-import { AgentNode } from "../core/node";
-import { Context } from "../core/context";
-import React from "react";
-
-const config = z.object({
+const configSchema = z.object({
   systemPrompt: z
     .string()
     .default("You are an AI assistant.")
@@ -23,7 +20,7 @@ const config = z.object({
     .uiSchema({
       type: "textarea",
     }),
-  temperature: z.number().default(0.9).label("Temperature"),
+  temperature: z.number({ coerce: true }).default(0.9).label("Temperature"),
   stream: z.boolean().default(false).label("Stream"),
 });
 
@@ -31,15 +28,17 @@ const input = z.object({
   query: z.string().label("Query"),
   context: z.string().default("").label("Context"),
   chatHistory: z.any().array().default([]).label("Chat History"),
+  tools: z.any().array().label("Tools"),
 });
 
 const output = z.object({
   stream: z.instanceof(Subject).label("Markdown stream"),
   markdown: z.string().label("Markdown"),
+  tools: z.any().array().label("Tool calls"),
 });
 
 export class ChatCompletion extends AgentNode<
-  typeof config,
+  typeof configSchema,
   typeof input,
   typeof output
 > {
@@ -49,7 +48,7 @@ export class ChatCompletion extends AgentNode<
       version: "0.0.1",
       name: "Chat completion",
       icon: renderToString(React.createElement(HiSparkles, {})),
-      config,
+      config: configSchema,
       input,
       output,
     };
@@ -62,7 +61,7 @@ export class ChatCompletion extends AgentNode<
     >,
     input: z.infer<typeof this.metadata.input>
   ) {
-    const { config } = context;
+    const config = configSchema.parse(context.config);
     const prompt = ChatPromptTemplate.fromMessages([
       [
         "system",
@@ -108,6 +107,7 @@ export class ChatCompletion extends AgentNode<
     const ctxt = await res;
 
     const response = parseStringResponse(ctxt);
+    stream.complete();
     yield {
       markdown: response,
     };

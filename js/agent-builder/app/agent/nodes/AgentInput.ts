@@ -1,6 +1,4 @@
-import { z } from "../core/zod";
-import { AgentNode } from "../core/node";
-import { Context } from "../core/context";
+import { z, AgentNode, Context } from "@portal/cortex/agent";
 
 const config = z.object({});
 

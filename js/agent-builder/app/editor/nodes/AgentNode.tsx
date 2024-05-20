@@ -52,7 +52,7 @@ const AgentNode = (props: any) => {
             ></div>
           )}
           <div className="overflow-hidden text-ellipsis">
-            {props.data.label} NICE SADAS SA DSA DASD ASDAS DAS ADS AD ASD S
+            {props.data.label}
           </div>
         </div>
         {nodeConfig.inputs.length > 0 && (
