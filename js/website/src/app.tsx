@@ -9,11 +9,11 @@ import Footer from "./navigation/footer";
 export default function App() {
   return (
     <div class="dark:bg-slate-900">
-      <NavigationBar />
+      {/* <NavigationBar /> */}
       <Router root={(props) => <Suspense>{props.children}</Suspense>}>
         <FileRoutes />
       </Router>
-      <Footer />
+      {/* <Footer /> */}
     </div>
   );
 }
